@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Roserade
+  m_EditorClassIdentifier: 
+  _name: Roserade
+  _wildType: 2
+  _description: 
+  _frontSprite: {fileID: -1730170597587182621, guid: 368904abb8b97264d8ee3bcbb5ac10f3, type: 3}
+  _backSprite: {fileID: -1730170597587182621, guid: 368904abb8b97264d8ee3bcbb5ac10f3, type: 3}
+  _battlePortrait: {fileID: 21300000, guid: 07b3f0d1e89a857428be7d13fcecf0a9, type: 3}
+  _type1: 5
+  _type2: 8
+  _maxHP: 60
+  _maxPP: 60
+  _attack: 70
+  _defense: 65
+  _spAttack: 125
+  _spDefense: 105
+  _speed: 90
+  _learnableMoves:
+  - _moveBase: {fileID: 11400000, guid: 2c900b0013741174fb5f0edf5ffb9520, type: 2}
+    _levelLearned: 1
+  - _moveBase: {fileID: 11400000, guid: fcf8759411f371d4092c335950d30bd3, type: 2}
+    _levelLearned: 15
+  - _moveBase: {fileID: 11400000, guid: 41ebdf6a5bc4ec84d85132981314bec8, type: 2}
+    _levelLearned: 17
+  - _moveBase: {fileID: 11400000, guid: 462480866f3cbd3419a9f2b0cc76eca8, type: 2}
+    _levelLearned: 47

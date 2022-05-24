@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Lilligant
+  m_EditorClassIdentifier: 
+  _name: Lilligant
+  _wildType: 1
+  _description: 
+  _frontSprite: {fileID: 2178025034381545353, guid: 61916ad6d6be76e40812e368debfeb31, type: 3}
+  _backSprite: {fileID: 2178025034381545353, guid: 61916ad6d6be76e40812e368debfeb31, type: 3}
+  _battlePortrait: {fileID: -9105858694801862702, guid: 61916ad6d6be76e40812e368debfeb31, type: 3}
+  _type1: 5
+  _type2: 0
+  _maxHP: 70
+  _maxPP: 70
+  _attack: 60
+  _defense: 75
+  _spAttack: 110
+  _spDefense: 75
+  _speed: 90
+  _learnableMoves:
+  - _moveBase: {fileID: 11400000, guid: 2c900b0013741174fb5f0edf5ffb9520, type: 2}
+    _levelLearned: 1
