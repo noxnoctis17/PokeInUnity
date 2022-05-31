@@ -8,11 +8,13 @@ public class WildPokemonSpawnEvents : MonoBehaviour
     public static event Action OnPokeDespawn;
     [SerializeField] private float _minDespawnTime;
     [SerializeField] private float _maxDespawnTime;
+    private WildPokemon _wildPokemon;
     
     private void Start(){
         OnPokeSpawn?.Invoke();
         BattleSystem.OnBattleStarted += DestroyWildMonInstance;
         StartCoroutine(DespawnTimer());
+        _wildPokemon = GetComponent<WildPokemon>();
     }
 
     private IEnumerator DespawnTimer(){
@@ -25,8 +27,12 @@ public class WildPokemonSpawnEvents : MonoBehaviour
     private void DestroyWildMonInstance(){
         StopCoroutine(DespawnTimer());
         OnPokeDespawn?.Invoke();
-        BattleSystem.OnBattleStarted -= DestroyWildMonInstance;
-        Destroy(this.gameObject);
-    }
 
+        if( !_wildPokemon.Collided ){
+            BattleSystem.OnBattleStarted -= DestroyWildMonInstance;
+            Destroy(this.gameObject);
+        } else {
+            BattleSystem.OnBattleStarted -= DestroyWildMonInstance;
+        }
+    }
 }

@@ -23,6 +23,8 @@ public class WildPokemon : MonoBehaviour
     public delegate PokemonClass PokeSODelegate(PokemonClass wildPkmn);
     public static PokeSODelegate pokeSODelegate;
     private BoxCollider _boxCollider;
+    private bool _collided;
+    public bool Collided => _collided;
 
     //-----------------------------------------------------------
 
@@ -43,6 +45,7 @@ public class WildPokemon : MonoBehaviour
 
     private void OnTriggerEnter(Collider col){
         if(col.gameObject.tag == "Player"){
+            _collided = true;
             wildPokemon.Init();
             pokeSODelegate = (wildPokemon) => { return this.wildPokemon; };
             OnWildPokemonCollided?.Invoke();
