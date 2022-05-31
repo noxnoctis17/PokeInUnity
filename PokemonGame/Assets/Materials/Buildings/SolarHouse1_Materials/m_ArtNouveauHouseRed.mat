@@ -47,7 +47,7 @@ Material:
     m_Floats:
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Tiling: 1
+    - _Tiling: 2
     m_Colors:
     - _BrickColor1: {r: 0.46226412, g: 0.002180497, b: 0.21691447, a: 1}
     - _BrickColor2: {r: 0.8490566, g: 0.22025958, b: 0.14818436, a: 0}

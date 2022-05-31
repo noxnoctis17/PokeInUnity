@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 0e9dc1407d4afca46954f4cf39f76b4d
+guid: 676a72ae0547b164487c49ec9ce7f53d
 ModelImporter:
   serializedVersion: 22102
   internalIDToNameTable: []
@@ -40,7 +40,7 @@ ModelImporter:
     addColliders: 0
     useSRGBMaterialColor: 1
     sortHierarchyByName: 1
-    importVisibility: 0
+    importVisibility: 1
     importBlendShapes: 1
     importCameras: 0
     importLights: 0
@@ -52,7 +52,7 @@ ModelImporter:
     keepQuads: 0
     weldVertices: 1
     bakeAxisConversion: 0
-    preserveHierarchy: 0
+    preserveHierarchy: 1
     skinWeightsMode: 0
     maxBonesPerVertex: 4
     minBoneWeight: 0.001
@@ -100,7 +100,7 @@ ModelImporter:
   humanoidOversampling: 1
   avatarSetup: 0
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
-  importBlendShapeDeformPercent: 1
+  importBlendShapeDeformPercent: 0
   additionalBone: 0
   userData: 
   assetBundleName: 
