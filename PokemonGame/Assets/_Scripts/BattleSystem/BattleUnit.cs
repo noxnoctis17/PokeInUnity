@@ -18,7 +18,7 @@ public class BattleUnit : MonoBehaviour
 
     private void Start(){
         if( _isAI )
-        _battleAI = GetComponent<BattleAI>();
+            _battleAI = GetComponent<BattleAI>();
     }
 
     public void Setup( PokemonClass pokemon ){
@@ -27,7 +27,7 @@ public class BattleUnit : MonoBehaviour
         Pokemon = pokemon;
         _battleHUD.SetData(Pokemon);
 
-        Instantiate(_fieldUnitPrefab);
+        Instantiate(_fieldUnitPrefab, PlayerReferences.PlayerTransform.position, Quaternion.identity);
         _onFieldUnit = _fieldUnitPrefab.GetComponent<OnFieldUnit>();
         _onFieldUnit.Setup(_pokeSO);
     }

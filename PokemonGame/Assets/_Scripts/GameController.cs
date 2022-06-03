@@ -23,7 +23,7 @@ public class GameController : MonoBehaviour
     private IEnumerator StartWildBattle(){
         var playerParty = _player.GetComponent<PokemonParty>();
         var wildPokemon = WildPokemon.pokeSODelegate(_wildMon);
-
+        Debug.Log(_wildMon);
         yield return new WaitForSeconds(0.2f); //--battle start animation
         _battleSystem.StartWildBattle(playerParty, wildPokemon);
 

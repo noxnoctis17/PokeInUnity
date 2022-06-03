@@ -20,7 +20,7 @@ public class WildPokemon : MonoBehaviour
 
     public static event Action OnWildPokemonCollided;
     public static Vector3 WildPokemonLocation;
-    public delegate PokemonClass PokeSODelegate(PokemonClass wildPkmn);
+    public delegate PokemonClass PokeSODelegate( PokemonClass wildPkmn );
     public static PokeSODelegate pokeSODelegate;
     private BoxCollider _boxCollider;
     private bool _collided;
@@ -38,13 +38,14 @@ public class WildPokemon : MonoBehaviour
 
     private IEnumerator CollisionDelay()
     {
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds( 0.25f );
         _boxCollider.enabled = true;
         yield return null;
     }
 
-    private void OnTriggerEnter(Collider col){
-        if(col.gameObject.tag == "Player"){
+    private void OnTriggerEnter( Collider col ){
+        if( col.CompareTag( "Player" ) ){
+            _boxCollider.enabled = false;
             _collided = true;
             wildPokemon.Init();
             pokeSODelegate = (wildPokemon) => { return this.wildPokemon; };

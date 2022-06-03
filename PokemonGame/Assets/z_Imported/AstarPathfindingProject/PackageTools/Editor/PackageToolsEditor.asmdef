@@ -1,7 +1,11 @@
 {
     "name": "PackageToolsEditor",
     "references": [
-        "AstarPathfindingProject"
+        "AstarPathfindingProject",
+        "UnityEditor.UI",
+        "UnityEngine.UI",
+        "UnityEditor.TestRunner",
+        "UnityEngine.TestRunner"
     ],
     "optionalUnityReferences": [],
     "includePlatforms": [
