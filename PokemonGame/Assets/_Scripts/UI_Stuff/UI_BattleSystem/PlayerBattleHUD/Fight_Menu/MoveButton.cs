@@ -31,7 +31,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
 
     public void OnSubmit(BaseEventData baseEventData){
         BattleUIActions.OnSubMenuClosed?.Invoke();
-        _battleSystem.SetPlayerMoveCommand(_fightMenu.playerUnit, AssignedMove);
+        _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
         BattleUIActions.OnCommandUsed?.Invoke();
     }
 

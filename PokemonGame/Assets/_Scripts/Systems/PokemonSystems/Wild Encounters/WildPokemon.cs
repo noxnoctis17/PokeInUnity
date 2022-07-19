@@ -20,7 +20,7 @@ public class WildPokemon : MonoBehaviour
 
     public static event Action OnWildPokemonCollided;
     public static Vector3 WildPokemonLocation;
-    public delegate PokemonClass PokeSODelegate( PokemonClass wildPkmn );
+    public delegate PokemonClass PokeSODelegate();
     public static PokeSODelegate pokeSODelegate;
     private BoxCollider _boxCollider;
     private bool _collided;
@@ -48,7 +48,8 @@ public class WildPokemon : MonoBehaviour
             _boxCollider.enabled = false;
             _collided = true;
             wildPokemon.Init();
-            pokeSODelegate = (wildPokemon) => { return this.wildPokemon; };
+            Debug.Log("wildPokemon");
+            pokeSODelegate = () => this.wildPokemon;
             OnWildPokemonCollided?.Invoke();
             WildPokemonLocation = transform.position;
         }

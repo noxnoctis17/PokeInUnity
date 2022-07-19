@@ -47,3 +47,6 @@ TagManager:
   - name: Player
     uniqueID: 677566043
     locked: 0
+  - name: DamagePopupText
+    uniqueID: 3405590665
+    locked: 0

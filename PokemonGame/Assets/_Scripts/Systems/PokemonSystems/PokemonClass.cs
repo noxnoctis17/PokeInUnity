@@ -6,8 +6,10 @@ using System;
 [System.Serializable]
 public class PokemonClass
 {
-    [SerializeField] PokemonSO _pokeSO;
-    [SerializeField] int _level;
+    [SerializeField] private PokemonSO _pokeSO;
+    [SerializeField] private int _level;
+    [SerializeField] private Transform _showDamageTakenText;
+    [SerializeField] private Transform _showMoveUsedText;
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
     public int currentHP {get; set;}
@@ -38,22 +40,18 @@ public class PokemonClass
 //---------------------------------------FUNCTIONS--------------------------------------------
 //--------------------------------------------------------------------------------------------
 
-    private void OnEnable()
-    {
+    private void OnEnable(){
         BattleSystem.OnBattleEnded += ResetStatBoost;
         BattleSystem.OnBattleEnded += CureVolatileStatus;
     }
     
-    public void Init()
-    {
+    public void Init(){
         Moves = new List<MoveClass>();
 
         //--------GENERATE MOVES-----------
 
-        foreach(var move in PokeSO.LearnableMoves)
-        {
-            if(move.LevelLearned <= Level)
-            {
+        foreach(var move in PokeSO.LearnableMoves){
+            if(move.LevelLearned <= Level){
                 Moves.Add(new MoveClass(move.MoveBase));
             }
 
@@ -70,8 +68,7 @@ public class PokemonClass
         VolatileStatus = null;
     }
 
-    private void CalculateStats()
-    {
+    private void CalculateStats(){
         Stats = new Dictionary<Stat, int>();
 
         Stats.Add(Stat.Attack, Mathf.FloorToInt(( 2 * PokeSO.Attack * Level ) / 100f ) + 5);
@@ -84,8 +81,7 @@ public class PokemonClass
         MaxPP = Mathf.FloorToInt(( 2 * PokeSO.MaxPP * Level ) / 200 ) + Level + 10;
     }
 
-    private int GetStat(Stat stat)
-    {
+    private int GetStat(Stat stat){
         int statValue = Stats[stat];
 
         int boost = StatBoosts[stat];
@@ -99,10 +95,8 @@ public class PokemonClass
         return statValue;
     }
 
-    public void ApplyStatBoost(List<StatBoost> statBoosts)
-    {
-        foreach(var statBoost in statBoosts)
-        {
+    public void ApplyStatBoost(List<StatBoost> statBoosts){
+        foreach(var statBoost in statBoosts){
             var stat = statBoost.Stat;
             var boost = statBoost.Boost;
 
@@ -112,10 +106,8 @@ public class PokemonClass
         }
     }
 
-    private void ResetStatBoost()
-    {
-        StatBoosts = new Dictionary<Stat, int>()
-        {
+    private void ResetStatBoost(){
+        StatBoosts = new Dictionary<Stat, int>(){
             {Stat.Attack,    0},
             {Stat.Defense,   0},
             {Stat.SpAttack,  0},
@@ -126,14 +118,12 @@ public class PokemonClass
         };
     }
 
-    public void UpdateHP(int damage)
-    {
+    public void UpdateHP(int damage){
         currentHP = Mathf.Clamp(currentHP - damage, 0, MaxHP);
         HPChanged = true;
     }
 
-    public void SetSevereStatus(ConditionID conditionID)
-    {
+    public void SetSevereStatus(ConditionID conditionID){
         if(SevereStatus != null) return;
 
         SevereStatus = ConditionsDB.Conditions[conditionID];
@@ -142,14 +132,12 @@ public class PokemonClass
         OnStatusChanged?.Invoke();
     }
 
-    public void CureSevereStatus()
-    {
+    public void CureSevereStatus(){
         SevereStatus = null;
         OnStatusChanged?.Invoke();
     }
 
-    public void SetVolatileStatus(ConditionID conditionID)
-    {
+    public void SetVolatileStatus(ConditionID conditionID){
         if(VolatileStatus != null) return;
 
         VolatileStatus = ConditionsDB.Conditions[conditionID];
@@ -158,29 +146,24 @@ public class PokemonClass
         // OnStatusChanged?.Invoke(); -------will add some visual effect for volatile statuses eventually
     }
 
-    public void CureVolatileStatus()
-    {
+    public void CureVolatileStatus(){
         VolatileStatus = null;
         // OnStatusChanged?.Invoke(); -------will add some visual effect for volatile statuses eventually
     }
 
-    public MoveClass GetRandomMove()
-    {
+    public MoveClass GetRandomMove(){
         int r = UnityEngine.Random.Range(0, Moves.Count);
         return Moves[r];
     }
 
-    public bool OnBeforeTurn()
-    {
+    public bool OnBeforeTurn(){
         bool canPerformMove = true;
-        if(SevereStatus?.OnBeforeTurn != null)
-        {
+        if(SevereStatus?.OnBeforeTurn != null){
             if(!SevereStatus.OnBeforeTurn(this))
                 canPerformMove = false;
         }
 
-        if(VolatileStatus?.OnBeforeTurn != null)
-        {
+        if(VolatileStatus?.OnBeforeTurn != null){
             if(!VolatileStatus.OnBeforeTurn(this))
                 canPerformMove = false;
         }
@@ -188,8 +171,7 @@ public class PokemonClass
         return canPerformMove;
     }
 
-    public void OnAfterTurn()
-    {
+    public void OnAfterTurn(){
         SevereStatus?.OnAfterTurn?.Invoke(this);
         VolatileStatus?.OnAfterTurn?.Invoke(this);
     }

@@ -27,12 +27,10 @@ public class WildPokemonSpawnEvents : MonoBehaviour
     private void DestroyWildMonInstance(){
         StopCoroutine(DespawnTimer());
         OnPokeDespawn?.Invoke();
-
-        if( !_wildPokemon.Collided ){
-            BattleSystem.OnBattleStarted -= DestroyWildMonInstance;
+        
+        BattleSystem.OnBattleStarted -= DestroyWildMonInstance;
+        if( !_wildPokemon.Collided )
             Destroy(this.gameObject);
-        } else {
-            BattleSystem.OnBattleStarted -= DestroyWildMonInstance;
-        }
     }
+    
 }

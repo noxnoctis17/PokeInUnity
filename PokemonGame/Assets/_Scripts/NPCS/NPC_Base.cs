@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BattleSceneSetup : MonoBehaviour
+public class NPC_Base : MonoBehaviour
 {
     // Start is called before the first frame update
     void Start()

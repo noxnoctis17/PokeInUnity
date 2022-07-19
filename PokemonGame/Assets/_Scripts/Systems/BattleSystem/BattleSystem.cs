@@ -7,23 +7,41 @@ using System.Collections.Generic;
 
 public enum BattleStateEnum { Start, PlayerAction, Busy, NextTurn, SelectingNextPokemon, Over }
 
-[System.Serializable]
-public class BattleSystem : MonoBehaviour
+public enum BattleType { WildBattle1v1, WildBattle2v2, Trainer1v1, Trainer2v2, Trainer3v3 }
+
+[Serializable]
+public class BattleSystem : BattleStateMachine
 {
-    [SerializeField] BattleUnit _playerUnit;
-    public BattleUnit PlayerUnit => _playerUnit;
-    [SerializeField] BattleUnit _enemyUnit;
+    private BattleType _battleType;
+    public BattleType BattleType => _battleType;
+    [SerializeField] private GameObject _battleUnitPrefab;
+    public GameObject BattleUnitPrefab => _battleUnitPrefab;
+    [SerializeField] private BattleUnit _playerUnit => PlayerUnit;
+    public BattleUnit PlayerUnit { get; set; }
+    [SerializeField] private BattleUnit _enemyUnit;
     public BattleUnit EnemyUnit => _enemyUnit;
-    [SerializeField] BattleHUD _playerHUD;
-    [SerializeField] BattleHUD _enemyHUD;
-    [SerializeField] BattleDialogueBox _dialogueBox;
-    [SerializeField] PlayerBattleMenu _battleMenu;
-    [SerializeField] FightMenu _fightMenu;
-    [SerializeField] PKMNMenu _pkmnMenu;
-    [SerializeField] PartyScreen _partyScreen;
-    [SerializeField] EventSystem _eventSystem;
-    [SerializeField] GameStateTemp _gameState;
+    [SerializeField] private BattleHUD _playerHUD;
+    public BattleHUD PlayerHUD => _playerHUD;
+    [SerializeField] private BattleHUD _enemyHUD;
+    public BattleHUD EnemyHUD => _enemyHUD;
+    [SerializeField] private BattleDialogueBox _dialogueBox;
+    public BattleDialogueBox DialogueBox => _dialogueBox;
+    public Queue<BattleDialogueBox> DialogueBoxeUpdates { get; set; }
+    [SerializeField] private Transform _damageTakenPopupPrefab;
+    public static Transform DamageTakenPopupPrefab;
+    [SerializeField] private PlayerBattleMenu _battleMenu;
+    [SerializeField] private FightMenu _fightMenu;
+    public FightMenu FightMenu => _fightMenu;
+    [SerializeField] private PKMNMenu _pkmnMenu;
+    public PKMNMenu PKMNMenu => _pkmnMenu;
+    [SerializeField] private PartyScreen _partyScreen;
+    public PartyScreen PartyScreen => _partyScreen;
+    [SerializeField] private EventSystem _eventSystem;
+    public EventSystem EventSystem => _eventSystem;
+    [SerializeField] private BattleSceneSetup _battleSceneSetup;
+    public BattleSceneSetup BattleSceneSetup => _battleSceneSetup;
     [SerializeField] private AudioSource _audioSource;
+    public AudioSource AudioSource => _audioSource;
 
 //----------------------------------------------------------------------------
 
@@ -43,7 +61,10 @@ public class BattleSystem : MonoBehaviour
 
     private PokemonParty _playerParty;
     public PokemonParty PlayerParty => _playerParty;
+    private int _playerUnitAmount;
+    public int PlayerUnitAmount => _playerUnitAmount;
     private PokemonClass _wildPokemon;
+    public PokemonClass WildPokemon => _wildPokemon;
 
 //----------------------------------Command System-----------------------------
 
@@ -57,87 +78,68 @@ public class BattleSystem : MonoBehaviour
 //----------------------------------------------------------------------
 //----------------------------------------------------------------------
 
-    private void OnEnable()
-    {
+    private void OnEnable(){
         GameStateTemp.GameState = GameState.Battle;
+        DamageTakenPopupPrefab = _damageTakenPopupPrefab;
     }
 
-    private void OnDisable()
-    {
+    private void OnDisable(){
         GameStateTemp.GameState = GameState.Overworld;
     }
 
-    private void Start()
-    {
+    private void Start()    {
         _commandQueue = new Queue<IBattleCommand>();
         _commandList = new List<IBattleCommand>();
+        DialogueBoxeUpdates = new Queue<BattleDialogueBox>();
     }
 
-    private void Update()
-    {
-        switch( _battleStateEnum )
-        {
+    private void Update(){
+        switch( _battleStateEnum ){
             case BattleStateEnum.Busy :
 
-                if( _eventSystem.enabled )
-                {
+                if( _eventSystem.enabled ){
                     _eventSystem.enabled = false;
                     BattleUIActions.OnBattleSystemBusy?.Invoke();
-                }
-                
-            break;
+                } 
+                break;
 
             case BattleStateEnum.PlayerAction :
 
-                if( !_eventSystem.enabled )
-                {
+                if( !_eventSystem.enabled ){
                     _eventSystem.enabled = true;
                     OnPlayerAction?.Invoke();
                 }
-
-            break;
+                break;
 
             case BattleStateEnum.SelectingNextPokemon :
 
-                if( !_eventSystem.enabled ) { _eventSystem.enabled = true; }
-
-            break;
+                if( !_eventSystem.enabled ){
+                    _eventSystem.enabled = true;
+                }
+                break;
         }
     }
 
     public void StartWildBattle( PokemonParty playerParty, PokemonClass wildPokemon ){
         _playerParty = playerParty;
         _wildPokemon = wildPokemon;
-        StartCoroutine(SetupBattle());
+        _battleType = BattleType.WildBattle1v1;
+
+        switch( BattleType ){
+            case BattleType.WildBattle1v1:
+
+                _playerUnitAmount = 1;
+                break;
+        }
+        
+        SetState( new BattleState_Setup( this ) );
     }
 
     public void StartTrainerBattle( PokemonParty playerParty, PokemonParty enemyParty ){
         //--😈
     }
 
-    public IEnumerator SetupBattle(){
-        _battleStateEnum = BattleStateEnum.Busy;
-        yield return new WaitForSeconds(0.1f);
-
-        //--Set up Player
-        _playerUnit.Setup( _playerParty.GetHealthyPokemon() );
-        //--Set up Player UIs/HUD
-        _fightMenu.SetUpMoves( _playerUnit.Pokemon.Moves );
-        _partyScreen.Init();
-        _partyScreen.SetParty( _playerParty.PartyPokemon );
-
-        //--Set up Enemy
-        _enemyUnit.Setup( _wildPokemon );
-
-        OnBattleStarted?.Invoke();
-
-        yield return _dialogueBox.TypeDialogue( $"A wild {_enemyUnit.Pokemon.PokeSO.pName} appeared!" );
-        yield return new WaitForSeconds( 0.2f );
-
-        PlayerAction();
-    }
-
-    private void PlayerAction(){
+    public void PlayerAction(){
         _battleStateEnum = BattleStateEnum.PlayerAction;
     }
 
@@ -315,7 +317,7 @@ public class BattleSystem : MonoBehaviour
             yield return _dialogueBox.TypeDialogue( $"{_playerUnit.Pokemon.PokeSO.pName}, come back!" );
         }
         
-        _playerUnit.Setup( pokemon );
+        _playerUnit.Setup( pokemon, _playerHUD );
         _fightMenu.SetUpMoves( pokemon.Moves );
 
         yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.pName}!" );
@@ -323,7 +325,7 @@ public class BattleSystem : MonoBehaviour
         // BattleUIActions.OnCommandAnimationsCompleted?.Invoke();
 
         if( _isFaintedSwitch )
-        _isFaintedSwitch = false;
+            _isFaintedSwitch = false;
         yield return new WaitForSeconds(0.5f);
         PlayerAction();
     }
@@ -355,8 +357,8 @@ public class BattleSystem : MonoBehaviour
         OnPlayerCommandSelect?.Invoke();
     }
 
-    public void SetEnemyMoveCommand( BattleUnit pokemon, MoveClass move ){
-        _useMoveCommand = new UseMoveCommand( move, pokemon, _playerUnit, this );
+    public void SetEnemyMoveCommand( BattleUnit attacker, MoveClass move ){
+        _useMoveCommand = new UseMoveCommand( move, attacker, _playerUnit, this );
         _commandList.Add( _useMoveCommand );
         DetermineCommandOrder();
     }
@@ -409,9 +411,5 @@ public class BattleSystem : MonoBehaviour
         }
 
     }
-
-
-
-
-
+    
 }

@@ -6,17 +6,19 @@ using System.Collections;
 
 public class FightMenu : MonoBehaviour
 {
-    [SerializeField] PlayerBattleMenu _battleMenu;
-    [SerializeField] Button move1button, move2button, move3button, move4button;
+    [SerializeField] private BattleSystem _battleSystem;
+    [SerializeField] private PlayerBattleMenu _battleMenu;
+    [SerializeField] private Button move1button, move2button, move3button, move4button;
     private Button _intialButton;
     public Button LastButton;
-    [SerializeField] BattleUnit _playerUnit;
-    public BattleUnit playerUnit => _playerUnit;
-    [SerializeField] List<MoveButton> _moveButtons;
-    [SerializeField] List<TextMeshProUGUI> _moveNameText, _ppText;
+    [SerializeField] private BattleUnit _activeUnit;
+    public BattleUnit ActiveUnit => _activeUnit;
+    [SerializeField] private List<MoveButton> _moveButtons;
+    [SerializeField] private List<TextMeshProUGUI> _moveNameText, _ppText;
     // [SerializeField] private Image _pokemonType_Image1, _pokemonType_Image2;
 
     private void OnEnable(){
+        _activeUnit = _battleSystem.PlayerUnit;
         _intialButton = move1button;
         StartCoroutine(SetInitialButton());
         BattleUIActions.OnFightMenuOpened?.Invoke();

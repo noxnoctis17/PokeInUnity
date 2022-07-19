@@ -7,9 +7,6 @@ public class GameController : MonoBehaviour
 {
     [SerializeField] private GameObject _player;
     [SerializeField] private BattleSystem _battleSystem;
-    private PokemonClass _wildMon;
-    public PokemonClass Wildmon => _wildMon;
-
     private void Awake(){
         ConditionsDB.Init();
         WildPokemon.OnWildPokemonCollided += InitWildBattle;
@@ -22,11 +19,10 @@ public class GameController : MonoBehaviour
 
     private IEnumerator StartWildBattle(){
         var playerParty = _player.GetComponent<PokemonParty>();
-        var wildPokemon = WildPokemon.pokeSODelegate(_wildMon);
-        Debug.Log(_wildMon);
+        var wildPokemon = WildPokemon.pokeSODelegate();
         yield return new WaitForSeconds(0.2f); //--battle start animation
         _battleSystem.StartWildBattle(playerParty, wildPokemon);
 
-        yield return null;
+        yield return null
     }
 }
