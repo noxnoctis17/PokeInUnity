@@ -74,9 +74,11 @@ public class PlayerMovement : MonoBehaviour
         if( _controller.isGrounded ){
             float groundedGravity = -0.5f;
             _currentMovement.y = groundedGravity;
+            _currentRunMovement.y = groundedGravity;
         } else {
             float gravity = -5.8f;
             _currentMovement.y += gravity;
+            _currentRunMovement.y += gravity;
         }
     }
 
@@ -87,8 +89,6 @@ public class PlayerMovement : MonoBehaviour
         _currentRunMovement.x = _currentMovementInput.x * _runMultiplier;
         _currentRunMovement.z = _currentMovementInput.y * _runMultiplier;
         _isMovementPressed = _currentMovementInput.x != 0 || _currentMovementInput.y != 0;
-        // _currentMovement = Quaternion.AngleAxis ( _cameraTransform.rotation.eulerAngles.y, Vector3.up ) * _currentMovement;
-        // _currentRunMovement = Quaternion.AngleAxis ( _cameraTransform.rotation.eulerAngles.y, Vector3.up ) * _currentRunMovement;
     }
 
     private void OnRun( InputAction.CallbackContext context ){

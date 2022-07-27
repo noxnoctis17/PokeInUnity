@@ -7,6 +7,7 @@ public class GameController : MonoBehaviour
 {
     [SerializeField] private GameObject _player;
     [SerializeField] private BattleSystem _battleSystem;
+
     private void Awake(){
         ConditionsDB.Init();
         WildPokemon.OnWildPokemonCollided += InitWildBattle;
@@ -23,6 +24,6 @@ public class GameController : MonoBehaviour
         yield return new WaitForSeconds(0.2f); //--battle start animation
         _battleSystem.StartWildBattle(playerParty, wildPokemon);
 
-        yield return null
+        yield return null;
     }
 }

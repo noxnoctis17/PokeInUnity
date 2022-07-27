@@ -12,7 +12,7 @@ public class BattleButtonSelect : MonoBehaviour
     
     
     private void Awake(){
-        _thisButton = this.GetComponent<Button>();
+        _thisButton = GetComponent<Button>();
     }
 
     private void OnEnable(){
@@ -41,14 +41,14 @@ public class BattleButtonSelect : MonoBehaviour
         _submenuSubmit.action.Disable();
     }
 
-    private void OnDickiedoo(InputAction.CallbackContext context){
+    private void OnDickiedoo( InputAction.CallbackContext context ){
         BattleUIActions.OnSubMenuOpened?.Invoke();
-        StartCoroutine(WaitForMenuOpen());
+        StartCoroutine( WaitForMenuOpen() );
     }
 
     private IEnumerator WaitForMenuOpen(){
-        yield return new WaitForSeconds(0.1f);
-        _menuOpen.SetActive(true);
+        yield return new WaitForSeconds( 0.1f );
+        _menuOpen.SetActive( true );
     }
 
 }

@@ -5006,7 +5006,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 146765293}
-  m_LocalRotation: {x: 0.1942481, y: 0.00000001887089, z: -0.0000000037368113, w: 0.98095244}
+  m_LocalRotation: {x: 0.1942481, y: 0.000000018870892, z: -0.0000000037368117, w: 0.98095244}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -38518,7 +38518,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1015433911}
-  m_LocalRotation: {x: 0.22975293, y: -0.000000008373045, z: 0.0000000019766082, w: 0.973249}
+  m_LocalRotation: {x: 0.22975293, y: 0.000000008373047, z: -0.0000000019766087, w: 0.973249}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -45408,7 +45408,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1170984981}
-  m_LocalRotation: {x: 0.22975296, y: -0.000000008373072, z: 0.0000000019767157, w: 0.973249}
+  m_LocalRotation: {x: 0.22975296, y: 0.00000000837304, z: -0.0000000019765694, w: 0.973249}
   m_LocalPosition: {x: -34.77745, y: -75.244415, z: -26.022953}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -74006,7 +74006,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1899367338}
-  m_LocalRotation: {x: 0.14521314, y: -0, z: -0, w: 0.98940045}
+  m_LocalRotation: {x: 0.14521314, y: 1e-45, z: -0, w: 0.98940045}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -84139,6 +84139,14 @@ PrefabInstance:
       propertyPath: _battleSystem
       value: 
       objectReference: {fileID: 569117054}
+    - target: {fileID: 5710010954320444033, guid: d5849076cabc26f40b8dfb83c7ff1566, type: 3}
+      propertyPath: _interactableRayLength
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 5710010954320444033, guid: d5849076cabc26f40b8dfb83c7ff1566, type: 3}
+      propertyPath: _interactableDetectionRadius
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 6614888829196247736, guid: d5849076cabc26f40b8dfb83c7ff1566, type: 3}
       propertyPath: _spriteRenderer
       value: 

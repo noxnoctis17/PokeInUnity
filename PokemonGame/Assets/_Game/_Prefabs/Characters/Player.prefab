@@ -127,7 +127,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 958f8302a72854b4cac2787159ecf1f2, type: 3}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -135,7 +135,7 @@ SpriteRenderer:
   m_Size: {x: 0.52, y: 0.67}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!114 &6614888829196247736
@@ -354,7 +354,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 958f8302a72854b4cac2787159ecf1f2, type: 3}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -362,7 +362,7 @@ SpriteRenderer:
   m_Size: {x: 0.52, y: 0.67}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!114 &4288869463674918219
@@ -452,7 +452,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 958f8302a72854b4cac2787159ecf1f2, type: 3}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -460,7 +460,7 @@ SpriteRenderer:
   m_Size: {x: 0.52, y: 0.67}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!114 &8032427963055607729
@@ -487,11 +487,13 @@ GameObject:
   - component: {fileID: 7879678094370305246}
   - component: {fileID: 5063925689413948341}
   - component: {fileID: 8647949782049962077}
+  - component: {fileID: 5710010954320444033}
   - component: {fileID: 37269934942262741}
   - component: {fileID: 2978490516173425355}
   - component: {fileID: 5504983208346184905}
   - component: {fileID: 9119240021807166420}
   - component: {fileID: 2840235867993414105}
+  - component: {fileID: 2066562934016952170}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -552,6 +554,21 @@ MonoBehaviour:
   _poke2: {fileID: 7046023747620648104}
   _poke3: {fileID: 3679031243264008692}
   _poke4: {fileID: 6254831232208627670}
+--- !u!114 &5710010954320444033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7993903386403970428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 079d1a04b09b960449167ad8f1ada565, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _interactableDetectionRadius: 5
+  _interactableRayLength: 5
+  _interactableCollider: {fileID: 5063925689413948341}
 --- !u!114 &37269934942262741
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -680,6 +697,20 @@ MonoBehaviour:
   slowWhenNotFacingTarget: 1
   whenCloseToDestination: 0
   constrainInsideGraph: 0
+--- !u!136 &2066562934016952170
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7993903386403970428}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 1
+  m_Enabled: 1
+  m_Radius: 1
+  m_Height: 1
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: -0.00511837}
 --- !u!1 &8145842003165935743
 GameObject:
   m_ObjectHideFlags: 0
@@ -754,7 +785,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 958f8302a72854b4cac2787159ecf1f2, type: 3}
+  m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -762,7 +793,7 @@ SpriteRenderer:
   m_Size: {x: 0.52, y: 0.67}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!114 &1869151728675358027
