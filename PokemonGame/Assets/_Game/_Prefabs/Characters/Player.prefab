@@ -64,6 +64,7 @@ GameObject:
   - component: {fileID: 6254831232208627670}
   - component: {fileID: 7824380461045828607}
   - component: {fileID: 6614888829196247736}
+  - component: {fileID: 1561444106}
   m_Layer: 6
   m_Name: Poke4
   m_TagString: Untagged
@@ -94,8 +95,8 @@ SpriteRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4932212152090215388}
   m_Enabled: 1
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
@@ -150,7 +151,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e5e21570611d2a488977bb47fefabff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _spriteRenderer: {fileID: 0}
+  _spriteRenderer: {fileID: 7824380461045828607}
+--- !u!114 &1561444106
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4932212152090215388}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c92ab30e5652c6a428ec10d74ebfd9d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _cameraTransform: {fileID: 0}
 --- !u!1 &5387339767478965832
 GameObject:
   m_ObjectHideFlags: 0
@@ -193,6 +207,7 @@ GameObject:
   - component: {fileID: 5563482482308758218}
   - component: {fileID: 8499860959922974585}
   - component: {fileID: 7318106455993872807}
+  - component: {fileID: 7900671120594098443}
   m_Layer: 6
   m_Name: Player_Sprite
   m_TagString: Player
@@ -210,7 +225,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 7879678094370305246}
   m_RootOrder: 0
@@ -256,7 +271,7 @@ SpriteRenderer:
   m_SortingLayerID: 677566043
   m_SortingLayer: 1
   m_SortingOrder: 1
-  m_Sprite: {fileID: 21300000, guid: aae127f74f958f747a7abfc910d5a63c, type: 3}
+  m_Sprite: {fileID: 21300000, guid: f29ab2671e52cd84a887fea1ce392578, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -280,6 +295,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _cameraTransform: {fileID: 0}
+--- !u!95 &7900671120594098443
+Animator:
+  serializedVersion: 4
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6850057450083705664}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 9b37a960ad05e664696a5919704c07aa, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorControllerStateOnDisable: 0
 --- !u!1 &7239334799001089977
 GameObject:
   m_ObjectHideFlags: 0
@@ -291,6 +326,7 @@ GameObject:
   - component: {fileID: 3679031243264008692}
   - component: {fileID: 4196501298580776947}
   - component: {fileID: 4288869463674918219}
+  - component: {fileID: 1906601638}
   m_Layer: 6
   m_Name: Poke3
   m_TagString: Untagged
@@ -321,8 +357,8 @@ SpriteRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7239334799001089977}
   m_Enabled: 1
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
@@ -377,7 +413,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e5e21570611d2a488977bb47fefabff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _spriteRenderer: {fileID: 0}
+  _spriteRenderer: {fileID: 4196501298580776947}
+--- !u!114 &1906601638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7239334799001089977}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c92ab30e5652c6a428ec10d74ebfd9d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _cameraTransform: {fileID: 0}
 --- !u!1 &7636047551826956931
 GameObject:
   m_ObjectHideFlags: 0
@@ -389,6 +438,7 @@ GameObject:
   - component: {fileID: 7046023747620648104}
   - component: {fileID: 4049412071345131537}
   - component: {fileID: 8032427963055607729}
+  - component: {fileID: 1666056028}
   m_Layer: 6
   m_Name: Poke2
   m_TagString: Untagged
@@ -419,8 +469,8 @@ SpriteRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7636047551826956931}
   m_Enabled: 1
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
@@ -475,7 +525,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e5e21570611d2a488977bb47fefabff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _spriteRenderer: {fileID: 0}
+  _spriteRenderer: {fileID: 4049412071345131537}
+--- !u!114 &1666056028
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7636047551826956931}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c92ab30e5652c6a428ec10d74ebfd9d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _cameraTransform: {fileID: 0}
 --- !u!1 &7993903386403970428
 GameObject:
   m_ObjectHideFlags: 0
@@ -511,13 +574,13 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 45.276207, y: 4.11, z: 33.85}
   m_LocalScale: {x: 4, y: 4, z: 4}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 5563482482308758218}
   - {fileID: 9092969949149136886}
   - {fileID: 6914087725859229133}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
+  m_RootOrder: 11
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &5063925689413948341
 CharacterController:
@@ -527,9 +590,17 @@ CharacterController:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7993903386403970428}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Height: 0.74
   m_Radius: 0.24
   m_SlopeLimit: 45
@@ -549,6 +620,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d35f309052f516841b8e4e669abbcce4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _mainCameraTransform: {fileID: 0}
   ActivePokePositions: {fileID: 6914087725859229133}
   _poke1: {fileID: 6036376532047827724}
   _poke2: {fileID: 7046023747620648104}
@@ -566,9 +638,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 079d1a04b09b960449167ad8f1ada565, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _interactableDetectionRadius: 5
-  _interactableRayLength: 5
-  _interactableCollider: {fileID: 5063925689413948341}
+  _interactableDetectionRadius: 4
+  _interactableRayLength: 4
+  _interactButton:
+    m_UseReference: 1
+    m_Action:
+      m_Name: Interact Button
+      m_Type: 0
+      m_ExpectedControlType: 
+      m_Id: 93ed3d91-512b-499b-a0c7-2168b2cf6187
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings: []
+      m_Flags: 0
+    m_Reference: {fileID: -8694376875045232012, guid: a7e013922887e864da1abd9d68999244, type: 3}
 --- !u!114 &37269934942262741
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -583,6 +666,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _cameraTransform: {fileID: 0}
   _controller: {fileID: 5063925689413948341}
+  _animator: {fileID: 7900671120594098443}
   _speed: 20
   _runMultiplier: 1.5
 --- !u!114 &2978490516173425355
@@ -705,8 +789,17 @@ CapsuleCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7993903386403970428}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 1
+  m_ProvidesContacts: 0
   m_Enabled: 1
+  serializedVersion: 2
   m_Radius: 1
   m_Height: 1
   m_Direction: 1
@@ -722,6 +815,7 @@ GameObject:
   - component: {fileID: 6036376532047827724}
   - component: {fileID: 7264913913681039059}
   - component: {fileID: 1869151728675358027}
+  - component: {fileID: 637353168}
   m_Layer: 6
   m_Name: Poke1
   m_TagString: Untagged
@@ -752,8 +846,8 @@ SpriteRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8145842003165935743}
   m_Enabled: 1
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
@@ -808,4 +902,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e5e21570611d2a488977bb47fefabff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _spriteRenderer: {fileID: 0}
+  _spriteRenderer: {fileID: 7264913913681039059}
+--- !u!114 &637353168
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8145842003165935743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c92ab30e5652c6a428ec10d74ebfd9d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _cameraTransform: {fileID: 0}

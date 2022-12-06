@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1635495681080645034}
   - component: {fileID: 319535872812006303}
   - component: {fileID: 2425092389743413253}
+  - component: {fileID: 8868445926191350879}
   m_Layer: 0
   m_Name: Ramp
   m_TagString: Untagged
@@ -61,7 +62,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: f59b54531ab897a4cae9b92b008c41f1, type: 2}
+  - {fileID: 2100000, guid: 3d657f29e9950e344930e7720e4e6927, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -83,6 +84,28 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!64 &8868445926191350879
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5301345789410984402}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -478882678752539408, guid: 6e12781c805384947872d2bf998e2e9e, type: 3}
 --- !u!1 &8429980970108142863
 GameObject:
   m_ObjectHideFlags: 0

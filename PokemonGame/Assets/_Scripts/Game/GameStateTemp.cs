@@ -1,9 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public enum GameState { Overworld, Battle }
+public enum GameState { Overworld, Battle, Dialogue }
 
 public class GameStateTemp : MonoBehaviour
 {
@@ -47,6 +48,13 @@ public class GameStateTemp : MonoBehaviour
                 _battleState = true;
                 Debug.Log("A " + GameState + " has started!");
 
+            break;
+            
+            case GameState.Dialogue :
+                
+                _playerMovement.enabled = false;
+                _overworldState = false;
+                
             break;
 
         }

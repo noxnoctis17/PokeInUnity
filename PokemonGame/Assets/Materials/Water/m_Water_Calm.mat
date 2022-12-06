@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  version: 6
+  version: 7
 --- !u!21 &2100000
 Material:
   serializedVersion: 8
@@ -53,25 +53,25 @@ Material:
     - _Alpha: 0.5
     - _AlphaClip: 0
     - _Amount: 7
-    - _CellDensity: 5
+    - _CellDensity: 6.92
     - _DepthFade: 5
     - _DistortionPower: 2.02
-    - _FoamAmount: 10
-    - _FoamCutoff: 10
+    - _FoamAmount: 17.39
+    - _FoamCutoff: 9.96
     - _FoamDepth: 13.48
     - _FoamNoiseScale: 0
     - _FoamRippleSpeed: 0
-    - _FoamScale: 1.5
-    - _FoamSpeed: 0.1
+    - _FoamScale: 19.7
+    - _FoamSpeed: 7.75
     - _FoamWidth: 0
     - _NoiseScale: 2.49
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _RefractionScale: 0.7
-    - _RefractionSpeed: 0.1
-    - _RefractionStrength: 0.25
+    - _RefractionScale: 1.61
+    - _RefractionSpeed: 5.41
+    - _RefractionStrength: 1.51
     - _Smoothness: 1
-    - _StreakMovementOffset: 1
+    - _StreakMovementOffset: 10.51
     - _Thickness_sorta: 5
     - _WaterDepth: 5
     - _WaterHeight: 0
@@ -87,6 +87,6 @@ Material:
     - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShallowColor: {r: 0.41963333, g: 0.7735849, b: 0.60306805, a: 1}
     - _Speed: {r: -0.1, g: -0.4, b: 0, a: 0}
-    - _Stretch: {r: 5, g: 0.1, b: 0, a: 0}
+    - _Stretch: {r: 2.19, g: 0.1, b: 0, a: 0}
     - _TextureTiling: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []

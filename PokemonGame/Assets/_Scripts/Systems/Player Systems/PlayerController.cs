@@ -12,10 +12,12 @@ public class PlayerController : MonoBehaviour
 
     private void OnEnable(){
         _interactButton.action.performed += OnInteract;
+        EnableInput();
     }
     
     private void OnDisable(){
         _interactButton.action.performed -= OnInteract;
+        DisableInput();
     }
 
     private void OnTriggerEnter( Collider col ){
@@ -25,18 +27,21 @@ public class PlayerController : MonoBehaviour
     }
     
     private void OnInteract( InputAction.CallbackContext context ){
+        Debug.Log( "interact pressed" );
         RaycastHit raymond;
         
-        if( Physics.Raycast( transform.position, transform.forward, out raymond, _interactableRayLength ) ){
-            if( raymond.transform.GetComponent<IInteractable>() != null ){
-                raymond.transform.GetComponent<IInteractable>().Interact();
-            }
+        if( Physics.Raycast( transform.position, transform.forward.MovementAxisCorrection( PlayerReferences.MainCameraTransform ), out raymond, _interactableRayLength ) ){
+            raymond.transform.GetComponent<IInteractable>()?.Interact();
         }
-        
-        
     }
     
-    
+    private void EnableInput(){
+        _interactButton.action.Enable();
+    }
+
+    private void DisableInput(){
+        _interactButton.action.Disable();
+    }
     
 
 #if UNITY_EDITOR

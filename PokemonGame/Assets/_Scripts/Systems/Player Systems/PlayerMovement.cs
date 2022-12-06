@@ -6,6 +6,7 @@ public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private Transform _cameraTransform;
     [SerializeField] private CharacterController _controller;
+    [SerializeField] private Animator _animator;
     [SerializeField] private float _speed;
     [SerializeField] private float _runMultiplier;
     private PlayerInput _playerInput;
@@ -38,17 +39,32 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake(){
         _playerInput = new PlayerInput();
-        _cameraTransform = Camera.main.transform;
+        _cameraTransform = PlayerReferences.MainCameraTransform; //Camera.main.transform;
     }
 
     private void Update(){
+        HandleAnimation();
         HandleRotation();
         HandleGravity();
 
         if( _isRunPressed ){
-            _controller.Move( _currentRunMovement.MovementAxisCorrection( _cameraTransform ) * Time.deltaTime * _speed );
+            _controller.Move( _currentRunMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * (Time.deltaTime * _speed) );
         } else {
-            _controller.Move( _currentMovement.MovementAxisCorrection( _cameraTransform ) * Time.deltaTime * _speed );
+            _controller.Move( _currentMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * (Time.deltaTime * _speed) );
+        }
+    }
+    
+    private void HandleAnimation(){
+        bool isWalking = _animator.GetBool( "IsWalking" );
+        bool isRunning = _animator.GetBool( "IsRunning" );
+        
+        if( _isMovementPressed && !isWalking ){
+            _animator.SetBool( "IsWalking", true );
+            _animator.SetFloat( "Horizontal", _currentMovementInput.x );
+            _animator.SetFloat( "Vertical", _currentMovementInput.y );
+        }
+        else if( !_isMovementPressed && isWalking ){
+            _animator.SetBool( "IsWalking", false );
         }
     }
 
