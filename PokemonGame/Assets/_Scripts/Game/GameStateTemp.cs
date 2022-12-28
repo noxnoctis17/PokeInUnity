@@ -1,6 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -8,54 +5,56 @@ public enum GameState { Overworld, Battle, Dialogue }
 
 public class GameStateTemp : MonoBehaviour
 {
-    [SerializeField] PlayerMovement _playerMovement;
-    [SerializeField] BattleSystem _battleSystem;
-    [SerializeField] GameObject _massEnableParent;
-    [SerializeField] EventSystem _eventSystem;
+    [SerializeField] private PlayerMovement _playerMovement;
+    [SerializeField] private BattleSystem _battleSystem;
+    [SerializeField] private GameObject _massEnableParent;
+    [SerializeField] private EventSystem _eventSystem;
     public static GameState GameState { get; set; }
-    bool _overworldState, _battleState;
+    bool _overworldState, _battleState, _dialogueState;
 
-    private void Awake()
-    {
+    private void Awake(){
         GameState = GameState.Overworld;
     }
 
-    private void Update()
-    {
-        switch(GameState)
-        {
+    private void Update(){
+        switch( GameState ){
             case GameState.Overworld :
 
-                if(_overworldState) return;
-                _massEnableParent.SetActive(!enabled);
-                _massEnableParent.SetActive(false);
+                if( _overworldState ) return;
+                _massEnableParent.SetActive( !enabled );
+                _massEnableParent.SetActive( false );
                 _eventSystem.enabled = false;
                 _playerMovement.enabled = true;
                 _overworldState = true;
                 _battleState = false;
-                Debug.Log(GameState + " exploration baaybeee");
+                Debug.Log( GameState + " exploration baaybeee" );
 
             break;
 
             case GameState.Battle : 
 
-                if(_battleState) return;
-                _massEnableParent.SetActive(enabled);
-                _massEnableParent.SetActive(true);
+                if( _battleState ) return;
+                _massEnableParent.SetActive( enabled );
+                _massEnableParent.SetActive( true );
                 _eventSystem.enabled = true;
                 _playerMovement.enabled = false;
                 _overworldState = false;
                 _battleState = true;
-                Debug.Log("A " + GameState + " has started!");
+                Debug.Log( "A " + GameState + " has started!" );
 
             break;
             
             case GameState.Dialogue :
                 
+                if( _dialogueState ) return;
+                _eventSystem.enabled = true;
                 _playerMovement.enabled = false;
                 _overworldState = false;
-                
-            break;
+                _battleState = false;
+                _dialogueState = true;
+                Debug.Log( GameState + " is running!" );
+
+                break;
 
         }
     }

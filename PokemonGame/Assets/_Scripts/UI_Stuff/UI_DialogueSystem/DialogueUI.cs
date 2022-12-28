@@ -30,8 +30,6 @@ public class DialogueUI : MonoBehaviour
         _typeText = GetComponent<TypeText>();
         _responseHandler = GetComponent<ResponseHandler>();
         CloseDialogueBox();
-        ShowDialogue( _testDialogue );
-        
     }
     
     public void ShowDialogue( DialogueSO dialogueSO ){
@@ -55,7 +53,8 @@ public class DialogueUI : MonoBehaviour
         
         if( dialogueSO.HasResponses ){
             _responseHandler.ShowResponses( dialogueSO.Responses );
-        } else{ 
+        }
+        else{ 
             CloseDialogueBox();
         }
         

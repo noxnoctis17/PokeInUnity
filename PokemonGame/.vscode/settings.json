@@ -55,5 +55,6 @@
     },
     "workbench.editor.enablePreview": false,
     "workbench.editor.closeOnFileDelete": true,
-    "workbench.editor.highlightModifiedTabs": true
+    "workbench.editor.highlightModifiedTabs": true,
+    "omnisharp.analyzeOpenDocumentsOnly": true
 }
