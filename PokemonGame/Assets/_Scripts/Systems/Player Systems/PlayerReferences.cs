@@ -1,8 +1,5 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Pathfinding;
-using UnityEngine.EventSystems;
 
 public class PlayerReferences : MonoBehaviour
 {
@@ -26,15 +23,15 @@ public class PlayerReferences : MonoBehaviour
 //--------------------------------------------------------------   
 
 
-   private void Awake(){
-       PlayerTransform = transform;
-       MainCameraTransform = _mainCameraTransform;
-       AIPath = GetComponent<AIPath>();
+   private void OnEnable() {
+      PlayerTransform = transform;
+      MainCameraTransform = _mainCameraTransform;
+      AIPath = GetComponent<AIPath>();
 
-       Poke1 = _poke1;
-       Poke2 = _poke2;
-       Poke3 = _poke3;
-       Poke4 = _poke4;
+      Poke1 = _poke1;
+      Poke2 = _poke2;
+      Poke3 = _poke3;
+      Poke4 = _poke4;
    }
 
 }

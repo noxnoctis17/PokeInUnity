@@ -11,11 +11,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private InputActionProperty _interactButton;
 
     private void OnEnable(){
+        DialogueManager.OnDialogueStarted += DisableInput;
+        DialogueManager.OnDialogueFinished += EnableInput;
         _interactButton.action.performed += OnInteract;
         EnableInput();
     }
     
     private void OnDisable(){
+        DialogueManager.OnDialogueStarted -= DisableInput;
+        DialogueManager.OnDialogueFinished -= EnableInput;
         _interactButton.action.performed -= OnInteract;
         DisableInput();
     }
@@ -27,10 +31,12 @@ public class PlayerController : MonoBehaviour
     }
     
     private void OnInteract( InputAction.CallbackContext context ){
-        Debug.Log( "interact pressed" );
+        // Debug.Log( "interact pressed" );
         RaycastHit raymond;
         
-        if( Physics.Raycast( transform.position, transform.forward.MovementAxisCorrection( PlayerReferences.MainCameraTransform ), out raymond, _interactableRayLength ) ){
+        if( Physics.Raycast( transform.position, transform.forward.MovementAxisCorrection( PlayerReferences.MainCameraTransform ), out raymond, _interactableRayLength )
+            || Physics.Raycast( transform.position + new Vector3( 1f, 0f, 0f ), transform.forward.MovementAxisCorrection( PlayerReferences.MainCameraTransform ), out raymond, _interactableRayLength )
+            || Physics.Raycast( transform.position + new Vector3( -1f, 0f, 0f ), transform.forward.MovementAxisCorrection( PlayerReferences.MainCameraTransform ), out raymond, _interactableRayLength ) ){
             raymond.transform.GetComponent<IInteractable>()?.Interact();
         }
     }
@@ -48,6 +54,8 @@ public class PlayerController : MonoBehaviour
     
     public void OnDrawGizmos(){
         Gizmos.DrawWireSphere( transform.position, _interactableDetectionRadius );
+        Debug.DrawRay( transform.position + new Vector3( 1f, 0f, 0f ), transform.forward * _interactableRayLength, Color.red );
+        Debug.DrawRay( transform.position + new Vector3( -1f, 0f, 0f ), transform.forward * _interactableRayLength, Color.red );
         Debug.DrawRay( transform.position, transform.forward * _interactableRayLength, Color.red );
     }
 

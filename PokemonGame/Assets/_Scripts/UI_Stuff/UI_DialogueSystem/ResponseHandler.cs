@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -11,6 +12,8 @@ public class ResponseHandler : MonoBehaviour
     [SerializeField] private RectTransform _responseContainer;
     private DialogueUI _dialogueUI;
     private List<GameObject> _temporaryResponseButtons = new List<GameObject>();
+    private Button _initialButton;
+    public static event Action<DialogueSO> OnResponseChosen;
 
     private void Start( ){
         _dialogueUI = GetComponent<DialogueUI>();
@@ -22,7 +25,7 @@ public class ResponseHandler : MonoBehaviour
         foreach( Response response in responses ){
             GameObject responseButton = Instantiate( _responseButtonTemplate.gameObject, _responseContainer );
             responseButton.gameObject.SetActive( true );
-            responseButton.GetComponent<TMP_Text>().text = response.ResponseText;
+            responseButton.GetComponentInChildren<TMP_Text>().text = response.ResponseText;
             responseButton.GetComponent<Button>().onClick.AddListener( () => OnPickedResponse( response ) );
             
             _temporaryResponseButtons.Add( responseButton );
@@ -32,6 +35,8 @@ public class ResponseHandler : MonoBehaviour
         
         _responseBox.sizeDelta = new Vector2( _responseBox.sizeDelta.x, responseBoxHeight );
         _responseBox.gameObject.SetActive( true );
+        _initialButton = _temporaryResponseButtons[0]?.GetComponent<Button>();
+        StartCoroutine( SetInitialButton() );
     }
 
     private void OnPickedResponse( Response response ){
@@ -41,6 +46,11 @@ public class ResponseHandler : MonoBehaviour
             Destroy( button );
         }
         _temporaryResponseButtons.Clear();
-        _dialogueUI.ShowDialogue( response.DialogueSO );
+        OnResponseChosen?.Invoke( response.DialogueSO );
+    }
+
+    private IEnumerator SetInitialButton(){
+        yield return new WaitForSeconds(0.15f);
+        _initialButton.Select();
     }
 }

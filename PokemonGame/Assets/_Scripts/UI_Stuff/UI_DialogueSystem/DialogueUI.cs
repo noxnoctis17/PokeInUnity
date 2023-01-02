@@ -2,41 +2,28 @@ using System;
 using System.Collections;
 using UnityEngine;
 using TMPro;
-using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class DialogueUI : MonoBehaviour
 {
     [SerializeField] private GameObject _dialogueBox;
     [SerializeField] private TMP_Text _dialogueText;
-    [SerializeField] private DialogueSO _testDialogue;
-    [SerializeField] private bool _interact;
-    [SerializeField] private InputActionProperty _interactButton;
+    [SerializeField] private Image _leftPortrait, _rightPortrait;
+    private PlayerInput _playerInput;
     private TypeText _typeText;
     private ResponseHandler _responseHandler;
-
-    private void OnEnable(){
-        _interactButton.action.performed += OnInteract;
-        _interact = false;
-        
-    }
-
-    private void OnDisable(){
-        _interactButton.action.performed -= OnInteract;
-        _interact = false;
-        
-    }
 
     private void Start(){
         _typeText = GetComponent<TypeText>();
         _responseHandler = GetComponent<ResponseHandler>();
-        CloseDialogueBox();
+        _playerInput = PlayerMovement.PlayerInput;
+        // CloseDialogueBox();
     }
     
     public void ShowDialogue( DialogueSO dialogueSO ){
-        GameStateTemp.GameState = GameState.Dialogue;
+        Debug.Log( "ShowDialogue" );
         _dialogueBox.SetActive( true );
         StartCoroutine( StepThroughDialogue( dialogueSO ) );
-        
     }
     
     private IEnumerator StepThroughDialogue( DialogueSO dialogueSO ){
@@ -47,8 +34,8 @@ public class DialogueUI : MonoBehaviour
             if( i == dialogueSO.Dialogue.Length - 1 && dialogueSO.HasResponses )
                 break;
             
-            yield return new WaitUntil( () => _interact );
-            _interact = false;
+            yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
+            
         }
         
         if( dialogueSO.HasResponses ){
@@ -60,15 +47,12 @@ public class DialogueUI : MonoBehaviour
         
     }
     
-    private void OnInteract( InputAction.CallbackContext context ){
-        if( !_interact){
-            _interact = true;
-        }
-    }
-    
     private void CloseDialogueBox(){
-        _dialogueBox.SetActive( false );
-        _dialogueText.text = string.Empty;
+        Debug.Log( "CloseDialogueBox" );
         GameStateTemp.GameState = GameState.Overworld;
+        GameStateTemp.OnGameStateChanged?.Invoke();
+        DialogueManager.OnDialogueFinished?.Invoke();
+        _dialogueText.text = string.Empty;
+        _dialogueBox.SetActive( false );
     }
 }

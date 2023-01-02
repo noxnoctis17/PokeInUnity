@@ -207,7 +207,7 @@ GameObject:
   - component: {fileID: 5563482482308758218}
   - component: {fileID: 8499860959922974585}
   - component: {fileID: 7318106455993872807}
-  - component: {fileID: 7900671120594098443}
+  - component: {fileID: 1707239299253671835}
   m_Layer: 6
   m_Name: Player_Sprite
   m_TagString: Player
@@ -295,7 +295,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _cameraTransform: {fileID: 0}
---- !u!95 &7900671120594098443
+--- !u!95 &1707239299253671835
 Animator:
   serializedVersion: 4
   m_ObjectHideFlags: 0
@@ -666,7 +666,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _cameraTransform: {fileID: 0}
   _controller: {fileID: 5063925689413948341}
-  _animator: {fileID: 7900671120594098443}
+  _animator: {fileID: 1707239299253671835}
   _speed: 20
   _runMultiplier: 1.5
 --- !u!114 &2978490516173425355

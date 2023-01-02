@@ -43,9 +43,9 @@ public class WildPokemonWander : MonoBehaviour
     {
         //------------------------WANDER STATES----------------------------
 
-        if(GameStateTemp.GameState != GameState.Overworld) return;
+        if( GameStateTemp.GameState != GameState.Overworld ) return;
         
-        switch (_wanderState){
+        switch ( _wanderState ){
 
             case _WanderStates.Wander:
 

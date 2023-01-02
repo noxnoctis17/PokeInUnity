@@ -82,17 +82,17 @@ public class WildPokemonInstantiator : MonoBehaviour
     }
 
     private IEnumerator SpawnPokemonCR(){
-        yield return new WaitForSeconds(5f); //--Wait to start spawning lol
-        if(GameStateTemp.GameState == GameState.Overworld){
+        yield return new WaitForSeconds( 5f ); //--Wait to start spawning lol
+        if( GameStateTemp.GameState == GameState.Overworld ){
             isSpawnCR = true;
-            WaitForSeconds Wait = new WaitForSeconds(_spawnDelay);
+            WaitForSeconds Wait = new WaitForSeconds( _spawnDelay );
 
-            while(_spawnedPokemon < _numberToSpawn){
+            while( _spawnedPokemon < _numberToSpawn ){
                 RandomPokemon();
                 SpawnLocation();
 
-                if(wildPokemon.wildPokemon != null){
-                    GameObject pokemonToSpawn = Instantiate(wildPokemon.gameObject, _spawnLocation.position, Quaternion.identity);
+                if( wildPokemon.wildPokemon != null ){
+                    GameObject pokemonToSpawn = Instantiate( wildPokemon.gameObject, _spawnLocation.position, Quaternion.identity );
                 }
 
                 yield return Wait;
@@ -105,9 +105,9 @@ public class WildPokemonInstantiator : MonoBehaviour
     }
 
     private IEnumerator RespawnDelay(){
-        float respawnDelay = Random.Range(_respawnDelayMin, _respawnDelayMax);
-        yield return new WaitForSeconds(respawnDelay);
-        StartCoroutine(SpawnPokemonCR());
+        float respawnDelay = Random.Range( _respawnDelayMin, _respawnDelayMax );
+        yield return new WaitForSeconds( respawnDelay );
+        StartCoroutine( SpawnPokemonCR() );
     }
 
     private void SpawnLocation(){

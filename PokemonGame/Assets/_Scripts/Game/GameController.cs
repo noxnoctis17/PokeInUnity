@@ -15,14 +15,15 @@ public class GameController : MonoBehaviour
 
     private void InitWildBattle(){
         GameStateTemp.GameState = GameState.Battle;
-        StartCoroutine(StartWildBattle());
+        GameStateTemp.OnGameStateChanged?.Invoke();
+        StartCoroutine( StartWildBattle() );
     }
 
     private IEnumerator StartWildBattle(){
         var playerParty = _player.GetComponent<PokemonParty>();
         var wildPokemon = WildPokemon.pokeSODelegate();
-        yield return new WaitForSeconds(0.2f); //--battle start animation
-        _battleSystem.StartWildBattle(playerParty, wildPokemon);
+        yield return new WaitForSeconds( 0.2f ); //--battle start animation
+        _battleSystem.StartWildBattle( playerParty, wildPokemon );
 
         yield return null;
     }

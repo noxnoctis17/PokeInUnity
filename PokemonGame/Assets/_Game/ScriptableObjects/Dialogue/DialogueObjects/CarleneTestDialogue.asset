@@ -13,7 +13,6 @@ MonoBehaviour:
   m_Name: CarleneTestDialogue
   m_EditorClassIdentifier: 
   _dialogue:
-  - 
   - Hi, I'm Carlene!
   - 'I''m a Gym Leader that uses sea creatures, but
 
@@ -24,5 +23,5 @@ MonoBehaviour:
     _dialogueSO: {fileID: 11400000, guid: ec196d5780dce98459e436d5d7e476b6, type: 2}
   - _responseText: No
     _dialogueSO: {fileID: 11400000, guid: b2188cf60f732c24fa3fb87a14237b92, type: 2}
-  - _responseText: I don't even have a Pokemon yet !
+  - _responseText: I don't even have a Pokemon yet!
     _dialogueSO: {fileID: 11400000, guid: b2188cf60f732c24fa3fb87a14237b92, type: 2}

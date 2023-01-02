@@ -9,7 +9,7 @@ public class FightMenu : MonoBehaviour
     [SerializeField] private BattleSystem _battleSystem;
     [SerializeField] private PlayerBattleMenu _battleMenu;
     [SerializeField] private Button move1button, move2button, move3button, move4button;
-    private Button _intialButton;
+    private Button _initialButton;
     public Button LastButton;
     [SerializeField] private BattleUnit _activeUnit;
     public BattleUnit ActiveUnit => _activeUnit;
@@ -19,8 +19,8 @@ public class FightMenu : MonoBehaviour
 
     private void OnEnable(){
         _activeUnit = _battleSystem.PlayerUnit;
-        _intialButton = move1button;
-        StartCoroutine(SetInitialButton());
+        _initialButton = move1button;
+        StartCoroutine( SetInitialButton() );
         BattleUIActions.OnFightMenuOpened?.Invoke();
     }
 
@@ -68,9 +68,9 @@ public class FightMenu : MonoBehaviour
         }
     }
 
-    private IEnumerator SetInitialButton(){
+    private IEnumerator  SetInitialButton(){
         yield return new WaitForSeconds(0.15f);
-        _intialButton.Select();
+        _initialButton.Select();
     }
 
 }

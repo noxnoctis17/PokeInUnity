@@ -80,11 +80,13 @@ public class BattleSystem : BattleStateMachine
 
     private void OnEnable(){
         GameStateTemp.GameState = GameState.Battle;
+        GameStateTemp.OnGameStateChanged?.Invoke();
         DamageTakenPopupPrefab = _damageTakenPopupPrefab;
     }
 
     private void OnDisable(){
         GameStateTemp.GameState = GameState.Overworld;
+        GameStateTemp.OnGameStateChanged?.Invoke();
     }
 
     private void Start()    {
@@ -307,6 +309,7 @@ public class BattleSystem : BattleStateMachine
         _battleStateEnum = BattleStateEnum.Over;
         PlayerReferences.AIPath.enabled = false;
         GameStateTemp.GameState = GameState.Overworld;
+        GameStateTemp.OnGameStateChanged?.Invoke();
     }
 
     public IEnumerator PerformSwitchPokemonCommand( PokemonClass pokemon ){

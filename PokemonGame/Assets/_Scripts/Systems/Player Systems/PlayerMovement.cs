@@ -10,6 +10,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float _speed;
     [SerializeField] private float _runMultiplier;
     private PlayerInput _playerInput;
+    public static PlayerInput PlayerInput { get; private set; }
     private Vector2 _currentMovementInput;
     private Vector3 _currentMovement;
     private Vector3 _currentRunMovement;
@@ -18,6 +19,9 @@ public class PlayerMovement : MonoBehaviour
     private float _rotationPerFrame = 1.0f;
 
     private void OnEnable(){
+        _playerInput = new PlayerInput();
+        PlayerInput = _playerInput;
+        _cameraTransform = PlayerReferences.MainCameraTransform;
         _playerInput.CharacterControls.Enable();
         _playerInput.CharacterControls.Walk.started += OnMovementInput;
         _playerInput.CharacterControls.Walk.canceled += OnMovementInput;
@@ -35,11 +39,6 @@ public class PlayerMovement : MonoBehaviour
         _playerInput.CharacterControls.Run.started -= OnRun;
         _playerInput.CharacterControls.Run.canceled -= OnRun;
         _playerInput.CharacterControls.Run.performed -= OnRun;
-    }
-
-    private void Awake(){
-        _playerInput = new PlayerInput();
-        _cameraTransform = PlayerReferences.MainCameraTransform; //Camera.main.transform;
     }
 
     private void Update(){
