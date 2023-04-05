@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
@@ -11,22 +10,31 @@ public class ResponseHandler : MonoBehaviour
     [SerializeField] private RectTransform _responseButtonTemplate;
     [SerializeField] private RectTransform _responseContainer;
     private DialogueUI _dialogueUI;
+    private ResponseEvent[] _responseEvents;
     private List<GameObject> _temporaryResponseButtons = new List<GameObject>();
     private Button _initialButton;
-    public static event Action<DialogueSO> OnResponseChosen;
+    // public static event Action<DialogueSO> OnResponseChosen;
 
     private void Start( ){
         _dialogueUI = GetComponent<DialogueUI>();
     }
 
+    public void AddResponseEvents( ResponseEvent[] responseEvents ){
+        _responseEvents = responseEvents;
+    }
+
     public void ShowResponses(Response[] responses){
         float responseBoxHeight = 0;
         
-        foreach( Response response in responses ){
+        for( int i = 0; i < responses.Length; i++ ){
+
+            Response response = responses[i];
+            int responseIndex = i;
+
             GameObject responseButton = Instantiate( _responseButtonTemplate.gameObject, _responseContainer );
             responseButton.gameObject.SetActive( true );
             responseButton.GetComponentInChildren<TMP_Text>().text = response.ResponseText;
-            responseButton.GetComponent<Button>().onClick.AddListener( () => OnPickedResponse( response ) );
+            responseButton.GetComponent<Button>().onClick.AddListener( () => OnPickedResponse( response, responseIndex ) );
             
             _temporaryResponseButtons.Add( responseButton );
             
@@ -39,14 +47,27 @@ public class ResponseHandler : MonoBehaviour
         StartCoroutine( SetInitialButton() );
     }
 
-    private void OnPickedResponse( Response response ){
+    private void OnPickedResponse( Response response, int responseIndex ){
         _responseBox.gameObject.SetActive( false );
         
         foreach( GameObject button in _temporaryResponseButtons ){
             Destroy( button );
         }
         _temporaryResponseButtons.Clear();
-        OnResponseChosen?.Invoke( response.DialogueSO );
+
+        if( _responseEvents != null && responseIndex <= _responseEvents.Length ){
+            _responseEvents[ responseIndex ].OnPickedResponse?.Invoke();
+        }
+
+        _responseEvents = null;
+
+        if( response.DialogueSO ){
+            DialogueManager.Instance.OnResponseChosen?.Invoke( response.DialogueSO );
+        }
+        else{
+            _dialogueUI.CloseDialogueBox();
+        }
+        
     }
 
     private IEnumerator SetInitialButton(){

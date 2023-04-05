@@ -7,6 +7,8 @@ TagManager:
   - VirtualCamera
   - WildPokemon
   - SunLight
+  - MAST_Holder
+  - FxTemporaire
   layers:
   - Default
   - TransparentFX
@@ -16,7 +18,7 @@ TagManager:
   - UI
   - Player
   - Unwalkable
-  - 
+  - SeeThrough
   - 
   - 
   - 

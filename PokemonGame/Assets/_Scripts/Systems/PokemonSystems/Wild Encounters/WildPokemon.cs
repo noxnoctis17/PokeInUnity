@@ -1,14 +1,16 @@
 using UnityEngine;
-using System;
 using System.Collections;
+using NoxNoctisDev.StateMachine;
 
 public class WildPokemon : MonoBehaviour
 {
+    public StateMachine<WildPokemon> WildPokemonStateMachine { get; private set; }
+    public WildPokemonWander WildPokemonWander { get; private set; }
+
     //------------------=-[ POKEMON SO ]-------------------------
     
-    [Header("Pokemon")]
-    public PokemonClass wildPokemon;
-    // [SerializeField] BattleSystem _battleSystem;
+    [Header("Pokemon SO")]
+    public PokemonClass Pokemon;
 
     //---------------[ SPRITES & ANIMATIONS ]--------------------
 
@@ -18,41 +20,87 @@ public class WildPokemon : MonoBehaviour
 
     //----------------[ COLLIDER & WANDERING ]--------------------
 
-    public static event Action OnWildPokemonCollided;
     public static Vector3 WildPokemonLocation;
-    public delegate PokemonClass PokeSODelegate();
-    public static PokeSODelegate pokeSODelegate;
-    private BoxCollider _boxCollider;
+    public BoxCollider BoxCollider { get; private set; }
     private bool _collided;
     public bool Collided => _collided;
 
-    //-----------------------------------------------------------
+    //------------------------[ACTIONS]---------------------------
+    private WildPokemonEvents _wildPokemonEvents;
+    public WildPokemonEvents WildPokemonEvents => _wildPokemonEvents;
 
     private void Awake(){
-        _sprite.sprite = wildPokemon.PokeSO.FrontSprite;
+        //--Set State Machine & Initial State
+        WildPokemonStateMachine = new StateMachine<WildPokemon>( this );
+        Debug.Log( WildPokemonStateMachine );
+
+        //--Set A* Wander AI
+        WildPokemonWander = GetComponent<WildPokemonWander>();
+
+        //--Set Visual Components
+        _sprite.sprite = Pokemon.PokeSO.FrontSprite;
         //_animator = wildPokemon.animations; -----not in use yet, haven't added animations lol
-        _boxCollider = GetComponent<BoxCollider>();
-        _boxCollider.enabled = false;
-        StartCoroutine(CollisionDelay());
+
+        //--Add Self to general list of currently spawned pokemon
+        WildPokemonManager.Instance.SpawnedPokemonList.Add( this );
+
+        //--Set WildPokemonEvents
+        _wildPokemonEvents = GetComponent<WildPokemonEvents>();
+
+        //--Manage Colliders
+        BoxCollider = GetComponent<BoxCollider>();
+        BoxCollider.enabled = false;
+        StartCoroutine( CollisionDelay() );
     }
 
-    private IEnumerator CollisionDelay()
-    {
+    public IEnumerator CollisionDelay(){
+        //--Delay before collider is enabled so mons can't spawn directly on top of the player and trigger a battle immediately
         yield return new WaitForSeconds( 0.25f );
-        _boxCollider.enabled = true;
+        BoxCollider.enabled = true;
         yield return null;
     }
 
     private void OnTriggerEnter( Collider col ){
         if( col.CompareTag( "Player" ) ){
-            _boxCollider.enabled = false;
+            BoxCollider.enabled = false;
             _collided = true;
-            wildPokemon.Init();
-            Debug.Log("wildPokemon");
-            pokeSODelegate = () => this.wildPokemon;
-            OnWildPokemonCollided?.Invoke();
+            Pokemon.Init();
+            WildPokemonEvents.OnPlayerEncounter?.Invoke( this );
             WildPokemonLocation = transform.position;
+            WildPokemonWander.SetPausedState();
         }
+    }
+
+    public void Despawn(){
+        //--Despawn event call
+        WildPokemonEvents.OnPokeDespawned?.Invoke( this );
+
+        //--Clear the State Machine
+        WildPokemonStateMachine.StateStack.Clear();
+        WildPokemonStateMachine = null;
+
+        //--Make sure the list isn't null and contains the wildmon before we remove it
+        if( WildPokemonManager.Instance.SpawnedPokemonList != null && WildPokemonManager.Instance.SpawnedPokemonList.Contains( this ) ){
+            WildPokemonManager.Instance.SpawnedPokemonList?.Remove( this );
+        }
+        
+        //--Die
+        Debug.Log( this + " has been destroyed" );
+        Destroy( gameObject );
+    }
+
+    private void OnGUI(){
+        var style = new GUIStyle();
+        style.fontSize = 24;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = Color.white;
+
+        GUILayout.BeginArea( new Rect( 300, 0, 500, 500 ) );
+        GUILayout.Label( "WILD POKEMON STATE STACK", style ); //--REMEMBER YOU WERE DOING THIS LOL I LEFT THE VIDEO OPEN FOR YOU
+        foreach( var state in WildPokemonStateMachine.StateStack ){
+            GUILayout.Label( state.GetType().ToString(), style );
+        }
+        GUILayout.EndArea();
     }
 
 }

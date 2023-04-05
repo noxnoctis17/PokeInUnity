@@ -4,9 +4,9 @@ using UnityEngine;
 
 public abstract class BattleStateMachine : MonoBehaviour
 {
-    protected BattleState BattleState;
+    protected InBattleStates BattleState;
 
-    public void SetState( BattleState state ){
+    public void SetState( InBattleStates state ){
         BattleState = state;
         StartCoroutine( BattleState.Start() );
     }

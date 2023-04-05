@@ -3,27 +3,44 @@ using UnityEngine;
 
 public class DialogueManager : MonoBehaviour
 {
-    public static Action OnDialogueStarted;
-    public static Action OnDialogueFinished;
+    public static DialogueManager Instance;
+    public Action OnDialogueStarted;
+    public Action OnDialogueFinished;
+    public Action<DialogueSO> OnDialogueEvent;
+    public Action<DialogueSO> OnResponseChosen;
+    public Action<DialogueResponseEvents> OnHasResponseEvents;
     [SerializeField] private DialogueUI _dialogueUI;
     public DialogueUI DialogueUI => _dialogueUI;
 
     private void OnEnable( ){
-        NPC_Base.OnNPCDialogueEvent += PlayDialogue;
-        ResponseHandler.OnResponseChosen += PlayDialogue;
+        Instance = this;
+        OnDialogueEvent += PlayDialogue;
+        OnResponseChosen += ContinueDialogue;
+        OnHasResponseEvents += AddResponseEvents;
     }
 
     private void OnDisable( ){
-        NPC_Base.OnNPCDialogueEvent -= PlayDialogue;
-        ResponseHandler.OnResponseChosen -= PlayDialogue;
+        OnDialogueEvent -= PlayDialogue;
+        OnResponseChosen -= ContinueDialogue;
+        OnHasResponseEvents -= AddResponseEvents;
     }
 
     private void PlayDialogue( DialogueSO dialogueSO ){
         Debug.Log( "PlayDialogue" );
-        GameStateTemp.GameState = GameState.Dialogue;
-        GameStateTemp.OnGameStateChanged?.Invoke();
-        OnDialogueStarted?.Invoke();
-        _dialogueUI.ShowDialogue( dialogueSO );
+
+        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
+            GameStateController.Instance.GameStateMachine?.Push( DialogueState.Instance );
+        }
+        _dialogueUI.StartDialogue( dialogueSO );
+    }
+
+    private void ContinueDialogue( DialogueSO dialogueSO ){
+        Debug.Log( "ContinueDialogue" );
+        _dialogueUI.StartDialogue( dialogueSO );
+    }
+
+    private void AddResponseEvents( DialogueResponseEvents responseEvents ){
+        _dialogueUI.AddResponseEvents( responseEvents.ResponseEvents );
     }
 
 }

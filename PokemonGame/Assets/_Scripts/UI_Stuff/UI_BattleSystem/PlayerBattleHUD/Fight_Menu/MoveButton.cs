@@ -18,9 +18,11 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     }
 
     public void OnSelect(BaseEventData baseEventData){
+        #pragma warning disable CS8321
         IEnumerator SelectedOutlineDelay(){
             yield return new WaitForSeconds(0.1f);
         }
+        #pragma warning restore CS8321
         gameObject.GetComponent<Outline>().enabled = true;
         _moveDescription.text = AssignedMove.moveBase.Description;
     }

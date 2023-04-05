@@ -41,27 +41,27 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 8fe2729acb807894080566eb1cdf687d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 20cd36ee8d8a8ae48b3f4981c298a8e1, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _RoadTex:
-        m_Texture: {fileID: 2800000, guid: f13ab990a2baebb4cb3a5212d5107af5, type: 3}
+        m_Texture: {fileID: 2800000, guid: 710985662433c7b498c61ebe4e9cd16e, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SideTex:
-        m_Texture: {fileID: 2800000, guid: 153b23e9f3891f44d9a33c0ccb789aad, type: 3}
+        m_Texture: {fileID: 2800000, guid: a17a45cb3fa45dd4c8760a707cda9530, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _nrml_MainTex:
-        m_Texture: {fileID: 2800000, guid: a8fce3d27d9b14948bb7af16efe763ef, type: 3}
+        m_Texture: {fileID: 2800000, guid: a40f57aa5eccbd14f8daba621c789f3f, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _nrml_RoadTex:
-        m_Texture: {fileID: 2800000, guid: 19cb1f5a630272a418bf7f4b4b69d1da, type: 3}
+        m_Texture: {fileID: 2800000, guid: 1f10a2695d745a549bb0f312fd4c87bc, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _nrml_SideTex:
-        m_Texture: {fileID: 2800000, guid: 1d278ffd53e654446bf4f233c33293df, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
@@ -78,12 +78,15 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BlendText_Tiling: 0.48
-    - _MainText_Tiling: 0.48
+    - _BlendText_Tiling: 0.5
+    - _MainTexNormalStrength: 0.25
+    - _MainText_Tiling: 0.5
+    - _NormalStrength: 2
     - _QueueControl: 0
     - _QueueOffset: 0
+    - _RoadTexNormalStrength: 4
     - _SideTex_Offset: 0.77
-    - _SideTex_Tiling: 0.05
+    - _SideTex_Tiling: 1
     m_Colors:
     - _SideText_Offset: {r: 0, g: 0, b: 0, a: 0}
     - _SideText_Rotate: {r: 0, g: 0, b: 0, a: 0}

@@ -7,18 +7,28 @@ using System.Collections.Generic;
 
 public enum BattleStateEnum { Start, PlayerAction, Busy, NextTurn, SelectingNextPokemon, Over }
 
-public enum BattleType { WildBattle1v1, WildBattle2v2, Trainer1v1, Trainer2v2, Trainer3v3 }
+public enum BattleType {
+    WildBattle_1v1,
+    WildBattle_2v2,
+    TrainerSingles_1v1,
+    TrainerDoubles_1v1,
+    TrainerDoubles_2v1,
+    TrainerDoubles_2v2,
+
+    }
 
 [Serializable]
 public class BattleSystem : BattleStateMachine
 {
     private BattleType _battleType;
     public BattleType BattleType => _battleType;
+    [SerializeField] private BattleArena _battleArena;
+    public BattleArena BattleArena => _battleArena;
     [SerializeField] private GameObject _battleUnitPrefab;
     public GameObject BattleUnitPrefab => _battleUnitPrefab;
-    [SerializeField] private BattleUnit _playerUnit => PlayerUnit;
-    public BattleUnit PlayerUnit { get; set; }
-    [SerializeField] private BattleUnit _enemyUnit;
+    private BattleUnit _playerUnit;
+    public BattleUnit PlayerUnit => _playerUnit;
+    private BattleUnit _enemyUnit;
     public BattleUnit EnemyUnit => _enemyUnit;
     [SerializeField] private BattleHUD _playerHUD;
     public BattleHUD PlayerHUD => _playerHUD;
@@ -38,8 +48,6 @@ public class BattleSystem : BattleStateMachine
     public PartyScreen PartyScreen => _partyScreen;
     [SerializeField] private EventSystem _eventSystem;
     public EventSystem EventSystem => _eventSystem;
-    [SerializeField] private BattleSceneSetup _battleSceneSetup;
-    public BattleSceneSetup BattleSceneSetup => _battleSceneSetup;
     [SerializeField] private AudioSource _audioSource;
     public AudioSource AudioSource => _audioSource;
 
@@ -49,7 +57,7 @@ public class BattleSystem : BattleStateMachine
     public BattleStateEnum BattleStateEnum => _battleStateEnum;
     public static Action OnBattleStarted;
     public static Action OnBattleEnded;
-    public static Action OnPlayerCommandSelect;
+    public static Action<BattleSystem> OnPlayerCommandSelect;
     public static Action OnPlayerAction;
     public static Action OnPlayerPokemonFainted;
     public static Action OnPlayerChoseNextPokemon;
@@ -60,11 +68,15 @@ public class BattleSystem : BattleStateMachine
     private bool _isFaintedSwitch;
 
     private PokemonParty _playerParty;
+    private PokemonParty _enemyTrainerParty;
     public PokemonParty PlayerParty => _playerParty;
+    public PokemonParty EnemyTrainerParty => _enemyTrainerParty;
     private int _playerUnitAmount;
     public int PlayerUnitAmount => _playerUnitAmount;
-    private PokemonClass _wildPokemon;
+    private PokemonClass _wildPokemon; //--wild pokemon you are battling. i need to clean these guys up and clean up my wild encounter setup
     public PokemonClass WildPokemon => _wildPokemon;
+    private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
+    public WildPokemon EncounteredPokemon => _encounteredPokemon;
 
 //----------------------------------Command System-----------------------------
 
@@ -79,20 +91,13 @@ public class BattleSystem : BattleStateMachine
 //----------------------------------------------------------------------
 
     private void OnEnable(){
-        GameStateTemp.GameState = GameState.Battle;
-        GameStateTemp.OnGameStateChanged?.Invoke();
         DamageTakenPopupPrefab = _damageTakenPopupPrefab;
-    }
-
-    private void OnDisable(){
-        GameStateTemp.GameState = GameState.Overworld;
-        GameStateTemp.OnGameStateChanged?.Invoke();
     }
 
     private void Start()    {
         _commandQueue = new Queue<IBattleCommand>();
         _commandList = new List<IBattleCommand>();
-        DialogueBoxeUpdates = new Queue<BattleDialogueBox>();
+        DialogueBoxeUpdates = new Queue<BattleDialogueBox>(); //--?? was this for my passive dialogue box?
     }
 
     private void Update(){
@@ -122,23 +127,56 @@ public class BattleSystem : BattleStateMachine
         }
     }
 
-    public void StartWildBattle( PokemonParty playerParty, PokemonClass wildPokemon ){
-        _playerParty = playerParty;
-        _wildPokemon = wildPokemon;
-        _battleType = BattleType.WildBattle1v1;
+    //--Start setting up a battle. Anything that starts a battle needs to set the Battle Type. The Battle Type is responsible
+    //--for HOW the Battle Stage will set itself up. From there, it will add all necessary unit positions to a list
+    //--SOMEHOW, we will then assign all necessary Battle Unit objects from the Stage to their correct references here
+    //--in the Battle System
+    public void InitializeWildBattle( BattleType battleType ){
+        _battleType = battleType;
+        _playerParty = PlayerReferences.Instance.PlayerParty;
 
-        switch( BattleType ){
-            case BattleType.WildBattle1v1:
-
-                _playerUnitAmount = 1;
-                break;
-        }
-        
         SetState( new BattleState_Setup( this ) );
     }
 
-    public void StartTrainerBattle( PokemonParty playerParty, PokemonParty enemyParty ){
-        //--😈
+    public void InitializeTrainerSingles_1v1( BattleType battleType, PokemonParty enemyTrainerParty ){
+        _battleType = battleType;
+        _playerParty = PlayerReferences.Instance.PlayerParty;
+        _enemyTrainerParty = enemyTrainerParty;
+
+        SetState( new BattleState_Setup( this ) );
+    }
+
+    //--Hopefully this can correctly assign units. The BattleArena passes the gameObject containing the BattleUnit
+    //--that needs to be assigned, as well as a reference to the BattleSystem's appropriate BattleUnit variable.
+    //--The BattleArena class currently also handles the Wild Encounter's BattleUnit case, by passing in the Encounter's
+    //--gameObject as the obj, and the EnemyUnit as the battle unit, instead of an arena gameObject like it would in
+    //--a Trainer Battle, or the Player's sent-out Pokemon
+
+    public void AssignUnits_1v1( BattleUnit playerUnit, BattleUnit enemyUnit ){
+        _playerUnit = playerUnit;
+        Debug.Log( _playerUnit._pokeSO.pName );
+        
+        _enemyUnit = enemyUnit;
+        Debug.Log( _enemyUnit._pokeSO.pName + " obj name: " + name );
+    }
+
+    public void AssignPlayerUnit( BattleUnit playerUnit ){
+        _playerUnit = playerUnit;
+        Debug.Log( _playerUnit._pokeSO.pName );
+    }
+
+    public void AssignEnemyUnit( BattleUnit enemyUnit ){
+        _enemyUnit = enemyUnit;
+        Debug.Log( _enemyUnit._pokeSO.pName + " obj name: " + name );
+    }
+
+    //--When a Wild Battle is triggered by WildPokemonEvents.OnPlayerEncounter (a player runs into a wild mon),
+    //--the BattleController's InitWildBattle() is called. That method eventually passes the Encounter's reference
+    //--to the BattleSystem so that BattleState_Setup can properly call Setup() on the EnemyUnit to properly add the
+    //--Wild Encounter as the EnemyUnit's Pokemon
+    public void AssignWildPokemon( WildPokemon wildPokemon ){
+        _wildPokemon = wildPokemon.Pokemon;
+        _encounteredPokemon = wildPokemon;
     }
 
     public void PlayerAction(){
@@ -162,13 +200,27 @@ public class BattleSystem : BattleStateMachine
         StartCoroutine( PerformSwitchPokemonCommand( switchedTo ) );
     }
 
+    private void EndBattle(){
+        Debug.Log( "BattleSystem EndBattle()" );
+        _encounteredPokemon.Despawn(); //--gunna have to implement this differently once trainer battles are implemented
+        _battleArena.ClearActivePositionsList();
+        _isFainted = false;
+        _commandQueue.Clear();
+        OnBattleEnded?.Invoke();
+        BattleUIActions.OnAttackPhaseCompleted?.Invoke();
+        _battleStateEnum = BattleStateEnum.Over;
+
+        //--Should just have to pop the state. battles SHOULD never happen above another state, but we'll see
+        GameStateController.Instance.GameStateMachine.Pop();
+    }
+
 //--------------------------------------------------------------------------------------------------------
 //----------------------------------------------COMMANDS-------------------------------------------------
 //--------------------------------------------------------------------------------------------------------
 
     public IEnumerator PerformMoveCommand( MoveClass move, BattleUnit attacker, BattleUnit target ){
         bool canAttack = attacker.Pokemon.OnBeforeTurn();
-        Debug.Log(canAttack);
+        Debug.Log( this + " canAttack is: " + canAttack );
         if( !canAttack ){
             yield return attacker.BattleHUD.UpdateHP();
             yield break;
@@ -177,7 +229,12 @@ public class BattleSystem : BattleStateMachine
         var moveEffects = move.moveBase.MoveEffects;
         attacker.Pokemon.currentPP = attacker.Pokemon.currentPP - move.PP;
         yield return attacker.BattleHUD.UpdatePP();
-        yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName} used {move.moveBase.MoveName}!" );
+        // yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName} used {move.moveBase.MoveName}!" );
+        //--doing it this way instead of yielding should make it not slow battles down. eventually i will make a queue
+        //--that takes these in instead, and not only runs them onto a smaller update bar somewhere in the UI so that
+        //--the player can still get the text play-by-play, it will add the full strings to a turn log that will come up
+        //--when the player opens the "battle status" window 
+        StartCoroutine( _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName} used {move.moveBase.MoveName}!" ) );
 
         // BattleUIActions.OnCommandUsed?.Invoke(); //--hide UI
         yield return new WaitForSeconds(0.5f); //--attack animation placeholder
@@ -193,15 +250,15 @@ public class BattleSystem : BattleStateMachine
                 yield return ShowDamageDetails( damageDetails );
             }
 
-            if( move.moveBase.SecondaryMoveEffects != null && move.moveBase.SecondaryMoveEffects.Count > 0 && target.Pokemon.currentHP > 0){
-                foreach(var secondary in move.moveBase.SecondaryMoveEffects){
-                    var rand = UnityEngine.Random.Range(1, 101);
-                    if(rand <= secondary.Chance)
-                        yield return RunMoveEffects(secondary, secondary.Target, attacker.Pokemon, target.Pokemon);
+            if( move.moveBase.SecondaryMoveEffects != null && move.moveBase.SecondaryMoveEffects.Count > 0 && target.Pokemon.currentHP > 0 ){
+                foreach( var secondary in move.moveBase.SecondaryMoveEffects ){
+                    var rand = UnityEngine.Random.Range( 1, 101 );
+                    if( rand <= secondary.Chance )
+                        yield return RunMoveEffects( secondary, secondary.Target, attacker.Pokemon, target.Pokemon );
                 }
             }
         } else {
-            yield return _dialogueBox.TypeDialogue($"{attacker.Pokemon.PokeSO.pName}'s attack missed!");
+            yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName}'s attack missed!" );
         }
 
         attacker.Pokemon.OnAfterTurn();
@@ -300,18 +357,6 @@ public class BattleSystem : BattleStateMachine
         yield return null;
     }
 
-    private void EndBattle(){
-        Debug.Log( "endbattle called" );
-        _isFainted = false;
-        _commandQueue.Clear();
-        OnBattleEnded?.Invoke();
-        BattleUIActions.OnAttackPhaseCompleted?.Invoke();
-        _battleStateEnum = BattleStateEnum.Over;
-        PlayerReferences.AIPath.enabled = false;
-        GameStateTemp.GameState = GameState.Overworld;
-        GameStateTemp.OnGameStateChanged?.Invoke();
-    }
-
     public IEnumerator PerformSwitchPokemonCommand( PokemonClass pokemon ){
         //--for the future if i want to target the previous pokemon with a move (pursuit), specificy the previous pokemon in this class?
 
@@ -320,23 +365,23 @@ public class BattleSystem : BattleStateMachine
             yield return _dialogueBox.TypeDialogue( $"{_playerUnit.Pokemon.PokeSO.pName}, come back!" );
         }
         
-        _playerUnit.Setup( pokemon, _playerHUD );
+        _playerUnit.Setup( pokemon, _playerHUD, this );
         _fightMenu.SetUpMoves( pokemon.Moves );
 
         yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.pName}!" );
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds( 1f );
         // BattleUIActions.OnCommandAnimationsCompleted?.Invoke();
 
         if( _isFaintedSwitch )
             _isFaintedSwitch = false;
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds( 0.5f );
         PlayerAction();
     }
 
     public IEnumerator PerformRunFromBattleCommand(){
         Debug.Log( "You got away!" );
         EndBattle();
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds( 1f );
     }
 
 //--------------------------------------------------------------------------------------------------------
@@ -357,7 +402,7 @@ public class BattleSystem : BattleStateMachine
     public void SetPlayerMoveCommand( BattleUnit attacker, MoveClass move ){
         _useMoveCommand = new UseMoveCommand( move, attacker, _enemyUnit, this );
         _commandList.Add( _useMoveCommand );
-        OnPlayerCommandSelect?.Invoke();
+        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
 
     public void SetEnemyMoveCommand( BattleUnit attacker, MoveClass move ){
@@ -369,13 +414,13 @@ public class BattleSystem : BattleStateMachine
     public void SetSwitchPokemonCommand( PokemonClass pokemon ){
         _switchPokemonCommand = new SwitchPokemonCommand( pokemon, this );
         _commandList.Add( _switchPokemonCommand );
-        OnPlayerCommandSelect?.Invoke();
+        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
 
     public void SetRunFromBattleCommand(){
         _runFromBattleCommand = new RunFromBattleCommand( this );
         _commandList.Add( _runFromBattleCommand );
-        OnPlayerCommandSelect?.Invoke();
+        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
 
     public void AddCommand( IBattleCommand command ){

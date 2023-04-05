@@ -13,7 +13,7 @@ public class PKMNMenu : MonoBehaviour
 
     private void OnEnable(){
         _partyScreen.Init();
-        _partyScreen.SetParty(_battleSystem.PlayerParty.PartyPokemon);
+        _partyScreen.SetParty( _battleSystem.PlayerParty.PartyPokemon );
         BattleUIActions.OnPkmnMenuOpened?.Invoke();
     }
 

@@ -1,33 +1,59 @@
 using System;
 using UnityEngine;
 
+[RequireComponent( typeof( BattleAI ) )]
 [System.Serializable]
 public class BattleUnit : MonoBehaviour
 {
+    public Action OnIsAI;
+    private BattleSystem _battleSystem;
     public BattleHUD BattleHUD { get; set; }
-    [SerializeField] public PokemonSO _pokeSO;
+    private BattleAI _battleAI;
+    public BattleAI BattleAI => _battleAI;
+    [SerializeField] public PokemonSO _pokeSO; //--why the fuck is this public
     [SerializeField] private int _level;
     public int Level => _level;
-    private BattleAI _battleAI;
     [SerializeField] private bool _isAI;
 
     public PokemonClass Pokemon { get; set; }
     private SpriteRenderer _spriteRenderer;
 
-    private void Awake(){
-        if( _isAI )
-            _battleAI = GetComponent<BattleAI>();
-        
+    private void OnEnable(){
+        OnIsAI += EnableAI;
         _spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
-    public void Setup( PokemonClass pokemon, BattleHUD battleHUD ){
+    private void OnDisable(){
+        OnIsAI -= EnableAI;
+    }
+
+    public void Setup( PokemonClass pokemon, BattleHUD battleHUD, BattleSystem battleSystem){
+        _battleSystem = battleSystem;
+        _battleAI = GetComponent<BattleAI>();
         _pokeSO = pokemon.PokeSO;
         _level = pokemon.Level;
         Pokemon = pokemon;
         _spriteRenderer.sprite = _pokeSO.FrontSprite;
         BattleHUD = battleHUD;
         BattleHUD.SetData( Pokemon );
+
+        if( _isAI ){
+            _battleAI.enabled = true;
+            Debug.Log( _battleAI + " " + name );
+            SetupAI();
+        }
+        else{
+            _battleAI.enabled = false;
+        }
+    }
+
+    private void EnableAI(){
+        _isAI = true;
+    }
+
+    private void SetupAI(){
+        Debug.Log( "setup ai" );
+        GetComponent<BattleAI>().SetupAI( _battleSystem, this );
     }
 
     public DamageDetails TakeDamage( MoveClass move, PokemonClass attacker ){

@@ -21,37 +21,45 @@ public class ConditionsDB
             ConditionID.PSN, new ConditionClass()
             {
                 ConditionName = "Poison",
-                OnAfterTurn = (PokemonClass pokemon) =>
+                OnAfterTurn = ( PokemonClass pokemon ) =>
                 { 
-                    pokemon.UpdateHP(pokemon.MaxHP / 8);
+                    pokemon.UpdateHP( pokemon.MaxHP / 8 );
                 }}},
         {   //--TOXIC
             ConditionID.TOX, new ConditionClass()
             {
                 ConditionName = "Toxic",
-                OnAfterTurn = (PokemonClass pokemon) =>
+                OnAfterTurn = ( PokemonClass pokemon ) =>
                 { 
-                    pokemon.UpdateHP(pokemon.MaxHP / 8);
+                    pokemon.UpdateHP( pokemon.MaxHP / 8 );
                 }}},
 
         {   //--BURN
             ConditionID.BRN, new ConditionClass()
             {
                 ConditionName = "Burn",
-                OnAfterTurn = (PokemonClass pokemon) =>
+                OnAfterTurn = ( PokemonClass pokemon ) =>
                 {
-                    pokemon.UpdateHP(pokemon.MaxHP / 16);
+                    pokemon.UpdateHP( pokemon.MaxHP / 16 );
+                    Debug.Log( $"{pokemon.PokeSO.pName} is hurt by its burn!" );
                 }}},
 
         {   //-PARAYLSIS
             ConditionID.PAR, new ConditionClass()
             {
                 ConditionName = "Paralysis",
-                OnBeforeTurn = (PokemonClass pokemon) =>
+                OnBeforeTurn = ( PokemonClass pokemon ) =>
                 {
-                    if(Random.Range(1, 5) == 1)
+                    if( Random.Range( 1, 5 ) == 1 )
                     {
                         return false;
+                        //--we're going to change paralysis to 1/3rd speed (up from 1/2, but not as severe as its old 1/4)
+                        //--and instead, we're going to prevent only the turn it was paralyzed on from happening, removing the paralysis chance
+                        //--perhaps 1/4 speed will be the best compensation for the lack of turn-chance paralysis
+                        //--but this idea was pulled from an idea Cybertron had voiced about players potentially wanting to see
+                        //--for changes to paralysis in his buffs and nerfs video
+                        //--sleep was already guaranteed 2 turns, which is something he also brought up, so i nailed that idea lol
+                        //--freeze will be turned into special burn, aka frostbite from legends arceus
                     }
 
                     return true;
@@ -61,41 +69,34 @@ public class ConditionsDB
             ConditionID.SLP, new ConditionClass()
             {
                 ConditionName = "Sleep",
-                OnRoundStart = (PokemonClass pokemon) =>
+                OnRoundStart = ( PokemonClass pokemon ) =>
                 {
                     //--Sleep is for 1-3 turns? i'm gunna make it a guaranteed 2 turns only
                     pokemon.SevereStatusTime = 2;
                 },
 
-                OnBeforeTurn = (PokemonClass pokemon) =>
+                OnBeforeTurn = ( PokemonClass pokemon ) =>
                 {
-                    if(pokemon.SevereStatusTime ==0)
+                    if( pokemon.SevereStatusTime == 0 )
                     {
                         pokemon.CureSevereStatus();
-                        Debug.Log($"{pokemon.PokeSO.pName} woke up!");
+                        Debug.Log( $"{pokemon.PokeSO.pName} woke up!" );
                         return true;
                     }
 
-                    Debug.Log($"{pokemon.PokeSO.pName} is fast asleep!");
+                    Debug.Log( $"{pokemon.PokeSO.pName} is fast asleep!" );
                     pokemon.SevereStatusTime--;
                     return false;
                 }}},
 
-        {   //--FREEZE
-            ConditionID.FRZ, new ConditionClass()
+        {   //--FROSTBITE
+            ConditionID.FRST, new ConditionClass()
             {
-                ConditionName = "Freeze",
-                OnBeforeTurn = (PokemonClass pokemon) =>
+                ConditionName = "Frostbite",
+                OnAfterTurn = ( PokemonClass pokemon ) =>
                 {
-                    if(Random.Range(1, 5) == 1)
-                    {
-                        pokemon.CureSevereStatus();
-                        Debug.Log($"{pokemon.PokeSO.pName} is no longer frozen!");
-                        return true;
-                    }
-
-                    Debug.Log($"{pokemon.PokeSO.pName} is frozen solid!");
-                    return false;
+                    pokemon.UpdateHP( pokemon.MaxHP / 16 );
+                    Debug.Log( $"{pokemon.PokeSO.pName} is hurt by its frostbite!" );
                 }}},
 
         {   //--FAINT
@@ -108,29 +109,29 @@ public class ConditionsDB
             ConditionID.CONFUSION, new ConditionClass()
             {
                 ConditionName = "Confusion",
-                OnRoundStart = (PokemonClass pokemon) =>
+                OnRoundStart = ( PokemonClass pokemon ) =>
                 {
                     //--Confuse for 2-5 turns
-                    pokemon.VolatileStatusTime = Random.Range(2, 6);
+                    pokemon.VolatileStatusTime = Random.Range( 2, 6 );
                 },
 
-                OnBeforeTurn = (PokemonClass pokemon) =>
+                OnBeforeTurn = ( PokemonClass pokemon ) =>
                 {
-                    if(pokemon.VolatileStatusTime ==0)
+                    if( pokemon.VolatileStatusTime == 0 )
                     {
                         pokemon.CureVolatileStatus();
-                        Debug.Log($"{pokemon.PokeSO.pName} snapped out of confusion!");
+                        Debug.Log( $"{pokemon.PokeSO.pName} snapped out of confusion!" );
                         return true;
                     }
 
                     pokemon.VolatileStatusTime--;
 
                     //--33% Chance to Hurt Itself
-                    if(Random.Range(1,4) == 1)
+                    if( Random.Range( 1,4 ) == 1 )
                     {
-                        Debug.Log($"{pokemon.PokeSO.pName} is confused!");
-                        pokemon.UpdateHP(pokemon.MaxHP / 8);
-                        Debug.Log($"{pokemon.PokeSO.pName} hurt itself in confusion!");
+                        Debug.Log( $"{pokemon.PokeSO.pName} is confused!" );
+                        pokemon.UpdateHP( pokemon.MaxHP / 16 );
+                        Debug.Log( $"{pokemon.PokeSO.pName} hurt itself in confusion!" );
                         return false;
                     }
 
@@ -149,7 +150,7 @@ public enum ConditionID
     BRN,
     PAR,
     SLP,
-    FRZ,
+    FRST,
     FNT,
 
     CONFUSION,

@@ -60,7 +60,7 @@ public class BattleHUD : MonoBehaviour
             { ConditionID.BRN, _brnIcon },
             { ConditionID.PAR, _parIcon },
             { ConditionID.SLP, _slpIcon },
-            { ConditionID.FRZ, _frzIcon },
+            { ConditionID.FRST, _frzIcon },
             { ConditionID.FNT, _fntIcon }
         };
 

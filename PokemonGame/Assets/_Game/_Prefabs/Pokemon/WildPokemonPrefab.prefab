@@ -11,15 +11,17 @@ GameObject:
   - component: {fileID: 1787051004014866960}
   - component: {fileID: 1787051004014866961}
   - component: {fileID: 1787051004014866990}
-  - component: {fileID: -6084029688671657410}
   - component: {fileID: 1787051004014866991}
   - component: {fileID: -653024133785008528}
+  - component: {fileID: 7254466767282306480}
   - component: {fileID: 5624286317207505633}
+  - component: {fileID: -348324383099053315}
   - component: {fileID: 211161642488858925}
   - component: {fileID: 5693543401053995304}
   - component: {fileID: 1763243801893878661}
   - component: {fileID: 8677450042131134334}
   - component: {fileID: 5888516248969370238}
+  - component: {fileID: 5037085297874104730}
   m_Layer: 6
   m_Name: WildPokemonPrefab
   m_TagString: WildPokemon
@@ -114,20 +116,6 @@ Animator:
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorControllerStateOnDisable: 0
---- !u!114 &-6084029688671657410
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1787051004014866988}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 397b6b363fda3d54d8347a227f013dc7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _minDespawnTime: 60
-  _maxDespawnTime: 120
 --- !u!114 &1787051004014866991
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -140,9 +128,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a9bd87dc27d51c40a7d0c5caf2f5763, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  wildPokemon:
-    _pokeSO: {fileID: 11400000, guid: 8bd2be014fea6a94b9fffcc0e4f50fdc, type: 2}
+  Pokemon:
+    _pokeSO: {fileID: 11400000, guid: 907fa4e48c5f417459b9eec223f7b8c5, type: 2}
     _level: 20
+    _showDamageTakenText: {fileID: 0}
+    _showMoveUsedText: {fileID: 0}
     HPChanged: 0
   _sprite: {fileID: 1787051004014866961}
 --- !u!114 &-653024133785008528
@@ -159,6 +149,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _radius: 10
   _wanderState: 0
+--- !u!114 &7254466767282306480
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1787051004014866988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 391c80d1b9d75164d838d6eed243b1b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &5624286317207505633
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -171,7 +173,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c92ab30e5652c6a428ec10d74ebfd9d8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _cameraTransform: {fileID: 0}
+--- !u!114 &-348324383099053315
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1787051004014866988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2515b1de42c4cf249b7296fdf2423754, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _pokeSO: {fileID: 0}
+  _level: 0
+  _isAI: 1
 --- !u!143 &211161642488858925
 CharacterController:
   m_ObjectHideFlags: 0
@@ -180,9 +196,17 @@ CharacterController:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1787051004014866988}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Height: 1
   m_Radius: 0.05
   m_SlopeLimit: 50
@@ -198,9 +222,17 @@ BoxCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1787051004014866988}
   m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 1
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
+  serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 3}
   m_Center: {x: 0, y: 0.25, z: 0}
 --- !u!114 &1763243801893878661
@@ -288,3 +320,16 @@ MonoBehaviour:
   slowWhenNotFacingTarget: 1
   whenCloseToDestination: 0
   constrainInsideGraph: 0
+--- !u!114 &5037085297874104730
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1787051004014866988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af7d5a1a098a3794f98a0b1f3b0fc3f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _battleSystem: {fileID: 0}

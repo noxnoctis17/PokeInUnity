@@ -8,7 +8,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: m_SolarTankGlass
-    second: {fileID: 2100000, guid: a1841215bcf5afa4b9fb66405d077d17, type: 2}
+    second: {fileID: 2100000, guid: c000aa84fdb19fd4ebe1a57f3ebe7c32, type: 2}
   materials:
     materialImportMode: 2
     materialName: 2
@@ -42,7 +42,7 @@ ModelImporter:
     lODScreenPercentages: []
     globalScale: 4
     meshCompression: 0
-    addColliders: 0
+    addColliders: 1
     useSRGBMaterialColor: 1
     sortHierarchyByName: 1
     importVisibility: 1

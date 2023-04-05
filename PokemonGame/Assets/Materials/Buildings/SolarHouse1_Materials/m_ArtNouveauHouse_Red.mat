@@ -23,6 +23,18 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _BuildingNormals:
+        m_Texture: {fileID: 2800000, guid: a8199e3b1906b304f8bfcabebb32144f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BuildingTexture:
+        m_Texture: {fileID: 2800000, guid: ebc639275702e394bb1778e74d75388a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskTexture:
+        m_Texture: {fileID: 2800000, guid: d3cae1f6efb9a1a4ab3a5848738658a5, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SampleTexture2D_8ba4ad0b025745a5b8b39316f5c3eaa9_Texture_1:
         m_Texture: {fileID: 2800000, guid: d3cae1f6efb9a1a4ab3a5848738658a5, type: 3}
         m_Scale: {x: 1, y: 1}

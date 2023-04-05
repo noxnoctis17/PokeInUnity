@@ -102,7 +102,9 @@ public enum WildType
 {
     Uninterested,
     Curious,
-    Aggressive
+    Aggressive,
+     Scared,
+     Static,
 
 }
 
@@ -147,9 +149,8 @@ public class TypeChart
 
     };
 
-    public static float GetEffectiveness(PokemonType attackType, PokemonType defenseType)
-    {
-        if (attackType == PokemonType.None || defenseType == PokemonType.None)
+    public static float GetEffectiveness( PokemonType attackType, PokemonType defenseType ){
+        if ( attackType == PokemonType.None || defenseType == PokemonType.None )
          return 1;
 
         int row = (int)attackType - 1;

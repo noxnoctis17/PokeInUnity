@@ -8,13 +8,13 @@ public class PokemonClass
 {
     [SerializeField] private PokemonSO _pokeSO;
     [SerializeField] private int _level;
-    [SerializeField] private Transform _showDamageTakenText;
-    [SerializeField] private Transform _showMoveUsedText;
+    [SerializeField] private Transform _showDamageTakenText; //--these are mine to show their text as pop ups in battle
+    [SerializeField] private Transform _showMoveUsedText; //--these are mine to show their text as pop ups in battle
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
-    public int currentHP {get; set;}
-    public int currentPP {get; set;}
-    public List<MoveClass> Moves {get; set;}
+    public int currentHP { get; set; }
+    public int currentPP { get; set; }
+    public List<MoveClass> Moves { get; set; }
     public Dictionary<Stat, int> Stats { get; private set; }
     public Dictionary<Stat, int> StatBoosts { get; private set; }
     public ConditionClass SevereStatus { get; private set; }
@@ -25,19 +25,30 @@ public class PokemonClass
     public bool HPChanged;
 
 //--------------------------------------------------------------------------------------------
-//------------------------------------POKEMON STATS-------------------------------------------
+//-----------------------------------[POKEMON STATS]------------------------------------------
 //--------------------------------------------------------------------------------------------
 
     public int MaxHP { get; private set; }
     public int MaxPP { get; private set; }
-    public int Attack => GetStat(Stat.Attack);
-    public int Defense => GetStat(Stat.Defense);
-    public int SpAttack => GetStat(Stat.SpAttack);
-    public int SpDefense => GetStat(Stat.SpDefense);
-    public int Speed => GetStat(Stat.Speed);
+    public int Attack => GetStat( Stat.Attack );
+    public int Defense => GetStat( Stat.Defense );
+    public int SpAttack => GetStat( Stat.SpAttack );
+    public int SpDefense => GetStat( Stat.SpDefense );
+    public int Speed => GetStat( Stat.Speed );
 
 //--------------------------------------------------------------------------------------------
-//---------------------------------------FUNCTIONS--------------------------------------------
+//------------------------------------[EFFORT VALUES]-----------------------------------------
+//--------------------------------------------------------------------------------------------
+    public int AccumulatedEVs { get; private set; }
+    public int HP_EVs { get; private set; }
+    public int ATK_EVs { get; private set; }
+    public int DEF_EVs { get; private set; }
+    public int SPATK_EVs { get; private set; }
+    public int SPDEF_EVs { get; private set; }
+    public int SPE_EVs { get; private set; }
+
+//--------------------------------------------------------------------------------------------
+//--------------------------------------[FUNCTIONS]-------------------------------------------
 //--------------------------------------------------------------------------------------------
 
     private void OnEnable(){
@@ -71,14 +82,20 @@ public class PokemonClass
     private void CalculateStats(){
         Stats = new Dictionary<Stat, int>();
 
-        Stats.Add(Stat.Attack, Mathf.FloorToInt(( 2 * PokeSO.Attack * Level ) / 100f ) + 5);
-        Stats.Add(Stat.Defense, Mathf.FloorToInt(( 2 * PokeSO.Attack * Level ) / 100f ) + 5);
-        Stats.Add(Stat.SpAttack, Mathf.FloorToInt(( 2 * PokeSO.Attack * Level ) / 100f ) + 5);
-        Stats.Add(Stat.SpDefense, Mathf.FloorToInt(( 2 * PokeSO.Attack * Level ) / 100f ) + 5);
-        Stats.Add(Stat.Speed, Mathf.FloorToInt(( 2 * PokeSO.Attack * Level ) / 100f ) + 5);
+        Stats.Add( Stat.Attack,    Mathf.FloorToInt((( 2 * PokeSO.Attack    * ( MathF.Max( CalcEVs( ATK_EVs ),   1f ))) * Level ) / 100f ) + 5 );
+        Stats.Add( Stat.Defense,   Mathf.FloorToInt((( 2 * PokeSO.Defense   * ( MathF.Max( CalcEVs( DEF_EVs ),   1f ))) * Level ) / 100f ) + 5 );
+        Stats.Add( Stat.SpAttack,  Mathf.FloorToInt((( 2 * PokeSO.SpAttack  * ( MathF.Max( CalcEVs( SPATK_EVs ), 1f ))) * Level ) / 100f ) + 5 );
+        Stats.Add( Stat.SpDefense, Mathf.FloorToInt((( 2 * PokeSO.SpDefense * ( MathF.Max( CalcEVs( SPDEF_EVs ), 1f ))) * Level ) / 100f ) + 5 );
+        Stats.Add( Stat.Speed,     Mathf.FloorToInt((( 2 * PokeSO.Speed     * ( MathF.Max( CalcEVs( SPE_EVs ),   1f ))) * Level ) / 100f ) + 5 );
 
-        MaxHP = Mathf.FloorToInt(( 2 * PokeSO.MaxHP * Level ) / 100 ) + Level + 10;
-        MaxPP = Mathf.FloorToInt(( 2 * PokeSO.MaxPP * Level ) / 200 ) + Level + 10;
+        MaxHP = Mathf.FloorToInt( ( 2 * PokeSO.MaxHP * Level ) / 100 ) + Level + 10;
+        MaxPP = Mathf.FloorToInt( ( 2 * PokeSO.MaxPP * Level ) / 200 ) + Level + 10;
+    }
+
+    private float CalcEVs( int statEVs ){
+        int value = statEVs / 4;
+
+        return Mathf.FloorToInt( value );
     }
 
     private int GetStat(Stat stat){
@@ -95,14 +112,14 @@ public class PokemonClass
         return statValue;
     }
 
-    public void ApplyStatBoost(List<StatBoost> statBoosts){
-        foreach(var statBoost in statBoosts){
+    public void ApplyStatBoost( List<StatBoost> statBoosts ){
+        foreach( var statBoost in statBoosts ){
             var stat = statBoost.Stat;
             var boost = statBoost.Boost;
 
-            StatBoosts[stat] = Mathf.Clamp(StatBoosts[stat] + boost, -6, 6);
+            StatBoosts[stat] = Mathf.Clamp( StatBoosts[stat] + boost, -6, 6 );
 
-            Debug.Log($"{stat} has been boosted to: {StatBoosts[stat]}");
+            Debug.Log( $"{stat} has been boosted to: {StatBoosts[stat]}" );
         }
     }
 
@@ -118,16 +135,16 @@ public class PokemonClass
         };
     }
 
-    public void UpdateHP(int damage){
-        currentHP = Mathf.Clamp(currentHP - damage, 0, MaxHP);
+    public void UpdateHP( int damage ){
+        currentHP = Mathf.Clamp( currentHP - damage, 0, MaxHP );
         HPChanged = true;
     }
 
-    public void SetSevereStatus(ConditionID conditionID){
-        if(SevereStatus != null) return;
+    public void SetSevereStatus( ConditionID conditionID ){
+        if( SevereStatus != null ) return;
 
         SevereStatus = ConditionsDB.Conditions[conditionID];
-        SevereStatus?.OnRoundStart?.Invoke(this);
+        SevereStatus?.OnRoundStart?.Invoke( this );
         Debug.Log($"{_pokeSO.pName} has been afflicted with: {ConditionsDB.Conditions[conditionID].ConditionName}");
         OnStatusChanged?.Invoke();
     }
@@ -137,12 +154,12 @@ public class PokemonClass
         OnStatusChanged?.Invoke();
     }
 
-    public void SetVolatileStatus(ConditionID conditionID){
-        if(VolatileStatus != null) return;
+    public void SetVolatileStatus( ConditionID conditionID ){
+        if( VolatileStatus != null ) return;
 
         VolatileStatus = ConditionsDB.Conditions[conditionID];
-        VolatileStatus?.OnRoundStart?.Invoke(this);
-        Debug.Log($"{_pokeSO.pName} has been afflicted with: {ConditionsDB.Conditions[conditionID].ConditionName}");
+        VolatileStatus?.OnRoundStart?.Invoke( this );
+        Debug.Log( $"{_pokeSO.pName} has been afflicted with: {ConditionsDB.Conditions[conditionID].ConditionName}" );
         // OnStatusChanged?.Invoke(); -------will add some visual effect for volatile statuses eventually
     }
 
@@ -152,7 +169,7 @@ public class PokemonClass
     }
 
     public MoveClass GetRandomMove(){
-        int r = UnityEngine.Random.Range(0, Moves.Count);
+        int r = UnityEngine.Random.Range( 0, Moves.Count );
         return Moves[r];
     }
 
