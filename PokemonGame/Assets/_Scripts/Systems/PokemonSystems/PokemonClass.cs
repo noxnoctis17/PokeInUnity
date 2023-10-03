@@ -12,11 +12,13 @@ public class PokemonClass
     [SerializeField] private Transform _showMoveUsedText; //--these are mine to show their text as pop ups in battle
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
-    public int currentHP { get; set; }
-    public int currentPP { get; set; }
+    public bool IsPlayerUnit { get; private set; }
+    public bool IsEnemyUnit { get; private set; }
+    public int CurrentHP { get; set; }
+    public int CurrentPP { get; set; }
     public List<MoveClass> Moves { get; set; }
     public Dictionary<Stat, int> Stats { get; private set; }
-    public Dictionary<Stat, int> StatBoosts { get; private set; }
+    public Dictionary<Stat, int> StatChange { get; private set; }
     public ConditionClass SevereStatus { get; private set; }
     public ConditionClass VolatileStatus { get; private set; }
     public Action OnStatusChanged;
@@ -52,7 +54,7 @@ public class PokemonClass
 //--------------------------------------------------------------------------------------------
 
     private void OnEnable(){
-        BattleSystem.OnBattleEnded += ResetStatBoost;
+        BattleSystem.OnBattleEnded += ResetStatChanges;
         BattleSystem.OnBattleEnded += CureVolatileStatus;
     }
     
@@ -61,22 +63,30 @@ public class PokemonClass
 
         //--------GENERATE MOVES-----------
 
-        foreach(var move in PokeSO.LearnableMoves){
-            if(move.LevelLearned <= Level){
-                Moves.Add(new MoveClass(move.MoveBase));
+        foreach( var move in PokeSO.LearnableMoves ){
+            if( move.LevelLearned <= Level ){
+                Moves.Add( new MoveClass( move.MoveBase ) );
             }
 
-            if(Moves.Count >= 4)
+            if( Moves.Count >= 4 )
                 break;
         }
 
         CalculateStats();
-        currentHP = MaxHP;
-        currentPP = MaxPP;
+        CurrentHP = MaxHP;
+        CurrentPP = MaxPP;
 
-        ResetStatBoost();
+        ResetStatChanges();
         SevereStatus = null;
         VolatileStatus = null;
+    }
+
+    public void SetAsPlayerUnit(){
+        IsPlayerUnit = true;
+    }
+
+    public void SetAsEnemyUnit(){
+        IsEnemyUnit = true;
     }
 
     private void CalculateStats(){
@@ -98,33 +108,33 @@ public class PokemonClass
         return Mathf.FloorToInt( value );
     }
 
-    private int GetStat(Stat stat){
+    private int GetStat( Stat stat ){
         int statValue = Stats[stat];
 
-        int boost = StatBoosts[stat];
-        var boostmodifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
+        int change = StatChange[stat];
+        var changeModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
 
-        if(boost >= 0)
-            statValue = Mathf.FloorToInt(statValue * boostmodifier[boost]);
+        if( change >= 0 )
+            statValue = Mathf.FloorToInt( statValue * changeModifier[change] );
         else
-            statValue = Mathf.FloorToInt(statValue / boostmodifier[-boost]);
+            statValue = Mathf.FloorToInt( statValue / changeModifier[-change] );
 
         return statValue;
     }
 
-    public void ApplyStatBoost( List<StatBoost> statBoosts ){
-        foreach( var statBoost in statBoosts ){
-            var stat = statBoost.Stat;
-            var boost = statBoost.Boost;
+    public void ApplyStatChange( List<StatChange> statChanges ){
+        foreach( var statChange in statChanges ){
+            var stat = statChange.Stat;
+            var change = statChange.Change;
 
-            StatBoosts[stat] = Mathf.Clamp( StatBoosts[stat] + boost, -6, 6 );
+            StatChange[stat] = Mathf.Clamp( StatChange[stat] + change, -6, 6 );
 
-            Debug.Log( $"{stat} has been boosted to: {StatBoosts[stat]}" );
+            Debug.Log( $"{stat} has been changed to: {StatChange[stat]}" );
         }
     }
 
-    private void ResetStatBoost(){
-        StatBoosts = new Dictionary<Stat, int>(){
+    private void ResetStatChanges(){
+        StatChange = new Dictionary<Stat, int>(){
             {Stat.Attack,    0},
             {Stat.Defense,   0},
             {Stat.SpAttack,  0},
@@ -136,7 +146,7 @@ public class PokemonClass
     }
 
     public void UpdateHP( int damage ){
-        currentHP = Mathf.Clamp( currentHP - damage, 0, MaxHP );
+        CurrentHP = Mathf.Clamp( CurrentHP - damage, 0, MaxHP );
         HPChanged = true;
     }
 
@@ -146,12 +156,12 @@ public class PokemonClass
         SevereStatus = ConditionsDB.Conditions[conditionID];
         SevereStatus?.OnRoundStart?.Invoke( this );
         Debug.Log($"{_pokeSO.pName} has been afflicted with: {ConditionsDB.Conditions[conditionID].ConditionName}");
-        OnStatusChanged?.Invoke();
+        OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
     }
 
     public void CureSevereStatus(){
         SevereStatus = null;
-        OnStatusChanged?.Invoke();
+        OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
     }
 
     public void SetVolatileStatus( ConditionID conditionID ){
@@ -189,8 +199,9 @@ public class PokemonClass
     }
 
     public void OnAfterTurn(){
-        SevereStatus?.OnAfterTurn?.Invoke(this);
-        VolatileStatus?.OnAfterTurn?.Invoke(this);
+        Debug.Log( "OnAfterTurn()" );
+        SevereStatus?.OnAfterTurn?.Invoke( this );
+        VolatileStatus?.OnAfterTurn?.Invoke( this );
     }
 
 }

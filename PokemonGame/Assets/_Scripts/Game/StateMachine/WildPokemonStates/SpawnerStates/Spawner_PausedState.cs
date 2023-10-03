@@ -18,8 +18,6 @@ public class Spawner_PausedState : State<WildPokemonSpawnerManager>
         foreach( WildPokemonSpawner spawner in _wildPokemonSpawnerManager.SpawnerList ){
             Debug.Log( "PauseSpawner()" );
             StopCoroutine( spawner.SpawnPokemon() );
-            StopCoroutine( spawner.DespawnTimer() );
-            StopCoroutine( spawner.RespawnDelay() );
         }
     }
 
@@ -27,8 +25,6 @@ public class Spawner_PausedState : State<WildPokemonSpawnerManager>
         foreach( WildPokemonSpawner spawner in _wildPokemonSpawnerManager.SpawnerList ){
             Debug.Log( "ResumeSpawner()" );
             StartCoroutine( spawner.SpawnPokemon() );
-            StartCoroutine( spawner.DespawnTimer() );
-            StartCoroutine( spawner.RespawnDelay() );
         }
     }
 }

@@ -15,21 +15,19 @@ public class PartyMember_UI : MonoBehaviour
     private PokemonClass _pokemon;
     public PokemonClass Pokemon => _pokemon;
 
-    private void Update()
-    {
-        if(_currentHPTracker != _hpBar.hpBar.value)
+    private void Update(){
+        if( _currentHPTracker != _hpBar.hpBar.value )
         _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
     }
 
-    public void SetData(PokemonClass pokemon)
-    {
+    public void SetData( PokemonClass pokemon ){
         _pokemon = pokemon;
 
         _nameText.text = pokemon.PokeSO.pName;
         _levelText.text = "" + pokemon.Level;
         _battlePortrait.sprite = _pokemon.PokeSO.BattlePortrait;
-        _hpBar.SetHP(pokemon.PokeSO, pokemon.currentHP, pokemon.MaxHP);
-        _currentHPTracker = pokemon.currentHP;
+        _hpBar.SetHP( pokemon.CurrentHP, pokemon.MaxHP );
+        _currentHPTracker = pokemon.CurrentHP;
         _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
     }
 

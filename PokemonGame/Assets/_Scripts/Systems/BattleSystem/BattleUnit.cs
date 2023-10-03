@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 [RequireComponent( typeof( BattleAI ) )]
@@ -94,7 +95,7 @@ public class BattleUnit : MonoBehaviour
     }
     
     private void ShowDamageTaken( int damage, Vector3 position ){
-        DamageTakenPopup.Create( BattleSystem.DamageTakenPopupPrefab.transform, damage, transform.localPosition );
+        DamageTakenPopup.Create( BattleSystem.DamageTakenPopupPrefab.transform, damage, position );
     }
 
 }

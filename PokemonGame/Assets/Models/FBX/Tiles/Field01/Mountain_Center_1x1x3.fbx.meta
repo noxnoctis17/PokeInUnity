@@ -9,6 +9,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: m_CliffFace_blender
     second: {fileID: 2100000, guid: 38eaf5109156569489bf8f2929fd35a8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: m_Mountain_blender
+    second: {fileID: 2100000, guid: 38eaf5109156569489bf8f2929fd35a8, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

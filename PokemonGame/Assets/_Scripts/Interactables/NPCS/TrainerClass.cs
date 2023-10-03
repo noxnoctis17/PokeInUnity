@@ -1,20 +1,25 @@
+using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class TrainerClass : NPC_Base
+public class TrainerClass : MonoBehaviour, IInteractable
 {  
+    public static Action<TrainerClass, BattleType> OnTrainerEncounter;
     [SerializeField] private TrainerSO _trainerSO;
     [SerializeField] private PokemonParty _trainerParty;
     [SerializeField] private BattleType _battleType;
+    [SerializeField] private DialogueSO _dialogueSO;
+    [SerializeField] private DialogueSO _postBattleDialogueSO;
 
     public TrainerSO TrainerSO => _trainerSO;
     public PokemonParty TrainerParty => _trainerParty;
+    public BattleType BattleType => _battleType; //--Don't think i need this
+    public DialogueSO DialogueSO => _dialogueSO;
 
 
 
-	public override void Interact(){
-        Debug.Log( $"You've Interacted With {this}" );
+	public void Interact(){
+        Debug.Log( $"You've Interacted With {this} Trainer!" );
 
         foreach( DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>() ){
             if( responseEvents.DialogueSO == _dialogueSO ){
@@ -27,7 +32,19 @@ public class TrainerClass : NPC_Base
 
     }
 
-    public void InitializeTrainerBattle(){
+    public void StartTrainerBattleCoroutine(){
+        UpdateDialogueObject( _postBattleDialogueSO );
+        StartCoroutine( InitializeTrainerBattle() );
+    }
 
+    public IEnumerator InitializeTrainerBattle(){
+        yield return new WaitForSeconds( 0.25f );
+        yield return DialogueManager.Instance.DialogueUI.ActiveDialogueCoroutine;
+        yield return null;
+        BattleController.Instance.InitTrainerBattle( _trainerParty, _battleType );
+    }
+
+    public void UpdateDialogueObject( DialogueSO dialogueSO ){
+        _dialogueSO = dialogueSO;
     }
 }

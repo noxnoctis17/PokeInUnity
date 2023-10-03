@@ -19,15 +19,16 @@ MonoBehaviour:
   _moveTarget: 0
   _moveType: 2
   _moveEffects:
-    _statBoostList: []
+    _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
   _secondaryMoveEffects:
-  - _statBoostList: []
+  - _statChangeList: []
     _severeStatus: 3
     _volatileStatus: 0
-    _chance: 10
+    _chance: 20
     _target: 0
+  _movePriority: 0
   _power: 100
   _accuracy: 95
   _alwaysHits: 0

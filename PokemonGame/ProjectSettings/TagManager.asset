@@ -46,6 +46,9 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: SpriteShadows
+    uniqueID: 3007664209
+    locked: 0
   - name: Player
     uniqueID: 677566043
     locked: 0

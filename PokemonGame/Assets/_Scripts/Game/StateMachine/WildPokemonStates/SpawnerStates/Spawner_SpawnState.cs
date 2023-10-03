@@ -22,8 +22,6 @@ public class Spawner_SpawnState : State<WildPokemonSpawnerManager>
         foreach( WildPokemonSpawner spawner in _wildPokemonSpawnerManager.SpawnerList ){
             Debug.Log( "Enter()_SpawnState" );
             StartCoroutine( spawner.SpawnPokemon() );
-            StartCoroutine( spawner.DespawnTimer() );
-            StartCoroutine( spawner.RespawnDelay() );
         }
     }
 

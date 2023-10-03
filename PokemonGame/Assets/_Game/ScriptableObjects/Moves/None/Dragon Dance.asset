@@ -17,18 +17,18 @@ MonoBehaviour:
     its Attack and Speed stats.
   _moveCategory: 2
   _moveTarget: 1
-  _moveType: 0
+  _moveType: 15
   _moveEffects:
-    _statBoostList:
+    _statChangeList:
     - Stat: 0
-      Boost: 1
+      Change: 1
     - Stat: 4
-      Boost: 1
+      Change: 1
     _severeStatus: 0
     _volatileStatus: 0
   _secondaryMoveEffects: []
   _movePriority: 0
   _power: 0
   _accuracy: 100
-  _alwaysHits: 0
+  _alwaysHits: 1
   _pp: 15

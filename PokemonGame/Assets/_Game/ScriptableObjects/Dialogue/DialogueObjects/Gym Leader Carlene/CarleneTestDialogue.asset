@@ -36,7 +36,7 @@ MonoBehaviour:
     _rightPortrait_2: {fileID: 0}
     _dialogue: Would you like to <Battle>?
   _responses:
-  - _responseText: Yes
-    _dialogueSO: {fileID: 11400000, guid: ec196d5780dce98459e436d5d7e476b6, type: 2}
+  - _responseText: Let's Battle!
+    _dialogueSO: {fileID: 11400000, guid: 95d108b2f48b79547b711e416835a068, type: 2}
   - _responseText: No
     _dialogueSO: {fileID: 11400000, guid: b2188cf60f732c24fa3fb87a14237b92, type: 2}

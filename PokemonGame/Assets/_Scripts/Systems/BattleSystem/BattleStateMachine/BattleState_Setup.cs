@@ -12,7 +12,6 @@ public class BattleState_Setup : InBattleStates
         yield return new WaitForSeconds(0.1f);
         yield return BattleSystem.BattleArena.PrepareArena( BattleSystem );
         yield return SetUpPlayer();
-        yield return BattleSystem.DialogueBox.TypeDialogue( $"A wild {BattleSystem.EnemyUnit.Pokemon.PokeSO.pName} appeared!" );
         BattleSystem.PlayerAction();
     }
 

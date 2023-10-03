@@ -10,6 +10,8 @@ public class DialogueManager : MonoBehaviour
     public Action<DialogueSO> OnResponseChosen;
     public Action<DialogueResponseEvents> OnHasResponseEvents;
     [SerializeField] private DialogueUI _dialogueUI;
+    public Action DialogueFinishedCallback;
+
     public DialogueUI DialogueUI => _dialogueUI;
 
     private void OnEnable( ){
@@ -26,7 +28,7 @@ public class DialogueManager : MonoBehaviour
     }
 
     private void PlayDialogue( DialogueSO dialogueSO ){
-        Debug.Log( "PlayDialogue" );
+        Debug.Log( "PlayDialogue()" );
 
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
             GameStateController.Instance.GameStateMachine?.Push( DialogueState.Instance );
@@ -35,12 +37,17 @@ public class DialogueManager : MonoBehaviour
     }
 
     private void ContinueDialogue( DialogueSO dialogueSO ){
-        Debug.Log( "ContinueDialogue" );
+        Debug.Log( "ContinueDialogue()" );
         _dialogueUI.StartDialogue( dialogueSO );
     }
 
     private void AddResponseEvents( DialogueResponseEvents responseEvents ){
         _dialogueUI.AddResponseEvents( responseEvents.ResponseEvents );
+    }
+
+    public void SetDialogueFinishedCallback( Action callback ){
+        // Save the callback function for later use
+        DialogueFinishedCallback = callback;
     }
 
 }

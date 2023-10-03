@@ -28,13 +28,13 @@ MonoBehaviour:
   _spDefense: 30
   _speed: 85
   _learnableMoves:
-  - _moveBase: {fileID: 11400000, guid: 52369ddd7b32a3d4f9add7d7a12a894b, type: 2}
+  - _moveBase: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
     _levelLearned: 1
   - _moveBase: {fileID: 11400000, guid: 52369ddd7b32a3d4f9add7d7a12a894b, type: 2}
     _levelLearned: 1
   - _moveBase: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
     _levelLearned: 5
-  - _moveBase: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+  - _moveBase: {fileID: 11400000, guid: c763cdbcec9ba4c4bade03aa3e9cbc61, type: 2}
     _levelLearned: 10
   - _moveBase: {fileID: 11400000, guid: 4e2558dbbc070a142a74714b86955fe8, type: 2}
     _levelLearned: 15

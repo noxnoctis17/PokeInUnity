@@ -703,7 +703,7 @@
                     "type": "Value",
                     "id": "40f17f6c-67f3-4d10-b284-9bdefaaec91e",
                     "expectedControlType": "Vector2",
-                    "processors": "NormalizeVector2",
+                    "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
                 },
@@ -1072,138 +1072,6 @@
                     "processors": "",
                     "groups": "",
                     "action": "Interact",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                }
-            ]
-        },
-        {
-            "name": "BattleControls",
-            "id": "8e86ecf4-fe32-484d-8577-cee37df702bc",
-            "actions": [
-                {
-                    "name": "SubmitFight",
-                    "type": "Button",
-                    "id": "6d760432-a6b8-487d-be8d-4f409ea977db",
-                    "expectedControlType": "Button",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
-                    "name": "SubmitPKMN",
-                    "type": "Button",
-                    "id": "ae4eb92d-3de7-4df7-9491-541fc6b849d5",
-                    "expectedControlType": "Button",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
-                    "name": "SubmitBag",
-                    "type": "Button",
-                    "id": "29b36f48-5370-418b-90c5-4a710ae1e9c4",
-                    "expectedControlType": "Button",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
-                    "name": "SubmitRun",
-                    "type": "Button",
-                    "id": "0ab0810c-4c0b-4c8b-a304-dab211ed9d4b",
-                    "expectedControlType": "Button",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                }
-            ],
-            "bindings": [
-                {
-                    "name": "",
-                    "id": "29a3672a-aced-46a8-827c-363ae0e22bbf",
-                    "path": "<Keyboard>/3",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitBag",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "08226818-7ab8-4173-9865-d541e7b373a6",
-                    "path": "<Gamepad>/buttonWest",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitBag",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "163e2883-a4fd-491e-9293-546364b77d49",
-                    "path": "<Keyboard>/1",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitFight",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "fde8d12f-db72-4f22-aff6-5dcdfbdf1444",
-                    "path": "<Gamepad>/buttonEast",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitFight",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "9831e1fc-4feb-4e2b-bca7-a0a61bd34dfa",
-                    "path": "<Keyboard>/4",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitRun",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "b5aed543-a414-40c4-b1aa-4510732a95e1",
-                    "path": "<Keyboard>/2",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitPKMN",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "6cab04f1-a5ae-4839-a2d1-ee2b9b56de06",
-                    "path": "<Gamepad>/buttonNorth",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitPKMN",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "4bc92dfc-93c0-4e56-a14f-9b367e0c5d7b",
-                    "path": "<Gamepad>/buttonSouth",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "SubmitRun",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

@@ -55,13 +55,13 @@ public class GameStateController : MonoBehaviour
         style.fontSize = 24;
         style.fontStyle = FontStyle.Bold;
         style.normal.textColor = Color.white;
-        // style.normal.background = Texture2D.blackTexture;
-        // style.contentOffset = new Vector2(-1, -1);
 
+        GUILayout.BeginArea( new Rect( 710, 0, 500, 500 ) );
         GUILayout.Label( "STATE STACK", style );
         foreach( var state in GameStateMachine.StateStack ){
             GUILayout.Label( state.GetType().ToString(), style );
         }
+        GUILayout.EndArea();
     }
 
 }

@@ -3,12 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using Cinemachine;
 
 public class BattleArena : MonoBehaviour
 {
     private BattleSystem _battleSystem;
     private BattleType _battleType;
+    [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
+    [SerializeField] private CinemachineFreeLook _mainTargetGroupCamera;
     private WildPokemon _wildEncounter;
+    private GameObject _enemyTrainer1, _enemyTrainer2;
     [SerializeField] private GameObject _arenaContainer; //--parent object of the entire Battle Arena. Should always be at the same world position as the _stagePivot, which gets placed according to BattleType
     [SerializeField] private GameObject _arenaPivot; //--pivot will be placed according to encounter ex: same position as wild pokemon
     [SerializeField] private float _singlesArenaSize; //--wire disc radius for singles
@@ -28,19 +32,26 @@ public class BattleArena : MonoBehaviour
         switch( _battleType ){
 
             case BattleType.WildBattle_1v1 :
-                yield return WildBattle_1v1();
+
+                yield return WildBattle_1v1(); //--Wild Battle, 1v1
 
             break;
 
             case BattleType.WildBattle_2v2 :
 
+                //--I'm not sure i'll ever have one of these but who knows. i think the arcanine guardian encounters will be the only ones
+
             break;
 
-            case BattleType.TrainerSingles_1v1 :
+            case BattleType.TrainerSingles :
+
+                yield return TrainerSingles(); //--Trainer Battle, Singles
 
             break;
 
             case BattleType.TrainerDoubles_1v1 :
+
+                yield return TrainerDoubles_1v1(); //--Trainer Battle, Doubles 1v1
 
             break;
 
@@ -68,6 +79,21 @@ public class BattleArena : MonoBehaviour
         _arenaContainer.transform.position = _arenaPivot.transform.position + pivotOffset;
     }
 
+    private IEnumerator SetCameras( GameObject singleCameraInitialTarget ){
+        _singleTargetCamera.LookAt = singleCameraInitialTarget.transform;
+        _singleTargetCamera.gameObject.SetActive( true );
+        yield return new WaitForSeconds( 1f );
+
+        _mainTargetGroupCamera.gameObject.SetActive( true );
+        _singleTargetCamera.gameObject.SetActive( false );
+    }
+
+    private void ClearCameras(){
+        _singleTargetCamera.LookAt = null;
+        _singleTargetCamera.gameObject.SetActive( false );
+        _mainTargetGroupCamera.gameObject.SetActive( false );
+    }
+
     private IEnumerator MovePlayerIntoPosition( Vector3 position ){
         yield return new WaitForSeconds( 0.25f );
         Debug.Log( "move player into position from battle arena" );
@@ -80,12 +106,26 @@ public class BattleArena : MonoBehaviour
         return _wildEncounter.gameObject;
     }
 
-    public void ClearActivePositionsList(){
-    for( int i = _activePositionsList.Count - 1; i >= 0; i-- ){
-        _activePositionsList[i].SetActive( false );
-        _activePositionsList.RemoveAt( i );
+    private GameObject GrabEnemyTrainer1(){
+        _enemyTrainer1 = _battleSystem.EnemyTrainerParty.gameObject;
+        return _enemyTrainer1;
     }
-}
+
+    private void ClearActivePositionsList(){
+        for( int i = _activePositionsList.Count - 1; i >= 0; i-- ){
+            _activePositionsList[i].SetActive( false );
+            _activePositionsList.RemoveAt( i );
+        }
+    }
+
+    public void AfterBattleCleanup(){
+        ClearActivePositionsList();
+        ClearCameras();
+
+        _wildEncounter = null;
+        _enemyTrainer1 = null;
+        _enemyTrainer2 = null;
+    }
 
     private IEnumerator WildBattle_1v1(){
         //--Activate relevant positions
@@ -120,14 +160,18 @@ public class BattleArena : MonoBehaviour
         yield return null;
 
         //--Assign relevant Battle Units
-        // _battleSystem.AssignPlayerUnit( playerUnit );
-        // _battleSystem.AssignEnemyUnit( enemyUnit );
         _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         yield return null;
+
+        //--Eventually make this get added to the message queue that prints messages on the smaller "alert box" you have planned
+        StartCoroutine( _battleSystem.DialogueBox.TypeDialogue( $"A wild {_battleSystem.EnemyUnit.Pokemon.PokeSO.pName} appeared!" ) );
 
         //--Attempt! to set the pivot of the arena to the wild encounter
         var targetPosition = GrabWildEncounter().transform.position;
         yield return SetPivot( targetPosition, _singlesUnit2 );
+
+        //--Handle Cameras by passing the initial single target camera's target unit
+        StartCoroutine( SetCameras( _singlesUnit2 ) );
 
         //--Move Player into position
         yield return MovePlayerIntoPosition( _singlesTrainer1.transform.position );
@@ -136,7 +180,8 @@ public class BattleArena : MonoBehaviour
 
     }
 
-    private IEnumerator TrainerSingles_1v1(){
+    //--Trainer Battle, Singles
+    private IEnumerator TrainerSingles(){
         //--Activate Relevant Positions
         _singlesTrainer1.SetActive( true ); //--Player
         _singlesTrainer2.SetActive( true ); //--Enemy Trainer
@@ -163,16 +208,27 @@ public class BattleArena : MonoBehaviour
 
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
-        var enemyUnit = _battleSystem.EncounteredPokemon.gameObject.GetComponent<BattleUnit>(); //--REMEMBER!!!!! _singlesUnit2 is not actually being assigned to, it's only here for its position!!
+        var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
         
         playerUnit.Setup( _battleSystem.PlayerParty.GetHealthyPokemon(), _battleSystem.PlayerHUD, _battleSystem );
         
         enemyUnit.OnIsAI?.Invoke(); //--enable AI for this unit
         enemyUnit.Setup( _battleSystem.EnemyTrainerParty.GetHealthyPokemon(), _battleSystem.EnemyHUD, _battleSystem );
 
+        //--Assign relevant Battle Units
         _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         yield return null;
 
+        //--Attempt! to set the pivot of the arena to the Enemy Trainer's location
+        var targetPosition = GrabEnemyTrainer1().transform.position;
+        yield return SetPivot( targetPosition, _singlesTrainer2 );
+
+        //--Handle Cameras by passing the initial single target camera's target unit
+        StartCoroutine( SetCameras( _singlesUnit2 ) );
+        yield return null;
+
+        //--Move Player into position
+        yield return MovePlayerIntoPosition( _singlesTrainer1.transform.position );
 
     }
 

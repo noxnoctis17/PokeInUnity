@@ -17,7 +17,7 @@ public class BattleAI : MonoBehaviour
         _battleSystem = battleSystem;
         _battleUnit = battleUnit;
         _pokemon = _battleUnit.Pokemon;
-        Debug.Log( _pokemon.PokeSO.pName + " obj name: " + name );
+        // Debug.Log( _pokemon.PokeSO.pName + " obj name: " + name );
     }
 
     private void ChooseCommand(){
@@ -27,8 +27,8 @@ public class BattleAI : MonoBehaviour
     }
 
     private void ChooseMoveCommand(){
-        Debug.Log( "choose move command" + " obj name: " + name );
-        Debug.Log( _pokemon + " obj name: " + name );
+        // Debug.Log( "choose move command" + " obj name: " + name );
+        // Debug.Log( _pokemon + " obj name: " + name );
         _move = _pokemon.GetRandomMove();
         _battleSystem.SetEnemyMoveCommand( _battleUnit, _move );
 

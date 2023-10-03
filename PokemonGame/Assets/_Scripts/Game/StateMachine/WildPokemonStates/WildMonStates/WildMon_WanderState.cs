@@ -14,21 +14,24 @@ public class WildMon_WanderState : State<WildPokemon>
     }
     
     public override void Enter( WildPokemon owner ){
-        Debug.Log( "Enter Wander State" );
+        // Debug.Log( "Enter Wander State" );
         _wildPokemon = owner;
         _wander = _wildPokemon.WildPokemonWander;
         _pokeSO = _wildPokemon.Pokemon.PokeSO;
 
         //--Initialize Wandering by clearing any potentially odd destination or path, and then setting one
-        _wander.AgentMon.SetPath( null );
+        if( _wander.AgentMon.hasPath ){
+            _wander.AgentMon.SetPath( null );
+        }
         SetWanderPoint();
+        
     }
 
     public override void Execute(){
         WhenNearPlayer();
 
         if( _wander.AgentMon.reachedEndOfPath ){
-            if( Random.Range( 1, 5 ) == 1 ){
+            if( Random.Range( 1, 11 ) == 1 ){
                 SetWanderPoint();
             }
             else{
@@ -38,7 +41,7 @@ public class WildMon_WanderState : State<WildPokemon>
     }
 
     public override void Return(){
-        Debug.Log( "Return to Wander State" );
+        // Debug.Log( "Return to Wander State" );
         if( _wander.AgentMon.hasPath && _wander.AgentMon.isStopped ){
             _wander.AgentMon.isStopped = false;
         }
@@ -50,13 +53,13 @@ public class WildMon_WanderState : State<WildPokemon>
 
     public override void Exit(){
         _wander.AgentMon.SetPath( null );
-        Debug.Log( "Exit Wander State" );
+        // Debug.Log( "Exit Wander State" );
     }
 
     private void SetWanderPoint(){
         var mon = _wander.gameObject;
         var startNode = AstarPath.active.GetNearest( mon.transform.position, NNConstraint.Default ).node;
-        var nodes = PathUtilities.BFS( startNode, 5 );
+        var nodes = PathUtilities.BFS( startNode, 7 );
         var singleRandomPoint = PathUtilities.GetPointsOnNodes( nodes, 1 )[0];
         _wander.AgentMon.destination = singleRandomPoint;
     }

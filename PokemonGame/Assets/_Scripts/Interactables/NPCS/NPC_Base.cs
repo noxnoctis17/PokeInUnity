@@ -3,10 +3,10 @@ using UnityEngine;
 
 public class NPC_Base : MonoBehaviour, IInteractable
 {
-    [SerializeField] protected DialogueSO _dialogueSO;
+    [SerializeField] private DialogueSO _dialogueSO;
     public DialogueSO DialogueSO => _dialogueSO;
     
-    public virtual void Interact(){
+    public void Interact(){
         Debug.Log( $"You've Interacted With {this}" );
 
         foreach( DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>() ){
@@ -20,7 +20,7 @@ public class NPC_Base : MonoBehaviour, IInteractable
 
     }
 
-    protected void UpdateDialogueObject( DialogueSO dialogueSO ){
+    public void UpdateDialogueObject( DialogueSO dialogueSO ){
         _dialogueSO = dialogueSO;
     }
 }

@@ -18,21 +18,21 @@ MonoBehaviour:
   _frontSprite: {fileID: 0}
   _backSprite: {fileID: 0}
   _battlePortrait: {fileID: 0}
-  _type1: 0
-  _type2: 0
-  _maxHP: 70
-  _maxPP: 70
-  _attack: 125
-  _defense: 75
+  _type1: 2
+  _type2: 17
+  _maxHP: 80
+  _maxPP: 80
+  _attack: 130
+  _defense: 70
   _spAttack: 80
-  _spDefense: 55
-  _speed: 115
+  _spDefense: 70
+  _speed: 110
   _learnableMoves:
   - _moveBase: {fileID: 11400000, guid: 5d553f5d14160a84abfc235ff20f078f, type: 2}
     _levelLearned: 1
   - _moveBase: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
-    _levelLearned: 3
-  - _moveBase: {fileID: 11400000, guid: 447507f70d65b32489bced1ea8e59884, type: 2}
+    _levelLearned: 1
+  - _moveBase: {fileID: 11400000, guid: df26f8fdc623a8c4a8fa00b7161745de, type: 2}
     _levelLearned: 6
   - _moveBase: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
     _levelLearned: 9

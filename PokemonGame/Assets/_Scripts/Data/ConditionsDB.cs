@@ -24,6 +24,7 @@ public class ConditionsDB
                 OnAfterTurn = ( PokemonClass pokemon ) =>
                 { 
                     pokemon.UpdateHP( pokemon.MaxHP / 8 );
+                    BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its poisoning!" );
                 }}},
         {   //--TOXIC
             ConditionID.TOX, new ConditionClass()
@@ -32,6 +33,7 @@ public class ConditionsDB
                 OnAfterTurn = ( PokemonClass pokemon ) =>
                 { 
                     pokemon.UpdateHP( pokemon.MaxHP / 8 );
+                    BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its horrible poisoning!" );
                 }}},
 
         {   //--BURN
@@ -40,8 +42,10 @@ public class ConditionsDB
                 ConditionName = "Burn",
                 OnAfterTurn = ( PokemonClass pokemon ) =>
                 {
+                    Debug.Log( pokemon.CurrentHP );
                     pokemon.UpdateHP( pokemon.MaxHP / 16 );
-                    Debug.Log( $"{pokemon.PokeSO.pName} is hurt by its burn!" );
+                    BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its burn!" );
+                    Debug.Log( pokemon.CurrentHP );
                 }}},
 
         {   //-PARAYLSIS
@@ -53,9 +57,8 @@ public class ConditionsDB
                     if( Random.Range( 1, 5 ) == 1 )
                     {
                         return false;
-                        //--we're going to change paralysis to 1/3rd speed (up from 1/2, but not as severe as its old 1/4)
+                        //--we're going to change paralysis to 1/4th speed the way it was originally
                         //--and instead, we're going to prevent only the turn it was paralyzed on from happening, removing the paralysis chance
-                        //--perhaps 1/4 speed will be the best compensation for the lack of turn-chance paralysis
                         //--but this idea was pulled from an idea Cybertron had voiced about players potentially wanting to see
                         //--for changes to paralysis in his buffs and nerfs video
                         //--sleep was already guaranteed 2 turns, which is something he also brought up, so i nailed that idea lol
@@ -80,29 +83,33 @@ public class ConditionsDB
                     if( pokemon.SevereStatusTime == 0 )
                     {
                         pokemon.CureSevereStatus();
-                        Debug.Log( $"{pokemon.PokeSO.pName} woke up!" );
+                        BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} woke up!" );
                         return true;
                     }
 
-                    Debug.Log( $"{pokemon.PokeSO.pName} is fast asleep!" );
+                    BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is fast asleep!" );
                     pokemon.SevereStatusTime--;
                     return false;
                 }}},
 
         {   //--FROSTBITE
-            ConditionID.FRST, new ConditionClass()
+            ConditionID.FBT, new ConditionClass()
             {
                 ConditionName = "Frostbite",
                 OnAfterTurn = ( PokemonClass pokemon ) =>
                 {
                     pokemon.UpdateHP( pokemon.MaxHP / 16 );
-                    Debug.Log( $"{pokemon.PokeSO.pName} is hurt by its frostbite!" );
+                    BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its frostbite!" );
                 }}},
 
         {   //--FAINT
             ConditionID.FNT, new ConditionClass()
             {
                 ConditionName = "Faint",
+                OnAfterTurn = ( PokemonClass pokemon ) =>
+                {
+                    pokemon.CurrentHP = 0;
+                }
             }},
 
         {   //--CONFUSION
@@ -144,14 +151,20 @@ public class ConditionsDB
 
 public enum ConditionID
 {
-    NONE,
-    PSN,
-    TOX,
-    BRN,
-    PAR,
-    SLP,
-    FRST,
-    FNT,
+    //--None
+    NONE, //-None
 
-    CONFUSION,
+    //--Severe Statuses
+    PSN, //--Poison. 1/8th max hp at the end of every round
+    TOX, //--Toxic. Increasing damage at the end of every round a pokemon stays out. restarts on switch
+    BRN, //--Burn. 1/16th max hp at the end of every round, lowers attack by 25% as part of the SpecialStatChange attribute
+    PAR, //--Paralysis. 75% speed as part of the SpecialStatChange attribute
+    SLP, //--Sleep. Guaranteed 2 turns of inactivity
+    FBT, //--Frostbite. 1/16th max hp at the end of every round, lowers attack by 25% as part of the SpecialStatChange attribute
+
+    //--Faint
+    FNT, //-You're fuckin dead bro
+
+    //--Volatile Statuses. Give them their own icon. maybe with a counter on it to show amount of turns left afflicted?
+    CONFUSION, //--Lasts for a preset 2-5 turns. 33% chance to inflict self damage for a set 1/16th max hp
 }

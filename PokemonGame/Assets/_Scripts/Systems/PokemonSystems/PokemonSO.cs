@@ -17,11 +17,34 @@ public class PokemonSO : ScriptableObject
     //--------------------------------
 
     [Header("Sprites")]
-    [SerializeField] private Sprite _frontSprite;
-    [SerializeField] private Sprite _backSprite;
-    [SerializeField] private Sprite _battlePortrait;
-    public Sprite FrontSprite => _frontSprite;
-    public Sprite BackSprite => _backSprite;
+    //--Idle
+    [SerializeField] private List<Sprite> _idleUpSprites;
+    [SerializeField] private List<Sprite> _idleDownSprites;
+
+    //--Idle Getters for Shadows
+    public List<Sprite> IdleUpSprites => _idleUpSprites;
+    public List<Sprite> IdleDownSprites => _idleDownSprites;
+
+    //--Walking
+    [SerializeField] private List<Sprite> _walkUpSprites;
+    [SerializeField] private List<Sprite> _walkDownSprites;
+
+    //--Walking Getters for Shadows
+    public List<Sprite> WalkUpSprites => _walkUpSprites;
+    public List<Sprite> WalkDownSprites => _walkDownSprites;
+
+    //--Special Attack Sprites
+
+    //--Physical Attack Sprites
+
+    //--Get Hit Sprites
+
+    //--Enter Battle Sprites
+
+    //--Faint Sprites
+
+    //--Battle Portrait
+    private Sprite _battlePortrait;
     public Sprite BattlePortrait => _battlePortrait;
 
     //----------------------------------
@@ -65,14 +88,11 @@ public class PokemonSO : ScriptableObject
 [System.Serializable]
 public class LearnableMoves
 {
-    
-
     [Header("Move Pool")]
     [SerializeField] private MoveBaseSO _moveBase;
     [SerializeField] private int _levelLearned;
     public MoveBaseSO MoveBase => _moveBase;
     public int LevelLearned => _levelLearned;
-
 }
 
 public enum PokemonType
@@ -103,8 +123,8 @@ public enum WildType
     Uninterested,
     Curious,
     Aggressive,
-     Scared,
-     Static,
+    Scared,
+    Static,
 
 }
 

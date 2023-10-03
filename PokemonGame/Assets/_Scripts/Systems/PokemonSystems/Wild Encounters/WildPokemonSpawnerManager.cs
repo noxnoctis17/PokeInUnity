@@ -8,6 +8,11 @@ public class WildPokemonSpawnerManager : MonoBehaviour
     public StateMachine<WildPokemonSpawnerManager> WildSpawnManagerStateMachine { get; private set; }
     [SerializeField] public List<WildPokemonSpawner> SpawnerList = new List<WildPokemonSpawner>();
     [SerializeField] private List<WildPokemonSpawner> _disabledSpawnerList = new List<WildPokemonSpawner>();
+
+    //--I think, like wild pokemon, each individual spawner should have its own state machine
+    //--and instead this class should manage them on a broader scale
+    //--each spawner might be in a different scenario down the line, like one being off because
+    //--the player is too far away. there's no real control over that at the moment
     
 
     private void OnEnable(){
@@ -16,27 +21,29 @@ public class WildPokemonSpawnerManager : MonoBehaviour
     }
 
     private void OnDisable(){
+        BattleSystem.OnBattleStarted -= PushPausedState;
+        BattleSystem.OnBattleEnded -= PopCurrentState;
     }
 
     private void Awake(){
         Instance = this;
 
         WildSpawnManagerStateMachine = new StateMachine<WildPokemonSpawnerManager>( this );
-        Debug.Log( this + " " + WildSpawnManagerStateMachine );
+        // Debug.Log( this + " " + WildSpawnManagerStateMachine );
     }
 
     private void Start(){
-        Debug.Log( this + " " + WildSpawnManagerStateMachine );
+        // Debug.Log( this + " " + WildSpawnManagerStateMachine );
         WildSpawnManagerStateMachine.Push( Spawner_SpawnState.Instance );
     }
 
     private void PopCurrentState(){
-        Debug.Log( this + " PopCurrentState()" );
+        // Debug.Log( this + " PopCurrentState()" );
         WildSpawnManagerStateMachine.Pop();
     }
 
     private void PushPausedState(){
-        Debug.Log( this+ " PushPausedState()" );
+        // Debug.Log( this+ " PushPausedState()" );
         WildSpawnManagerStateMachine.Push( Spawner_PausedState.Instance );
     }
 
@@ -73,7 +80,7 @@ public class WildPokemonSpawnerManager : MonoBehaviour
         style.normal.textColor = Color.white;
 
         GUILayout.BeginArea( new Rect( 900, 0, 500, 500 ) );
-        GUILayout.Label( "WILD POKEMON STATE STACK", style );
+        GUILayout.Label( "SPAWNER STATE STACK", style );
         foreach( var state in WildSpawnManagerStateMachine.StateStack ){
             GUILayout.Label( state.GetType().ToString(), style );
         }

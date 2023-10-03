@@ -5,13 +5,16 @@ using UnityEngine;
 
 public class BattleController : MonoBehaviour
 {
-    [SerializeField] private GameObject _player;
+    public static BattleController Instance;
     [SerializeField] private BattleSystem _battleSystem;
-    private PokemonParty _playerParty;
 
     private void OnEnable(){
         ConditionsDB.Init();
         WildPokemonEvents.OnPlayerEncounter += InitWildBattle;
+    }
+
+    private void Awake(){
+        Instance = this;
     }
 
     private void InitWildBattle( WildPokemon encounteredMon ){
@@ -26,8 +29,12 @@ public class BattleController : MonoBehaviour
         _battleSystem.InitializeWildBattle( battleType );
     }
 
-    private void InitTrainerBattle( PokemonParty trainerParty, BattleType battleType ){
-        //--Set Battle Type
+    public void InitTrainerBattle( PokemonParty trainerParty, BattleType battleType ){
+        //--Change Game State
+        GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
+
+        //--Initialize Trainer Battle
+        _battleSystem.InitializeTrainerSingles( trainerParty, battleType );
         
     }
 }

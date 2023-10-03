@@ -6,6 +6,7 @@ public class WildPokemon : MonoBehaviour
 {
     public StateMachine<WildPokemon> WildPokemonStateMachine { get; private set; }
     public WildPokemonWander WildPokemonWander { get; private set; }
+    private WildPokemonSpawner _wildPokemonSpawner;
 
     //------------------=-[ POKEMON SO ]-------------------------
     
@@ -22,17 +23,19 @@ public class WildPokemon : MonoBehaviour
 
     public static Vector3 WildPokemonLocation;
     public BoxCollider BoxCollider { get; private set; }
-    private bool _collided;
-    public bool Collided => _collided;
 
     //------------------------[ACTIONS]---------------------------
     private WildPokemonEvents _wildPokemonEvents;
     public WildPokemonEvents WildPokemonEvents => _wildPokemonEvents;
 
+    private void OnDisable(){
+        StopAllCoroutines();
+    }
+
     private void Awake(){
         //--Set State Machine & Initial State
         WildPokemonStateMachine = new StateMachine<WildPokemon>( this );
-        Debug.Log( WildPokemonStateMachine );
+        // Debug.Log( WildPokemonStateMachine );
 
         //--Set A* Wander AI
         WildPokemonWander = GetComponent<WildPokemonWander>();
@@ -51,6 +54,11 @@ public class WildPokemon : MonoBehaviour
         BoxCollider = GetComponent<BoxCollider>();
         BoxCollider.enabled = false;
         StartCoroutine( CollisionDelay() );
+        StartCoroutine( DespawnTimer() );
+    }
+
+    public void SetBirthSpawner( WildPokemonSpawner wildPokemonSpawner ){
+        _wildPokemonSpawner = wildPokemonSpawner;
     }
 
     public IEnumerator CollisionDelay(){
@@ -62,45 +70,44 @@ public class WildPokemon : MonoBehaviour
 
     private void OnTriggerEnter( Collider col ){
         if( col.CompareTag( "Player" ) ){
+            StopCoroutine( DespawnTimer() );
+            WildPokemonWander.SetPausedState();
             BoxCollider.enabled = false;
-            _collided = true;
             Pokemon.Init();
+            Pokemon.SetAsEnemyUnit();
             WildPokemonEvents.OnPlayerEncounter?.Invoke( this );
             WildPokemonLocation = transform.position;
-            WildPokemonWander.SetPausedState();
         }
     }
 
     public void Despawn(){
-        //--Despawn event call
-        WildPokemonEvents.OnPokeDespawned?.Invoke( this );
+        StopCoroutine( DespawnTimer() );
 
         //--Clear the State Machine
+        StopCoroutine( WildPokemonWander.WanderIdle() );
         WildPokemonStateMachine.StateStack.Clear();
         WildPokemonStateMachine = null;
+        
+        //--Despawn event call
+        WildPokemonEvents.OnPokeDespawned?.Invoke( this );
 
         //--Make sure the list isn't null and contains the wildmon before we remove it
         if( WildPokemonManager.Instance.SpawnedPokemonList != null && WildPokemonManager.Instance.SpawnedPokemonList.Contains( this ) ){
             WildPokemonManager.Instance.SpawnedPokemonList?.Remove( this );
         }
-        
+
+        if( _wildPokemonSpawner.SpawnerPokemonList != null && _wildPokemonSpawner.SpawnerPokemonList.Contains( gameObject ) && gameObject != null ){
+            _wildPokemonSpawner.SpawnerPokemonList.Remove( gameObject );
+        }
+
         //--Die
-        Debug.Log( this + " has been destroyed" );
+        // Debug.Log( "Pokemon has been destroyed" );
         Destroy( gameObject );
     }
 
-    private void OnGUI(){
-        var style = new GUIStyle();
-        style.fontSize = 24;
-        style.fontStyle = FontStyle.Bold;
-        style.normal.textColor = Color.white;
-
-        GUILayout.BeginArea( new Rect( 300, 0, 500, 500 ) );
-        GUILayout.Label( "WILD POKEMON STATE STACK", style ); //--REMEMBER YOU WERE DOING THIS LOL I LEFT THE VIDEO OPEN FOR YOU
-        foreach( var state in WildPokemonStateMachine.StateStack ){
-            GUILayout.Label( state.GetType().ToString(), style );
-        }
-        GUILayout.EndArea();
+    public IEnumerator DespawnTimer(){
+        yield return new WaitForSeconds( 240 );
+        Despawn();
     }
 
 }

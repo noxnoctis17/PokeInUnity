@@ -33,7 +33,7 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
     public void OnSubmit(BaseEventData eventData)
     {
         Debug.Log("fainted select in button is: " + _isFaintedSelect);
-        if(Pokemon.currentHP <= 0)
+        if(Pokemon.CurrentHP <= 0)
         {
             Debug.Log("You can't select a fainted Pokemon!"); //message pop up eventually
             return;
@@ -45,7 +45,7 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
             return;
         }
 
-        if(_isFaintedSelect)
+        if(_isFaintedSelect) //--If switch is caused by a faint, we don't add the command to the command queue
         {
             BattleSystem.OnPlayerChoseNextPokemon?.Invoke();
             _pkmnMenu.BattleSystem.ClosePartyMenu(Pokemon);

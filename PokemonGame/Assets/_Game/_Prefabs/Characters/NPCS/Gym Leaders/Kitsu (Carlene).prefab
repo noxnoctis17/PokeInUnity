@@ -27,7 +27,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6082356655456777502}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.258, y: 0, z: -0.17}
+  m_LocalPosition: {x: -0.258, y: 0, z: -0.209}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -136,7 +136,7 @@ GameObject:
   - component: {fileID: 6082356655535278621}
   - component: {fileID: 6082356655535278618}
   m_Layer: 0
-  m_Name: Gym Leader Carlene (5-25-22)
+  m_Name: Sprite
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -230,7 +230,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6082356655807927741}
-  - component: {fileID: 8508748271199144491}
+  - component: {fileID: 2254997850878267763}
+  - component: {fileID: 6082356655601560715}
+  - component: {fileID: 6082356655601560721}
+  - component: {fileID: 2482589206662233048}
   - component: {fileID: 6082356655807927742}
   - component: {fileID: 6082356655807927743}
   - component: {fileID: 6082356655807927740}
@@ -250,15 +253,15 @@ Transform:
   m_GameObject: {fileID: 6082356655807927738}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4, y: 4, z: 4}
+  m_LocalScale: {x: -4, y: 4, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6082356655535278619}
   - {fileID: 6082356655456777489}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
+  m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8508748271199144491
+--- !u!114 &2254997850878267763
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -267,10 +270,124 @@ MonoBehaviour:
   m_GameObject: {fileID: 6082356655807927738}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7934aeb2892437648b65856a590fa856, type: 3}
+  m_Script: {fileID: 11500000, guid: af7f5ac3095797a49a5cd0b36f94d6f3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _dialogueSO: {fileID: 0}
+  _trainerSO: {fileID: 0}
+  _trainerParty: {fileID: 2482589206662233048}
+  _battleType: 2
+  _dialogueSO: {fileID: 11400000, guid: 2da68cb1608af3e4b9f8696864b41420, type: 2}
+  _postBattleDialogueSO: {fileID: 11400000, guid: 108d4db46aa8a944c8697bc5f4886695, type: 2}
+--- !u!114 &6082356655601560715
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6082356655807927738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e7d63ebeb8f2b543abba3686993d94d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _dialogueSO: {fileID: 11400000, guid: 2da68cb1608af3e4b9f8696864b41420, type: 2}
+  _responseEvents:
+  - name: Yes
+    _onPickedResponse:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 2254997850878267763}
+          m_TargetAssemblyTypeName: TrainerClass, Assembly-CSharp
+          m_MethodName: StartTrainerBattleCoroutine
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+  - name: No
+    _onPickedResponse:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 2254997850878267763}
+          m_TargetAssemblyTypeName: TrainerClass, Assembly-CSharp
+          m_MethodName: UpdateDialogueObject
+          m_Mode: 2
+          m_Arguments:
+            m_ObjectArgument: {fileID: 11400000, guid: 74915a010b0a04c4cb6536f98931daa0, type: 2}
+            m_ObjectArgumentAssemblyTypeName: DialogueSO, Assembly-CSharp
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+--- !u!114 &6082356655601560721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6082356655807927738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e7d63ebeb8f2b543abba3686993d94d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _dialogueSO: {fileID: 11400000, guid: 74915a010b0a04c4cb6536f98931daa0, type: 2}
+  _responseEvents:
+  - name: Yes
+    _onPickedResponse:
+      m_PersistentCalls:
+        m_Calls: []
+  - name: Let's battle!
+    _onPickedResponse:
+      m_PersistentCalls:
+        m_Calls:
+        - m_Target: {fileID: 2254997850878267763}
+          m_TargetAssemblyTypeName: TrainerClass, Assembly-CSharp
+          m_MethodName: StartTrainerBattleCoroutine
+          m_Mode: 1
+          m_Arguments:
+            m_ObjectArgument: {fileID: 0}
+            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+            m_IntArgument: 0
+            m_FloatArgument: 0
+            m_StringArgument: 
+            m_BoolArgument: 0
+          m_CallState: 2
+--- !u!114 &2482589206662233048
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6082356655807927738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f41f5ad83cc7f1643a4bbfb4554c410f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _isPlayerParty: 0
+  _isEnemyParty: 0
+  _partyPokemon:
+  - _pokeSO: {fileID: 11400000, guid: 8bd2be014fea6a94b9fffcc0e4f50fdc, type: 2}
+    _level: 100
+    _showDamageTakenText: {fileID: 0}
+    _showMoveUsedText: {fileID: 0}
+    HPChanged: 0
+  - _pokeSO: {fileID: 11400000, guid: 907fa4e48c5f417459b9eec223f7b8c5, type: 2}
+    _level: 100
+    _showDamageTakenText: {fileID: 0}
+    _showMoveUsedText: {fileID: 0}
+    HPChanged: 0
+  - _pokeSO: {fileID: 11400000, guid: ebf27d1674e5292418a8fa692f72e5bc, type: 2}
+    _level: 100
+    _showDamageTakenText: {fileID: 0}
+    _showMoveUsedText: {fileID: 0}
+    HPChanged: 0
 --- !u!143 &6082356655807927742
 CharacterController:
   m_ObjectHideFlags: 0
@@ -290,13 +407,13 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 0.78
-  m_Radius: 0.23
+  m_Height: 1
+  m_Radius: 0.25
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0.4, z: 0}
+  m_Center: {x: 0, y: 0.515, z: 0}
 --- !u!114 &6082356655807927743
 MonoBehaviour:
   m_ObjectHideFlags: 0

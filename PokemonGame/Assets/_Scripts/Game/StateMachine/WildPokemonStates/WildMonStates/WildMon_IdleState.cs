@@ -13,7 +13,7 @@ public class WildMon_IdleState : State<WildPokemon>
     }
     
     public override void Enter( WildPokemon owner ){
-        Debug.Log( "Enter Idle State" );
+        // Debug.Log( "Enter Idle State" );
         _wildPokemon = owner;
         _wander = _wildPokemon.WildPokemonWander;
 
@@ -26,6 +26,6 @@ public class WildMon_IdleState : State<WildPokemon>
     }
 
     public override void Exit(){
-        Debug.Log( "Exit Idle State" );
+        // Debug.Log( "Exit Idle State" );
     }
 }

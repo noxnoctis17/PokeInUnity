@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Vulpix
   m_EditorClassIdentifier: 
   _name: Vulpix
-  _wildType: 0
+  _wildType: 1
   _description: 
   _frontSprite: {fileID: 1116788618922160195, guid: 1951da96dcd53b14d832b863401b3b6a, type: 3}
   _backSprite: {fileID: 0}
@@ -32,5 +32,7 @@ MonoBehaviour:
     _levelLearned: 1
   - _moveBase: {fileID: 11400000, guid: df26f8fdc623a8c4a8fa00b7161745de, type: 2}
     _levelLearned: 5
-  - _moveBase: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+  - _moveBase: {fileID: 11400000, guid: 447507f70d65b32489bced1ea8e59884, type: 2}
     _levelLearned: 10
+  - _moveBase: {fileID: 11400000, guid: 2febd2c57be4b884f8970d7827e0cef4, type: 2}
+    _levelLearned: 15

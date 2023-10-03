@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using Unity.Mathematics;
+using System.Collections;
 
 public class DamageTakenPopup : MonoBehaviour
 {
@@ -21,4 +22,10 @@ public class DamageTakenPopup : MonoBehaviour
     public void Setup( int damageTaken ){
         _damageTextPopup.SetText( damageTaken.ToString() );
     }
+
+    private void Update(){
+        float moveYSpeed = 5f;
+        transform.position += new Vector3( 0, moveYSpeed ) * Time.deltaTime;
+    }
+
 }

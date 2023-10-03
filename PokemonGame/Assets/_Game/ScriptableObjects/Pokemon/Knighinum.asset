@@ -16,7 +16,7 @@ MonoBehaviour:
   _wildType: 2
   _description: These Pokemon have finally bloomed into their truest selves, striving
     to protect their trainer and friends that supported them along the way.
-  _frontSprite: {fileID: 0}
+  _frontSprite: {fileID: 21300000, guid: 21ccb1c04e152cf41aba9bb2b734a7fd, type: 3}
   _backSprite: {fileID: 0}
   _battlePortrait: {fileID: 21300000, guid: 259c32a5b3180aa44aa7095a109e613b, type: 3}
   _type1: 5
@@ -26,7 +26,7 @@ MonoBehaviour:
   _attack: 115
   _defense: 105
   _spAttack: 50
-  _spDefense: 95
+  _spDefense: 90
   _speed: 90
   _learnableMoves:
   - _moveBase: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}

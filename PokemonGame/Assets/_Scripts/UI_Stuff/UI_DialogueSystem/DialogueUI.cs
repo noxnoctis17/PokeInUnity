@@ -16,6 +16,8 @@ public class DialogueUI : MonoBehaviour
     private TypeText _typeText;
     private ResponseHandler _responseHandler;
 
+    public IEnumerator ActiveDialogueCoroutine { get; private set; }
+
     private void Start(){
         _typeText = GetComponent<TypeText>();
         _responseHandler = GetComponent<ResponseHandler>();
@@ -24,7 +26,8 @@ public class DialogueUI : MonoBehaviour
     
     public void StartDialogue( DialogueSO dialogueSO ){
         Debug.Log( "StartDialogue" );
-        StartCoroutine( StepThroughDialogue( dialogueSO ) );
+        ActiveDialogueCoroutine = StepThroughDialogue( dialogueSO );
+        StartCoroutine( ActiveDialogueCoroutine );
     }
 
     public void AddResponseEvents( ResponseEvent[] responseEvents ){
@@ -125,6 +128,8 @@ public class DialogueUI : MonoBehaviour
         else{ 
             CloseDialogueBox();
         }
+
+        yield return new WaitForSeconds( 0.25f );
         
     }
 
@@ -142,14 +147,23 @@ public class DialogueUI : MonoBehaviour
     public void CloseDialogueBox(){
         Debug.Log( this + "CloseDialogueBox" );
         GameStateController.Instance.GameStateMachine.Pop();
-        // DialogueManager.OnDialogueFinished?.Invoke();
+
         _dialogueText.text = string.Empty;
         _leftSpeakerText_1.text = string.Empty;
         _rightSpeakerText_1.text = string.Empty;
+
         ClearDialoguePortraits();
         ClearSpeakerNameText();
+
         _generalDialogueBox.SetActive( false );
         _leftDialogueBox_1.SetActive( false );
         _rightDialogueBox_1.SetActive( false );
+
+        //--Check and Execute the Callback on ResponsePicked, so that the Unity Event will trigger after Dialogue is completely over.
+        //--This is especially important for trainer battles that have follow up dialogue before starting !!
+        if ( DialogueManager.Instance.DialogueFinishedCallback != null ){
+            DialogueManager.Instance.DialogueFinishedCallback.Invoke();
+            DialogueManager.Instance.DialogueFinishedCallback = null;
+        }
     }
 }

@@ -49,8 +49,8 @@ public enum MoveCategory { Physical, Special, Status, Other };
 public class MoveEffects
 {
     //--Stat Modifiers
-    [SerializeField] private List<StatBoost> _statBoostList;
-    public List<StatBoost> StatBoostList => _statBoostList;
+    [SerializeField] private List<StatChange> _statChangeList;
+    public List<StatChange> StatChangeList => _statChangeList;
 
     //--Severe Status Conditions (PSN, BRN, PAR, SLP, FRZ)
     [SerializeField] private ConditionID _severeStatus;
@@ -70,10 +70,11 @@ public class SecondaryMoveEffects : MoveEffects
 }
 
 [System.Serializable]
-public class StatBoost
+public class StatChange
 {
     public Stat Stat;
-    public int Boost;
+    [Range(-6, 6)]
+    public int Change;
 }
 
 public enum MoveTarget { enemy, self }
