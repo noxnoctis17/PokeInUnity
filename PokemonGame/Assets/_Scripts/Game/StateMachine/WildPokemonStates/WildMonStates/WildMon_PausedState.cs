@@ -3,29 +3,22 @@ using UnityEngine;
 
 public class WildMon_PausedState : State<WildPokemon>
 {
-	public static WildMon_PausedState Instance { get; private set; }
+	// public static WildMon_PausedState Instance { get; private set; }
     private WildPokemon _wildPokemon;
-    private WildPokemonWander _wander;
-
-    private void Awake(){
-        Instance = this;
-    }
+    private WildPokemonStateManager _sm;
     
-    public override void Enter( WildPokemon owner ){
-        Debug.Log( "Enter Paused State" );
+    public override void EnterState( WildPokemon owner ){
         _wildPokemon = owner;
-        _wander = _wildPokemon.WildPokemonWander;
-        StopCoroutine( _wander.WanderIdle() );
+        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Idle );
 
-        if( _wander.AgentMon.hasPath ){
-            _wander.AgentMon.isStopped = true;
+        if( _wildPokemon.AgentMon.hasPath ){
+            _wildPokemon.AgentMon.isStopped = true;
         }
         else{
-            _wander.AgentMon.SetPath( null );
+            _wildPokemon.AgentMon.SetPath( null );
         }
     }
 
-    public override void Exit(){
-        Debug.Log( "Exit Paused State" );
+    public override void ExitState(){
     }
 }

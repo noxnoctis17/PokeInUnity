@@ -10,7 +10,7 @@ public class FreeRoamState : State<GameStateController>
         Instance = this;
     }
     
-    public override void Enter( GameStateController owner ){
+    public override void EnterState( GameStateController owner ){
         gameStateController = owner;
 
         //--Set Controls
@@ -20,12 +20,12 @@ public class FreeRoamState : State<GameStateController>
         Debug.Log( "exploration baaybeee" );
     }
 
-    public override void Return(){
+    public override void ReturnToState(){
         //--Re-enable Controls, should they have been disabled by the previous state in the stack
         PlayerReferences.Instance.EnableCharacterControls();
     }
 
-    public override void Exit(){
+    public override void ExitState(){
         
         //--Disable Character Controls
         PlayerReferences.Instance.DisableCharacterControls();

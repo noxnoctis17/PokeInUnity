@@ -1,15 +1,21 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace NoxNoctisDev.StateMachine{
-
+//////////////////////////////////////////////////////////namespace
 public class State<T> : MonoBehaviour
 {
-    public virtual void Enter( T owner ){ }
-    public virtual void Execute(){ }
-    public virtual void Return(){ }
-    public virtual void Exit(){ }
+    public virtual void EnterState( T owner ){}
+    public virtual void UpdateState(){}
+    public virtual void ReturnToState(){}
+    public virtual void ExitState(){}
+
 }
 
+
+
+
+
+
+
+//////////////////////////////////////////////////////////namespace
 }

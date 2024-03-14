@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Meormor
+  m_EditorClassIdentifier: 
+  _name: Meormor
+  _wildType: 2
+  _description: 
+  _idleUpSprites: []
+  _idleDownSprites: []
+  _walkUpSprites: []
+  _walkDownSprites: []
+  _battlePortrait: {fileID: 0}
+  _type1: 2
+  _type2: 17
+  _maxHP: 80
+  _maxPP: 80
+  _attack: 130
+  _defense: 70
+  _spAttack: 80
+  _spDefense: 70
+  _speed: 110
+  _learnableMoves:
+  - _moveBase: {fileID: 11400000, guid: 5d553f5d14160a84abfc235ff20f078f, type: 2}
+    _levelLearned: 1
+  - _moveBase: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
+    _levelLearned: 1
+  - _moveBase: {fileID: 11400000, guid: df26f8fdc623a8c4a8fa00b7161745de, type: 2}
+    _levelLearned: 6
+  - _moveBase: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+    _levelLearned: 9
+  - _moveBase: {fileID: 11400000, guid: 515914ffed551a049b0d54446055012a, type: 2}
+    _levelLearned: 50

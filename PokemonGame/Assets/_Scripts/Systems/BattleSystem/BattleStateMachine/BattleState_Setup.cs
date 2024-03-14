@@ -20,7 +20,7 @@ public class BattleState_Setup : InBattleStates
         // BattleSystem.PlayerUnit.Setup( BattleSystem.PlayerParty.GetHealthyPokemon(), BattleSystem.PlayerHUD );
 
         //--Set up Player UI
-        BattleSystem.FightMenu.SetUpMoves( BattleSystem.PlayerUnit.Pokemon.Moves );
+        // BattleSystem.FightMenu.SetUpMoves( BattleSystem.PlayerUnit.Pokemon.Moves );
         BattleSystem.PartyScreen.Init();
         BattleSystem.PartyScreen.SetParty( BattleSystem.PlayerParty.PartyPokemon );
         yield return null;

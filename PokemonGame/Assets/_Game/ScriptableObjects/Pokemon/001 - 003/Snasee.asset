@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Snasee
+  m_EditorClassIdentifier: 
+  _name: Snasee
+  _wildType: 1
+  _description: These seedlings are bursting with energy and wonder for the world!
+  _idleUpSprites:
+  - {fileID: 449579599, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  _idleDownSprites:
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  _walkUpSprites:
+  - {fileID: 449579599, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  _walkDownSprites:
+  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  _battlePortrait: {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  _type1: 5
+  _type2: 0
+  _maxHP: 50
+  _maxPP: 50
+  _attack: 70
+  _defense: 65
+  _spAttack: 15
+  _spDefense: 45
+  _speed: 45
+  _learnableMoves:
+  - _moveBase: {fileID: 11400000, guid: a510aab79c4c3dd49a6e316693d61bea, type: 2}
+    _levelLearned: 1
+  - _moveBase: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
+    _levelLearned: 1
+  - _moveBase: {fileID: 11400000, guid: 3734655eb285f174e98adc63992ac9da, type: 2}
+    _levelLearned: 10
+  - _moveBase: {fileID: 11400000, guid: 7eeabd8921196b441b74022de78201a2, type: 2}
+    _levelLearned: 15

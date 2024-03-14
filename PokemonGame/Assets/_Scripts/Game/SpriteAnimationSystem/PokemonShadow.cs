@@ -27,12 +27,14 @@ public class PokemonShadow : MonoBehaviour
         _sunTransform = PlayerReferences.Instance.SunTransform;
         _defaultAnimSheet = _pokemonAnimator.IdleDownSprites;
         _currentAnimSheet = _defaultAnimSheet;
+
+        AssignAnimations( _currentAnimSheet );
     }
 
     private void Update(){
         var previousAnimSheet = _currentAnimSheet;
         UpdateMovement();
-        CalcShadowFacingDirection();
+        CalcShadowFacingDirection(); //--need to get movement information from character controller or w/e for these
         SetIdleShadowSprites();
 
         if( _currentAnimSheet != previousAnimSheet || _pokemonAnimator.IsWalking != _wasWalking )
@@ -44,26 +46,34 @@ public class PokemonShadow : MonoBehaviour
             // SetIdleSprites();
             AssignAnimations( _currentAnimSheet );
             _spriteAnimator.Start();
+            _spriteAnimator?.HandleUpdate();
         }
 
         _wasWalking = _pokemonAnimator.IsWalking;
     }
 
     private void LateUpdate(){
-        Billboard( transform, _sunTransform );
+        Billboard();
     }
 
-    private void Billboard( Transform shadow, Transform directionalLight ){
-        shadow.forward = directionalLight.forward;
+    private void Billboard(){
+        transform.forward = _sunTransform.forward;
     }
 
     private void UpdateMovement(){
-        _moveX = _pokemonAnimator.MoveX;
-        _moveY = _pokemonAnimator.MoveY;
+        if( _pokemonAnimator.MoveX > 0 )
+            _moveX = _pokemonAnimator.MoveX;
+
+        if( _pokemonAnimator.MoveY > 0 )
+            _moveY = _pokemonAnimator.MoveY;
+    }
+
+    public void SetBattleShadows(){
+        _currentAnimSheet = _pokemonAnimator.IdleDownSprites; //--Temporary measure until a battle state is made for the animators
     }
 
     private void AssignAnimations( List<Sprite> animation ){
-        if( animation.Count > 0 )
+        if( animation?.Count > 0 )
             _spriteAnimator.AnimationFrames = animation;
         else
             _spriteAnimator.AnimationFrames = _defaultAnimSheet;
@@ -87,13 +97,23 @@ public class PokemonShadow : MonoBehaviour
     }
 
     private void SetIdleShadowSprites(){
-        //--Assign Shadow sprites based on last movement direction to keep appropriate shape perspective
-        if( _moveX == 0 && _moveY == 1 )
-            _currentAnimSheet = _pokemonAnimator.IdleUpSprites;
-        else if( _moveX == 0 && _moveY == -1 )
-            _currentAnimSheet = _pokemonAnimator.IdleDownSprites;
-        else
-            _currentAnimSheet = _defaultAnimSheet;
+        //--Assign Shadow sprites based on look direction to keep appropriate shape
+        switch( _facingDirection ){
+            case FacingDirection.Up:
+                _currentAnimSheet = _pokemonAnimator.IdleUpSprites;
+            
+            break;
+
+            case FacingDirection.Down:
+                _currentAnimSheet = _pokemonAnimator.IdleDownSprites;
+
+            break;
+
+            default:
+                _currentAnimSheet = _pokemonAnimator.IdleDownSprites;
+
+            break;
+        }
 
         AssignAnimations( _currentAnimSheet );
     }

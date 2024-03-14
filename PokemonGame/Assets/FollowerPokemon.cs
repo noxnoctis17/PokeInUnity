@@ -33,9 +33,8 @@ public class FollowerPokemon : MonoBehaviour
         }
     }
 
-    private void SetFollowerPokemon( PokemonClass pokemon )
-    {
-        _spriteRenderer.sprite = pokemon.PokeSO.FrontSprite;
+    private void SetFollowerPokemon( PokemonClass pokemon ){
+        _spriteRenderer.sprite = pokemon.PokeSO.IdleDownSprites[0];
         //--eventually animate n shit, ya know
     }
 }

@@ -10,17 +10,16 @@ public class DialogueState : State<GameStateController>
         Instance = this;
     }
 
-    public override void Enter( GameStateController owner ){
+    public override void EnterState( GameStateController owner ){
         gameStateController = owner;
 
         //--Set Controls
         PlayerReferences.Instance.EnableUI();
-        // PlayerReferences.Instance.DisableBattleControls();
         PlayerReferences.Instance.DisableCharacterControls();
         Debug.Log( "Dialogue State Enter()" );
     }
 
-    public override void Exit(){
+    public override void ExitState(){
         PlayerReferences.Instance.DisableUI();
         Debug.Log( "Dialogue State Exit()" );
     }

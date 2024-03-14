@@ -3,28 +3,21 @@ using System.Collections.Generic;
 using UnityEngine;
 using NoxNoctisDev.StateMachine;
 
-public class Spawner_PausedState : State<WildPokemonSpawnerManager>
+public class Spawner_PausedState : State<WildPokemonSpawner>
 {
-	public static Spawner_PausedState Instance;
-    private WildPokemonSpawnerManager _wildPokemonSpawnerManager;
+	// public static Spawner_PausedState Instance;
+    private WildPokemonSpawner _spawner;
 
     private void Awake(){
-        Instance = this;
+        // Instance = this;
     }
 
-    public override void Enter( WildPokemonSpawnerManager owner ){
-        _wildPokemonSpawnerManager = owner;
-
-        foreach( WildPokemonSpawner spawner in _wildPokemonSpawnerManager.SpawnerList ){
-            Debug.Log( "PauseSpawner()" );
-            StopCoroutine( spawner.SpawnPokemon() );
-        }
+    public override void EnterState( WildPokemonSpawner owner ){
+        _spawner = owner;
+        Debug.Log( "Enter Paused State" );
     }
 
-    public override void Exit(){
-        foreach( WildPokemonSpawner spawner in _wildPokemonSpawnerManager.SpawnerList ){
-            Debug.Log( "ResumeSpawner()" );
-            StartCoroutine( spawner.SpawnPokemon() );
-        }
+    public override void ExitState(){
+        Debug.Log( "Leaving Paused State" );
     }
 }

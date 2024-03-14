@@ -39,7 +39,7 @@ public class BattleArena : MonoBehaviour
 
             case BattleType.WildBattle_2v2 :
 
-                //--I'm not sure i'll ever have one of these but who knows. i think the arcanine guardian encounters will be the only ones
+                //--I'm not sure i'll ever have one of these but who knows. i think the Arcanine Guardian encounters will be the only ones
 
             break;
 
@@ -97,7 +97,6 @@ public class BattleArena : MonoBehaviour
     private IEnumerator MovePlayerIntoPosition( Vector3 position ){
         yield return new WaitForSeconds( 0.25f );
         Debug.Log( "move player into position from battle arena" );
-        // PlayerReferences.Instance.PlayerMovement.OnMovePlayerIntoPosition?.Invoke( position ); //--woooweee what a mouthfull
         PlayerReferences.Instance.PlayerMovement.MovePlayerIntoBattlePosition( position );
     }
 
@@ -140,8 +139,10 @@ public class BattleArena : MonoBehaviour
         yield return null;
 
         //--Clear relevant sprites that will be replaced by an in-world sprite instead
-        _singlesTrainer1.GetComponent<SpriteRenderer>().sprite = null; //--trainer 1 will almost always be the player, who will almost always be on-map
-        _singlesUnit2.GetComponent<SpriteRenderer>().sprite = null; //--clear unit2's sprite because the on-map encounter will take unit2's position
+        ClearSprites( _singlesTrainer1 ); //--trainer 1 will almost always be the player, who will almost always be on-map
+        ClearSprites( _singlesUnit2 ); //--clear unit2's sprite because the on-map encounter will take unit2's position
+        _singlesUnit2.GetComponentInChildren<PokemonAnimator>().enabled = false; //--disable the animator for the battle unit, we use the wild pokemon's animator instead
+        _singlesUnit2.GetComponentInChildren<PokemonShadow>().enabled = false; //--disable the animator for the battle unit, we use the wild pokemon's animator instead
         yield return null;
 
         //--Add relevant positions to the active positions list
@@ -170,6 +171,11 @@ public class BattleArena : MonoBehaviour
         var targetPosition = GrabWildEncounter().transform.position;
         yield return SetPivot( targetPosition, _singlesUnit2 );
 
+        //--Make everyone face the arena center
+        LookAtArenaCenter( _singlesTrainer1 );
+        LookAtArenaCenter( _singlesUnit1 );
+        LookAtArenaCenter( _singlesUnit2 );
+
         //--Handle Cameras by passing the initial single target camera's target unit
         StartCoroutine( SetCameras( _singlesUnit2 ) );
 
@@ -195,8 +201,8 @@ public class BattleArena : MonoBehaviour
         yield return null;
 
         //--Clear relevant sprites that will be replaced by an in-world sprite instead
-        _singlesTrainer1.GetComponent<SpriteRenderer>().sprite = null;
-        _singlesTrainer2.GetComponent<SpriteRenderer>().sprite = null;
+        ClearSprites( _singlesTrainer1 );
+        ClearSprites( _singlesTrainer2 );
         yield return null;
 
         //--Add relevant positions to the active positions list
@@ -222,6 +228,12 @@ public class BattleArena : MonoBehaviour
         //--Attempt! to set the pivot of the arena to the Enemy Trainer's location
         var targetPosition = GrabEnemyTrainer1().transform.position;
         yield return SetPivot( targetPosition, _singlesTrainer2 );
+
+        //--Make everyone face the arena center
+        LookAtArenaCenter( _singlesTrainer1 );
+        LookAtArenaCenter( _singlesTrainer2 );
+        LookAtArenaCenter( _singlesUnit1 );
+        LookAtArenaCenter( _singlesUnit2 );
 
         //--Handle Cameras by passing the initial single target camera's target unit
         StartCoroutine( SetCameras( _singlesUnit2 ) );
@@ -250,10 +262,25 @@ public class BattleArena : MonoBehaviour
         yield return null;
 
         //--Clear relevant sprites that will be replaced by an in-world sprite instead
-        _doublesTrainer1.GetComponent<SpriteRenderer>().sprite = null;
-        _doublesTrainer2.GetComponent<SpriteRenderer>().sprite = null;
+        ClearSprites( _doublesTrainer1 );
+        ClearSprites( _doublesTrainer2 );
 
+        //--Make everyone face the arena center
+        LookAtArenaCenter( _doublesTrainer1 ); //--Player
+        LookAtArenaCenter( _doublesTrainer2 );
+        LookAtArenaCenter( _doublesUnit1 ); //--Player Unit
+        LookAtArenaCenter( _doublesUnit2 );
+        LookAtArenaCenter( _doublesUnit3 ); //--Player Unit
+        LookAtArenaCenter( _doublesUnit4 );
 
+    }
+
+    private void LookAtArenaCenter( GameObject obj ){
+        obj.transform.rotation.SetLookRotation( _arenaGizmoCenter.transform.position );
+    }
+
+    private void ClearSprites( GameObject obj ){
+        obj.GetComponentsInChildren<SpriteRenderer>()[0].sprite = null;
     }
 
 

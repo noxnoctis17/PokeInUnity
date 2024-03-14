@@ -68,6 +68,12 @@ public class CharacterAnimator : MonoBehaviour
     //==[ROTATION STEP CONSTANT]==
     private const float _rotationStep = 22.5f;
 
+    public enum SpritePerspective {
+        Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight,
+    }
+
+    private SpritePerspective _spritePerspective;
+
     public enum FacingDirection {
         Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight,
     }
@@ -98,22 +104,22 @@ public class CharacterAnimator : MonoBehaviour
 
     private void Update(){
         var previousAnimSheet = _currentAnimSheet;
-        SetFacingDirection();
+        SetSpritePerspective();
         SetWalkingSprites();
 
         if( _currentAnimSheet != previousAnimSheet || IsWalking != _wasWalking )
-            _spriteAnimator?.Start();
+            _spriteAnimator.Start();
 
         if( IsWalking ){
-            _spriteAnimator?.HandleUpdate();
+            _spriteAnimator.HandleUpdate();
         }else{
             SetIdleSprites();
             AssignAnimations( _currentAnimSheet );
-            _spriteAnimator?.Start();
+            _spriteAnimator.Start();
+            _spriteAnimator.HandleUpdate();
         }
 
         _wasWalking = IsWalking;
-        
     }
 
     private void LateUpdate(){
@@ -125,72 +131,84 @@ public class CharacterAnimator : MonoBehaviour
     }
 
     private void AssignAnimations( List<Sprite> animation ){
-        if( animation.Count >= 1 )
+        if( animation.Count > 0 )
             _spriteAnimator.AnimationFrames = animation;
         else
             _spriteAnimator.AnimationFrames = _defaultAnimSheet;
     }
 
     //--Somehow this Just Worked™
-    //--Camera rotation to turn player does not rotate player transform forward
-    //--make that happen and this should be done forever hehe haha peepee caca
-    private void SetFacingDirection(){
+    private void SetSpritePerspective(){
         //--Sets facing direction based on the player transform forward
         var projection = Vector3.ProjectOnPlane( _camera.transform.forward, _playerTransform.up );
         var angle = Vector3.SignedAngle( projection, _playerTransform.forward, _playerTransform.up );
         var absAngle = Mathf.Abs( angle );
 
         if( absAngle <= _rotationStep )
+            _spritePerspective = SpritePerspective.Up;
+        else if( absAngle <= _rotationStep * 3 )
+            _spritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.UpLeft     : _spritePerspective = SpritePerspective.UpRight;
+        else if( absAngle <= _rotationStep * 5 )
+            _spritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.Left       : _spritePerspective = SpritePerspective.Right;
+        else if( absAngle <= _rotationStep * 7 )
+            _spritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.DownLeft   : _spritePerspective = SpritePerspective.DownRight;
+        else
+            _spritePerspective = SpritePerspective.Down;
+    }
+
+    //--This is to set the shadow facing direction based on the character's forward angle. i don't know math tho lol
+    private void GetCharacterForwardDirection(){
+        var absAngle = Mathf.Abs( _playerTransform.forward.y );
+
+        if( absAngle > _rotationStep )
             _facingDirection = FacingDirection.Up;
         else if( absAngle <= _rotationStep * 3 )
-            _facingDirection = Mathf.Sign( angle ) < 0 ? FacingDirection.UpLeft     : _facingDirection = FacingDirection.UpRight;
+            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.UpLeft : _facingDirection = FacingDirection.UpRight;
         else if( absAngle <= _rotationStep * 5 )
-            _facingDirection = Mathf.Sign( angle ) < 0 ? FacingDirection.Left       : _facingDirection = FacingDirection.Right;
+            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.Left : _facingDirection = FacingDirection.Right;
         else if( absAngle <= _rotationStep * 7 )
-            _facingDirection = Mathf.Sign( angle ) < 0 ? FacingDirection.DownLeft   : _facingDirection = FacingDirection.DownRight;
-        else
-            _facingDirection = FacingDirection.Down;
+            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.DownLeft : _facingDirection = FacingDirection.DownRight;
     }
 
     private void SetIdleSprites(){
         //--Assigns idle sprites based on facing direction/transform forward
-        switch( _facingDirection ){
-            case FacingDirection.Up:
+        switch( _spritePerspective ){
+            case SpritePerspective.Up:
                 _currentAnimSheet = _idleUpSprites;
 
             break;
 
-            case FacingDirection.Down:
+            case SpritePerspective.Down:
                 _currentAnimSheet = _idleDownSprites;
 
             break;
 
-            case FacingDirection.Left:
+            case SpritePerspective.Left:
                 _currentAnimSheet = _idleLeftSprites;
 
             break;
 
-            case FacingDirection.Right:
+            case SpritePerspective.Right:
                 _currentAnimSheet = _idleRightSprites;
 
             break;
 
-            case FacingDirection.UpLeft:
+            case SpritePerspective.UpLeft:
                 _currentAnimSheet = _idleUpLeftSprites;
 
             break;
 
-            case FacingDirection.UpRight:
+            case SpritePerspective.UpRight:
                 _currentAnimSheet = _idleUpRightSprites;
 
             break;
 
-            case FacingDirection.DownLeft:
+            case SpritePerspective.DownLeft:
                 _currentAnimSheet = _idleDownLeftSprites;
 
             break;
 
-            case FacingDirection.DownRight:
+            case SpritePerspective.DownRight:
                 _currentAnimSheet = _idleDownRightSprites;
 
             break;
@@ -217,16 +235,16 @@ public class CharacterAnimator : MonoBehaviour
 
         //--Diagonals--
         //--Up Left
-        if( MoveY >= 0.01f && MoveX <= -0.01f )
+        if( MoveY >= 0.05f && MoveX <= -0.05f )
             _currentAnimSheet = _walkUpLeftSprites;
         //--Up Right
-        else if( MoveY >= 0.01f && MoveX >= 0.01f )
+        else if( MoveY >= 0.05f && MoveX >= 0.05f )
             _currentAnimSheet = _walkUpRightSprites;
         //--Down Left
-        else if( MoveY <= -0.01f && MoveX <= -0.01f )
+        else if( MoveY <= -0.05f && MoveX <= -0.05f )
             _currentAnimSheet = _walkDownLeftSprites;
         //--Down Right
-        else if( MoveY <= -0.01f && MoveX >= 0.01f )
+        else if( MoveY <= -0.05f && MoveX >= 0.05f )
             _currentAnimSheet = _walkDownRightSprites;
 
         AssignAnimations( _currentAnimSheet );

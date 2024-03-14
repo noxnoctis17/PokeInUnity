@@ -31,8 +31,10 @@ public class DialogueManager : MonoBehaviour
         Debug.Log( "PlayDialogue()" );
 
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
-            GameStateController.Instance.GameStateMachine?.Push( DialogueState.Instance );
+            Debug.Log( "pushed dialogue state ");
+            GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
+        Debug.Log( dialogueSO );
         _dialogueUI.StartDialogue( dialogueSO );
     }
 

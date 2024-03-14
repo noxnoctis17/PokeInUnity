@@ -10,7 +10,7 @@ public class BattleState : State<GameStateController>
         Instance = this;
     }
 
-    public override void Enter( GameStateController owner ){
+    public override void EnterState( GameStateController owner ){
         gameStateController = owner;
 
         //--Set Controls
@@ -25,7 +25,7 @@ public class BattleState : State<GameStateController>
         Debug.Log( "BattleState Enter()" );
     }
 
-    public override void Exit(){
+    public override void ExitState(){
         gameStateController.EventSystem.enabled = true; //--same as above, shouldn't need this after battle ui overhaul
         gameStateController.BattleSystemContainer.SetActive( false );
         // PlayerReferences.Instance.DisableBattleControls(); //--set once overhaul is done

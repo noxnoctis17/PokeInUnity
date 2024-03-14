@@ -22,7 +22,8 @@ public class BattleController : MonoBehaviour
         BattleType battleType = BattleType.WildBattle_1v1;
 
         //--Change Game State
-        GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
+        // GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
+        GameStateController.Instance.GameStateMachine.ChangeState( BattleState.Instance );
         
         //--Assign Encountered Pokemon, Initialize Wild Battle
         _battleSystem.AssignWildPokemon( encounteredMon );
@@ -31,7 +32,8 @@ public class BattleController : MonoBehaviour
 
     public void InitTrainerBattle( PokemonParty trainerParty, BattleType battleType ){
         //--Change Game State
-        GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
+        // GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
+        GameStateController.Instance.GameStateMachine.ChangeState( BattleState.Instance );
 
         //--Initialize Trainer Battle
         _battleSystem.InitializeTrainerSingles( trainerParty, battleType );

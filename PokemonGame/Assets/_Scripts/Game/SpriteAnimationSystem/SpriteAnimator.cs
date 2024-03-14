@@ -21,7 +21,10 @@ public class SpriteAnimator
 
     public void Start(){
         _currentFrame = 0;
-        _spriteRenderer.sprite = AnimationFrames[0];
+
+        if( AnimationFrames?.Count > 0 )
+            _spriteRenderer.sprite = AnimationFrames[0];
+
         _timer = 0;
     }
 

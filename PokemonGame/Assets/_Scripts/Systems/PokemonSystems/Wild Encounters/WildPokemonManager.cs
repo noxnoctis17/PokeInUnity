@@ -32,19 +32,19 @@ public class WildPokemonManager : MonoBehaviour
     
     private void PauseDespawnTimers(){
         foreach( var pokemon in SpawnedPokemonList ){
-            StopCoroutine( pokemon?.DespawnTimer() );
+            StopCoroutine( pokemon.DespawnTimer() );
         }
     }
 
     private void RestartDespawnTimers(){
         foreach( var pokemon in SpawnedPokemonList ){
-            StartCoroutine( pokemon?.DespawnTimer() );
+            StartCoroutine( pokemon.DespawnTimer() );
         }
     }
 
     private void EnableColliders(){
         foreach( var pokemon in SpawnedPokemonList ){
-            StartCoroutine( pokemon?.CollisionDelay() );
+            StartCoroutine( pokemon.CollisionDelay() );
         }
     }
 
@@ -54,21 +54,5 @@ public class WildPokemonManager : MonoBehaviour
                 pokemon.BoxCollider.enabled = false;
             }
         }
-    }
-
-    private void OnGUI(){
-        var style = new GUIStyle();
-        style.fontSize = 24;
-        style.fontStyle = FontStyle.Bold;
-        style.normal.textColor = Color.white;
-
-        GUILayout.BeginArea( new Rect( 0, 0, 500, 500 ) );
-        GUILayout.Label( "WILD POKEMON STATE STACK", style );
-        foreach( var pokemon in SpawnedPokemonList){
-            foreach( var state in pokemon.WildPokemonStateMachine.StateStack ){
-                GUILayout.Label( state.GetType().ToString(), style );
-            }
-        }
-        GUILayout.EndArea();
     }
 }

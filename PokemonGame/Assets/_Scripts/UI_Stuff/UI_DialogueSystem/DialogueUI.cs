@@ -147,6 +147,7 @@ public class DialogueUI : MonoBehaviour
     public void CloseDialogueBox(){
         Debug.Log( this + "CloseDialogueBox" );
         GameStateController.Instance.GameStateMachine.Pop();
+        // GameStateController.Instance.GameStateMachine.ChangeState( FreeRoamState.Instance );
 
         _dialogueText.text = string.Empty;
         _leftSpeakerText_1.text = string.Empty;

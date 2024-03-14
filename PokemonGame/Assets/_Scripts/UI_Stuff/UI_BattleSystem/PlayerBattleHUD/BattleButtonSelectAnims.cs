@@ -27,7 +27,7 @@ public class BattleButtonSelectAnims : MonoBehaviour, ISelectHandler, IDeselectH
         //--Animate the Button
         LeanTween.moveX(_button, transform.position.x + 5f, 0.2f);
 
-        //--Animate the Outline and Disable it
+        //--Animate the Outline and then Disable it
         LeanTween.moveX(_buttonOutline, _buttonOutline.transform.position.x + 10f, 0.1f);
         _buttonOutline.SetActive(false); 
     }

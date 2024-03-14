@@ -1,48 +1,67 @@
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using System;
 
 namespace NoxNoctisDev.StateMachine{
-
+//////////////////////////////////////////////////////////namespace
 public class StateMachine<T>
 {
+    public Action<State<T>> OnQueueNextState;
+    public State<T> DefaultState { get; private set; }
 	public State<T> CurrentState { get; private set; }
+    private State<T> _queuedState;
     public Stack<State<T>> StateStack { get; private set; }
     private T _owner;
 
-    public StateMachine( T owner ){
+    public StateMachine( T owner, State<T> defaultState ){
         _owner = owner;
-        StateStack = new Stack<State<T>>();
+        DefaultState = defaultState;
     }
 
-    public void Push( State<T> newState ){
-        StateStack.Push( newState );
-        CurrentState = newState;
-        CurrentState.Enter( _owner );
+    private void SetActions(){
+        OnQueueNextState += QueueNextState;
     }
 
-    public void Pop(){
-        StateStack.Pop();
-        CurrentState.Exit();
-        CurrentState = StateStack.Peek();
-        CurrentState.Return();
+    public void ClearActions(){
+        OnQueueNextState -= QueueNextState;
     }
 
-    public void Execute(){
-        CurrentState?.Execute();
+    private void QueueNextState( State<T> nextState ){
+        _queuedState = nextState;
+    }
+
+    public void Initialize(){
+        SetActions();
+        CurrentState = DefaultState;
+        CurrentState.EnterState( _owner );
+    }
+
+    public void StartState( State<T> newState ){
+        if( newState == null || newState == DefaultState ){
+            CurrentState = DefaultState;
+        }else{
+            CurrentState = newState;
+        }
+
+        CurrentState.EnterState( _owner );
+    }
+
+    public void Update(){
+        if( CurrentState != _queuedState && _queuedState != null ){
+            ChangeState( _queuedState );
+        }
+        CurrentState.UpdateState();
     }
 
     public void ChangeState( State<T> newState ){
-        if( CurrentState != null ){
-            StateStack.Pop().Exit();
-        }
-
-        Push( newState ); //--if ChangeState doesn't seem to be working correctly at some point, copy Push code here instead of using Push()
-
+        CurrentState.ExitState();
+        CurrentState = newState;
+        StartState( newState );
     }
-
-
 
 }
 
+
+
+
+//////////////////////////////////////////////////////////namespace
 }

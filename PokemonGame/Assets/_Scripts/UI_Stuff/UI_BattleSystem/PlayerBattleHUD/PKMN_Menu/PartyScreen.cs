@@ -12,45 +12,38 @@ public class PartyScreen : MonoBehaviour
     public Button LastPKMNButton;
     [SerializeField] private EventSystem _eventSystem;
 
-    private void OnEnable()
-    {
-        StartCoroutine(SetInitialButton());
+    private void OnEnable(){
+        StartCoroutine( SetInitialButton() );
     }
 
-    public void Init()
-    {
+    public void Init(){
         _memberSlots = GetComponentsInChildren<PartyMember_UI>();
         _pkmnButton = GetComponentsInChildren<PKMN_Button>();
 
-        if(LastPKMNButton != null)
+        if( LastPKMNButton != null )
         LastPKMNButton.Select();
     }
 
-    public void SetParty(List<PokemonClass> pokemon)
-    {
-        for(int i = 0; i < _memberSlots.Length; i++)
-        {
+    public void SetParty( List<PokemonClass> pokemon ){
+        for( int i = 0; i < _memberSlots.Length; i++ ){
             if(i < pokemon.Count)
                 _memberSlots[i].SetData(pokemon[i]);
             else
-                _memberSlots[i].gameObject.SetActive(false);
+                _memberSlots[i].gameObject.SetActive( false );
         }
 
         AssignPokemonToButtons();
     }
 
-    private void AssignPokemonToButtons()
-    {
-        for(int i = 0; i < _pkmnButton.Length; i++)
-        {
+    private void AssignPokemonToButtons(){
+        for( int i = 0; i < _pkmnButton.Length; i++ ){
             _pkmnButton[i].Pokemon = _memberSlots[i].Pokemon;
         }
     }
 
-    private IEnumerator SetInitialButton()
-    {
+    private IEnumerator SetInitialButton(){
         LastPKMNButton = _partyButton1;
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds( 0.1f );
         LastPKMNButton.Select();
     }
 

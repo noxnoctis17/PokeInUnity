@@ -17,24 +17,31 @@ public class BattleUnit : MonoBehaviour
     [SerializeField] private bool _isAI;
 
     public PokemonClass Pokemon { get; set; }
-    private SpriteRenderer _spriteRenderer;
+    private PokemonAnimator _pokemonAnimator;
 
     private void OnEnable(){
         OnIsAI += EnableAI;
-        _spriteRenderer = GetComponent<SpriteRenderer>();
+        _pokemonAnimator = GetComponentInChildren<PokemonAnimator>();
     }
 
     private void OnDisable(){
         OnIsAI -= EnableAI;
     }
 
-    public void Setup( PokemonClass pokemon, BattleHUD battleHUD, BattleSystem battleSystem){
+    public void Setup( PokemonClass pokemon, BattleHUD battleHUD, BattleSystem battleSystem ){
         _battleSystem = battleSystem;
         _battleAI = GetComponent<BattleAI>();
-        _pokeSO = pokemon.PokeSO;
-        _level = pokemon.Level;
+
         Pokemon = pokemon;
-        _spriteRenderer.sprite = _pokeSO.FrontSprite;
+        _level = pokemon.Level;
+        _pokeSO = pokemon.PokeSO;
+
+        if( !Pokemon.Equals( _battleSystem.WildPokemon ) ){
+            _pokemonAnimator.Initialize( _pokeSO );
+        }
+        
+        _pokemonAnimator.SetBattleSystem( battleSystem );
+
         BattleHUD = battleHUD;
         BattleHUD.SetData( Pokemon );
 

@@ -231,7 +231,8 @@ public class BattleSystem : BattleStateMachine
         //--Should just have to pop the state. battles SHOULD never happen above another state, but we'll see
         //--in case of strange behavior after battle state pop, examine the state that's being returned to and use
         //--your added Return() function to the state, to attempt to correct those issues
-        GameStateController.Instance.GameStateMachine.Pop();
+        // GameStateController.Instance.GameStateMachine.Pop();
+        GameStateController.Instance.GameStateMachine.ChangeState( FreeRoamState.Instance );
     }
 
 //-------------------------------------------------------------------------------------------------------
@@ -496,7 +497,7 @@ public class BattleSystem : BattleStateMachine
         }
         
         _playerUnit.Setup( pokemon, _playerHUD, this );
-        _fightMenu.SetUpMoves( pokemon.Moves );
+        // _fightMenu.SetUpMoves( pokemon.Moves );
 
         yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.pName}!" );
         yield return new WaitForSeconds( 1f );

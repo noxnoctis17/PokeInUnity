@@ -44,6 +44,7 @@ public class CharacterShadow : MonoBehaviour
             // SetIdleSprites();
             AssignAnimations( _currentAnimSheet );
             _spriteAnimator.Start();
+            _spriteAnimator?.HandleUpdate();
         }
 
         _wasWalking = _characterAnimator.IsWalking;
@@ -63,7 +64,7 @@ public class CharacterShadow : MonoBehaviour
     }
 
     private void AssignAnimations( List<Sprite> animation ){
-        if( animation.Count > 0 )
+        if( animation.Count > 0 || animation != null )
             _spriteAnimator.AnimationFrames = animation;
         else
             _spriteAnimator.AnimationFrames = _defaultAnimSheet;

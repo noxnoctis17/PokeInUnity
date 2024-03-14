@@ -44,7 +44,7 @@ public class PokemonSO : ScriptableObject
     //--Faint Sprites
 
     //--Battle Portrait
-    private Sprite _battlePortrait;
+    [SerializeField] private Sprite _battlePortrait;
     public Sprite BattlePortrait => _battlePortrait;
 
     //----------------------------------
