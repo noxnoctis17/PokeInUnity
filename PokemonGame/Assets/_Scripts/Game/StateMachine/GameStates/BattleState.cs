@@ -22,6 +22,7 @@ public class BattleState : State<GameStateController>
         gameStateController.BattleSystemContainer.SetActive( true );
 
         gameStateController.EventSystem.enabled = false; //--Once battle ui is overhauled we ideally shouldn't need to do this
+        gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.BattleState );
         Debug.Log( "BattleState Enter()" );
     }
 

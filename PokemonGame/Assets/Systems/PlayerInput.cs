@@ -464,7 +464,29 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""4fa36555-a8d8-42df-9251-90336f35578f"",
-                    ""path"": ""<Gamepad>/buttonEast"",
+                    ""path"": ""<Gamepad>/buttonSouth"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Cancel"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c9dcb7f2-f6bb-4359-b731-7aab3524889a"",
+                    ""path"": ""<Keyboard>/enter"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Cancel"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""93a9ed8f-e147-4218-b733-3b320ebd1b75"",
+                    ""path"": ""<Gamepad>/start"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -760,6 +782,15 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
                     ""name"": ""Interact"",
                     ""type"": ""Button"",
                     ""id"": ""ef346e0b-2800-41b8-b218-52b6fee3c053"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""PauseMenu"",
+                    ""type"": ""Button"",
+                    ""id"": ""8d94589b-f462-4c62-b758-ffdd22277fe2"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
                     ""interactions"": """",
@@ -1096,6 +1127,28 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
                     ""action"": ""Interact"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""1a23553f-75f0-4c06-b2fc-b4f0674091c7"",
+                    ""path"": ""<Gamepad>/start"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""PauseMenu"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""3805a5f8-2dc8-40d0-8c8c-ef122a4d6186"",
+                    ""path"": ""<Keyboard>/enter"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""PauseMenu"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -1126,6 +1179,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         m_CharacterControls_RotateCamera = m_CharacterControls.FindAction("RotateCamera", throwIfNotFound: true);
         m_CharacterControls_ZoomCamera = m_CharacterControls.FindAction("ZoomCamera", throwIfNotFound: true);
         m_CharacterControls_Interact = m_CharacterControls.FindAction("Interact", throwIfNotFound: true);
+        m_CharacterControls_PauseMenu = m_CharacterControls.FindAction("PauseMenu", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -1350,6 +1404,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_CharacterControls_RotateCamera;
     private readonly InputAction m_CharacterControls_ZoomCamera;
     private readonly InputAction m_CharacterControls_Interact;
+    private readonly InputAction m_CharacterControls_PauseMenu;
     public struct CharacterControlsActions
     {
         private @PlayerInput m_Wrapper;
@@ -1359,6 +1414,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         public InputAction @RotateCamera => m_Wrapper.m_CharacterControls_RotateCamera;
         public InputAction @ZoomCamera => m_Wrapper.m_CharacterControls_ZoomCamera;
         public InputAction @Interact => m_Wrapper.m_CharacterControls_Interact;
+        public InputAction @PauseMenu => m_Wrapper.m_CharacterControls_PauseMenu;
         public InputActionMap Get() { return m_Wrapper.m_CharacterControls; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -1383,6 +1439,9 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
             @Interact.started += instance.OnInteract;
             @Interact.performed += instance.OnInteract;
             @Interact.canceled += instance.OnInteract;
+            @PauseMenu.started += instance.OnPauseMenu;
+            @PauseMenu.performed += instance.OnPauseMenu;
+            @PauseMenu.canceled += instance.OnPauseMenu;
         }
 
         private void UnregisterCallbacks(ICharacterControlsActions instance)
@@ -1402,6 +1461,9 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
             @Interact.started -= instance.OnInteract;
             @Interact.performed -= instance.OnInteract;
             @Interact.canceled -= instance.OnInteract;
+            @PauseMenu.started -= instance.OnPauseMenu;
+            @PauseMenu.performed -= instance.OnPauseMenu;
+            @PauseMenu.canceled -= instance.OnPauseMenu;
         }
 
         public void RemoveCallbacks(ICharacterControlsActions instance)
@@ -1444,5 +1506,6 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         void OnRotateCamera(InputAction.CallbackContext context);
         void OnZoomCamera(InputAction.CallbackContext context);
         void OnInteract(InputAction.CallbackContext context);
+        void OnPauseMenu(InputAction.CallbackContext context);
     }
 }

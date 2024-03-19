@@ -16,6 +16,7 @@ public class DialogueState : State<GameStateController>
         //--Set Controls
         PlayerReferences.Instance.EnableUI();
         PlayerReferences.Instance.DisableCharacterControls();
+        gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.DialogueState );
         Debug.Log( "Dialogue State Enter()" );
     }
 

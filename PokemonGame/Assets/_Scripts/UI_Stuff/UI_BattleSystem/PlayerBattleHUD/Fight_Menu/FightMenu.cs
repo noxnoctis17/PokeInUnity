@@ -43,10 +43,21 @@ public class FightMenu : State<PlayerBattleMenu>
         BattleUIActions.OnFightMenuClosed?.Invoke();
     }
 
+    //--Enter State currently doesn't get called because we aren't actually utilizing the state machine for the battle menu yet!!!!
     public override void EnterState( PlayerBattleMenu owner ){
+        Debug.Log( "EnterState: " + this );
         _battleMenu = owner;
-
+        _activeUnit = _battleSystem.PlayerUnit;
         SetUpMoves( _activeUnit.Pokemon.Moves );
+
+        _initialButton = move1button;
+        StartCoroutine( SetInitialButton() );
+        // SetUpMoves( _activeUnit.Pokemon.Moves );
+    }
+
+    public override void ExitState(){
+        BattleUIActions.OnSubMenuClosed?.Invoke();
+        BattleUIActions.OnFightMenuClosed?.Invoke();
     }
 
     //--setupmoves will always be called on enable or enter state because you should
@@ -74,7 +85,7 @@ public class FightMenu : State<PlayerBattleMenu>
 
             for( int moveTexti = 0; moveTexti < _ppText.Count; moveTexti++ ){
                 if( i < _moveNameText.Count ){
-                    _ppText[i].text = $"PP: {moves[i].moveBase.PP.ToString()}";
+                    _ppText[i].text = $"PP: {moves[i].moveBase.PP}";
                     
                     if( moveTexti > i )
                         _ppText[moveTexti].text = "PP: -";
@@ -95,6 +106,7 @@ public class FightMenu : State<PlayerBattleMenu>
     private IEnumerator  SetInitialButton(){
         yield return new WaitForSeconds( 0.15f );
         _initialButton.Select();
+        BattleUIActions.OnFightMenuOpened?.Invoke();
     }
 
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using UnityEngine.UI;
 
 public class BattleUIActions : MonoBehaviour
 {
@@ -14,4 +15,6 @@ public class BattleUIActions : MonoBehaviour
     public static Action OnPkmnMenuOpened;
     public static Action OnPkmnMenuClosed;
     public Action<GameObject> OnMenuOpened;
+    public Action<Button> OnButtonSelected;
+    public Action<Button> OnButtonDeselected;
 }

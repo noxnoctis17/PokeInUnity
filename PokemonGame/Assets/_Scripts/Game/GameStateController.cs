@@ -8,6 +8,13 @@ public class GameStateController : MonoBehaviour
     public static GameStateController Instance { get; private set; }
     public StateStackMachine<GameStateController> GameStateMachine { get; private set; }
 
+    //--State Machine Enums for quick reference for current state
+    public enum GameStateEnum{
+        FreeRoamState, DialogueState, BattleState,
+    }
+
+    public GameStateEnum CurrentStateEnum { get; private set; }
+
 //=============================[PRIVATE VARIABLES]=======================================
     [SerializeField] private BattleSystem _battleSystem;
     [SerializeField] private GameObject _battleSystemContainer;
@@ -39,6 +46,10 @@ public class GameStateController : MonoBehaviour
 
     private void ChangeGameState(){
         GameStateMachine.Update();
+    }
+
+    public void ChangeGameStateEnum( GameStateEnum stateEnum ){
+        CurrentStateEnum = stateEnum;
     }
 
     private void OnGUI(){

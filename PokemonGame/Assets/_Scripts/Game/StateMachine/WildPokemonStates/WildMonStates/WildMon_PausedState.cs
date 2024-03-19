@@ -5,7 +5,6 @@ public class WildMon_PausedState : State<WildPokemon>
 {
 	// public static WildMon_PausedState Instance { get; private set; }
     private WildPokemon _wildPokemon;
-    private WildPokemonStateManager _sm;
     
     public override void EnterState( WildPokemon owner ){
         _wildPokemon = owner;

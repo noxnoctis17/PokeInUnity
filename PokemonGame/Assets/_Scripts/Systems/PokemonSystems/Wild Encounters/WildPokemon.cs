@@ -81,6 +81,12 @@ public class WildPokemon : MonoBehaviour
 
         //--Finally Initialize State Machine
         WildPokemonStateMachine.Initialize();
+
+        //--Check to see if a battle is happening and this mon spawned during one somehow, missing the
+        //--Event call and not turning its collider off, causing it to start a new battle with the player
+        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
+            DisableStartBattle();
+        }
     }
 
     private void OnDisable(){
@@ -104,15 +110,14 @@ public class WildPokemon : MonoBehaviour
     }
 
     private void EnableStartBattle(){
-        Debug.Log( "Battle Ended, enabled colliders" );
+        Debug.Log( "Battle Has Ended, enabled colliders" );
         StartCoroutine( CollisionDelay() );
     }
 
     private void DisableStartBattle(){
-        Debug.Log( "Battle Started, disabled colliders" );
+        Debug.Log( "Battle Has Started, disabled colliders" );
         BoxCollider.enabled = false;
         _canStartBattle = false;
-
     }
 
     public IEnumerator CollisionDelay(){
@@ -124,7 +129,7 @@ public class WildPokemon : MonoBehaviour
     }
 
     private void OnTriggerEnter( Collider col ){
-        if( col.CompareTag( "Player" ) && _canStartBattle ){
+        if( col.CompareTag( "Player" ) && GameStateController.Instance.CurrentStateEnum != GameStateController.GameStateEnum.BattleState ){
             StopCoroutine( DespawnTimer() );
             WildPokemonStateMachine.OnQueueNextState?.Invoke( BattleState );
             BoxCollider.enabled = false;

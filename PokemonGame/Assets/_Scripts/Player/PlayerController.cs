@@ -10,12 +10,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float _interactableRayLength;
     [SerializeField] private Transform _playerCenter;
     [SerializeField] private InputActionProperty _interactButton;
+    [SerializeField] private GameObject _pauseMenu;
     private PlayerInput _playerInput;
 
     private void OnEnable(){
         EnableInput();
         _playerInput.CharacterControls.Interact.performed += OnInteract;
-        
+        _playerInput.CharacterControls.PauseMenu.performed += OnPausePressed;
     }
     
     private void OnDisable(){
@@ -31,9 +32,16 @@ public class PlayerController : MonoBehaviour
     private void OnInteract( InputAction.CallbackContext context ){
         RaycastHit raymond;
         
-        if(    Physics.Raycast( _playerCenter.position, transform.forward.MovementAxisCorrection( PlayerReferences.MainCameraTransform ), out raymond, _interactableRayLength ) ){
+        if( Physics.Raycast( _playerCenter.position, transform.forward/*.MovementAxisCorrection( PlayerReferences.MainCameraTransform )*/, out raymond, _interactableRayLength ) ){
             raymond.transform.GetComponent<IInteractable>()?.Interact();
         }
+    }
+
+    private void OnPausePressed( InputAction.CallbackContext context ){
+        if( _pauseMenu.activeSelf )
+            _pauseMenu.SetActive( false );
+        else
+            _pauseMenu.SetActive( true );
     }
     
     private void EnableInput(){
