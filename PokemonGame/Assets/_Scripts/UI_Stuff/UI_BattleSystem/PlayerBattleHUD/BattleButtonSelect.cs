@@ -1,21 +1,19 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
 using System.Collections;
+using NoxNoctisDev.StateMachine;
 
-public class BattleButtonSelect : MonoBehaviour, ISelectHandler, IDeselectHandler, ISubmitHandler, ICancelHandler
+public class BattleButtonSelect : MonoBehaviour, ISelectHandler, IDeselectHandler, ISubmitHandler
 {
     [SerializeField] private PlayerBattleMenu _battleMenu;
     [SerializeField] private GameObject _menuOpen;
+    [SerializeField] private State<PlayerBattleMenu> _state;
     private Button _thisButton;
     private BattleUIActions _battleUIActions;
-    public int ButtonCurrentPosition { get; private set; }
 
     private void OnEnable(){
         _thisButton = GetComponent<Button>();
-
-        Debug.Log( _thisButton + " " + gameObject );
     }
 
     private void Start(){
@@ -24,21 +22,16 @@ public class BattleButtonSelect : MonoBehaviour, ISelectHandler, IDeselectHandle
 
     public void OnSelect( BaseEventData eventData ){
         _battleUIActions.OnButtonSelected?.Invoke( _thisButton );
-        Debug.Log( "selected: " + gameObject );
     }
 
     public void OnDeselect( BaseEventData eventData ){
         _battleUIActions.OnButtonDeselected?.Invoke( _thisButton );
-        Debug.Log( "deselected: " + gameObject );
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        Debug.Log( "submitted you titted !!!!!!!!" );
-        StartCoroutine( WaitForMenuOpen() );
-    }
-
-    public void OnCancel( BaseEventData eventData ){
-        //--this is here so we hopefully do nothing on cancel, at least for now. perhaps i can implement a hold to run feature
+        Debug.Log( "OnSubmit: " + _battleMenu );
+        Debug.Log( "OnSubmit: " + _state );
+        _battleMenu.OnChangeState?.Invoke( _state );
     }
     
 //==============[] OLD ]=============================

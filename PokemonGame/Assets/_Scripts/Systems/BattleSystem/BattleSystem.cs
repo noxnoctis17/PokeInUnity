@@ -205,7 +205,8 @@ public class BattleSystem : BattleStateMachine
     
     public void ClosePartyMenu( PokemonClass pokemon ){
         var switchedTo = pokemon;
-        _pkmnMenu.gameObject.SetActive( !enabled );
+        // _pkmnMenu.gameObject.SetActive( !enabled );
+        _battleMenu.BattleMenuStateMachine.Pop();
         BattleUIActions.OnSubMenuClosed?.Invoke();
         StartCoroutine( PerformSwitchPokemonCommand( switchedTo ) );
     }
@@ -214,7 +215,7 @@ public class BattleSystem : BattleStateMachine
         Debug.Log( "BattleSystem EndBattle()" );
 
         if( !_isSinglesTrainerBattle ){
-            _encounteredPokemon?.Despawn();
+            _encounteredPokemon.Despawn();
             _encounteredPokemon = null;
         }
 

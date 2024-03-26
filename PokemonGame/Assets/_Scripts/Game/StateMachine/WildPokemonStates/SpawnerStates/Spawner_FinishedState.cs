@@ -30,6 +30,6 @@ public class Spawner_FinishedState : State<WildPokemonSpawner>
 
     private void DespawnTracker( WildPokemon wildPokemon ){
         _spawnedAmount--;
-        _spawner.OnStateChanged?.Invoke( _spawner.SpawnState );
+        // _spawner.OnStateChanged?.Invoke( _spawner.SpawnState ); //--why is a despawned pokemon triggering a state change? this must've been temporary...
     }
 }

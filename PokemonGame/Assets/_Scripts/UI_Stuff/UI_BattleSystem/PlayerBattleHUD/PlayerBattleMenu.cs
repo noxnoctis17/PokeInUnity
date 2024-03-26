@@ -1,168 +1,80 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
-using System.Collections;
+using NoxNoctisDev.StateMachine;
+using System;
 
-public class PlayerBattleMenu : MonoBehaviour
+public class PlayerBattleMenu : State<PlayerBattleMenu>
 {
     //================================================================================
     [SerializeField] private Button _fightButton, _pkmnButton, _bagButton, _runButton;
     [SerializeField] private BattleSystem _battleSystem;
+    [SerializeField] private State<PlayerBattleMenu> _baseState;
+    public Button FightButton => _fightButton;
+    public Button PkmnButton => _pkmnButton;
+    public Button BagButton => _bagButton;
+    public Button RunButton => _runButton;
     public BattleUIActions BUIActions { get; private set; }
-    private StateStackMachine<PlayerBattleMenu> _battleMenuSM;
-    private Button[] _buttons;
-    private Button _activeButton;
-    private Button _memorizeButton;
-    private Button _previousButton;
-    private PlayerInput _playerInput;
-    private float _cardRotationAmount;
+    public StateStackMachine<PlayerBattleMenu> BattleMenuStateMachine { get; private set; }
+    public Button[] Buttons { get; private set; }
+    public PlayerInput PlayerInput { get; private set; }
+    public Action<State<PlayerBattleMenu>> OnChangeState;
 
     //================================================================================
 
     private void OnEnable(){
+        Debug.Log( "enable playerbattlemenu ");
+        //--State Machine
+        BattleMenuStateMachine = new StateStackMachine<PlayerBattleMenu>( this );
+
+        //--Events
+        OnChangeState += ChangeState;
+        
         //--Reference Assignments
-        _playerInput = PlayerReferences.Instance.PlayerInput;
+        PlayerInput = PlayerReferences.Instance.PlayerInput;
         BUIActions = GetComponent<BattleUIActions>();
 
         //--Set Button Array
-        _buttons = new Button[] { _runButton, _bagButton, _pkmnButton, _fightButton  };
+        Buttons = new Button[] { _runButton, _bagButton, _pkmnButton, _fightButton  };
 
-        //--Events
-        _playerInput.UI.Navigate.performed += OnNavigate;
-        BUIActions.OnButtonSelected += SetActiveButton;
-
-        //--Select Initial Button
-        _cardRotationAmount = 15f;
-        StartCoroutine( SelectInitialButton() );
-    
+        //--Push base menu state
+        ChangeState( _baseState );
     }
 
     private void OnDisable(){
+        Debug.Log( "disable playerbattlemenu ");
         //--Events
-        _playerInput.UI.Navigate.performed -= OnNavigate;
+        OnChangeState -= ChangeState;
+
+        //--State Machine
+        BattleMenuStateMachine.ClearStack();
+        BattleMenuStateMachine = null;
+
+        //--Buttons
+        Buttons = null;
 
         //--Controls
         PlayerReferences.Instance.DisableUI();
         PlayerReferences.Instance.EnableCharacterControls();
-    
     }
 
-    //--may need to add a small delay before selecting initial button due to code order and stuff happening fast
-    //--it currently isn't able to select a button right away because of...reasons, apparently. this could be the place to animate
-    //--the menu into place, giving everything some time to load up before actions are called. i'll give it a try tonight 3/17/24
-    //--the delay worked
-    private IEnumerator SelectInitialButton(){
-        yield return new WaitForSeconds( 1f );
-
-        //--Controls Swap after Delay
-        PlayerReferences.Instance.DisableCharacterControls();
-        PlayerReferences.Instance.EnableUI();
-
-        //--Select Initial Button
-        if( _memorizeButton == null )
-            _activeButton = _fightButton;
-        else
-            _activeButton = _memorizeButton;
-
-        if( _previousButton == null )
-            _previousButton = _runButton;
-
-        _activeButton.Select();
+    private void ChangeState( State<PlayerBattleMenu> newState ){
+        BattleMenuStateMachine.Push( newState );
     }
 
-    private void SetActiveButton( Button button ){
-        _previousButton = _activeButton;
-        _activeButton = button;
-        _memorizeButton = _activeButton;
-    }
+#if UNITY_EDITOR
+    private void OnGUI(){
+        var style = new GUIStyle();
+        style.fontSize = 48;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = Color.white;
 
-    private void OnNavigate( InputAction.CallbackContext context ){
-        Vector2 direction = context.ReadValue<Vector2>();
-
-        //--Player moved through the menu to the right
-        if( direction.x > 0 ){
-            RightcreasePositions();
+        GUILayout.BeginArea( new Rect( 0, 0, 500, 500 ) );
+        GUILayout.Label( "STATE STACK", style );
+        foreach( var state in BattleMenuStateMachine.StateStack ){
+            GUILayout.Label( state.GetType().ToString(), style );
         }
-
-        //--Player moved through the menu to the left
-        if( direction.x < 0 ){
-            LeftcreasePositions();
-        }
+        GUILayout.EndArea();
     }
+#endif
 
-    //--Increase position value
-    private void LeftcreasePositions(){
-        foreach( Button button in _buttons ){
-            var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, -_cardRotationAmount );
-            button.GetComponent<RectTransform>().rotation = newRotation;
-
-            if( button == _activeButton ){
-                var setRotation = Quaternion.Euler( 0f, 0f, 45f );
-                button.GetComponent<RectTransform>().rotation = setRotation;
-                button.GetComponent<RectTransform>().SetAsFirstSibling();
-            }
-        }
-    }
-
-    //--Decrease position value
-    private void RightcreasePositions(){
-        foreach( Button button in _buttons ){
-            var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, _cardRotationAmount );
-            button.GetComponent<RectTransform>().rotation = newRotation;
-
-            if( button == GetBottomCard() ){
-                var setRotation = Quaternion.Euler( 0f, 0f, 0f );
-                button.GetComponent<RectTransform>().rotation = setRotation;
-                button.GetComponent<RectTransform>().SetAsLastSibling();
-            }
-        }
-    }
-
-    private Button GetBottomCard(){
-        Button card;
-
-        for( int i = 0; i < _buttons.Length; i++ ){
-            if( _activeButton == _buttons[i] ){
-                if( i == 3 ){
-                    card = _buttons[0];
-                    return card;
-                }
-                else{
-                    card = _buttons[ i + 1 ];
-                    return card;
-                }
-            }
-        }
-
-        return default;
-    }
-
-    // private void OpenMenuButton( Button button/*, GameObject outline*/ ){
-    //     LeanTween.moveLocalX( button.gameObject, 505f, 0.1f );
-    //     // _fightSelectButton.SetActive( false );  //--these make it so that the buttons cannot be pressed after a menu has been opened
-    //     // _pkmnSelectButton.SetActive( false );   //--these make it so that the buttons cannot be pressed after a menu has been opened
-    //     // _itemSelectButton.SetActive( false );    //--these make it so that the buttons cannot be pressed after a menu has been opened
-    //     // _runSelectButton.SetActive( false );    //--these make it so that the buttons cannot be pressed after a menu has been opened
-    //     // outline.SetActive( true );
-    //     // LeanTween.moveLocalX( outline, 499, 0.2f );
-    // }
-
-    // private void CloseMenuButton( Button button/*, GameObject outline*/ ){
-    //     LeanTween.moveLocalX( button.gameObject, 525.1798f, 0.1f );
-    //     // LeanTween.moveLocalX( outline, 519, 0.2f );
-    //     // outline.SetActive( false );
-    //     // _fightSelectButton.SetActive( true );
-    //     // _pkmnSelectButton.SetActive( true );
-    //     // _itemSelectButton.SetActive( true );
-    //     // _runSelectButton.SetActive (true );
-    // }
-
-    // private void RestoreMenu(){
-    //     LeanTween.moveLocalX( gameObject, 0f, 0f );
-    // }
-
-    // private void HideMenu(){
-    //     LeanTween.moveLocalX( gameObject, 2000f, 0f );
-    // }
 }

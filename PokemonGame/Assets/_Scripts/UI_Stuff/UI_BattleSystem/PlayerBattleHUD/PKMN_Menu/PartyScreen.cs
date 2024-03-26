@@ -42,7 +42,9 @@ public class PartyScreen : MonoBehaviour
     }
 
     private IEnumerator SetInitialButton(){
-        LastPKMNButton = _partyButton1;
+        if( LastPKMNButton == null )
+            LastPKMNButton = _partyButton1;
+        
         yield return new WaitForSeconds( 0.1f );
         LastPKMNButton.Select();
     }

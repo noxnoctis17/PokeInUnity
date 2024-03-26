@@ -4,11 +4,13 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using NoxNoctisDev.StateMachine;
+using UnityEngine.EventSystems;
 
 public class FightMenu : State<PlayerBattleMenu>
 {
     [SerializeField] private BattleSystem _battleSystem;
     [SerializeField] private PlayerBattleMenu _battleMenu;
+    public PlayerBattleMenu BattleMenu => _battleMenu;
     [SerializeField] private Button move1button, move2button, move3button, move4button;
     private Button _initialButton;
     public Button LastButton;
@@ -30,34 +32,39 @@ public class FightMenu : State<PlayerBattleMenu>
     /// and set before this menu can ever be opened. just need to make sure i am always setting the active mon in the battle system
     /// </summary>
 
-    private void OnEnable(){
-        _activeUnit = _battleSystem.PlayerUnit;
-        SetUpMoves( _activeUnit.Pokemon.Moves );
-        _initialButton = move1button;
-        StartCoroutine( SetInitialButton() );
-        BattleUIActions.OnFightMenuOpened?.Invoke();
-    }
+    // private void OnEnable(){
+    //     _activeUnit = _battleSystem.PlayerUnit;
+    //     SetUpMoves( _activeUnit.Pokemon.Moves );
+    //     _initialButton = move1button;
+    //     StartCoroutine( SetInitialButton() );
+    //     BattleUIActions.OnFightMenuOpened?.Invoke();
+    // }
 
-    private void OnDisable(){
-        BattleUIActions.OnSubMenuClosed?.Invoke();
-        BattleUIActions.OnFightMenuClosed?.Invoke();
-    }
+    // private void OnDisable(){
+    //     BattleUIActions.OnSubMenuClosed?.Invoke();
+    //     BattleUIActions.OnFightMenuClosed?.Invoke();
+    // }
 
     //--Enter State currently doesn't get called because we aren't actually utilizing the state machine for the battle menu yet!!!!
     public override void EnterState( PlayerBattleMenu owner ){
+        gameObject.SetActive( true );
         Debug.Log( "EnterState: " + this );
         _battleMenu = owner;
         _activeUnit = _battleSystem.PlayerUnit;
+
         SetUpMoves( _activeUnit.Pokemon.Moves );
 
         _initialButton = move1button;
+
         StartCoroutine( SetInitialButton() );
-        // SetUpMoves( _activeUnit.Pokemon.Moves );
+
+        BattleUIActions.OnFightMenuOpened?.Invoke();
     }
 
     public override void ExitState(){
         BattleUIActions.OnSubMenuClosed?.Invoke();
         BattleUIActions.OnFightMenuClosed?.Invoke();
+        gameObject.SetActive( false );
     }
 
     //--setupmoves will always be called on enable or enter state because you should

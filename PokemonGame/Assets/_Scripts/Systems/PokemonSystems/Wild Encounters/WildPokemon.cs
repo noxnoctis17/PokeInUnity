@@ -157,7 +157,7 @@ public class WildPokemon : MonoBehaviour
         }
 
         //--Die
-        // Debug.Log( "Pokemon has been destroyed" );
+        // Debug.Log( "Pokemon has been died" );
         if( gameObject != null )
             Destroy( gameObject );
     }

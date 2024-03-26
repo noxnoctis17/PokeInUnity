@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using NoxNoctisDev.StateMachine;
 
@@ -15,6 +14,10 @@ public class StateStackMachine<T>
 
     public void Push( State<T> newState ){
         StateStack.Push( newState );
+
+        if( CurrentState != null )
+            CurrentState.PauseState();
+
         CurrentState = newState;
         CurrentState.EnterState( _owner );
     }
@@ -34,5 +37,9 @@ public class StateStackMachine<T>
 
     public void Update(){
         CurrentState.UpdateState();
+    }
+
+    public void ClearStack(){
+        StateStack.Clear();
     }
 }

@@ -35,6 +35,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
         BattleUIActions.OnSubMenuClosed?.Invoke();
         _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
         BattleUIActions.OnCommandUsed?.Invoke();
+        _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
     }
 
     public void OnCancel( BaseEventData baseEventData ){
@@ -46,7 +47,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     private IEnumerator WaitForCloseAnims(){
         yield return new WaitForSeconds( 0.1f );
         gameObject.GetComponent<Outline>().enabled = false;
-        _fightMenu.gameObject.SetActive( false );
+        _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
     }
 
     private IEnumerator WaitForMoveDialogue(){

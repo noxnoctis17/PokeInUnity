@@ -41,7 +41,7 @@ public class WildPokemonSpawner : MonoBehaviour
     [SerializeField] private List<Transform> _spawnLocations; //--list of empty game objects to use as the transform.position as spawn points
     private Transform _spawnPoint; //--assign randomly chosen spawnlocation to this for instantiate
     private List<PokemonClass> _pokemonToSpawn;
-    private bool _isRespawn;
+    // private bool _isRespawn;
     private bool _isSpawningPokemon;
     public int NumberToSpawn => _numberToSpawn;
     public int SpawnedPokemonAmnt => _spawnedPokemonAmnt;
@@ -166,11 +166,10 @@ public class WildPokemonSpawner : MonoBehaviour
 
     private void DespawnTracker( WildPokemon wildPokemon ){
         _spawnedPokemonAmnt--;
-        _isRespawn = true;
+        // _isRespawn = true;
 
-        if( !_isSpawningPokemon ){
-            // StartCoroutine( SpawnPokemon() );
-        }
+        if( PokeSpawnerStateMachine.CurrentState == FinishedState )
+            OnStateChanged?.Invoke( SpawnState );
     }
 
     private float RespawnDelay(){
