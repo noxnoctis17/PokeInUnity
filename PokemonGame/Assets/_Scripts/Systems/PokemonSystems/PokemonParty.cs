@@ -11,6 +11,11 @@ public class PokemonParty : MonoBehaviour
     public List<PokemonClass> PartyPokemon => _partyPokemon;
 
     private void Start(){
+        Init();
+    }
+
+    public void Init(){
+        Debug.Log( "Amount of Pokemon in Player Party: " + _partyPokemon.Count );
         foreach( PokemonClass pokemon in _partyPokemon ){
             pokemon.Init();
             
@@ -25,6 +30,16 @@ public class PokemonParty : MonoBehaviour
 
     public PokemonClass GetHealthyPokemon(){
         return _partyPokemon.Where( x => x.CurrentHP > 0 ).FirstOrDefault();
+    }
+
+    public void AddPokemon( PokemonClass pokemon ){
+        PokemonClass copyPokemon = new ( pokemon.PokeSO, pokemon.Level );
+
+        if( _partyPokemon.Count < 6 )
+            _partyPokemon.Add( copyPokemon );
+        else{
+            //--Add to PC
+        }
     }
     
 }

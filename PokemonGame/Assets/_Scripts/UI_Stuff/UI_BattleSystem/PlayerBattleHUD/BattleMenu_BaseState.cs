@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using NoxNoctisDev.StateMachine;
+using UnityEngine.InputSystem.Controls;
 
 public class BattleMenu_BaseState : State<PlayerBattleMenu>
 {
@@ -13,6 +14,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     private Button _previousButton;
     private PlayerInput _playerInput;
     private float _cardRotationAmount;
+    private bool _isNavigating;
 
     public override void EnterState( PlayerBattleMenu owner ){
         Debug.Log( "Entering Base Menu State" );
@@ -29,6 +31,12 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
         //--Select Initial Button
         _cardRotationAmount = 15f;
         StartCoroutine( SelectInitialButton() );
+    }
+
+    public override void UpdateState(){
+        if( _isNavigating && _playerInput.UI.Navigate.ReadValue<Vector2>().x == 0 ){
+            _isNavigating = false;
+        }
     }
 
     public override void ExitState(){
@@ -93,13 +101,21 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     private void OnNavigate( InputAction.CallbackContext context ){
         Vector2 direction = context.ReadValue<Vector2>();
 
-        //--Player moved through the menu to the right
+        // if( _isNavigating )
+        //     return;
+
+        // if( _isNavigating && direction.x == 0 )
+        //     _isNavigating = false;
+
+        //--Player moved through the menu to the right via dpad or keyboard
         if( direction.x > 0 ){
+            _isNavigating = true;
             RightcreasePositions();
         }
 
-        //--Player moved through the menu to the left
+        //--Player moved through the menu to the left via dpad or keyboard
         if( direction.x < 0 ){
+            _isNavigating = true;
             LeftcreasePositions();
         }
     }

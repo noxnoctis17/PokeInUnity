@@ -9,7 +9,9 @@ public class PlayerReferences : MonoBehaviour
    public static PlayerReferences Instance => _instance;
 
 //====================[PLAYER OBJECT]===========================
+   [SerializeField] private Transform _playerCenter;
    public Transform PlayerTransform { get; private set; }
+   public Transform PlayerCenter { get; private set; }
    public PlayerInput PlayerInput { get; private set; }
    public PlayerMovement PlayerMovement { get; private set; }
    public PlayerController PlayerController { get; private set; }
@@ -39,6 +41,7 @@ public class PlayerReferences : MonoBehaviour
 
       //--Player
       PlayerTransform = transform;
+      PlayerCenter = _playerCenter;
       PlayerMovement = GetComponent<PlayerMovement>();
       PlayerController = GetComponent<PlayerController>();
       PlayerParty = GetComponent<PokemonParty>();

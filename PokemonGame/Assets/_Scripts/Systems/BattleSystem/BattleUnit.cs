@@ -1,5 +1,7 @@
 using System;
 using System.Collections;
+using System.Drawing;
+using DG.Tweening;
 using UnityEngine;
 
 [RequireComponent( typeof( BattleAI ) )]
@@ -11,17 +13,16 @@ public class BattleUnit : MonoBehaviour
     public BattleHUD BattleHUD { get; set; }
     private BattleAI _battleAI;
     public BattleAI BattleAI => _battleAI;
-    [SerializeField] public PokemonSO _pokeSO; //--why the fuck is this public
+    [SerializeField] public PokemonSO _pokeSO; //--why the fuck is this public //--03/26/24 still don't know why this is public lol
     [SerializeField] private int _level;
     public int Level => _level;
     [SerializeField] private bool _isAI;
-
     public PokemonClass Pokemon { get; set; }
-    private PokemonAnimator _pokemonAnimator;
+    public PokemonAnimator PokeAnimator { get; private set; }
 
     private void OnEnable(){
         OnIsAI += EnableAI;
-        _pokemonAnimator = GetComponentInChildren<PokemonAnimator>();
+        PokeAnimator = GetComponentInChildren<PokemonAnimator>();
     }
 
     private void OnDisable(){
@@ -37,10 +38,10 @@ public class BattleUnit : MonoBehaviour
         _pokeSO = pokemon.PokeSO;
 
         if( !Pokemon.Equals( _battleSystem.WildPokemon ) ){
-            _pokemonAnimator.Initialize( _pokeSO );
+            PokeAnimator.Initialize( _pokeSO );
         }
         
-        _pokemonAnimator.SetBattleSystem( battleSystem );
+        PokeAnimator.SetBattleSystem( battleSystem );
 
         BattleHUD = battleHUD;
         BattleHUD.SetData( Pokemon );

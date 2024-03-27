@@ -11,15 +11,14 @@ public class PlayerBattleMenu_Anims : MonoBehaviour
     [SerializeField] private RectTransform _fightText, _pkmnText, _bagText, _runText;
 
     private void OnEnable(){
+        _battleMenuParent = transform;
+        _animEvents = GetComponent<PlayerBattleMenu_AnimEvents>();
+
         _animEvents.OnBattleStart           += OnBattleStart;
         _animEvents.OnSwapActiveButton      += OnSwapActiveButton;
         _animEvents.OnNewActiveButton       += OnNewActiveButton;
         _animEvents.OnHideMenu              += OnHideMenu;
         _animEvents.OnRestoreMenu           += OnRestoreMenu;
-
-        _battleMenuParent = transform;
-        _animEvents = GetComponent<PlayerBattleMenu_AnimEvents>();
-
     }
 
     private void OnDisable(){

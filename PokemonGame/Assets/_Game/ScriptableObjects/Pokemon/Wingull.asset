@@ -333,6 +333,7 @@ MonoBehaviour:
   _spAttack: 55
   _spDefense: 30
   _speed: 85
+  _catchRate: 190
   _learnableMoves:
   - _moveBase: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
     _levelLearned: 1

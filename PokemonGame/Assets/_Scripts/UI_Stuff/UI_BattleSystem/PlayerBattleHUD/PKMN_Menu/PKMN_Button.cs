@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICancelHandler, ISubmitHandler
 {
@@ -48,6 +49,8 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
             BattleUIActions.OnSubMenuClosed?.Invoke();
         }
         
+        Debug.Log( "Submitted Button: " + GetComponent<Button>().gameObject.name );
+        _pkmnMenu.PartyScreen.OnSubmittedButton?.Invoke( GetComponent<Button>() );
         _pkmnMenu.BattleMenu.BattleMenuStateMachine.Pop();
     }
 
@@ -66,6 +69,7 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
         Debug.Log( "SetFaintSelectTrue in button fired. should it have?" );
         _isFaintedSelect = true;
     }
+
     private void SetFaintSelectFalse(){
         Debug.Log( "SetFaintSelectFalse in button fired. should it have?" );
         _isFaintedSelect = false;

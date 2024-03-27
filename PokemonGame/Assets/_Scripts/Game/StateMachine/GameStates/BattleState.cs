@@ -21,13 +21,12 @@ public class BattleState : State<GameStateController>
         //--Activate BattleSystem Container
         gameStateController.BattleSystemContainer.SetActive( true );
 
-        gameStateController.EventSystem.enabled = false; //--Once battle ui is overhauled we ideally shouldn't need to do this
+        //--Set Gamestate Enum for quick ref
         gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.BattleState );
         Debug.Log( "BattleState Enter()" );
     }
 
     public override void ExitState(){
-        gameStateController.EventSystem.enabled = true; //--same as above, shouldn't need this after battle ui overhaul
         gameStateController.BattleSystemContainer.SetActive( false );
         // PlayerReferences.Instance.DisableBattleControls(); //--set once overhaul is done
         Debug.Log( "BattleState Exit()" );

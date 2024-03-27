@@ -5,16 +5,11 @@ using System.Collections;
 
 public class Spawner_SpawnState : State<WildPokemonSpawner>
 { 
-	// public static Spawner_SpawnState Instance;
     private WildPokemonSpawner _spawner;
     private int _spawnedAmount;
     private int _addedAmount;
     private int _numberToSpawn;
     private bool _isSpawning;
-
-    private void Awake(){
-        // Instance = this;
-    }
 
     public override void EnterState( WildPokemonSpawner owner ){
         Debug.Log( "Enter Spawning State" );
@@ -65,7 +60,7 @@ public class Spawner_SpawnState : State<WildPokemonSpawner>
         }
 
         if( _spawnedAmount != _numberToSpawn ){
-            for( int i = _spawner.PokemonToSpawn.Count -1; i >= 0; i-- ){
+            for( int i = _spawner.PokemonToSpawn.Count - 1; i >= 0; i-- ){
                 var prefab = _spawner.WildPokemonPrefab;
                 var position = _spawner.SpawnLocation().position;
                 var pokemon = _spawner.PokemonToSpawn[i];

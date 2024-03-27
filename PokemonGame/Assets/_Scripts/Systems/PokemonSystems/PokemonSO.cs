@@ -57,7 +57,7 @@ public class PokemonSO : ScriptableObject
 
     //-----------------------------------
 
-    //Base Stats baaaaaaybbbeeeeeeeeeeeee
+    //--Base Stats baaaaaaybbbeeeeeeeeeeeee
     [Header("Base Stats")]
     [SerializeField] int _maxHP;
     [SerializeField] int _maxPP;
@@ -66,8 +66,9 @@ public class PokemonSO : ScriptableObject
     [SerializeField] int _spAttack;
     [SerializeField] int _spDefense;
     [SerializeField] int _speed;
+    [SerializeField] int _catchRate = 255;
 
-    //Base Stat Getters
+    //--Base Stat Getters
     public int MaxHP => _maxHP;
     public int MaxPP => _maxPP;
     public int Attack => _attack;
@@ -75,6 +76,7 @@ public class PokemonSO : ScriptableObject
     public int SpAttack => _spAttack;
     public int SpDefense => _spDefense;
     public int Speed => _speed;
+    public int CatchRate => _catchRate;
 
     [SerializeField] private List<LearnableMoves> _learnableMoves;
     public List<LearnableMoves> LearnableMoves => _learnableMoves;
@@ -82,7 +84,7 @@ public class PokemonSO : ScriptableObject
 }
 
 //-------------------------------------------------------------------------
-//-------------------------------MOVE POOL---------------------------------
+//-----------------------------[ MOVE POOL ]-------------------------------
 //-------------------------------------------------------------------------
 
 [System.Serializable]

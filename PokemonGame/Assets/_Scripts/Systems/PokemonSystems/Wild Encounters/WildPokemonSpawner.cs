@@ -70,12 +70,12 @@ public class WildPokemonSpawner : MonoBehaviour
     //------------------------------------------------------------------------------------------------------------//
     private void OnEnable(){
         //--Set Events
-        WildPokemonEvents.OnPokeDespawned += DespawnTracker;
-        BattleSystem.OnBattleStarted += ChangeStateOnBattleStart;
-        BattleSystem.OnBattleEnded += ChangeStateOnBattleEnd;
-        OnAddPokemonToSpawn += AddPokemonToSpawnPool;
-        OnSpawnerCanceled += ClearToSpawnList;
-        OnStateChanged += ChangeState;
+        WildPokemonEvents.OnPokeDespawned       += DespawnTracker;
+        BattleSystem.OnBattleStarted            += ChangeStateOnBattleStart;
+        BattleSystem.OnBattleEnded              += ChangeStateOnBattleEnd;
+        OnAddPokemonToSpawn                     += AddPokemonToSpawnPool;
+        OnSpawnerCanceled                       += ClearToSpawnList;
+        OnStateChanged                          += ChangeState;
 
         //--Initialize a new List/Queue instance unique to each spawner instance
         SpawnerPokemonList = new();
@@ -84,12 +84,12 @@ public class WildPokemonSpawner : MonoBehaviour
     }
 
     private void OnDisable() {
-        WildPokemonEvents.OnPokeDespawned -= DespawnTracker;
-        BattleSystem.OnBattleStarted -= ChangeStateOnBattleStart;
-        BattleSystem.OnBattleEnded -= ChangeStateOnBattleEnd;
-        OnAddPokemonToSpawn -= AddPokemonToSpawnPool;
-        OnSpawnerCanceled -= ClearToSpawnList;
-        OnStateChanged -= ChangeState;
+        WildPokemonEvents.OnPokeDespawned       -= DespawnTracker;
+        BattleSystem.OnBattleStarted            -= ChangeStateOnBattleStart;
+        BattleSystem.OnBattleEnded              -= ChangeStateOnBattleEnd;
+        OnAddPokemonToSpawn                     -= AddPokemonToSpawnPool;
+        OnSpawnerCanceled                       -= ClearToSpawnList;
+        OnStateChanged                          -= ChangeState;
         
         StopAllCoroutines();
         DespawnPokemon();

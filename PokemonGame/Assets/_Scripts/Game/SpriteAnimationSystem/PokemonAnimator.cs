@@ -1,6 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class PokemonAnimator : MonoBehaviour
 {
@@ -96,17 +99,13 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     public void Initialize( PokemonSO pokeSO ){
-        if( !_initialized ){
+        if( !_initialized )
             SetAllSpriteSheets( pokeSO );
-        }
-    
-        // _initialized = true;
     }
 
     private void Update(){
-        if( _prevAnimSheet != _currentAnimSheet ){
+        if( _prevAnimSheet != _currentAnimSheet )
             _spriteAnimator.Start();
-        }
 
         SetFacingDirection();
         PlayAnimations();
@@ -220,5 +219,23 @@ public class PokemonAnimator : MonoBehaviour
         //--Up
 
         //--Down
+    }
+
+    public IEnumerator PlayCaptureAnimation( Transform ballTransform ){
+        var sequence = DOTween.Sequence();
+        sequence.Append( _spriteRenderer.DOFade( 0, 0.5f ) );
+        sequence.Join( transform.DOMove( ballTransform.position, 0.5f ) );
+        sequence.Join( transform.DOScale( Vector3.zero, 0.5f ) );
+
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayBreakoutAnimation( Transform originalPos, Vector3 originalScale ){
+        var sequence = DOTween.Sequence();
+        sequence.Append( _spriteRenderer.DOFade( 1, 0.5f ) );
+        sequence.Join( transform.DOMove( originalPos.position, 0.5f ) );
+        sequence.Join( transform.DOScale( Vector3.one, 0.5f ) );
+
+        yield return sequence.WaitForCompletion();
     }
 }

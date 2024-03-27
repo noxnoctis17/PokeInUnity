@@ -15,8 +15,10 @@ MonoBehaviour:
   _name: Roserade
   _wildType: 2
   _description: 
-  _frontSprite: {fileID: -1730170597587182621, guid: 368904abb8b97264d8ee3bcbb5ac10f3, type: 3}
-  _backSprite: {fileID: -1730170597587182621, guid: 368904abb8b97264d8ee3bcbb5ac10f3, type: 3}
+  _idleUpSprites: []
+  _idleDownSprites: []
+  _walkUpSprites: []
+  _walkDownSprites: []
   _battlePortrait: {fileID: 21300000, guid: 07b3f0d1e89a857428be7d13fcecf0a9, type: 3}
   _type1: 5
   _type2: 8
@@ -27,6 +29,7 @@ MonoBehaviour:
   _spAttack: 125
   _spDefense: 105
   _speed: 90
+  _catchRate: 75
   _learnableMoves:
   - _moveBase: {fileID: 11400000, guid: 2c900b0013741174fb5f0edf5ffb9520, type: 2}
     _levelLearned: 1

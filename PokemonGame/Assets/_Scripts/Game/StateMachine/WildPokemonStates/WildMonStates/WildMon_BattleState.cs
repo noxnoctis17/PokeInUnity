@@ -16,8 +16,9 @@ public class WildMon_BattleState : State<WildPokemon>
 
     public override void EnterState( WildPokemon owner ){
         _wildPokemon = owner;
-        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Idle );    //--Non-attack battle anims 
-    }                                                                                                       //--will always be idles
+        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Idle );    //--Non-attack battle anims will always be idles
+        _wildPokemon.AgentMon.SetPath( null );                                                                                          
+    }
 
     public override void ExitState(){
 

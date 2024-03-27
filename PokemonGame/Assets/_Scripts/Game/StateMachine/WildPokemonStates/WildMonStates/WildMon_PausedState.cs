@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class WildMon_PausedState : State<WildPokemon>
 {
-	// public static WildMon_PausedState Instance { get; private set; }
     private WildPokemon _wildPokemon;
     
     public override void EnterState( WildPokemon owner ){
@@ -19,5 +18,6 @@ public class WildMon_PausedState : State<WildPokemon>
     }
 
     public override void ExitState(){
+
     }
 }

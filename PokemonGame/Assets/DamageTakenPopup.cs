@@ -21,11 +21,17 @@ public class DamageTakenPopup : MonoBehaviour
 
     public void Setup( int damageTaken ){
         _damageTextPopup.SetText( damageTaken.ToString() );
+        StartCoroutine( DestroyTimer() );
     }
 
     private void Update(){
         float moveYSpeed = 5f;
         transform.position += new Vector3( 0, moveYSpeed ) * Time.deltaTime;
+    }
+
+    private IEnumerator DestroyTimer(){
+        yield return new WaitForSeconds( 3f );
+        Destroy( gameObject );
     }
 
 }

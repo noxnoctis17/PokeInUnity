@@ -2,8 +2,10 @@ using System.Collections;
 using System;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using System.Collections.Generic;
+using DG.Tweening;
+using Unity.VisualScripting;
+using Cinemachine;
 
 public enum BattleStateEnum { Start, PlayerAction, Busy, NextTurn, SelectingNextPokemon, Over }
 
@@ -20,42 +22,55 @@ public enum BattleType {
 [Serializable]
 public class BattleSystem : BattleStateMachine
 {
-    public static BattleSystem Instance;
-    private BattleType _battleType;
-    public BattleType BattleType => _battleType;
+    //================================[ REFERENCES ]===========================================
+    //--Serialized Fields/private-----------------------------------------
     [SerializeField] private BattleArena _battleArena;
-    public BattleArena BattleArena => _battleArena;
     [SerializeField] private GameObject _battleUnitPrefab;
-    public GameObject BattleUnitPrefab => _battleUnitPrefab;
-    private BattleUnit _playerUnit;
-    public BattleUnit PlayerUnit => _playerUnit;
-    private BattleUnit _enemyUnit;
-    public BattleUnit EnemyUnit => _enemyUnit;
     [SerializeField] private BattleHUD _playerHUD;
-    public BattleHUD PlayerHUD => _playerHUD;
     [SerializeField] private BattleHUD _enemyHUD;
-    public BattleHUD EnemyHUD => _enemyHUD;
     [SerializeField] private BattleDialogueBox _dialogueBox;
-    public BattleDialogueBox DialogueBox => _dialogueBox;
-    public Queue<BattleDialogueBox> DialogueBoxeUpdates { get; set; }
     [SerializeField] private Transform _damageTakenPopupPrefab;
-    public static Transform DamageTakenPopupPrefab;
     [SerializeField] private PlayerBattleMenu _battleMenu;
     [SerializeField] private FightMenu _fightMenu;
-    public FightMenu FightMenu => _fightMenu;
     [SerializeField] private PKMNMenu _pkmnMenu;
-    public PKMNMenu PKMNMenu => _pkmnMenu;
     [SerializeField] private PartyScreen _partyScreen;
-    public PartyScreen PartyScreen => _partyScreen;
-    [SerializeField] private EventSystem _eventSystem;
-    public EventSystem EventSystem => _eventSystem;
     [SerializeField] private AudioSource _audioSource;
+    [SerializeField] private GameObject _thrownPokeBall;
+    [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
+    
+    //--Private-----------------------------------------------------------
+    private BattleType _battleType;
+    private BattleUnit _playerUnit;
+    private BattleUnit _enemyUnit;
+
+    //--public/getters/properties----------------------------------------------
+    public static BattleSystem Instance;
+    public BattleType BattleType => _battleType;
+    public BattleArena BattleArena => _battleArena;
+    //--Units
+    public GameObject BattleUnitPrefab => _battleUnitPrefab;
+    public BattleUnit PlayerUnit => _playerUnit;
+    public BattleUnit EnemyUnit => _enemyUnit;
+    //--HUD
+    public BattleHUD PlayerHUD => _playerHUD;
+    public BattleHUD EnemyHUD => _enemyHUD;
+    //--Dialogue/Damage Text
+    public BattleDialogueBox DialogueBox => _dialogueBox;
+    public Queue<BattleDialogueBox> DialogueBoxeUpdates { get; set; }
+    public static Transform DamageTakenPopupPrefab;
+    //--Menus and Screens
+    public FightMenu FightMenu => _fightMenu;
+    public PKMNMenu PKMNMenu => _pkmnMenu;
+    public PartyScreen PartyScreen => _partyScreen;
+    //--Audio
     public AudioSource AudioSource => _audioSource;
 
-//----------------------------------------------------------------------------
+//=============================[ STATE MACHINE ]===============================================================
 
     private BattleStateEnum _battleStateEnum;
     public BattleStateEnum BattleStateEnum => _battleStateEnum;
+
+//================================[ EVENTS ]===================================================================
     public static Action OnBattleStarted;
     public static Action OnBattleEnded;
     public static Action<BattleSystem> OnPlayerCommandSelect;
@@ -70,63 +85,67 @@ public class BattleSystem : BattleStateMachine
     private bool _isSinglesTrainerBattle;
     private bool _isDoublesTrainerBattle;
 
+//=========================[ POKEMON AND PLAYER/TRAINER PARTIES ]================================================
+    //--private
     private PokemonParty _playerParty;
     private PokemonParty _enemyTrainerParty;
+    private int _playerUnitAmount;
+    private PokemonClass _wildPokemon;
+    private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
+    //--public/getters/properties
     public PokemonParty PlayerParty => _playerParty;
     public PokemonParty EnemyTrainerParty => _enemyTrainerParty;
-    private int _playerUnitAmount;
     public int PlayerUnitAmount => _playerUnitAmount;
-    private PokemonClass _wildPokemon; //--wild pokemon you are battling. i need to clean these guys up and clean up my wild encounter setup
     public PokemonClass WildPokemon => _wildPokemon;
-    private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
     public WildPokemon EncounteredPokemon => _encounteredPokemon;
 
-//----------------------------------Command System-----------------------------
+//====================================[ COMMAND SYSTEM ]=======================================================
 
     private List<IBattleCommand> _commandList;
     private Queue<IBattleCommand> _commandQueue;
     private UseMoveCommand _useMoveCommand;
+    private UseItemCommand _useItemCommand;
     private SwitchPokemonCommand _switchPokemonCommand;
     private RunFromBattleCommand _runFromBattleCommand;
 
-//----------------------------------------------------------------------
-//----------------------------------------------------------------------
-//----------------------------------------------------------------------
+//============================================================================================================
+//============================================================================================================
+//============================================================================================================
 
     private void OnEnable(){
         Instance = this;
         DamageTakenPopupPrefab = _damageTakenPopupPrefab;
-    }
 
-    private void Start()    {
         _commandQueue = new Queue<IBattleCommand>();
         _commandList = new List<IBattleCommand>();
-        DialogueBoxeUpdates = new Queue<BattleDialogueBox>(); //--?? was this for my passive dialogue box?
+        DialogueBoxeUpdates = new Queue<BattleDialogueBox>(); //--?? was this for my passive dialogue box? --3/26/24 probably lol
     }
 
+    private void OnDisable(){
+        Instance = null;
+    }
+
+    //--no longer using the event system to control player input, need to manually turn the UI controls on and off
     private void Update(){
         switch( _battleStateEnum ){
             case BattleStateEnum.Busy :
 
-                if( _eventSystem.enabled ){
-                    _eventSystem.enabled = false;
+                    PlayerReferences.Instance.DisableUI();
                     BattleUIActions.OnBattleSystemBusy?.Invoke();
-                } 
+
                 break;
 
             case BattleStateEnum.PlayerAction :
 
-                if( !_eventSystem.enabled ){
-                    _eventSystem.enabled = true;
+                    PlayerReferences.Instance.EnableUI();
                     OnPlayerAction?.Invoke();
-                }
+
                 break;
 
             case BattleStateEnum.SelectingNextPokemon :
 
-                if( !_eventSystem.enabled ){
-                    _eventSystem.enabled = true;
-                }
+                    PlayerReferences.Instance.EnableUI();
+                
                 break;
         }
     }
@@ -139,6 +158,8 @@ public class BattleSystem : BattleStateMachine
         _battleType = battleType;
         _playerParty = PlayerReferences.Instance.PlayerParty;
 
+        _playerParty.Init();
+
         SetState( new BattleState_Setup( this ) );
     }
 
@@ -147,6 +168,8 @@ public class BattleSystem : BattleStateMachine
         _battleType = battleType;
         _playerParty = PlayerReferences.Instance.PlayerParty;
         _enemyTrainerParty = enemyTrainerParty;
+
+        _playerParty.Init();
 
         SetState( new BattleState_Setup( this ) );
     }
@@ -219,19 +242,26 @@ public class BattleSystem : BattleStateMachine
             _encounteredPokemon = null;
         }
 
+        if( _isSinglesTrainerBattle || _isDoublesTrainerBattle )
+            _enemyTrainerParty = null;
+
+        _pkmnMenu.PartyScreen.ClearParty();
+        _playerParty = null;
+
         _isSinglesTrainerBattle = false;
         _isFainted = false;
 
-        _battleArena.AfterBattleCleanup();
         _commandQueue.Clear();
+        _commandList = null;
+
+        _battleArena.AfterBattleCleanup();
+
+
         
         OnBattleEnded?.Invoke();
         BattleUIActions.OnAttackPhaseCompleted?.Invoke();
         _battleStateEnum = BattleStateEnum.Over;
 
-        //--Should just have to pop the state. battles SHOULD never happen above another state, but we'll see
-        //--in case of strange behavior after battle state pop, examine the state that's being returned to and use
-        //--your added Return() function to the state, to attempt to correct those issues
         // GameStateController.Instance.GameStateMachine.Pop();
         GameStateController.Instance.GameStateMachine.ChangeState( FreeRoamState.Instance );
     }
@@ -390,7 +420,7 @@ public class BattleSystem : BattleStateMachine
     //--in case of a faint. In singles, all input commands are cleared after a pokemon
     //--faints. this works because the priority and status updates function in a way that
     //--unit switching and items will always go first, then moves will be run with
-    //--respect to priority and/or agility, and then the board state will update
+    //--respect to priority and unit speed, and then the board state will update
     //--with field effects or status effects ticking appropriately as the final thing
     //--CheckForFainted() should perhaps therefore be called in two places.
     //--Once after each move used by a pokemon currently out (total of 4 assuming doubles)
@@ -512,16 +542,103 @@ public class BattleSystem : BattleStateMachine
 
     public IEnumerator PerformRunFromBattleCommand(){
         Debug.Log( "You got away!" );
-        EndBattle();
         yield return new WaitForSeconds( 1f );
+        EndBattle();
+    }
+
+    public IEnumerator ThrowPokeball(){
+        Debug.Log( "threw pokeball" );
+        _battleStateEnum = BattleStateEnum.Busy;
+
+        if( _isSinglesTrainerBattle || _isDoublesTrainerBattle ){
+            yield return _dialogueBox.TypeDialogue( $"You can't steal another trainer's Pokemon!" );
+            yield break;
+        }
+
+        var playerBallPosition = PlayerReferences.Instance.PlayerCenter.position;
+
+        yield return _dialogueBox.TypeDialogue( $"Catch threw a Pokeball!" );
+
+        var thrownBall = Instantiate( _thrownPokeBall, playerBallPosition, Quaternion.identity );
+        var originalPos = _enemyUnit.transform;
+        Vector3 originalScale = _enemyUnit.transform.localScale;
+        Vector3 ballBouncePos = new Vector3( 0.5f, 0.5f, 3f );
+
+        var sequence = DOTween.Sequence();
+        sequence.Append( thrownBall.transform.DOJump( _enemyUnit.transform.position, 3f, 1, 0.75f ) );
+        sequence.Append( thrownBall.transform.DOJump( _enemyUnit.transform.position + ballBouncePos, 1f, 1, 0.75f ) );
+
+        yield return sequence.WaitForCompletion();
+        yield return _enemyUnit.PokeAnimator.PlayCaptureAnimation( thrownBall.transform );
+        yield return thrownBall.transform.DOMoveY( originalPos.position.y, 0.5f ).WaitForCompletion();
+
+        _singleTargetCamera.LookAt = thrownBall.transform;
+        _singleTargetCamera.gameObject.SetActive( true );
+
+        int shakeCount = TryToCatchPokemon( _enemyUnit.Pokemon );
+        Debug.Log( _enemyUnit._pokeSO.CatchRate );
+        Debug.Log( shakeCount );
+
+        for( int i = 0; i < Mathf.Min( shakeCount, 3 ); i++ ){
+            yield return new WaitForSeconds( 0.5f );
+            yield return thrownBall.GetComponentInChildren<PokeballAnimator>().TryCaptureShake();
+        }
+        if( shakeCount == 4 ){
+            //--Pokemon is Caught
+            yield return _dialogueBox.TypeDialogue( $"{_enemyUnit.Pokemon.PokeSO.pName} was caught!" );
+            yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 1.5f, true );
+
+            _playerParty.AddPokemon( _enemyUnit.Pokemon );
+            _singleTargetCamera.gameObject.SetActive( false );
+            Destroy( thrownBall );
+            EndBattle();
+        }
+        else{
+            //--Pokemon eats your ass
+            yield return new WaitForSeconds( 1f );
+            yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 0.25f, false );
+            yield return _enemyUnit.PokeAnimator.PlayBreakoutAnimation( originalPos, originalScale );
+            _singleTargetCamera.gameObject.SetActive( false );
+
+            Destroy( thrownBall );
+
+            if( shakeCount == 0 )
+                yield return _dialogueBox.TypeDialogue( $"It broke free!" );
+            if( shakeCount == 1 )
+                yield return _dialogueBox.TypeDialogue( $"Argh, almost caught!" );
+            if( shakeCount == 2 )
+                yield return _dialogueBox.TypeDialogue( $"Shoot, it was so close!" );
+            if( shakeCount == 3 )
+                yield return _dialogueBox.TypeDialogue( $"FUCK     !" );
+        }
+    }
+
+    private int TryToCatchPokemon( PokemonClass pokemon ){
+        float a = ( 3 * pokemon.MaxHP - 2 * pokemon.CurrentHP ) * pokemon.PokeSO.CatchRate * ConditionsDB.GetStatusBonus( pokemon.SevereStatus ) / ( 3 * pokemon.MaxHP );
+
+        if( a >= 255 )
+            return 4;
+
+        float b = 1048560 / Mathf.Sqrt( Mathf.Sqrt( 16711680 / a) );
+
+        int shakeCount = 0;
+
+        while( shakeCount < 4 ){
+            if( UnityEngine.Random.Range( 0, 65535 ) >= b )
+                break;
+
+            shakeCount++;
+        }
+
+        return shakeCount;
     }
 
 //--------------------------------------------------------------------------------------------------------
-//---------------------------------------COMMAND SYSTEM METHODS-------------------------------------------
+//-------------------------------------[ COMMAND SYSTEM METHODS ]-----------------------------------------
 //--------------------------------------------------------------------------------------------------------
 
     public void DetermineCommandOrder(){
-        _commandList = _commandList.OrderBy( prio => prio.CommandPriority ).ThenBy( prio => prio.UnitAgility ).ToList();
+        _commandList = _commandList.OrderBy( prio => prio.CommandPriority ).ThenBy( prio => prio.AttackPriority).ThenBy( prio => prio.UnitAgility ).ToList();
 
         for( int i = _commandList.Count - 1; i >= 0; i-- ){
             AddCommand( _commandList[i] );
@@ -543,6 +660,12 @@ public class BattleSystem : BattleStateMachine
         DetermineCommandOrder();
     }
 
+    public void SetUseItemCommand(){
+        _useItemCommand = new UseItemCommand( this );
+        _commandList.Add( _useItemCommand );
+        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
+    }
+
     public void SetSwitchPokemonCommand( PokemonClass pokemon ){
         _switchPokemonCommand = new SwitchPokemonCommand( pokemon, this );
         _commandList.Add( _switchPokemonCommand );
@@ -552,7 +675,6 @@ public class BattleSystem : BattleStateMachine
     public void SetRunFromBattleCommand(){
         _runFromBattleCommand = new RunFromBattleCommand( this );
         _commandList.Add( _runFromBattleCommand );
-        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
 
     public void AddCommand( IBattleCommand command ){
@@ -576,7 +698,7 @@ public class BattleSystem : BattleStateMachine
         //--It gets called after all turns are completed and the command queue is empty
         yield return AfterTurnUpdate();
 
-        //--In Doubles, faints are handled after all possible turns are completed.
+        //--In Doubles, the fainted pokemon are handled after all possible turns are completed.
         if( _isDoublesTrainerBattle ){
             yield return HandleFaintedPokemon();
         }
@@ -586,22 +708,5 @@ public class BattleSystem : BattleStateMachine
         PlayerAction();
         yield return null;
     }
-
-    // private void OnGUI() {
-    //     var style = new GUIStyle();
-    //     style.fontSize = 24;
-    //     style.fontStyle = FontStyle.Bold;
-    //     style.normal.textColor = Color.white;
-
-    //     GUILayout.BeginArea( new Rect( 710, 500, 500, 500 ) );
-    //     GUILayout.Label( "ENEMY MOVES", style );
-    //     if( _enemyUnit?.Pokemon.Moves.Count > 0 ){
-    //         foreach( var move in _enemyUnit.Pokemon.Moves ){
-    //             GUILayout.Label( move?.moveBase.MoveName, style );
-    //         }
-    //     }
-    //     GUILayout.EndArea();
-
-    // }
 
 }

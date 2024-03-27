@@ -27,24 +27,4 @@ public class WildMon_IdleState : State<WildPokemon>
         yield return new WaitForSeconds( UnityEngine.Random.Range( 5f, 21f ) );
         _wildPokemon.WildPokemonStateMachine.OnQueueNextState?.Invoke( _wildPokemon.WanderState );
     }
-
-    // private void SetIdleSprites(){
-    //     //--Assigns Idle Sprites based on facing direction/parent transform forward
-    //     switch( _pokeAnimator.FacingDir ){
-    //         case _pokeAnimator.FacingDirection.Up:
-    //             _currentAnimSheet = _idleUpSprites;
-            
-    //         break;
-
-    //         case FacingDirection.Down:
-    //             _currentAnimSheet = _idleDownSprites;
-
-    //         break;
-
-    //         default:
-    //             _currentAnimSheet = _defaultAnimSheet;
-
-    //         break;
-    //     }
-    // }
 }

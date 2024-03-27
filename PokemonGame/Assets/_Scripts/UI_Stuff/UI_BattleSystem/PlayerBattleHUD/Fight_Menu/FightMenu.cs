@@ -20,32 +20,6 @@ public class FightMenu : State<PlayerBattleMenu>
     [SerializeField] private List<TextMeshProUGUI> _moveNameText, _ppText;
     // [SerializeField] private Image _pokemonType_Image1, _pokemonType_Image2;
 
-    /// <summary>
-    /// for this menu we need to trace how and where the moves get set. there's currently two references
-    /// one in battle state setup, and one in battle system. it would be ideal if i could somehow convert this
-    /// to happen on EnterState(). i will likely need to pass information differently from the battle system about
-    /// which mon this is. however, it does seem that i am grabbing the currently active player unit from the battle system
-    /// so it's possible that i can simply use that reference to set the moves on EnterState(); instead of doing it by
-    /// calling SetUpMoves() from outside of the class
-    /// 
-    /// i made an example in EnterState(), i think that should always work? the currently active mon should always be on the field
-    /// and set before this menu can ever be opened. just need to make sure i am always setting the active mon in the battle system
-    /// </summary>
-
-    // private void OnEnable(){
-    //     _activeUnit = _battleSystem.PlayerUnit;
-    //     SetUpMoves( _activeUnit.Pokemon.Moves );
-    //     _initialButton = move1button;
-    //     StartCoroutine( SetInitialButton() );
-    //     BattleUIActions.OnFightMenuOpened?.Invoke();
-    // }
-
-    // private void OnDisable(){
-    //     BattleUIActions.OnSubMenuClosed?.Invoke();
-    //     BattleUIActions.OnFightMenuClosed?.Invoke();
-    // }
-
-    //--Enter State currently doesn't get called because we aren't actually utilizing the state machine for the battle menu yet!!!!
     public override void EnterState( PlayerBattleMenu owner ){
         gameObject.SetActive( true );
         Debug.Log( "EnterState: " + this );
@@ -110,7 +84,7 @@ public class FightMenu : State<PlayerBattleMenu>
         }
     }
 
-    private IEnumerator  SetInitialButton(){
+    private IEnumerator SetInitialButton(){
         yield return new WaitForSeconds( 0.15f );
         _initialButton.Select();
         BattleUIActions.OnFightMenuOpened?.Invoke();

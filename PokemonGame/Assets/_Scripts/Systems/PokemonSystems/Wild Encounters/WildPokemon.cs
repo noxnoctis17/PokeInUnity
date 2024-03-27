@@ -51,11 +51,16 @@ public class WildPokemon : MonoBehaviour
     public State<WildPokemon> BattleState => _battleState;
     public State<WildPokemon> PausedState => _pausedState;
 
+    public WildPokemon( PokemonClass pokemon, PokemonSO pokeSO ){
+        Pokemon = pokemon;
+        PokeSO = pokeSO;
+    }
+
     private void OnEnable(){
         //--Actions
         OnPlayerTooFar += ChangeState;
-        BattleSystem.OnBattleStarted += DisableStartBattle;
-        BattleSystem.OnBattleEnded += EnableStartBattle;
+        BattleSystem.OnBattleStarted += DisableCanStartBattle;
+        BattleSystem.OnBattleEnded += EnableCanStartBattle;
         
         //--Set State Machine & Initial State
         WildPokemonStateMachine = new StateMachine<WildPokemon>( this, _wanderState );
@@ -85,14 +90,14 @@ public class WildPokemon : MonoBehaviour
         //--Check to see if a battle is happening and this mon spawned during one somehow, missing the
         //--Event call and not turning its collider off, causing it to start a new battle with the player
         if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
-            DisableStartBattle();
+            DisableCanStartBattle();
         }
     }
 
     private void OnDisable(){
         OnPlayerTooFar -= ChangeState;
-        BattleSystem.OnBattleStarted -= DisableStartBattle;
-        BattleSystem.OnBattleEnded -= EnableStartBattle;
+        BattleSystem.OnBattleStarted -= DisableCanStartBattle;
+        BattleSystem.OnBattleEnded -= EnableCanStartBattle;
 
         AgentMon.SetPath( null );
     }
@@ -109,16 +114,18 @@ public class WildPokemon : MonoBehaviour
         _wildPokemonSpawner = wildPokemonSpawner;
     }
 
-    private void EnableStartBattle(){
-        Debug.Log( "Battle Has Ended, enabled colliders" );
+    //--If the wild pokemon can start a battle on collision or not-----
+    private void EnableCanStartBattle(){
+        // Debug.Log( "Battle Has Ended, enabled colliders" );
         StartCoroutine( CollisionDelay() );
     }
 
-    private void DisableStartBattle(){
-        Debug.Log( "Battle Has Started, disabled colliders" );
+    private void DisableCanStartBattle(){
+        // Debug.Log( "Battle Has Started, disabled colliders" );
         BoxCollider.enabled = false;
         _canStartBattle = false;
     }
+    //-----------------------------------------------------------------
 
     public IEnumerator CollisionDelay(){
         //--Delay before collider is enabled so mons can't spawn directly on top of the player and trigger a battle immediately
@@ -147,16 +154,11 @@ public class WildPokemon : MonoBehaviour
         //--Despawn event call
         WildPokemonEvents.OnPokeDespawned?.Invoke( this );
 
-        //--Make sure the list isn't null and contains the wildmon before we remove it
-        // if( WildPokemonManager.Instance.SpawnedPokemonList != null && WildPokemonManager.Instance.SpawnedPokemonList.Contains( this ) ){
-        //     WildPokemonManager.Instance.SpawnedPokemonList?.Remove( this );
-        // }
-
         if( _wildPokemonSpawner.SpawnerPokemonList != null && _wildPokemonSpawner.SpawnerPokemonList.Contains( gameObject ) && gameObject != null ){
             _wildPokemonSpawner.SpawnerPokemonList.Remove( gameObject );
         }
 
-        //--Die
+        //--Died
         // Debug.Log( "Pokemon has been died" );
         if( gameObject != null )
             Destroy( gameObject );
