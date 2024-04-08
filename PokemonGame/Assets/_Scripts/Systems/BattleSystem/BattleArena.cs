@@ -12,7 +12,7 @@ public class BattleArena : MonoBehaviour
     [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
     [SerializeField] private CinemachineFreeLook _mainTargetGroupCamera;
     private WildPokemon _wildEncounter;
-    private GameObject _enemyTrainer1, _enemyTrainer2;
+    private GameObject _enemyTrainer1/*, _enemyTrainer2*/;
     [SerializeField] private GameObject _arenaContainer; //--parent object of the entire Battle Arena. Should always be at the same world position as the _stagePivot, which gets placed according to BattleType
     [SerializeField] private GameObject _arenaPivot; //--pivot will be placed according to encounter ex: same position as wild pokemon
     [SerializeField] private float _singlesArenaSize; //--wire disc radius for singles
@@ -94,10 +94,9 @@ public class BattleArena : MonoBehaviour
         _mainTargetGroupCamera.gameObject.SetActive( false );
     }
 
-    private IEnumerator MovePlayerIntoPosition( Vector3 position ){
-        yield return new WaitForSeconds( 0.25f );
+    private IEnumerator MovePlayerIntoPosition( Transform position ){
         Debug.Log( "move player into position from battle arena" );
-        PlayerReferences.Instance.PlayerMovement.MovePlayerIntoBattlePosition( position );
+        yield return PlayerReferences.Instance.PlayerMovement.MovePlayerIntoBattlePosition( position );
     }
 
     private GameObject GrabWildEncounter(){
@@ -108,6 +107,15 @@ public class BattleArena : MonoBehaviour
     private GameObject GrabEnemyTrainer1(){
         _enemyTrainer1 = _battleSystem.EnemyTrainerParty.gameObject;
         return _enemyTrainer1;
+    }
+
+    private IEnumerator LookAtArenaCenter( GameObject actor, GameObject target ){
+        yield return new WaitForSeconds( 0.25f );
+        actor.transform.forward = target.transform.localPosition.normalized;
+    }
+
+    private void ClearSprites( GameObject obj ){
+        obj.GetComponentsInChildren<SpriteRenderer>()[0].sprite = null;
     }
 
     private void ClearActivePositionsList(){
@@ -123,14 +131,14 @@ public class BattleArena : MonoBehaviour
 
         _wildEncounter = null;
         _enemyTrainer1 = null;
-        _enemyTrainer2 = null;
+        // _enemyTrainer2 = null;
     }
 
     private IEnumerator WildBattle_1v1(){
         //--Activate relevant positions
         _singlesTrainer1.SetActive( true ); //--Player
-        _singlesUnit1.SetActive( true ); //--Player Unit
-        _singlesUnit2.SetActive( true ); //--Wild Pokemon
+        _singlesUnit1.SetActive( true );    //--Player Unit
+        _singlesUnit2.SetActive( true );    //--Wild Pokemon
         yield return null;
 
         //--Set BattleUnit component appropriately
@@ -139,8 +147,8 @@ public class BattleArena : MonoBehaviour
         yield return null;
 
         //--Clear relevant sprites that will be replaced by an in-world sprite instead
-        ClearSprites( _singlesTrainer1 ); //--trainer 1 will almost always be the player, who will almost always be on-map
-        ClearSprites( _singlesUnit2 ); //--clear unit2's sprite because the on-map encounter will take unit2's position
+        ClearSprites( _singlesTrainer1 );   //--trainer 1 will almost always be the player, who will almost always be on-map
+        ClearSprites( _singlesUnit2 );      //--clear unit2's sprite because the on-map encounter will take unit2's position
         _singlesUnit2.GetComponentInChildren<PokemonAnimator>().enabled = false; //--disable the animator for the battle unit, we use the wild pokemon's animator instead
         _singlesUnit2.GetComponentInChildren<PokemonShadow>().enabled = false; //--disable the animator for the battle unit, we use the wild pokemon's animator instead
         yield return null;
@@ -171,16 +179,17 @@ public class BattleArena : MonoBehaviour
         var targetPosition = GrabWildEncounter().transform.position;
         yield return SetPivot( targetPosition, _singlesUnit2 );
 
-        //--Make everyone face the arena center
-        LookAtArenaCenter( _singlesTrainer1 );
-        LookAtArenaCenter( _singlesUnit1 );
-        LookAtArenaCenter( _singlesUnit2 );
-
         //--Handle Cameras by passing the initial single target camera's target unit
         StartCoroutine( SetCameras( _singlesUnit2 ) );
 
         //--Move Player into position
-        yield return MovePlayerIntoPosition( _singlesTrainer1.transform.position );
+        yield return MovePlayerIntoPosition( _singlesTrainer1.transform );
+
+        //--Make everyone face the arena center
+        yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _singlesUnit2 ); //--Player Trainer
+        yield return LookAtArenaCenter( _singlesUnit1, _singlesUnit2 ); //--Player Pokemon
+        yield return LookAtArenaCenter( _singlesUnit1, _singlesUnit2 ); //--Player Pokemon
+        yield return LookAtArenaCenter( GrabWildEncounter(), _singlesUnit1 ); //--Wild Pokemon
 
         yield return null;
 
@@ -212,6 +221,10 @@ public class BattleArena : MonoBehaviour
         _activePositionsList.Add( _singlesUnit2 );
         yield return null;
 
+        //--Re Enable the pokemon animators on unit2, in case they were disabled by a wild battle
+        _singlesUnit2.GetComponentInChildren<PokemonAnimator>().enabled = true;
+        _singlesUnit2.GetComponentInChildren<PokemonShadow>().enabled = true;
+
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
@@ -230,17 +243,17 @@ public class BattleArena : MonoBehaviour
         yield return SetPivot( targetPosition, _singlesTrainer2 );
 
         //--Make everyone face the arena center
-        LookAtArenaCenter( _singlesTrainer1 );
-        LookAtArenaCenter( _singlesTrainer2 );
-        LookAtArenaCenter( _singlesUnit1 );
-        LookAtArenaCenter( _singlesUnit2 );
+        yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _singlesTrainer2 );
+        yield return LookAtArenaCenter( _singlesTrainer2, _singlesTrainer1 );
+        yield return LookAtArenaCenter( _singlesUnit1, _singlesUnit2 );
+        yield return LookAtArenaCenter( _singlesUnit2, _singlesUnit1 );
 
         //--Handle Cameras by passing the initial single target camera's target unit
         StartCoroutine( SetCameras( _singlesUnit2 ) );
         yield return null;
 
         //--Move Player into position
-        yield return MovePlayerIntoPosition( _singlesTrainer1.transform.position );
+        yield return MovePlayerIntoPosition( _singlesTrainer1.transform );
 
     }
 
@@ -266,25 +279,14 @@ public class BattleArena : MonoBehaviour
         ClearSprites( _doublesTrainer2 );
 
         //--Make everyone face the arena center
-        LookAtArenaCenter( _doublesTrainer1 ); //--Player
-        LookAtArenaCenter( _doublesTrainer2 );
-        LookAtArenaCenter( _doublesUnit1 ); //--Player Unit
-        LookAtArenaCenter( _doublesUnit2 );
-        LookAtArenaCenter( _doublesUnit3 ); //--Player Unit
-        LookAtArenaCenter( _doublesUnit4 );
+        yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _doublesTrainer2 ); //--Player
+        yield return LookAtArenaCenter( _doublesTrainer2, _doublesTrainer1 );
+        yield return LookAtArenaCenter( _doublesUnit1, _doublesUnit2 ); //--Player Unit
+        yield return LookAtArenaCenter( _doublesUnit2, _doublesUnit1 );
+        yield return LookAtArenaCenter( _doublesUnit3, _doublesUnit4 ); //--Player Unit
+        yield return LookAtArenaCenter( _doublesUnit4, _doublesUnit3 );
 
     }
-
-    private void LookAtArenaCenter( GameObject obj ){
-        obj.transform.rotation.SetLookRotation( _arenaGizmoCenter.transform.position );
-    }
-
-    private void ClearSprites( GameObject obj ){
-        obj.GetComponentsInChildren<SpriteRenderer>()[0].sprite = null;
-    }
-
-
-
 
 
 #if UNITY_EDITOR

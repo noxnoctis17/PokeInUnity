@@ -15,7 +15,7 @@ public class PokemonParty : MonoBehaviour
     }
 
     public void Init(){
-        Debug.Log( "Amount of Pokemon in Player Party: " + _partyPokemon.Count );
+        // Debug.Log( "Amount of Pokemon in Player Party: " + _partyPokemon.Count );
         foreach( PokemonClass pokemon in _partyPokemon ){
             pokemon.Init();
             

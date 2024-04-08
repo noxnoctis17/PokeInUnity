@@ -16,11 +16,14 @@ public class DialogueState : State<GameStateController>
         //--Set Controls
         PlayerReferences.Instance.EnableUI();
         PlayerReferences.Instance.DisableCharacterControls();
+        PlayerReferences.Instance.DisableBattleControls();
         gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.DialogueState );
+        gameStateController.OnDialogueStateEntered?.Invoke();
         Debug.Log( "Dialogue State Enter()" );
     }
 
     public override void ExitState(){
+        gameStateController.OnDialogueStateExited?.Invoke();
         PlayerReferences.Instance.DisableUI();
         Debug.Log( "Dialogue State Exit()" );
     }

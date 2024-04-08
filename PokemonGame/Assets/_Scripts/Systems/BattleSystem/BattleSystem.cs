@@ -4,7 +4,6 @@ using System.Linq;
 using UnityEngine;
 using System.Collections.Generic;
 using DG.Tweening;
-using Unity.VisualScripting;
 using Cinemachine;
 
 public enum BattleStateEnum { Start, PlayerAction, Busy, NextTurn, SelectingNextPokemon, Over }
@@ -34,6 +33,7 @@ public class BattleSystem : BattleStateMachine
     [SerializeField] private FightMenu _fightMenu;
     [SerializeField] private PKMNMenu _pkmnMenu;
     [SerializeField] private PartyScreen _partyScreen;
+    [SerializeField] private LearnMoveMenu _learnMoveMenu;
     [SerializeField] private AudioSource _audioSource;
     [SerializeField] private GameObject _thrownPokeBall;
     [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
@@ -45,9 +45,11 @@ public class BattleSystem : BattleStateMachine
 
     //--public/getters/properties----------------------------------------------
     public static BattleSystem Instance;
+    public static bool BattleIsActive { get; private set; }
     public BattleType BattleType => _battleType;
     public BattleArena BattleArena => _battleArena;
     //--Units
+    public GameObject EnemyTrainer { get; private set; }
     public GameObject BattleUnitPrefab => _battleUnitPrefab;
     public BattleUnit PlayerUnit => _playerUnit;
     public BattleUnit EnemyUnit => _enemyUnit;
@@ -59,9 +61,14 @@ public class BattleSystem : BattleStateMachine
     public Queue<BattleDialogueBox> DialogueBoxeUpdates { get; set; }
     public static Transform DamageTakenPopupPrefab;
     //--Menus and Screens
+    public PlayerBattleMenu PlayerBattleMenu => _battleMenu;
     public FightMenu FightMenu => _fightMenu;
     public PKMNMenu PKMNMenu => _pkmnMenu;
     public PartyScreen PartyScreen => _partyScreen;
+    public LearnMoveMenu LearnMoveMenu => _learnMoveMenu;
+    //--EXP
+    public int TotalPartyExpGain { get; private set; }
+    public int TotalPartyEffortGain { get; private set; }
     //--Audio
     public AudioSource AudioSource => _audioSource;
 
@@ -80,10 +87,11 @@ public class BattleSystem : BattleStateMachine
 
 //----------------------------------------------------------------------------
     private int _turnsLeft;
-    private bool _isFainted;
+    // private bool _isFainted;
     private bool _isFaintedSwitch;
     private bool _isSinglesTrainerBattle;
     private bool _isDoublesTrainerBattle;
+    private bool _levelUpCompleted;
 
 //=========================[ POKEMON AND PLAYER/TRAINER PARTIES ]================================================
     //--private
@@ -92,6 +100,7 @@ public class BattleSystem : BattleStateMachine
     private int _playerUnitAmount;
     private PokemonClass _wildPokemon;
     private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
+    private PokemonClass _caughtPokemon; //--Pokemon you caught
     //--public/getters/properties
     public PokemonParty PlayerParty => _playerParty;
     public PokemonParty EnemyTrainerParty => _enemyTrainerParty;
@@ -116,13 +125,19 @@ public class BattleSystem : BattleStateMachine
         Instance = this;
         DamageTakenPopupPrefab = _damageTakenPopupPrefab;
 
+        DialogueManager.Instance.OnSystemDialogueComplete += SetLevelUpCompleted;
+
         _commandQueue = new Queue<IBattleCommand>();
         _commandList = new List<IBattleCommand>();
         DialogueBoxeUpdates = new Queue<BattleDialogueBox>(); //--?? was this for my passive dialogue box? --3/26/24 probably lol
+        TotalPartyExpGain = 0;
+        BattleIsActive = true;
     }
 
     private void OnDisable(){
         Instance = null;
+
+        DialogueManager.Instance.OnSystemDialogueComplete += SetLevelUpCompleted;
     }
 
     //--no longer using the event system to control player input, need to manually turn the UI controls on and off
@@ -130,21 +145,24 @@ public class BattleSystem : BattleStateMachine
         switch( _battleStateEnum ){
             case BattleStateEnum.Busy :
 
-                    PlayerReferences.Instance.DisableUI();
+                    PlayerReferences.Instance.DisableBattleControls();
+                    // PlayerReferences.Instance.DisableUI();
                     BattleUIActions.OnBattleSystemBusy?.Invoke();
 
                 break;
 
             case BattleStateEnum.PlayerAction :
 
-                    PlayerReferences.Instance.EnableUI();
+                    PlayerReferences.Instance.EnableBattleControls();
+                    // PlayerReferences.Instance.EnableUI();
                     OnPlayerAction?.Invoke();
 
                 break;
 
             case BattleStateEnum.SelectingNextPokemon :
 
-                    PlayerReferences.Instance.EnableUI();
+                    PlayerReferences.Instance.EnableBattleControls();
+                    // PlayerReferences.Instance.EnableUI();
                 
                 break;
         }
@@ -158,18 +176,25 @@ public class BattleSystem : BattleStateMachine
         _battleType = battleType;
         _playerParty = PlayerReferences.Instance.PlayerParty;
 
-        _playerParty.Init();
+        // _playerParty.Init();
+        //--Do we not actually need to re-initialize the player party? it's a cheap way of insta-healing the party after everything, but not intended...
+        //--because it essentially resets a pokemon to its initial state when it would be spawned in. this has consequences of not saving changes to the actual
+        //--mon, such as exp gain and hp loss. i wonder why this was here, and if this was an addition by me or not. i guess i will experiment and see...
 
         SetState( new BattleState_Setup( this ) );
     }
 
-    public void InitializeTrainerSingles( PokemonParty enemyTrainerParty, BattleType battleType ){
+    public void InitializeTrainerSingles( GameObject enemyTrainer, PokemonParty enemyTrainerParty, BattleType battleType ){
+        EnemyTrainer = enemyTrainer;
         _isSinglesTrainerBattle = true;
         _battleType = battleType;
         _playerParty = PlayerReferences.Instance.PlayerParty;
         _enemyTrainerParty = enemyTrainerParty;
 
-        _playerParty.Init();
+        // _playerParty.Init();
+        //--Do we not actually need to re-initialize the player party? it's a cheap way of insta-healing the party after everything, but not intended...
+        //--because it essentially resets a pokemon to its initial state when it would be spawned in. this has consequences of not saving changes to the actual
+        //--mon, such as exp gain and hp loss. i wonder why this was here, and if this was an addition by me or not. i guess i will experiment and see...
 
         SetState( new BattleState_Setup( this ) );
     }
@@ -234,6 +259,111 @@ public class BattleSystem : BattleStateMachine
         StartCoroutine( PerformSwitchPokemonCommand( switchedTo ) );
     }
 
+    //--Will call this where necessary in HandleFaintedPokemon()
+    //--We won't be applying exp directly to pokemon immediately during battle. instead,
+    //--The entire party will gain the combined EXP after battle is over. mons that participated
+    //--at all will gain full exp, mons that did not will gain, for now, 75%
+    //--I may actually need to place a method that actually applies the exp into the PokemonParty script
+    //--since it will occur after battle. or, just have a "post battle" state before the battle system
+    //--ends. that sounds more appropriate
+    private IEnumerator HandleExpGain( BattleUnit faintedUnit ){
+        //--Exp Gain
+        int expYield = faintedUnit.Pokemon.PokeSO.ExpYield;
+        int unitLevel = faintedUnit.Pokemon.Level;
+        float trainerBonus = ( _isSinglesTrainerBattle || _isDoublesTrainerBattle ) ? 1.5f : 1f;
+
+        int expGain = Mathf.FloorToInt( expYield * unitLevel * trainerBonus ) / 7;
+
+        //--Effort Points Gain
+        int effortYield = faintedUnit.Pokemon.PokeSO.EffortYield;
+
+        //--Add to totals
+        TotalPartyExpGain += expGain;
+        TotalPartyEffortGain += effortYield;
+
+        yield return null; //--temp so unity shuts up
+    }
+
+    public void SetLevelUpCompleted( bool isComplete ){
+        _levelUpCompleted = isComplete;
+        Debug.Log( "is level up completed: " + _levelUpCompleted );
+    }
+
+    private IEnumerator PostBattleScreen( PokemonClass caughtPokemon = null ){
+        WaitForSeconds wait1 = new( 1f );
+
+        //--Add Total Gained Exp. Eventually account for battle participation
+        if( TotalPartyExpGain > 0 ){
+            _battleStateEnum = BattleStateEnum.Busy;
+
+            //--Gain Exp Dialogue
+            yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyExpGain} Exp!" );
+            yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyEffortGain} Effort Points!" );
+
+            //--Give Exp to each Pokemon in player's party directly
+            foreach( PokemonClass pokemon in PlayerReferences.Instance.PlayerParty.PartyPokemon ){
+
+                //--Gain EXP
+                pokemon.GainExp( TotalPartyExpGain, TotalPartyEffortGain );
+
+                //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
+                yield return RefreshHUD( pokemon );
+
+                //--Check for Level up
+                while( pokemon.CheckForLevelUpBattle() ){
+                    yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} grew to level {pokemon.Level}!" );
+
+                    //--Try Learn Moves
+                    if( pokemon.GetNextLearnableMove() != null ){
+                        if( pokemon.Moves.Count == PokemonSO.MAXMOVES ){
+                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} is trying to learn {pokemon.GetNextLearnableMove().MoveSO.MoveName}," );
+                            yield return _dialogueBox.TypeDialogue( $"But it can't use more than four moves during battle." );
+                            yield return _dialogueBox.TypeDialogue( $"Which move will you set aside?" );
+
+                            pokemon.TryLearnMove( pokemon.GetNextLearnableMove(), _learnMoveMenu, this );
+
+                            PlayerBattleMenu.OnChangeState?.Invoke( PlayerBattleMenu.MoveLearnSelectionState );
+                            yield return new WaitUntil( () => !_learnMoveMenu.gameObject.activeSelf );
+
+                            if( _learnMoveMenu.ReplacedMove )
+                                yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} learned {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
+                            else
+                                yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} didn't learn {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
+                            
+                        }
+                        else{
+                            pokemon.TryLearnMove( pokemon.GetNextLearnableMove(), _learnMoveMenu, this );
+                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} learned {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
+                        }
+                    }
+
+                    //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
+                    yield return RefreshHUD( pokemon );
+
+                    yield return wait1;
+                }
+            }
+        }
+
+        //--Add Caught Pokemon to Party here, so it doesn't gain EXP from itself being caught LOL
+        if( caughtPokemon != null){
+            _playerParty.AddPokemon( caughtPokemon );
+        }
+
+        //--post battle npc dialogue?
+
+        yield return wait1;
+        EndBattle();
+    }
+
+    private IEnumerator RefreshHUD( PokemonClass pokemon ){
+        //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
+        if( pokemon == _playerUnit.Pokemon ){
+            _playerUnit.BattleHUD.RefreshHUD();
+            yield return _playerHUD.SetExpSmooth( true );
+        }
+    }
+
     private void EndBattle(){
         Debug.Log( "BattleSystem EndBattle()" );
 
@@ -249,21 +379,26 @@ public class BattleSystem : BattleStateMachine
         _playerParty = null;
 
         _isSinglesTrainerBattle = false;
-        _isFainted = false;
+        // _isFainted = false;
 
         _commandQueue.Clear();
         _commandList = null;
 
         _battleArena.AfterBattleCleanup();
 
+        TotalPartyExpGain = 0;
+        TotalPartyEffortGain = 0;
 
+        ConditionsDB.Clear();
+        TypeColorsDB.Clear();
         
         OnBattleEnded?.Invoke();
         BattleUIActions.OnAttackPhaseCompleted?.Invoke();
         _battleStateEnum = BattleStateEnum.Over;
 
-        // GameStateController.Instance.GameStateMachine.Pop();
-        GameStateController.Instance.GameStateMachine.ChangeState( FreeRoamState.Instance );
+        BattleIsActive = false;
+        GameStateController.Instance.GameStateMachine.Pop();
+        // GameStateController.Instance.GameStateMachine.ChangeState( FreeRoamState.Instance );
     }
 
 //-------------------------------------------------------------------------------------------------------
@@ -280,38 +415,47 @@ public class BattleSystem : BattleStateMachine
             yield break; //--o this might be like exclusively added for confusion lol wtf
         }
 
-        var moveEffects = move.moveBase.MoveEffects; //--Secondary effects on moves such as burn, para, stat down, etc.
-        attacker.Pokemon.CurrentPP = attacker.Pokemon.CurrentPP - move.PP; //--Reduces the PP bar by the move's PP
-        yield return attacker.BattleHUD.UpdatePP(); //--Updates the PP on the hud
+        var moveEffects = move.MoveSO.MoveEffects; //--Secondary effects on moves such as burn, para, stat down, etc.
+        // attacker.Pokemon.CurrentPP = attacker.Pokemon.CurrentPP - move.PP; //--Reduces the PP bar by the move's PP //--REDUCE MOVE PP HERE WHEN YOU REIMPLEMENT IT
+        // yield return attacker.BattleHUD.UpdatePP(); //--Updates the PP on the hud
 
         //--doing it this way instead of yielding should make it not slow battles down. eventually i will make a queue
         //--that takes these in instead, and not only runs them onto a smaller update bar somewhere in the UI so that
         //--the player can still get the text play-by-play, it will add the full strings to a turn log that will come up
         //--when the player opens the "battle status" window 
-        StartCoroutine( _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName} used {move.moveBase.MoveName}!" ) );
+        // StartCoroutine( _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName} used {move.moveBase.MoveName}!" ) );
+        yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName} used {move.MoveSO.MoveName}!" );
 
         // BattleUIActions.OnCommandUsed?.Invoke(); //--hide UI
-        yield return new WaitForSeconds(0.5f); //--attack animation placeholder
         // BattleUIActions.OnCommandAnimationsCompleted?.Invoke(); //--restore ui
         // yield return new WaitForSeconds(1f); //--wait for ui to be on screen lol
 
         if( CheckMoveAccuracy( move, attacker, target ) ){
-            if( move.moveBase.MoveCategory == MoveCategory.Status ){
-                yield return RunMoveEffects( move.moveBase.MoveEffects, move.moveBase.MoveTarget, attacker.Pokemon, target.Pokemon );
-            } else {
+            if( move.MoveSO.MoveCategory == MoveCategory.Status ){
+                yield return attacker.PokeAnimator.PlayStatusAttackAnimation();
+                yield return RunMoveEffects( move.MoveSO.MoveEffects, move.MoveSO.MoveTarget, attacker.Pokemon, target.Pokemon );
+            }
+            else{
+                if( move.MoveSO.MoveCategory == MoveCategory.Physical )
+                    yield return attacker.PokeAnimator.PlayPhysicalAttackAnimation( attacker.transform, target.transform );
+
+                if( move.MoveSO.MoveCategory == MoveCategory.Special )
+                    yield return attacker.PokeAnimator.PlaySpecialAttackAnimation();
+                
                 var damageDetails = target.TakeDamage( move, attacker.Pokemon );
                 yield return target.BattleHUD.UpdateHP();
                 yield return ShowDamageDetails( damageDetails );
             }
 
-            if( move.moveBase.SecondaryMoveEffects != null && move.moveBase.SecondaryMoveEffects.Count > 0 && target.Pokemon.CurrentHP > 0 ){
-                foreach( var secondary in move.moveBase.SecondaryMoveEffects ){
+            if( move.MoveSO.SecondaryMoveEffects != null && move.MoveSO.SecondaryMoveEffects.Count > 0 && target.Pokemon.CurrentHP > 0 ){
+                foreach( var secondary in move.MoveSO.SecondaryMoveEffects ){
                     var rand = UnityEngine.Random.Range( 1, 101 );
                     if( rand <= secondary.Chance )
                         yield return RunMoveEffects( secondary, secondary.Target, attacker.Pokemon, target.Pokemon );
                 }
             }
-        } else {
+        }
+        else{
             yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.pName}'s attack missed!" );
         }
 
@@ -320,7 +464,7 @@ public class BattleSystem : BattleStateMachine
         //--player's unit or enemy unit. Add in "IsPlayerUnit" and "IsEnemyUnit" bools to the PokemonClass so that you can always
         //--quickly check a unit? IsPlayerUnit sounds like it should be the case, because you want to always be able to know
         //--whether a pokemon belongs to the player or not in and out of battle i think
-        yield return CheckForFaint( target ); 
+        yield return CheckForFaint( target );
     }
 
     //--Will eventually be adjusted, and expanded to include item, weather, field effect, and other necessary post-turn ticks
@@ -347,10 +491,10 @@ public class BattleSystem : BattleStateMachine
 
     //--Check a Move's accuracy and determine if it hits or misses
     private bool CheckMoveAccuracy( MoveClass move, BattleUnit attacker, BattleUnit target ){
-        if( move.moveBase.Alwayshits )
+        if( move.MoveSO.Alwayshits )
             return true;
 
-        float moveAccuracy = move.moveBase.Accuracy;
+        float moveAccuracy = move.MoveSO.Accuracy;
 
         int accuracy = attacker.Pokemon.StatChange[ Stat.Accuracy ];
         int evasion = target.Pokemon.StatChange[ Stat.Evasion ];
@@ -435,7 +579,7 @@ public class BattleSystem : BattleStateMachine
         checkUnit.Pokemon.CureVolatileStatus(); //--This also happens on faint, so it should be taken care of. Reminder to do so on switch too
 
         checkUnit.Pokemon.SetSevereStatus( ConditionID.FNT ); //--Set fainted status condition
-        yield return new WaitForSeconds( 1f ); //--fainted animation placeholder
+        yield return checkUnit.PokeAnimator.PlayFaintAnimation(); //--fainted animation placeholder
 
         if( checkUnit.Pokemon.IsPlayerUnit == true ){
             yield return _dialogueBox.TypeDialogue( $"Your {_playerUnit.Pokemon.PokeSO.pName} fainted!" );
@@ -471,7 +615,7 @@ public class BattleSystem : BattleStateMachine
                     OpenPartyMenu();
                 }
                 else{
-                    EndBattle();
+                    yield return PostBattleScreen();
                 }
             }
         }
@@ -482,9 +626,11 @@ public class BattleSystem : BattleStateMachine
             //--For singles BattleTypes, we immediately clear the queue. In the case of an enemy trainer,
             //--we send out their next available pokemon, and if not, the battle is ended because the player won
             if( _enemyUnit.Pokemon == _wildPokemon ){
-                EndBattle();
+                yield return HandleExpGain( _enemyUnit );
+                yield return PostBattleScreen();
             }
             else if( _isSinglesTrainerBattle ){
+                yield return HandleExpGain( _enemyUnit );
                 var nextEnemyPokemon = _enemyTrainerParty.GetHealthyPokemon();
 
                 if( nextEnemyPokemon != null ){
@@ -492,7 +638,7 @@ public class BattleSystem : BattleStateMachine
                     StartCoroutine( PerformSwitchEnemyTrainerPokemonCommand( nextEnemyPokemon ) );
                 }
                 else{
-                    EndBattle();
+                    yield return PostBattleScreen();
                 }
             }
         }
@@ -509,10 +655,12 @@ public class BattleSystem : BattleStateMachine
         //--executed, but i can save that for another time, for now.
         _battleStateEnum = BattleStateEnum.Busy;
 
+        yield return _enemyUnit.PokeAnimator.PlayExitBattleAnimation( EnemyTrainer.transform );
         _enemyUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon
         _enemyUnit.Setup( pokemon, _enemyHUD, this ); //--Assign and setup the new pokemon
 
         yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.pName}!" );
+        yield return _enemyUnit.PokeAnimator.PlayEnterBattleAnimation( _enemyUnit.transform, EnemyTrainer.transform );
 
         PlayerAction();
     }
@@ -523,15 +671,17 @@ public class BattleSystem : BattleStateMachine
         _battleStateEnum = BattleStateEnum.Busy;
         _playerUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon. Will need to set a previous pokemon soon
 
-        if( !_isFaintedSwitch ){
+        if( !_isFaintedSwitch )
             yield return _dialogueBox.TypeDialogue( $"{_playerUnit.Pokemon.PokeSO.pName}, come back!" );
-        }
+
+        yield return _playerUnit.PokeAnimator.PlayExitBattleAnimation( PlayerReferences.Instance.PlayerCenter );
         
         _playerUnit.Setup( pokemon, _playerHUD, this );
         // _fightMenu.SetUpMoves( pokemon.Moves );
 
         yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.pName}!" );
-        yield return new WaitForSeconds( 1f );
+        yield return _playerUnit.PokeAnimator.PlayEnterBattleAnimation( _playerUnit.transform, PlayerReferences.Instance.PlayerCenter );
+        yield return new WaitForSeconds( 0.25f );
         // BattleUIActions.OnCommandAnimationsCompleted?.Invoke();
 
         if( _isFaintedSwitch )
@@ -587,17 +737,18 @@ public class BattleSystem : BattleStateMachine
             //--Pokemon is Caught
             yield return _dialogueBox.TypeDialogue( $"{_enemyUnit.Pokemon.PokeSO.pName} was caught!" );
             yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 1.5f, true );
-
-            _playerParty.AddPokemon( _enemyUnit.Pokemon );
+            
             _singleTargetCamera.gameObject.SetActive( false );
             Destroy( thrownBall );
-            EndBattle();
+            yield return HandleExpGain( _enemyUnit );
+            //--Pokemon is added to party post battle, so it doesn't gain exp from itself
+            yield return PostBattleScreen( _enemyUnit.Pokemon );
         }
         else{
             //--Pokemon eats your ass
             yield return new WaitForSeconds( 1f );
             yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 0.25f, false );
-            yield return _enemyUnit.PokeAnimator.PlayBreakoutAnimation( originalPos, originalScale );
+            yield return _enemyUnit.PokeAnimator.PlayBreakoutAnimation( originalPos );
             _singleTargetCamera.gameObject.SetActive( false );
 
             Destroy( thrownBall );
@@ -675,6 +826,7 @@ public class BattleSystem : BattleStateMachine
     public void SetRunFromBattleCommand(){
         _runFromBattleCommand = new RunFromBattleCommand( this );
         _commandList.Add( _runFromBattleCommand );
+        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
 
     public void AddCommand( IBattleCommand command ){

@@ -14,11 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _moveName: Water Gun
   _description: The target is blasted with a forceful shot of water.
-  _moveCategory: 0
+  _moveCategory: 1
   _moveTarget: 0
   _moveType: 3
   _moveEffects:
-    _statBoostList: []
+    _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
   _secondaryMoveEffects: []

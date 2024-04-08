@@ -70,8 +70,8 @@ public class BattleUnit : MonoBehaviour
         float critical = 1f;
         if( UnityEngine.Random.value * 100f <= 6.25f ) critical = 1.5f;
 
-        float type =     TypeChart.GetEffectiveness( move.moveBase.MoveType, target.PokeSO.Type1 )
-                       * TypeChart.GetEffectiveness( move.moveBase.MoveType, target.PokeSO.Type2 );
+        float type =     TypeChart.GetEffectiveness( move.MoveSO.MoveType, target.PokeSO.Type1 )
+                       * TypeChart.GetEffectiveness( move.MoveSO.MoveType, target.PokeSO.Type2 );
         
         var damageDetails = new DamageDetails(){
             TypeEffectiveness = type,
@@ -81,11 +81,11 @@ public class BattleUnit : MonoBehaviour
 
         float attack = 0;
         float defense = 0;
-        if( move.moveBase.MoveCategory == MoveCategory.Physical ){
+        if( move.MoveSO.MoveCategory == MoveCategory.Physical ){
                 attack = attacker.Attack;
                 defense = target.Defense;
         }
-        else if( move.moveBase.MoveCategory == MoveCategory.Special ){
+        else if( move.MoveSO.MoveCategory == MoveCategory.Special ){
                 attack = attacker.SpAttack;
                 defense = target.SpDefense;
         }
@@ -93,7 +93,7 @@ public class BattleUnit : MonoBehaviour
         float random = UnityEngine.Random.Range( 0.85f, 1f );
 
         float modifiers = random * type * critical;
-        float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.moveBase.Power * attack / defense / 50 + 2 ) * modifiers;
+        float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attack / defense / 50 + 2 ) * modifiers;
         int damage = ( int )damageCalc;
 
         target.UpdateHP( damage );

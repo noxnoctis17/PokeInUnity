@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 public class CharacterAnimator : MonoBehaviour
@@ -250,4 +251,11 @@ public class CharacterAnimator : MonoBehaviour
         AssignAnimations( _currentAnimSheet );
     }
 
+    //=======================================================================================
+    //===========================[ ANIMATIONS & THINGS ]=====================================
+    //=======================================================================================
+
+    public IEnumerator JumpToBattlePosition( Transform player, Transform battlePosition ){
+        yield return player.DOJump( battlePosition.position, 1, 1, 0.5f ).WaitForCompletion();
+    }
 }

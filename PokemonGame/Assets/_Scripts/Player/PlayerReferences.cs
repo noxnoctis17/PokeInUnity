@@ -12,6 +12,7 @@ public class PlayerReferences : MonoBehaviour
    [SerializeField] private Transform _playerCenter;
    public Transform PlayerTransform { get; private set; }
    public Transform PlayerCenter { get; private set; }
+   public Transform PlayerSpriteTransform { get; private set; }
    public PlayerInput PlayerInput { get; private set; }
    public PlayerMovement PlayerMovement { get; private set; }
    public PlayerController PlayerController { get; private set; }
@@ -42,6 +43,7 @@ public class PlayerReferences : MonoBehaviour
       //--Player
       PlayerTransform = transform;
       PlayerCenter = _playerCenter;
+      PlayerSpriteTransform = GetComponentInChildren<SpriteRenderer>().gameObject.transform;
       PlayerMovement = GetComponent<PlayerMovement>();
       PlayerController = GetComponent<PlayerController>();
       PlayerParty = GetComponent<PokemonParty>();
@@ -60,19 +62,21 @@ public class PlayerReferences : MonoBehaviour
 
    public void EnableCharacterControls(){
       PlayerInput.CharacterControls.Enable();
+      PlayerMovement.AllowMovement = true;
    }
 
    public void DisableCharacterControls(){
+      PlayerMovement.AllowMovement = false;
       PlayerInput.CharacterControls.Disable();
    }
 
-   // public void EnableBattleControls(){
-   //    PlayerInput.BattleControls.Enable();
-   // }
+   public void EnableBattleControls(){
+      PlayerInput.UIBattle.Enable();
+   }
 
-   // public void DisableBattleControls(){
-   //    PlayerInput.BattleControls.Disable();
-   // }
+   public void DisableBattleControls(){
+      PlayerInput.UIBattle.Disable();
+   }
 
    public void EnableUI(){
       PlayerInput.UI.Enable();

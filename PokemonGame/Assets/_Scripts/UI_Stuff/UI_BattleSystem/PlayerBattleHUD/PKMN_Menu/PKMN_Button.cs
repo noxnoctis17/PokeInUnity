@@ -8,12 +8,16 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
     [SerializeField] private PKMNMenu _pkmnMenu;
     [SerializeField] GameObject _selectedOutline;
     public PokemonClass Pokemon;
+    public Button ThisButton { get; private set; }
     private bool _isFaintedSelect;
 
     private void OnEnable(){
         BattleSystem.OnPlayerPokemonFainted += SetFaintSelectTrue;
         BattleSystem.OnPlayerChoseNextPokemon += SetFaintSelectFalse;
+
+        ThisButton = GetComponent<Button>();
     }
+
     private void DisEnable(){
         BattleSystem.OnPlayerPokemonFainted -= SetFaintSelectTrue;
         BattleSystem.OnPlayerChoseNextPokemon -= SetFaintSelectFalse;
@@ -49,12 +53,12 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
             BattleUIActions.OnSubMenuClosed?.Invoke();
         }
         
-        Debug.Log( "Submitted Button: " + GetComponent<Button>().gameObject.name );
-        _pkmnMenu.PartyScreen.OnSubmittedButton?.Invoke( GetComponent<Button>() );
+        _pkmnMenu.SetMemoryButton( ThisButton );
         _pkmnMenu.BattleMenu.BattleMenuStateMachine.Pop();
     }
 
     public void OnCancel( BaseEventData baseEventData ){
+        _pkmnMenu.ClearMemoryButton();
         BattleUIActions.OnSubMenuClosed?.Invoke();
         StartCoroutine( WaitForCloseAnims() );
     }

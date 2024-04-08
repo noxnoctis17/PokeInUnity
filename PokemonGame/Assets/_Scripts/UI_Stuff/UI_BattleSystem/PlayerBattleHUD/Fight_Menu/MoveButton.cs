@@ -11,10 +11,12 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     [SerializeField] private BattleDialogueBox _dialogueBox;
     [SerializeField] private TextMeshProUGUI _moveDescription;
     public MoveClass AssignedMove { get; set; }
+    private Button _thisButton;
 
 
     private void OnEnable(){
         gameObject.GetComponent<Outline>().enabled = false;
+        _thisButton = gameObject.GetComponent<Button>();
     }
 
     public void OnSelect( BaseEventData baseEventData ){
@@ -24,7 +26,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
         }
         #pragma warning restore CS8321
         gameObject.GetComponent<Outline>().enabled = true;
-        _moveDescription.text = AssignedMove.moveBase.Description;
+        _moveDescription.text = AssignedMove.MoveSO.Description;
     }
 
     public void OnDeselect( BaseEventData baseEventData ){
@@ -34,11 +36,13 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     public void OnSubmit( BaseEventData baseEventData ){
         BattleUIActions.OnSubMenuClosed?.Invoke();
         _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
+        _fightMenu.SetMemoryButton( _thisButton );
         BattleUIActions.OnCommandUsed?.Invoke();
         _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
     }
 
     public void OnCancel( BaseEventData baseEventData ){
+        _fightMenu.ClearMemoryButton();
         BattleUIActions.OnSubMenuClosed?.Invoke();
         BattleUIActions.OnFightMenuClosed?.Invoke();
         StartCoroutine( WaitForCloseAnims() );

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NoxNoctisDev.StateMachine;
+using UnityEngine;
 
 public class StateStackMachine<T>
 {
@@ -23,6 +24,7 @@ public class StateStackMachine<T>
     }
 
     public void Pop(){
+        Debug.Log( "StateStack Machine Pop() by: " + _owner );
         StateStack.Pop();
         CurrentState.ExitState();
         CurrentState = StateStack.Peek();
@@ -30,6 +32,7 @@ public class StateStackMachine<T>
     }
 
     public void ChangeState( State<T> newState ){
+        Debug.Log( "StateStack Machine ChangeState(): " + newState );
         StateStack.Pop().ExitState();
         CurrentState = newState;
         Push( CurrentState );

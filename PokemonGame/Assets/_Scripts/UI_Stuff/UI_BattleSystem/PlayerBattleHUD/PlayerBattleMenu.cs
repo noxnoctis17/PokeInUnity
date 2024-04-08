@@ -2,13 +2,20 @@ using UnityEngine;
 using UnityEngine.UI;
 using NoxNoctisDev.StateMachine;
 using System;
+using System.Collections;
 
-public class PlayerBattleMenu : State<PlayerBattleMenu>
+public class PlayerBattleMenu : MonoBehaviour
 {
     //================================================================================
     [SerializeField] private Button _fightButton, _pkmnButton, _bagButton, _runButton;
     [SerializeField] private BattleSystem _battleSystem;
     [SerializeField] private State<PlayerBattleMenu> _baseState;
+    [SerializeField] private State<PlayerBattleMenu> _pauseMenuState;
+    [SerializeField] private State<PlayerBattleMenu> _moveLearnSelectionState;
+    public BattleSystem BattleSystem => _battleSystem;
+    public State<PlayerBattleMenu> BaseState => _baseState;
+    public State<PlayerBattleMenu> PausedState => _pauseMenuState;
+    public State<PlayerBattleMenu> MoveLearnSelectionState => _moveLearnSelectionState;
     public Button FightButton => _fightButton;
     public Button PkmnButton => _pkmnButton;
     public Button BagButton => _bagButton;
@@ -22,12 +29,14 @@ public class PlayerBattleMenu : State<PlayerBattleMenu>
     //================================================================================
 
     private void OnEnable(){
-        Debug.Log( "enable playerbattlemenu ");
+        Debug.Log( "Enable PlayerBattleMenu ");
         //--State Machine
         BattleMenuStateMachine = new StateStackMachine<PlayerBattleMenu>( this );
 
         //--Events
-        OnChangeState += ChangeState;
+        OnChangeState += PushState;
+        GameStateController.Instance.OnDialogueStateEntered += PauseMenu;
+        GameStateController.Instance.OnDialogueStateExited += UnPauseMenu;
         
         //--Reference Assignments
         PlayerInput = PlayerReferences.Instance.PlayerInput;
@@ -36,14 +45,19 @@ public class PlayerBattleMenu : State<PlayerBattleMenu>
         //--Set Button Array
         Buttons = new Button[] { _runButton, _bagButton, _pkmnButton, _fightButton  };
 
+        //--Set Menu to Default Positions
+        ResetMenuPositions();
+
         //--Push base menu state
-        ChangeState( _baseState );
+        PushState( _baseState );
     }
 
     private void OnDisable(){
-        Debug.Log( "disable playerbattlemenu ");
+        Debug.Log( "Disable PlayerBattleMenu ");
         //--Events
-        OnChangeState -= ChangeState;
+        OnChangeState -= PushState;
+        GameStateController.Instance.OnDialogueStateEntered -= PauseMenu;
+        GameStateController.Instance.OnDialogueStateExited -= UnPauseMenu;
 
         //--State Machine
         BattleMenuStateMachine.ClearStack();
@@ -53,28 +67,64 @@ public class PlayerBattleMenu : State<PlayerBattleMenu>
         Buttons = null;
 
         //--Controls
-        PlayerReferences.Instance.DisableUI();
+        PlayerReferences.Instance.DisableBattleControls();
         PlayerReferences.Instance.EnableCharacterControls();
     }
 
-    private void ChangeState( State<PlayerBattleMenu> newState ){
+    private void PushState( State<PlayerBattleMenu> newState ){
         BattleMenuStateMachine.Push( newState );
     }
 
-#if UNITY_EDITOR
-    private void OnGUI(){
-        var style = new GUIStyle();
-        style.fontSize = 48;
-        style.fontStyle = FontStyle.Bold;
-        style.normal.textColor = Color.white;
-
-        GUILayout.BeginArea( new Rect( 0, 0, 500, 500 ) );
-        GUILayout.Label( "STATE STACK", style );
-        foreach( var state in BattleMenuStateMachine.StateStack ){
-            GUILayout.Label( state.GetType().ToString(), style );
-        }
-        GUILayout.EndArea();
+    private void PauseMenu(){
+        BattleMenuStateMachine.Push( _pauseMenuState );
     }
-#endif
+
+    private void UnPauseMenu(){
+        BattleMenuStateMachine.Pop();
+    }
+
+    public void ResetMenuPositions(){
+        int step = 45;
+
+        for( int i = 0; i < Buttons.Length; i++ ){
+            var resetRotation = Quaternion.Euler( 0f, 0f, 0f );
+            Buttons[i].GetComponent<RectTransform>().rotation = resetRotation;
+
+            var defaultRotation = Buttons[i].GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, step );
+            Buttons[i].GetComponent<RectTransform>().rotation = defaultRotation;
+
+            Buttons[i].GetComponent<RectTransform>().SetAsLastSibling();
+
+            step -= 15;
+        }
+    }
+
+    public void EnableMenuButtons(){
+        foreach( Button button in Buttons ){
+            button.interactable = true;
+        }
+    }
+
+    public void DisableMenuButtons(){
+        foreach( Button button in Buttons ){
+            button.interactable = false;
+        }
+    }
+
+// #if UNITY_EDITOR
+//     private void OnGUI(){
+//         var style = new GUIStyle();
+//         style.fontSize = 30;
+//         style.fontStyle = FontStyle.Bold;
+//         style.normal.textColor = Color.black;
+
+//         GUILayout.BeginArea( new Rect( 0, 0, 600, 500 ) );
+//         GUILayout.Label( "STATE STACK", style );
+//         foreach( var state in BattleMenuStateMachine.StateStack ){
+//             GUILayout.Label( state.GetType().ToString(), style );
+//         }
+//         GUILayout.EndArea();
+//     }
+// #endif
 
 }

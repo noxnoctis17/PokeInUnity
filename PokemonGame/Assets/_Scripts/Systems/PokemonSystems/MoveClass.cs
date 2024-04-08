@@ -4,12 +4,11 @@ using UnityEngine;
 
 public class MoveClass
 {
-    public MoveBaseSO moveBase {get; set;}
-    public int PP {get; set;}
+    public MoveBaseSO MoveSO { get; set; }
+    public int PP { get; set; }
 
-    public MoveClass(MoveBaseSO mBase)
-    {
-        moveBase = mBase;
-        PP = moveBase.PP;
+    public MoveClass( MoveBaseSO mBase ){
+        MoveSO = mBase;
+        PP = MoveSO.PP;
     }
 }

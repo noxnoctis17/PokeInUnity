@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Remoting.Messaging;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Pokemon/New Pokemon")]
@@ -60,26 +61,44 @@ public class PokemonSO : ScriptableObject
     //--Base Stats baaaaaaybbbeeeeeeeeeeeee
     [Header("Base Stats")]
     [SerializeField] int _maxHP;
-    [SerializeField] int _maxPP;
     [SerializeField] int _attack;
     [SerializeField] int _defense;
     [SerializeField] int _spAttack;
     [SerializeField] int _spDefense;
     [SerializeField] int _speed;
     [SerializeField] int _catchRate = 255;
+    [SerializeField] int _expYield;
+    [SerializeField] GrowthRate _growthRate;
+    [SerializeField] int _effortPointsYield;
 
     //--Base Stat Getters
     public int MaxHP => _maxHP;
-    public int MaxPP => _maxPP;
     public int Attack => _attack;
     public int Defense => _defense;
     public int SpAttack => _spAttack;
     public int SpDefense => _spDefense;
     public int Speed => _speed;
     public int CatchRate => _catchRate;
+    public int ExpYield => _expYield;
+    public GrowthRate GrowthRate => _growthRate;
+    public int EffortYield => _effortPointsYield;
 
     [SerializeField] private List<LearnableMoves> _learnableMoves;
     public List<LearnableMoves> LearnableMoves => _learnableMoves;
+
+    public static int MAXLEVEL { get; set; } = 100;
+    public static int MAXMOVES { get; set; } = 4;
+
+    public int GetExpForLevel( int level ){
+        if( _growthRate == GrowthRate.Fast ){
+            return Mathf.FloorToInt( 4 * Mathf.Pow( level, 3 ) / 5 );
+        }
+        else if( _growthRate == GrowthRate.MediumFast ){
+            return Mathf.FloorToInt( Mathf.Pow( level, 3 ) );
+        }
+
+        return -1;
+    }
 
 }
 
@@ -91,33 +110,33 @@ public class PokemonSO : ScriptableObject
 public class LearnableMoves
 {
     [Header("Move Pool")]
-    [SerializeField] private MoveBaseSO _moveBase;
+    [SerializeField] private MoveBaseSO _moveSO;
     [SerializeField] private int _levelLearned;
-    public MoveBaseSO MoveBase => _moveBase;
+    public MoveBaseSO MoveSO => _moveSO;
     public int LevelLearned => _levelLearned;
 }
 
 public enum PokemonType
 {
-    None,
-    Normal,
-    Fire,
-    Water,
-    Electric,
-    Grass,
-    Ice,
-    Fighting,
-    Poison,
-    Ground,
-    Flying,
-    Psychic,
-    Bug,
-    Rock,
-    Ghost,
-    Dragon,
-    Dark,
-    Steel,
-    Fairy
+    None,       //--0
+    Normal,     //--1
+    Fire,       //--2
+    Water,      //--3
+    Electric,   //--4
+    Grass,      //--5
+    Ice,        //--6
+    Fighting,   //--7
+    Poison,     //--8
+    Ground,     //--9
+    Flying,     //--10
+    Psychic,    //--11
+    Bug,        //--12
+    Rock,       //--13
+    Ghost,      //--14
+    Dragon,     //--15
+    Dark,       //--16
+    Steel,      //--17
+    Fairy       //--18
 }
 
 public enum WildType
@@ -140,6 +159,13 @@ public enum Stat
 
     Accuracy,
     Evasion
+}
+
+public enum GrowthRate
+{
+    Fast,
+    MediumFast,
+
 }
 
 public class TypeChart
@@ -180,5 +206,15 @@ public class TypeChart
 
         return chart[row][col];
     }
-
 }
+
+public class TypeCardColors
+    {
+        public Color PrimaryColor { get; set; }
+        public Color SecondaryColor { get; set; }
+
+        public TypeCardColors( Color primaryColor, Color secondaryColor){
+            PrimaryColor = primaryColor;
+            SecondaryColor = secondaryColor;
+        }
+    }

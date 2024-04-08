@@ -1,28 +1,16 @@
 using System.Collections;
-using NoxNoctisDev.StateMachine;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class RunButton : State<PlayerBattleMenu>, ISubmitHandler, ICancelHandler
+public class RunButton : MonoBehaviour, ISubmitHandler, ICancelHandler
 {
-    [SerializeField] BattleSystem _battleSystem;
+    private BattleSystem _battleSystem;
     private PlayerBattleMenu _battleMenu;
-    private Button _confirmEscape;
 
-    public override void EnterState( PlayerBattleMenu owner ){
-        gameObject.SetActive( true );
-        Debug.Log( "EnterState: " + this );
-
-        _battleMenu = owner;
-
-        _confirmEscape = GetComponent<Button>();
-        _confirmEscape.Select();
-    }
-
-    public override void ExitState(){
-        BattleUIActions.OnSubMenuClosed?.Invoke();
-        gameObject.SetActive( false );
+    public void Setup( BattleSystem battleSystem, PlayerBattleMenu battleMenu ){
+        _battleSystem = battleSystem;
+        _battleMenu = battleMenu;
     }
 
     public void OnSubmit( BaseEventData eventData ){
@@ -39,7 +27,6 @@ public class RunButton : State<PlayerBattleMenu>, ISubmitHandler, ICancelHandler
 
     private IEnumerator WaitForCloseAnims(){
         yield return new WaitForSeconds( 0.1f );
-        gameObject.GetComponent<Outline>().enabled = false;
         _battleMenu.BattleMenuStateMachine.Pop();
     }
 }

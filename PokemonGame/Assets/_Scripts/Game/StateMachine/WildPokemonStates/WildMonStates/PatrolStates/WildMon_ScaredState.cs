@@ -8,7 +8,7 @@ public class WildMon_ScaredState : State<WildPokemon>
     private WildPokemon _wildPokemon;
     
     public override void EnterState( WildPokemon owner ){
-        Debug.Log( "Enter Scared State" );
+        Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
         _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Walking );
     }

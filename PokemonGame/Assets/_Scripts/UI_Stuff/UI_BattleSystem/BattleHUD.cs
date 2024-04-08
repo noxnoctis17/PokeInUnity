@@ -3,23 +3,21 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using DG.Tweening;
 
 public class BattleHUD : MonoBehaviour
 {
-    [SerializeField] TextMeshProUGUI _nameText;
-    [SerializeField] TextMeshProUGUI _levelText;
-    [SerializeField] Image _battlePortrait;
-    [SerializeField] HPBar _hpBar;
-    [SerializeField] PPBar _ppBar;
-    [SerializeField] TextMeshProUGUI _currentHPText;
-    [SerializeField] TextMeshProUGUI _currentPPText;
-    [SerializeField] Sprite _psnIcon, _toxIcon, _brnIcon, _parIcon, _slpIcon, _fbtIcon, _fntIcon;
-    [SerializeField] Image _severeStatusIcon;
+    [SerializeField] private TextMeshProUGUI _nameText;
+    [SerializeField] private TextMeshProUGUI _levelText;
+    [SerializeField] private Image _battlePortrait;
+    [SerializeField] private Image _type1Color, _type2Color;
+    [SerializeField] private HPBar _hpBar;
+    [SerializeField] private GameObject _expBar;
+    [SerializeField] private TextMeshProUGUI _currentHPText;
+    [SerializeField] private Sprite _psnIcon, _toxIcon, _brnIcon, _parIcon, _slpIcon, _fbtIcon, _fntIcon;
+    [SerializeField] private Image _severeStatusIcon;
     private int _currentHPTracker;
     public int CurrentHPTracker => _currentHPTracker;
-    private int _currentPPTracker;
-    public int CurrentPPTracker => _currentPPTracker;
-
     private PokemonClass _pokemon;
     private Dictionary<ConditionID, Sprite> _severeStatusIcons;
 
@@ -27,11 +25,6 @@ public class BattleHUD : MonoBehaviour
         //--Update HP
         if( _currentHPTracker != _hpBar.hpBar.value )
             _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
-
-        //--Update PP
-        if( _currentPPTracker != _ppBar.ppBar.value )
-            _currentPPText.text = $"{_ppBar.ppBar.value}/{_ppBar.ppBar.maxValue}";
-        
     }
 
     public void SetData( PokemonClass pokemon ){
@@ -41,16 +34,17 @@ public class BattleHUD : MonoBehaviour
         _levelText.text = "" + pokemon.Level;
 
         _battlePortrait.sprite = _pokemon.PokeSO.BattlePortrait;
-        //--Set type icons
+
+        //--Set Type Colors
+        if( _type1Color || _type2Color != null ){
+            SetColors();
+        }
 
         _hpBar.SetHP( pokemon.CurrentHP, pokemon.MaxHP );
-        _ppBar.SetPP( pokemon.CurrentPP, pokemon.MaxPP );
+        SetExp();
 
         _currentHPTracker = pokemon.CurrentHP;
         _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
-
-        _currentPPTracker = pokemon.CurrentPP;
-        _currentPPText.text = $"{_ppBar.ppBar.value}/{_ppBar.ppBar.maxValue}";
 
         _severeStatusIcons = new Dictionary<ConditionID, Sprite>()
         {
@@ -68,18 +62,41 @@ public class BattleHUD : MonoBehaviour
     }
 
     public IEnumerator UpdateHP(){
-        Debug.Log( "UpdateHP Before if()" );
+        // Debug.Log( "UpdateHP Before if()" );
         if( _pokemon.HPChanged ){
-            Debug.Log( "After if()" );
+            // Debug.Log( "After if()" );
             yield return _hpBar.AnimateHP( _pokemon.CurrentHP );
             _pokemon.HPChanged = false;
         }
         
     }
-    
-    public IEnumerator UpdatePP()
-    {
-        yield return _ppBar.AnimatePP( _pokemon.CurrentPP );
+
+    public void SetExp(){
+        if( _expBar == null )
+            return;
+
+        float normalizedExp = GetNormalizedExp();
+        _expBar.transform.localScale = new Vector3( 1, normalizedExp, 1 );
+    }
+
+    public IEnumerator SetExpSmooth( bool reset = false ){
+        if( _expBar == null )
+            yield break;
+
+        if( reset )
+            _expBar.transform.localScale = new Vector3( 1, 0, 1 );
+
+        float normalizedExp = GetNormalizedExp();
+        yield return _expBar.transform.DOScaleY( normalizedExp, 1.5f ).WaitForCompletion();
+    }
+
+    private float GetNormalizedExp(){
+        int currentLevelExp = _pokemon.PokeSO.GetExpForLevel( _pokemon.Level );
+        int nextLevelExp = _pokemon.PokeSO.GetExpForLevel( _pokemon.Level + 1 );
+
+        float normalizedExp = (float)( _pokemon.Exp - currentLevelExp ) / ( nextLevelExp - currentLevelExp );
+
+        return Mathf.Clamp01( normalizedExp );
     }
 
     private void SetSevereStatusIcon()
@@ -92,7 +109,24 @@ public class BattleHUD : MonoBehaviour
 
         _severeStatusIcon.gameObject.SetActive(true);
         _severeStatusIcon.sprite = _severeStatusIcons[_pokemon.SevereStatus.ID];
+    }
 
+    public void RefreshHUD(){
+        _levelText.text = "" + _pokemon.Level;
+        _hpBar.SetHP( _pokemon.CurrentHP, _pokemon.MaxHP );
+        _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+    }
+
+    private void SetColors(){
+        var type1 = _pokemon.PokeSO.Type1;
+        var type2 = _pokemon.PokeSO.Type2;
+
+        _type1Color.color = TypeColorsDB.TypeColors[type1].PrimaryColor;
+
+        if( type2 == PokemonType.None )
+            _type2Color.color = TypeColorsDB.TypeColors[type1].SecondaryColor;
+        else
+            _type2Color.color = TypeColorsDB.TypeColors[type2].SecondaryColor;
     }
 
 }

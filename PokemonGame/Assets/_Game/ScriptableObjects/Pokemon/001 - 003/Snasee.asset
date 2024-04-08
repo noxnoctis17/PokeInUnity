@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _name: Snasee
   _wildType: 1
-  _description: These seedlings are bursting with energy and wonder for the world!
+  _description: These seedlings are bursting with energy. They are excited to experience
+    the world with their trainer.
   _idleUpSprites:
   - {fileID: 449579599, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
   _idleDownSprites:
@@ -62,18 +63,23 @@ MonoBehaviour:
   _type1: 5
   _type2: 0
   _maxHP: 50
-  _maxPP: 50
   _attack: 70
   _defense: 65
   _spAttack: 15
   _spDefense: 45
   _speed: 45
+  _catchRate: 255
+  _expYield: 64
+  _growthRate: 0
+  _effortPointsYield: 1
   _learnableMoves:
-  - _moveBase: {fileID: 11400000, guid: a510aab79c4c3dd49a6e316693d61bea, type: 2}
+  - _moveSO: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}
     _levelLearned: 1
-  - _moveBase: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
-    _levelLearned: 1
-  - _moveBase: {fileID: 11400000, guid: 3734655eb285f174e98adc63992ac9da, type: 2}
+  - _moveSO: {fileID: 11400000, guid: a510aab79c4c3dd49a6e316693d61bea, type: 2}
+    _levelLearned: 6
+  - _moveSO: {fileID: 11400000, guid: 41ebdf6a5bc4ec84d85132981314bec8, type: 2}
     _levelLearned: 10
-  - _moveBase: {fileID: 11400000, guid: 7eeabd8921196b441b74022de78201a2, type: 2}
-    _levelLearned: 15
+  - _moveSO: {fileID: 11400000, guid: 3734655eb285f174e98adc63992ac9da, type: 2}
+    _levelLearned: 16
+  - _moveSO: {fileID: 11400000, guid: 7eeabd8921196b441b74022de78201a2, type: 2}
+    _levelLearned: 25

@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using System;
+using System.Collections.Generic;
+using NoxNoctisDev.StateMachine;
 
 public class GameStateController : MonoBehaviour
 {
@@ -24,15 +26,19 @@ public class GameStateController : MonoBehaviour
     public BattleSystem BattleSystem => _battleSystem;
     public GameObject BattleSystemContainer => _battleSystemContainer;
     public EventSystem EventSystem => _eventSystem;
+    public Stack<StateMachine<WildPokemon>> WildmonStateDisplayTest { get; set; } //--EVENTUALLY REMOVE REMOVE REMOVE!!
 
 //======================================[ACTIONS]========================================
     public Action OnGameStateChanged;
+    public Action OnDialogueStateEntered;
+    public Action OnDialogueStateExited;
 
 //=======================================================================================
 
     private void OnEnable(){
         Instance = this;
         // OnGameStateChanged += ChangeGameState;
+        WildmonStateDisplayTest = new();
     }
 
     private void OnDisable(){
@@ -44,21 +50,17 @@ public class GameStateController : MonoBehaviour
         GameStateMachine.Push( FreeRoamState.Instance );
     }
 
-    private void ChangeGameState(){
-        GameStateMachine.Update();
-    }
-
     public void ChangeGameStateEnum( GameStateEnum stateEnum ){
         CurrentStateEnum = stateEnum;
     }
 
     private void OnGUI(){
         var style = new GUIStyle();
-        style.fontSize = 24;
+        style.fontSize = 30;
         style.fontStyle = FontStyle.Bold;
-        style.normal.textColor = Color.white;
+        style.normal.textColor = Color.black;
 
-        GUILayout.BeginArea( new Rect( 710, 0, 500, 500 ) );
+        GUILayout.BeginArea( new Rect( 710, 0, 600, 500 ) );
         GUILayout.Label( "STATE STACK", style );
         foreach( var state in GameStateMachine.StateStack ){
             GUILayout.Label( state.GetType().ToString(), style );

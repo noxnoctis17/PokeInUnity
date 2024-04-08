@@ -23,7 +23,7 @@ public class ResponseHandler : MonoBehaviour
         _responseEvents = responseEvents;
     }
 
-    public void ShowResponses(Response[] responses){
+    public void ShowResponses( Response[] responses ){
         float responseBoxHeight = 0;
         
         for( int i = 0; i < responses.Length; i++ ){

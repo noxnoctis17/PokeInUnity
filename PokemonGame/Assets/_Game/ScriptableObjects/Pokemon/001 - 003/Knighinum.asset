@@ -28,18 +28,20 @@ MonoBehaviour:
   _type1: 5
   _type2: 18
   _maxHP: 95
-  _maxPP: 95
   _attack: 115
   _defense: 105
   _spAttack: 50
   _spDefense: 90
   _speed: 90
+  _catchRate: 255
+  _expYield: 263
+  _growthRate: 0
   _learnableMoves:
-  - _moveBase: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}
+  - _moveSO: {fileID: 11400000, guid: 7eeabd8921196b441b74022de78201a2, type: 2}
     _levelLearned: 1
-  - _moveBase: {fileID: 11400000, guid: a510aab79c4c3dd49a6e316693d61bea, type: 2}
+  - _moveSO: {fileID: 11400000, guid: 3734655eb285f174e98adc63992ac9da, type: 2}
     _levelLearned: 6
-  - _moveBase: {fileID: 11400000, guid: 3734655eb285f174e98adc63992ac9da, type: 2}
+  - _moveSO: {fileID: 11400000, guid: 41ebdf6a5bc4ec84d85132981314bec8, type: 2}
     _levelLearned: 37
-  - _moveBase: {fileID: 11400000, guid: 7eeabd8921196b441b74022de78201a2, type: 2}
+  - _moveSO: {fileID: 11400000, guid: 3a5fbf89c084bb444bd2ab37cff50e9c, type: 2}
     _levelLearned: 50

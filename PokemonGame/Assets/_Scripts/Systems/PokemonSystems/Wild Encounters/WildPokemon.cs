@@ -27,7 +27,6 @@ public class WildPokemon : MonoBehaviour
     public static Vector3 WildPokemonLocation;
     public BoxCollider BoxCollider { get; private set; }
     public AIPath AgentMon { get; private set; }
-    private bool _canStartBattle;
 
     //------------------------[ ACTIONS ]---------------------------
     private WildPokemonEvents _wildPokemonEvents;
@@ -36,6 +35,7 @@ public class WildPokemon : MonoBehaviour
 
     //-------------------------[ STATE MACHINE ]---------------------------
     public StateMachine<WildPokemon> WildPokemonStateMachine { get; private set; }
+    public State<WildPokemon> CurrentState;
     [SerializeField] private State<WildPokemon> _aggressiveState;
     [SerializeField] private State<WildPokemon> _curiousState;
     [SerializeField] private State<WildPokemon> _idleState;
@@ -64,6 +64,7 @@ public class WildPokemon : MonoBehaviour
         
         //--Set State Machine & Initial State
         WildPokemonStateMachine = new StateMachine<WildPokemon>( this, _wanderState );
+        GameStateController.Instance.WildmonStateDisplayTest.Push( WildPokemonStateMachine );
 
         //--Set A* Wander AI
         AgentMon = GetComponent<AIPath>();
@@ -104,6 +105,7 @@ public class WildPokemon : MonoBehaviour
 
     private void Update(){
         WildPokemonStateMachine.Update();
+        CurrentState = WildPokemonStateMachine.CurrentState;
     }
 
     private void ChangeState( State<WildPokemon> newState ){
@@ -123,7 +125,6 @@ public class WildPokemon : MonoBehaviour
     private void DisableCanStartBattle(){
         // Debug.Log( "Battle Has Started, disabled colliders" );
         BoxCollider.enabled = false;
-        _canStartBattle = false;
     }
     //-----------------------------------------------------------------
 
@@ -131,20 +132,24 @@ public class WildPokemon : MonoBehaviour
         //--Delay before collider is enabled so mons can't spawn directly on top of the player and trigger a battle immediately
         yield return new WaitForSeconds( 2f );
         BoxCollider.enabled = true;
-        _canStartBattle = true;
         yield return null;
     }
 
     private void OnTriggerEnter( Collider col ){
-        if( col.CompareTag( "Player" ) && GameStateController.Instance.CurrentStateEnum != GameStateController.GameStateEnum.BattleState ){
-            StopCoroutine( DespawnTimer() );
-            WildPokemonStateMachine.OnQueueNextState?.Invoke( BattleState );
-            BoxCollider.enabled = false;
-            Pokemon.Init();
-            Pokemon.SetAsEnemyUnit();
-            WildPokemonEvents.OnPlayerEncounter?.Invoke( this );
-            WildPokemonLocation = transform.position;
+        if( col.CompareTag( "Player" ) && !BattleSystem.BattleIsActive ){
+            StopAllCoroutines();
+            StartCoroutine( StartBattle() ) ;
         }
+    }
+
+    private IEnumerator StartBattle(){
+        BoxCollider.enabled = false;
+        WildPokemonStateMachine.OnQueueNextState?.Invoke( BattleState );
+        yield return new WaitUntil( () => !AgentMon.enabled );
+        Pokemon.Init();
+        Pokemon.SetAsEnemyUnit();
+        WildPokemonEvents.OnPlayerEncounter?.Invoke( this );
+        WildPokemonLocation = transform.position;
     }
 
     public void Despawn(){
@@ -168,5 +173,21 @@ public class WildPokemon : MonoBehaviour
         yield return new WaitForSeconds( 240 );
         Despawn();
     }
+
+//     #if UNITY_EDITOR
+//     private void OnGUI(){
+//         var style = new GUIStyle();
+//         style.fontSize = 30;
+//         style.fontStyle = FontStyle.Bold;
+//         style.normal.textColor = Color.black;        
+
+//         GUILayout.BeginArea( new Rect( 1400, 0, 600, 500 ) );
+//         GUILayout.Label( "STATE STACK", style );
+//         foreach( var state in GameStateController.Instance.WildmonStateDisplayTest ){
+//             GUILayout.Label( state.CurrentState.GetType().ToString(), style );
+//         }
+//         GUILayout.EndArea();
+//     }
+// #endif
 
 }

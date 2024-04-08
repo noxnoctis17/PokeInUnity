@@ -10,6 +10,7 @@ public class TrainerClass : MonoBehaviour, IInteractable
     [SerializeField] private BattleType _battleType;
     [SerializeField] private DialogueSO _dialogueSO;
     [SerializeField] private DialogueSO _postBattleDialogueSO;
+    [SerializeField] private GameObject _trainerCenter;
 
     public TrainerSO TrainerSO => _trainerSO;
     public PokemonParty TrainerParty => _trainerParty;
@@ -41,7 +42,7 @@ public class TrainerClass : MonoBehaviour, IInteractable
         yield return new WaitForSeconds( 0.25f );
         yield return DialogueManager.Instance.DialogueUI.ActiveDialogueCoroutine;
         yield return null;
-        BattleController.Instance.InitTrainerBattle( _trainerParty, _battleType );
+        BattleController.Instance.InitTrainerBattle( _trainerCenter, _trainerParty, _battleType );
     }
 
     public void UpdateDialogueObject( DialogueSO dialogueSO ){

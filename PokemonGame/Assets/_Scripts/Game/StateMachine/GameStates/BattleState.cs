@@ -14,9 +14,8 @@ public class BattleState : State<GameStateController>
         gameStateController = owner;
 
         //--Set Controls
-        // PlayerReferences.Instance.EnableBattleControls(); //--Not in use yet, need to overhaul battle ui
         PlayerReferences.Instance.DisableCharacterControls();
-        // PlayerReferences.Instance.DisableUI(); //--will do once overhaul is done
+        PlayerReferences.Instance.DisableUI();
 
         //--Activate BattleSystem Container
         gameStateController.BattleSystemContainer.SetActive( true );
@@ -26,9 +25,18 @@ public class BattleState : State<GameStateController>
         Debug.Log( "BattleState Enter()" );
     }
 
+    public override void PauseState(){
+        PlayerReferences.Instance.DisableBattleControls();
+    }
+
+    public override void ReturnToState(){
+        PlayerReferences.Instance.EnableBattleControls();
+    }
+
     public override void ExitState(){
         gameStateController.BattleSystemContainer.SetActive( false );
-        // PlayerReferences.Instance.DisableBattleControls(); //--set once overhaul is done
+        // PlayerReferences.Instance.EnableUI();
+        PlayerReferences.Instance.DisableBattleControls(); //--set once overhaul is done
         Debug.Log( "BattleState Exit()" );
     }
 }

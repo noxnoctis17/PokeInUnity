@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using System.Linq;
 
 [System.Serializable]
 public class PokemonClass
@@ -12,13 +13,14 @@ public class PokemonClass
     [SerializeField] private Transform _showMoveUsedText; //--these are mine to show their text as pop ups in battle
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
+    public int Exp { get; private set; }
     public bool IsPlayerUnit { get; private set; }
     public bool IsEnemyUnit { get; private set; }
     public int CurrentHP { get; set; }
-    public int CurrentPP { get; set; }
     public List<MoveClass> Moves { get; set; }
     public Dictionary<Stat, int> Stats { get; private set; }
     public Dictionary<Stat, int> StatChange { get; private set; }
+    public Dictionary<PokemonType, TypeCardColors> TypeColors { get; private set; }
     public ConditionClass SevereStatus { get; private set; }
     public ConditionClass VolatileStatus { get; private set; }
     public Action OnStatusChanged;
@@ -31,7 +33,6 @@ public class PokemonClass
 //--------------------------------------------------------------------------------------------
 
     public int MaxHP { get; private set; }
-    public int MaxPP { get; private set; }
     public int Attack => GetStat( Stat.Attack );
     public int Defense => GetStat( Stat.Defense );
     public int SpAttack => GetStat( Stat.SpAttack );
@@ -41,7 +42,7 @@ public class PokemonClass
 //--------------------------------------------------------------------------------------------
 //------------------------------------[EFFORT VALUES]-----------------------------------------
 //--------------------------------------------------------------------------------------------
-    public int AccumulatedEVs { get; private set; }
+    public int EffortPoints { get; private set; }
     public int HP_EVs { get; private set; }
     public int ATK_EVs { get; private set; }
     public int DEF_EVs { get; private set; }
@@ -76,16 +77,20 @@ public class PokemonClass
 
         foreach( var move in PokeSO.LearnableMoves ){
             if( move.LevelLearned <= Level ){
-                Moves.Add( new MoveClass( move.MoveBase ) );
+                Moves.Add( new MoveClass( move.MoveSO ) );
             }
 
-            if( Moves.Count >= 4 )
+            if( Moves.Count >= PokemonSO.MAXMOVES )
                 break;
         }
 
+        // Debug.Log( "Exp Before setting in PokemonClass.Init(): " + Exp );
+        if( Exp == 0 )
+            Exp = PokeSO.GetExpForLevel( Level );
+        // Debug.Log( "Exp After setting in PokemonClass.Init(): " + Exp );
+
         CalculateStats();
         CurrentHP = MaxHP;
-        CurrentPP = MaxPP;
 
         ResetStatChanges();
         SevereStatus = null;
@@ -100,6 +105,75 @@ public class PokemonClass
         IsEnemyUnit = true;
     }
 
+    public void GainExp( int gainedExp, int gainedEP ){
+        EffortPoints += gainedEP;
+
+        if( _level == PokemonSO.MAXLEVEL )
+            return;
+            
+        Exp += gainedExp;
+    }
+
+    //--disabled for now just to shut up trylearnmove, will be used for out of battle leveling via candies n shit
+    // public bool CheckForLevelUp(){
+    //     if( CanLevel() ){
+    //         //--Learn Moves
+    //         if( GetNextLearnableMove() != null )
+    //             TryLearnMove( GetNextLearnableMove() );
+            
+    //         return true;
+    //     }
+        
+    //     return false;
+    // }
+
+    public bool CheckForLevelUpBattle(){
+        return CanLevel();
+    }
+
+    public bool CanLevel(){
+        if( _level == PokemonSO.MAXLEVEL )
+            return false;
+
+        if( Exp > _pokeSO.GetExpForLevel( _level + 1 ) ){
+            int previousMaxHP = MaxHP;
+            _level++;
+            CalculateStats();
+            UpdateHPOnLevelup( previousMaxHP );
+            
+            return true;
+        }
+        else
+            return false;
+    }
+
+    public LearnableMoves GetNextLearnableMove(){
+        return _pokeSO.LearnableMoves.Where( x => x.LevelLearned == _level ).FirstOrDefault();
+    }
+
+    public void TryLearnMove( LearnableMoves newMove, LearnMoveMenu moveMenu, BattleSystem battleSystem = null ){
+        if( Moves.Count < PokemonSO.MAXMOVES ){
+            Moves.Add( new MoveClass( newMove.MoveSO ) );
+
+            if( battleSystem == null )
+                DialogueManager.Instance.OnStringDialogueEvent?.Invoke( $"{_pokeSO.pName} learned {newMove.MoveSO.MoveName}!" );
+        }
+        else{
+            //--Forget a Move After Battle
+            battleSystem.LearnMoveMenu.gameObject.SetActive( true ); //--Eventually this will simply open the summary screen under the context of learning a new move
+            moveMenu.Setup( this, Moves.Select( x => x.MoveSO ).ToList(), newMove.MoveSO );
+        }
+
+    }
+
+    public void ReplaceWithNewMove( MoveBaseSO replacedMove, MoveBaseSO newMove ){
+        for( int i = 0; i < Moves.Count; i++ ){
+            if( Moves[i].MoveSO == replacedMove ){
+                Moves[i] = new MoveClass ( newMove );
+            }
+        }
+    }
+
     private void CalculateStats(){
         Stats = new Dictionary<Stat, int>();
 
@@ -110,7 +184,6 @@ public class PokemonClass
         Stats.Add( Stat.Speed,     Mathf.FloorToInt((( 2 * PokeSO.Speed     * ( MathF.Max( CalcEVs( SPE_EVs ),   1f ))) * Level ) / 100f ) + 5 );
 
         MaxHP = Mathf.FloorToInt( ( 2 * PokeSO.MaxHP * Level ) / 100 ) + Level + 10;
-        MaxPP = Mathf.FloorToInt( ( 2 * PokeSO.MaxPP * Level ) / 200 ) + Level + 10;
     }
 
     private float CalcEVs( int statEVs ){
@@ -159,6 +232,14 @@ public class PokemonClass
     public void UpdateHP( int damage ){
         CurrentHP = Mathf.Clamp( CurrentHP - damage, 0, MaxHP );
         HPChanged = true;
+    }
+
+    private void UpdateHPOnLevelup( int previousMaxHP ){
+        float currentPercentage = CurrentHP / previousMaxHP;
+        Debug.Log( "current hp percentage: " + currentPercentage );
+        int newCurrentHP = Mathf.FloorToInt( currentPercentage * MaxHP );
+        Debug.Log( "new currentHP: " + newCurrentHP );
+        CurrentHP = newCurrentHP;
     }
 
     public void SetSevereStatus( ConditionID conditionID ){

@@ -9,7 +9,7 @@ public class WildMon_IdleState : State<WildPokemon>
     private SpriteAnimator _spriteAnimator;
     
     public override void EnterState( WildPokemon owner ){
-        // Debug.Log( "Enter Idle State" );
+        Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
         _wildPokemon.AgentMon.SetPath( null );
         _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Idle );
@@ -24,7 +24,7 @@ public class WildMon_IdleState : State<WildPokemon>
     }
 
     private IEnumerator WanderIdle(){
-        yield return new WaitForSeconds( UnityEngine.Random.Range( 5f, 21f ) );
+        yield return new WaitForSeconds( Random.Range( 5f, 21f ) );
         _wildPokemon.WildPokemonStateMachine.OnQueueNextState?.Invoke( _wildPokemon.WanderState );
     }
 }

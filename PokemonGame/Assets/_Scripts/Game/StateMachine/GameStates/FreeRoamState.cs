@@ -1,5 +1,6 @@
 using UnityEngine;
 using NoxNoctisDev.StateMachine;
+using UnityEditor;
 
 public class FreeRoamState : State<GameStateController>
 {
@@ -15,15 +16,22 @@ public class FreeRoamState : State<GameStateController>
 
         //--Set Controls
         PlayerReferences.Instance.EnableCharacterControls();
-        // PlayerReferences.Instance.DisableBattleControls();
+        PlayerReferences.Instance.DisableBattleControls();
         PlayerReferences.Instance.DisableUI();
         gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.FreeRoamState );
         Debug.Log( "exploration baaybeee" );
     }
 
+    public override void PauseState(){
+        //--Disable Character Controls
+        PlayerReferences.Instance.DisableCharacterControls();
+        Debug.Log( "paused exporation babe :c" );
+    }
+
     public override void ReturnToState(){
-        //--Re-enable Controls, should they have been disabled by the previous state in the stack
+        //--Re-enable Controls
         PlayerReferences.Instance.EnableCharacterControls();
+        Debug.Log( "exploration AGAIN baaybeee" );
     }
 
     public override void ExitState(){

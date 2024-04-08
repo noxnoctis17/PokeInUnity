@@ -10,6 +10,7 @@ public class BattleController : MonoBehaviour
 
     private void OnEnable(){
         ConditionsDB.Init();
+        TypeColorsDB.Init();
         WildPokemonEvents.OnPlayerEncounter += InitWildBattle;
     }
 
@@ -21,22 +22,20 @@ public class BattleController : MonoBehaviour
         //--Set Battle Type
         BattleType battleType = BattleType.WildBattle_1v1;
 
-        //--Change Game State
-        // GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
-        GameStateController.Instance.GameStateMachine.ChangeState( BattleState.Instance );
+        //--Push Game State
+        GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
         
         //--Assign Encountered Pokemon, Initialize Wild Battle
         _battleSystem.AssignWildPokemon( encounteredMon );
         _battleSystem.InitializeWildBattle( battleType );
     }
 
-    public void InitTrainerBattle( PokemonParty trainerParty, BattleType battleType ){
-        //--Change Game State
-        // GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
-        GameStateController.Instance.GameStateMachine.ChangeState( BattleState.Instance );
+    public void InitTrainerBattle( GameObject enemyTrainer, PokemonParty trainerParty, BattleType battleType ){
+        //--Push Game State
+        GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
 
         //--Initialize Trainer Battle
-        _battleSystem.InitializeTrainerSingles( trainerParty, battleType );
+        _battleSystem.InitializeTrainerSingles( enemyTrainer, trainerParty, battleType );
         
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -17,6 +18,7 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 _currentRunMovement;
     private bool _isMovementPressed;
     private bool _isRunPressed;
+    public bool AllowMovement { get; set; }
     private float _rotationPerFrame = 1.0f;
 
     private void OnEnable(){
@@ -34,7 +36,7 @@ public class PlayerMovement : MonoBehaviour
         PlayerInput.CharacterControls.Run.performed += OnRunInput;
     }
 
-    private void OnDisnable(){
+    private void OnDisable(){
         PlayerInput.CharacterControls.Disable();
         PlayerInput.CharacterControls.Walk.started -= OnMovementInput;
         PlayerInput.CharacterControls.Walk.canceled -= OnMovementInput;
@@ -49,10 +51,12 @@ public class PlayerMovement : MonoBehaviour
         HandleRotation();
         HandleGravity();
 
-        if( _isRunPressed ){
-            _characterController.Move( _currentRunMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
-        } else {
-            _characterController.Move( _currentMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
+        if( AllowMovement ){
+            if( _isRunPressed ){
+                _characterController.Move( _currentRunMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
+            } else {
+                _characterController.Move( _currentMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
+            }
         }
     }
     
@@ -118,15 +122,20 @@ public class PlayerMovement : MonoBehaviour
         _isRunPressed = context.ReadValueAsButton();
     }
 
-    public void MovePlayerIntoBattlePosition( Vector3 position ){
-        // Debug.Log( "move player into battle position from PlayerMovement" );
-        Vector3 targetPosition = new Vector3( position.x, _playerTransform.position.y, position.z );
+    public IEnumerator MovePlayerIntoBattlePosition( Transform battlePosition ){
+        PlayerInput.CharacterControls.Disable();
+        yield return new WaitUntil( () => !PlayerInput.CharacterControls.enabled );
+        // transform.position = battlePosition;
+        yield return _animator.JumpToBattlePosition( transform, battlePosition );
 
-        //--Calculate the distance to move
-        Vector3 moveDirection = targetPosition - _playerTransform.position;
-        float distance = moveDirection.magnitude;
+        // // Debug.Log( "move player into battle position from PlayerMovement" );
+        // Vector3 targetPosition = new Vector3( position.x, _playerTransform.position.y, position.z );
 
-        //--Move the character controller
-        _characterController.Move( moveDirection.normalized * distance );
+        // //--Calculate the distance to move
+        // Vector3 moveDirection = targetPosition - _playerTransform.position;
+        // float distance = moveDirection.magnitude;
+
+        // //--Move the character controller
+        // _characterController.Move( moveDirection.normalized * distance );
     }
 }

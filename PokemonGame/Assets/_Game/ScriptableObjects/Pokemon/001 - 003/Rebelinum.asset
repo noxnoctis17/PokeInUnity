@@ -19,13 +19,16 @@ MonoBehaviour:
   _idleDownSprites: []
   _walkUpSprites: []
   _walkDownSprites: []
-  _type1: 0
+  _battlePortrait: {fileID: 0}
+  _type1: 5
   _type2: 0
   _maxHP: 0
-  _maxPP: 0
   _attack: 0
   _defense: 0
   _spAttack: 0
   _spDefense: 0
   _speed: 0
+  _catchRate: 255
+  _expYield: 142
+  _growthRate: 0
   _learnableMoves: []

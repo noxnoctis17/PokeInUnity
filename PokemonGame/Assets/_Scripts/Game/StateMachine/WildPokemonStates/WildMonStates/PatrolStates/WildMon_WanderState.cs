@@ -6,15 +6,18 @@ public class WildMon_WanderState : State<WildPokemon>
 {
     private WildPokemon _wildPokemon;
     private PokemonSO _pokeSO;
+    private bool _wander;
     
     public override void EnterState( WildPokemon owner ){
+        Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
         _pokeSO = _wildPokemon.Pokemon.PokeSO;
         _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Walking );
+        _wander = true;
         
         //--Initialize Wandering by clearing any potentially odd/old destination or path, and then setting one
         if( _wildPokemon.AgentMon.hasPath ){
-            _wildPokemon.AgentMon?.SetPath( null );
+            _wildPokemon.AgentMon.SetPath( null );
         }
 
         SetWanderPoint();
@@ -23,17 +26,23 @@ public class WildMon_WanderState : State<WildPokemon>
     public override void UpdateState(){
         WhenNearPlayer();
 
-        if( _wildPokemon.AgentMon.reachedEndOfPath ){
-            if( Random.Range( 1, 11 ) == 1 ){
-                SetWanderPoint();
+        if( _wander ){
+            if( _wildPokemon.AgentMon.reachedEndOfPath ){
+                if( Random.Range( 1, 11 ) == 1 ){
+                    SetWanderPoint();
+                }
+                else{
+                    _wildPokemon.WildPokemonStateMachine.OnQueueNextState?.Invoke( _wildPokemon.IdleState ); //--Set the state to idle
+                }
             }
-            else{
-                _wildPokemon.WildPokemonStateMachine.OnQueueNextState?.Invoke( _wildPokemon.IdleState ); //--Set the state to idle
-            }
+        }
+        else{
+            _wildPokemon.AgentMon.SetPath( null );
         }
     }
 
     public override void ExitState(){
+        _wander = false;
         _wildPokemon.AgentMon.SetPath( null );
     }
 

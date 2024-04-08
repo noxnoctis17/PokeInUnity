@@ -3,11 +3,11 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using NoxNoctisDev.StateMachine;
-using UnityEngine.InputSystem.Controls;
+using UnityEngine.EventSystems;
 
 public class BattleMenu_BaseState : State<PlayerBattleMenu>
 {
-    private PlayerBattleMenu _battleMenuSM;
+    private PlayerBattleMenu _battleMenu;
     private BattleUIActions _battleUIActions;
     private Button _activeButton;
     private Button _memorizeButton;
@@ -18,14 +18,14 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
     public override void EnterState( PlayerBattleMenu owner ){
         Debug.Log( "Entering Base Menu State" );
-        _battleMenuSM = owner;
+        _battleMenu = owner;
 
         //--Reference Assignments
-        _playerInput = _battleMenuSM.PlayerInput;
-        _battleUIActions = _battleMenuSM.BUIActions;
+        _playerInput = _battleMenu.PlayerInput;
+        _battleUIActions = _battleMenu.BUIActions;
 
         //--Events
-        _playerInput.UI.Navigate.performed += OnNavigate;
+        _playerInput.UIBattle.Navigate.performed += OnNavigate;
         _battleUIActions.OnButtonSelected += SetActiveButton;
 
         //--Select Initial Button
@@ -42,24 +42,39 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     public override void ExitState(){
         Debug.Log( "Exit Base Menu State" );
         //--Events
-        _playerInput.UI.Navigate.performed -= OnNavigate;
+        _playerInput.UIBattle.Navigate.performed -= OnNavigate;
         _battleUIActions.OnButtonSelected -= SetActiveButton;
+
+        //--Clear Selected Button
+        ClearSelectedButton();
+
+        //--Disable Menu Buttons
+        _battleMenu.DisableMenuButtons();
     }
 
     public override void PauseState(){
         Debug.Log( "Paused Base Menu State" );
         //--Events
-        _playerInput.UI.Navigate.performed -= OnNavigate;
+        _playerInput.UIBattle.Navigate.performed -= OnNavigate;
         _battleUIActions.OnButtonSelected -= SetActiveButton;
+
+        //--Clear Selected Button
+        ClearSelectedButton();
+
+        //--Disable Menu Buttons
+        _battleMenu.DisableMenuButtons();
     }
 
     public override void ReturnToState(){
         //--Events
-        _playerInput.UI.Navigate.performed += OnNavigate;
+        _playerInput.UIBattle.Navigate.performed += OnNavigate;
         _battleUIActions.OnButtonSelected += SetActiveButton;
 
         //--Select Memorize Button
         SelectMemorizeButton();
+
+        //--Enable Menu Buttons
+        _battleMenu.EnableMenuButtons();
     }
 
     private IEnumerator SelectInitialButton(){
@@ -72,22 +87,25 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
         //--Enable UI Controls After Delay
         PlayerReferences.Instance.EnableUI();
 
+        //--Enable Menu Buttons
+        _battleMenu.EnableMenuButtons();
+
         //--Select Initial Button
         if( _memorizeButton == null ){
-            _activeButton = _battleMenuSM.FightButton;
+            _activeButton = _battleMenu.FightButton;
             _memorizeButton = _activeButton;
         }else
             _activeButton = _memorizeButton;
 
         if( _previousButton == null )
-            _previousButton = _battleMenuSM.RunButton;
+            _previousButton = _battleMenu.RunButton;
 
         _activeButton.Select();
     }
 
     private void SelectMemorizeButton(){
         if( _memorizeButton == null )
-            _memorizeButton = _battleMenuSM.FightButton;
+            _memorizeButton = _battleMenu.FightButton;
 
         _memorizeButton.Select();
     }
@@ -98,22 +116,32 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
         _memorizeButton = _activeButton;
     }
 
+    private void ClearSelectedButton(){
+        EventSystem.current.SetSelectedGameObject( null );
+    }
+
     private void OnNavigate( InputAction.CallbackContext context ){
         Vector2 direction = context.ReadValue<Vector2>();
 
-        // if( _isNavigating )
-        //     return;
+        //--Player moved Up through the menu 
+        if( direction.y > 0 ){
+            _isNavigating = true;
+            RightcreasePositions();
+        }
 
-        // if( _isNavigating && direction.x == 0 )
-        //     _isNavigating = false;
+        //--Player moved Down through the menu
+        if( direction.y < 0 ){
+            _isNavigating = true;
+            LeftcreasePositions();
+        }
 
-        //--Player moved through the menu to the right via dpad or keyboard
+        //--Player moved Right through the menu
         if( direction.x > 0 ){
             _isNavigating = true;
             RightcreasePositions();
         }
 
-        //--Player moved through the menu to the left via dpad or keyboard
+        //--Player moved Left through the menu
         if( direction.x < 0 ){
             _isNavigating = true;
             LeftcreasePositions();
@@ -122,7 +150,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
     //--Increase position value
     private void LeftcreasePositions(){
-        foreach( Button button in _battleMenuSM.Buttons ){
+        foreach( Button button in _battleMenu.Buttons ){
             var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, -_cardRotationAmount );
             button.GetComponent<RectTransform>().rotation = newRotation;
 
@@ -136,7 +164,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
     //--Decrease position value
     private void RightcreasePositions(){
-        foreach( Button button in _battleMenuSM.Buttons ){
+        foreach( Button button in _battleMenu.Buttons ){
             var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, _cardRotationAmount );
             button.GetComponent<RectTransform>().rotation = newRotation;
 
@@ -151,14 +179,14 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     private Button GetBottomCard(){
         Button card;
 
-        for( int i = 0; i < _battleMenuSM.Buttons.Length; i++ ){
-            if( _activeButton == _battleMenuSM.Buttons[i] ){
+        for( int i = 0; i < _battleMenu.Buttons.Length; i++ ){
+            if( _activeButton == _battleMenu.Buttons[i] ){
                 if( i == 3 ){
-                    card = _battleMenuSM.Buttons[0];
+                    card = _battleMenu.Buttons[0];
                     return card;
                 }
                 else{
-                    card = _battleMenuSM.Buttons[ i + 1 ];
+                    card = _battleMenu.Buttons[ i + 1 ];
                     return card;
                 }
             }

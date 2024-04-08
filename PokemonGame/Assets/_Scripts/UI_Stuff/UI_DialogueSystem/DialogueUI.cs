@@ -30,6 +30,18 @@ public class DialogueUI : MonoBehaviour
         StartCoroutine( ActiveDialogueCoroutine );
     }
 
+    public void StartDialogue( string dialogue ){
+        Debug.Log( "StartDialogue" );
+        ActiveDialogueCoroutine = StepThroughDialogue( dialogue );
+        StartCoroutine( ActiveDialogueCoroutine );
+    }
+
+    public void StartDialogue( string dialogue, bool battle ){
+        Debug.Log( "StartDialogue" );
+        ActiveDialogueCoroutine = StepThroughDialogue( dialogue, battle );
+        StartCoroutine( ActiveDialogueCoroutine );
+    }
+
     public void AddResponseEvents( ResponseEvent[] responseEvents ){
         _responseHandler.AddResponseEvents( responseEvents );
     }
@@ -62,6 +74,11 @@ public class DialogueUI : MonoBehaviour
             _generalDialogueBox.SetActive( true );
             return _dialogueText;
         }
+    }
+
+    private TMP_Text SetDialogueBox(){
+            _generalDialogueBox.SetActive( true );
+            return _dialogueText;
     }
 
     private void SetDialoguePortraits( DialogueItem dialogueItem ){
@@ -133,6 +150,41 @@ public class DialogueUI : MonoBehaviour
         
     }
 
+    private IEnumerator StepThroughDialogue( string dialogue ){
+        var currentSpeakerText = SetDialogueBox();
+
+        yield return RunTypingEffect( dialogue, currentSpeakerText );
+
+        currentSpeakerText.text = dialogue;
+
+        yield return null;
+        yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
+        CloseDialogueBox();
+
+        yield return new WaitForSeconds( 0.25f );
+        
+    }
+
+    private IEnumerator StepThroughDialogue( string dialogue, bool battle ){
+        var currentSpeakerText = SetDialogueBox();
+
+        yield return RunTypingEffect( dialogue, currentSpeakerText );
+
+        currentSpeakerText.text = dialogue;
+
+        yield return null;
+        yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
+
+        CloseDialogueBox();
+
+        yield return new WaitForSeconds( 0.25f );
+
+        if( battle ){
+            DialogueManager.Instance.OnSystemDialogueComplete?.Invoke( true );
+            Debug.Log( "invoked system dialogue complete" );
+        }
+    }
+
     private IEnumerator RunTypingEffect( string dialogue, TMP_Text currentSpeakerText ){
         _typeText.RunDialogue( dialogue, currentSpeakerText );
 
@@ -147,8 +199,7 @@ public class DialogueUI : MonoBehaviour
     public void CloseDialogueBox(){
         Debug.Log( this + "CloseDialogueBox" );
         GameStateController.Instance.GameStateMachine.Pop();
-        // GameStateController.Instance.GameStateMachine.ChangeState( FreeRoamState.Instance );
-
+        
         _dialogueText.text = string.Empty;
         _leftSpeakerText_1.text = string.Empty;
         _rightSpeakerText_1.text = string.Empty;

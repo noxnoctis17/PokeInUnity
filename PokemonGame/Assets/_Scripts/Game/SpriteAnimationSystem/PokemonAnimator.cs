@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -60,6 +61,7 @@ public class PokemonAnimator : MonoBehaviour
     private bool _wasWalking;
     public bool WasWalking => _wasWalking;
     private bool _initialized;
+    private bool _isAnimating;
 
     //==[ROTATION STEP CONSTANT]==
     private const float _rotationStep = 90f;
@@ -114,7 +116,8 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     private void LateUpdate(){
-        Billboard();
+        if( !_isAnimating )
+            Billboard();
     }
 
     private void Billboard(){
@@ -221,6 +224,10 @@ public class PokemonAnimator : MonoBehaviour
         //--Down
     }
 
+    //==============================================================================================
+    //==================================[ ANIMATIONS ]==============================================
+    //==============================================================================================
+
     public IEnumerator PlayCaptureAnimation( Transform ballTransform ){
         var sequence = DOTween.Sequence();
         sequence.Append( _spriteRenderer.DOFade( 0, 0.5f ) );
@@ -230,12 +237,81 @@ public class PokemonAnimator : MonoBehaviour
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlayBreakoutAnimation( Transform originalPos, Vector3 originalScale ){
+    public IEnumerator PlayBreakoutAnimation( Transform originalPos ){
         var sequence = DOTween.Sequence();
         sequence.Append( _spriteRenderer.DOFade( 1, 0.5f ) );
         sequence.Join( transform.DOMove( originalPos.position, 0.5f ) );
         sequence.Join( transform.DOScale( Vector3.one, 0.5f ) );
 
         yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayPhysicalAttackAnimation( Transform originalPos, Transform targetPos ){
+        Vector3 direction = targetPos.position - transform.position;
+        direction.Normalize();
+        Vector3 newPosition = targetPos.position - direction;
+
+        var sequence = DOTween.Sequence();
+        sequence.Append( transform.DOMove( newPosition, 0.4f ) ); //--Move to close range Attack position
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( transform.DOMove( targetPos.position, 0.15f) ); //--Move into target's position
+        sequence.Append( transform.DOMove( newPosition, 0.15f) ); //--Move back to close range Attack position
+        sequence.AppendInterval( 0.1f );
+        sequence.Append( transform.DOMove( originalPos.position, 0.25f ) ); //--Move back to default position
+
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlaySpecialAttackAnimation(){
+        yield return transform.DOShakePosition( 0.5f, 1f, 1 ).WaitForCompletion();
+    }
+
+    public IEnumerator PlayStatusAttackAnimation(){
+        Transform spin180 = transform;
+        spin180.rotation = transform.rotation * Quaternion.Euler( 1, 180, 1 );
+
+        _isAnimating = true;
+        var sequence = DOTween.Sequence();
+        sequence.Append( transform.DOLocalRotate( spin180.position, 0.5f ) );
+        sequence.Append( transform.DOLocalRotate( spin180.position, 0.5f ) );
+        sequence.Append( transform.DOShakePosition( 0.5f, 0.5f, 5 ) );
+
+        yield return sequence.WaitForCompletion();
+        _isAnimating = false;
+    }
+
+    public IEnumerator PlayEnterBattleAnimation( Transform originalPos, Transform player ){
+        transform.position = player.position;
+        _spriteRenderer.DOFade( 0, 0f );
+        transform.DOScale( Vector3.zero, 0f );
+        
+        var sequence = DOTween.Sequence();
+        sequence.Append( _spriteRenderer.DOFade( 1, 0.5f ) );
+        sequence.Join( transform.DOMove( originalPos.position, 0.5f ) );
+        sequence.Join( transform.DOScale( Vector3.one, 0.5f ) );
+
+        yield return sequence.WaitForCompletion();;
+    }
+
+    public IEnumerator PlayExitBattleAnimation( Transform player ){
+        var sequence = DOTween.Sequence();
+        sequence.Append( _spriteRenderer.DOFade( 0, 0.5f ) );
+        sequence.Join( transform.DOMove( player.position, 0.5f ) );
+        sequence.Join( transform.DOScale( Vector3.zero, 0.5f ) );
+
+        yield return sequence.WaitForCompletion();;
+    }
+
+    public IEnumerator PlayFaintAnimation(){
+        var sequence = DOTween.Sequence();
+        sequence.Append( _spriteRenderer.DOFade( 0, 0.5f ) );
+        sequence.Join( transform.DOScale( Vector3.zero, 0.5f ) );
+
+        yield return sequence.WaitForCompletion();
+    }
+
+    public void ResetAnimations(){
+        _spriteRenderer.DOFade( 1, 0f );
+        transform.DOScale( Vector3.one, 0f );
     }
 }

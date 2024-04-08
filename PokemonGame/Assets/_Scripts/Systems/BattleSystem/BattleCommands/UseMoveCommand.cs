@@ -32,9 +32,9 @@ public class UseMoveCommand : IBattleCommand
     }
 
     private void DeterminePriority(){
-        if( _move.moveBase.MovePriority == MovePriority.one )
+        if( _move.MoveSO.MovePriority == MovePriority.one )
             _attackPriority = 1;
-        else if( _move.moveBase.MovePriority == MovePriority.two )
+        else if( _move.MoveSO.MovePriority == MovePriority.two )
             _attackPriority = 2;
         
     }

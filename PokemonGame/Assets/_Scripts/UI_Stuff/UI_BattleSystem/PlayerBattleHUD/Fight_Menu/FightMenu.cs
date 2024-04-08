@@ -13,7 +13,7 @@ public class FightMenu : State<PlayerBattleMenu>
     public PlayerBattleMenu BattleMenu => _battleMenu;
     [SerializeField] private Button move1button, move2button, move3button, move4button;
     private Button _initialButton;
-    public Button LastButton;
+    public Button LastButton { get; private set; }
     [SerializeField] private BattleUnit _activeUnit;
     public BattleUnit ActiveUnit => _activeUnit;
     [SerializeField] private List<MoveButton> _moveButtons;
@@ -54,7 +54,7 @@ public class FightMenu : State<PlayerBattleMenu>
         for( int i = 0; i < moves.Count; i++ ){
             for( int moveTexti = 0; moveTexti < _moveNameText.Count; moveTexti++ ){
                 if( i < _moveNameText.Count ){
-                    _moveNameText[i].text = moves[i].moveBase.MoveName;
+                    _moveNameText[i].text = moves[i].MoveSO.MoveName;
                     
                     if( moveTexti > i )
                         _moveNameText[moveTexti].text = "-";
@@ -66,7 +66,7 @@ public class FightMenu : State<PlayerBattleMenu>
 
             for( int moveTexti = 0; moveTexti < _ppText.Count; moveTexti++ ){
                 if( i < _moveNameText.Count ){
-                    _ppText[i].text = $"PP: {moves[i].moveBase.PP}";
+                    _ppText[i].text = $"PP: {moves[i].MoveSO.PP}";
                     
                     if( moveTexti > i )
                         _ppText[moveTexti].text = "PP: -";
@@ -79,15 +79,41 @@ public class FightMenu : State<PlayerBattleMenu>
     }
 
     private void SetMoveButtons( List<MoveClass> moves ){
-        for( int i = 0; i < moves.Count; i++ ){
-            _moveButtons[i].AssignedMove = moves[i];
+        for( int m = 0; m < moves.Count; m++ ){
+            for( int b = 0; b < _moveButtons.Count; b++ ){
+                _moveButtons[m].GetComponent<Button>().interactable = true;
+                _moveButtons[m].AssignedMove = moves[m];
+
+                if( b > m )
+                    _moveButtons[b].GetComponent<Button>().interactable = false;
+            }
         }
     }
 
     private IEnumerator SetInitialButton(){
         yield return new WaitForSeconds( 0.15f );
-        _initialButton.Select();
+
+        if( LastButton != null )
+            SelectMemoryButton();
+        else{
+            SetMemoryButton( _initialButton );
+        }
+
         BattleUIActions.OnFightMenuOpened?.Invoke();
+    }
+
+    public void SetMemoryButton( Button lastButton ){
+        LastButton = lastButton;
+        SelectMemoryButton();
+    }
+
+    private void SelectMemoryButton(){
+        LastButton.Select();
+    }
+
+    public void ClearMemoryButton(){
+        LastButton = null;
+        _initialButton.Select();
     }
 
 }
