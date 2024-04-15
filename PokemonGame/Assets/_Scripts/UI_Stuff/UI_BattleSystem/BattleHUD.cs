@@ -99,15 +99,13 @@ public class BattleHUD : MonoBehaviour
         return Mathf.Clamp01( normalizedExp );
     }
 
-    private void SetSevereStatusIcon()
-    {
-        if(_pokemon.SevereStatus == null)
-        {
-            _severeStatusIcon.gameObject.SetActive(false);
+    private void SetSevereStatusIcon(){
+        if( _pokemon.SevereStatus == null ){
+            _severeStatusIcon.gameObject.SetActive( false );
             return;
         }
 
-        _severeStatusIcon.gameObject.SetActive(true);
+        _severeStatusIcon.gameObject.SetActive( true );
         _severeStatusIcon.sprite = _severeStatusIcons[_pokemon.SevereStatus.ID];
     }
 
@@ -121,12 +119,14 @@ public class BattleHUD : MonoBehaviour
         var type1 = _pokemon.PokeSO.Type1;
         var type2 = _pokemon.PokeSO.Type2;
 
-        _type1Color.color = TypeColorsDB.TypeColors[type1].PrimaryColor;
+        if( TypeColorsDB.TypeColors.ContainsKey( type1 ) && TypeColorsDB.TypeColors.ContainsKey( type2 ) ){
+            _type1Color.color = TypeColorsDB.TypeColors[type1].PrimaryColor;
 
-        if( type2 == PokemonType.None )
-            _type2Color.color = TypeColorsDB.TypeColors[type1].SecondaryColor;
-        else
-            _type2Color.color = TypeColorsDB.TypeColors[type2].SecondaryColor;
+            if( type2 == PokemonType.None )
+                _type2Color.color = TypeColorsDB.TypeColors[type1].SecondaryColor;
+            else
+                _type2Color.color = TypeColorsDB.TypeColors[type2].SecondaryColor;
+        }
     }
 
 }

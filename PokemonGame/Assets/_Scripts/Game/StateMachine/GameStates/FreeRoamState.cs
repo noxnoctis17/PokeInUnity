@@ -15,29 +15,29 @@ public class FreeRoamState : State<GameStateController>
         gameStateController = owner;
 
         //--Set Controls
-        PlayerReferences.Instance.EnableCharacterControls();
-        PlayerReferences.Instance.DisableBattleControls();
-        PlayerReferences.Instance.DisableUI();
+        PlayerReferences.Instance.PlayerController.EnableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableBattleControls();
+        PlayerReferences.Instance.PlayerController.DisableUI();
         gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.FreeRoamState );
         Debug.Log( "exploration baaybeee" );
     }
 
     public override void PauseState(){
         //--Disable Character Controls
-        PlayerReferences.Instance.DisableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
         Debug.Log( "paused exporation babe :c" );
     }
 
     public override void ReturnToState(){
         //--Re-enable Controls
-        PlayerReferences.Instance.EnableCharacterControls();
+        PlayerReferences.Instance.PlayerController.EnableCharacterControls();
         Debug.Log( "exploration AGAIN baaybeee" );
     }
 
     public override void ExitState(){
         
         //--Disable Character Controls
-        PlayerReferences.Instance.DisableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
         Debug.Log( "no more exporation babe :c" );
     }
 }

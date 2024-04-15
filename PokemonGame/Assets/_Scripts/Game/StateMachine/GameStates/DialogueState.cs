@@ -14,9 +14,9 @@ public class DialogueState : State<GameStateController>
         gameStateController = owner;
 
         //--Set Controls
-        PlayerReferences.Instance.EnableUI();
-        PlayerReferences.Instance.DisableCharacterControls();
-        PlayerReferences.Instance.DisableBattleControls();
+        PlayerReferences.Instance.PlayerController.EnableUI();
+        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableBattleControls();
         gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.DialogueState );
         gameStateController.OnDialogueStateEntered?.Invoke();
         Debug.Log( "Dialogue State Enter()" );
@@ -24,7 +24,7 @@ public class DialogueState : State<GameStateController>
 
     public override void ExitState(){
         gameStateController.OnDialogueStateExited?.Invoke();
-        PlayerReferences.Instance.DisableUI();
+        PlayerReferences.Instance.PlayerController.DisableUI();
         Debug.Log( "Dialogue State Exit()" );
     }
 

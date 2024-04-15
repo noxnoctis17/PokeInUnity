@@ -9,8 +9,6 @@ public class BattleController : MonoBehaviour
     [SerializeField] private BattleSystem _battleSystem;
 
     private void OnEnable(){
-        ConditionsDB.Init();
-        TypeColorsDB.Init();
         WildPokemonEvents.OnPlayerEncounter += InitWildBattle;
     }
 

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
 using System;
 
 public class PartyScreen : MonoBehaviour
@@ -18,8 +17,8 @@ public class PartyScreen : MonoBehaviour
     }
 
     public void SetParty( List<PokemonClass> pokemon ){
-        Debug.Log( "SetParty Party Amount: " + pokemon.Count );
-        Debug.Log( "SetParty _memberSlots Amount: " + _memberSlots.Length );
+        // Debug.Log( "SetParty Party Amount: " + pokemon.Count );
+        // Debug.Log( "SetParty _memberSlots Amount: " + _memberSlots.Length );
         for( int i = 0; i < _memberSlots.Length; i++ ){
             if( i < pokemon.Count ){
                 _memberSlots[i].gameObject.SetActive( true );
@@ -33,7 +32,7 @@ public class PartyScreen : MonoBehaviour
     }
 
     public void ClearParty(){
-        Debug.Log( "Member Slots in ClearParty: " + _memberSlots.Length );
+        // Debug.Log( "Member Slots in ClearParty: " + _memberSlots.Length );
         foreach( PartyMember_UI member in _memberSlots ){
             member.gameObject.SetActive( true );
         }

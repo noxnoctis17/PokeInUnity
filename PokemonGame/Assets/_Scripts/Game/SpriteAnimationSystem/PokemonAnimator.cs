@@ -82,42 +82,49 @@ public class PokemonAnimator : MonoBehaviour
 
     private void OnEnable(){
         OnAnimationStateChange += ChangeAnimationState;
+
+        _spriteRenderer = GetComponent<SpriteRenderer>();
+        _spriteAnimator = new SpriteAnimator( _spriteRenderer, 0.08f );
+        _camera = PlayerReferences.MainCameraTransform;
     }
 
     private void OnDisable(){
         OnAnimationStateChange -= ChangeAnimationState;
     }
 
-    private void Start(){
-        _spriteRenderer = GetComponent<SpriteRenderer>();
-        _spriteAnimator = new SpriteAnimator( _spriteRenderer, 0.08f );
-        _camera = PlayerReferences.MainCameraTransform;
-
+    public void Initialize( PokemonSO pokeSO ){
         //--Default/Initial Animation
         _defaultAnimSheet = _idleDownSprites;
         _currentAnimSheet = _defaultAnimSheet;
 
-        // AssignAnimations( _currentAnimSheet );
+        SetAllSpriteSheets( pokeSO );
+        ResetAnimations();
+        _initialized = true;
     }
 
-    public void Initialize( PokemonSO pokeSO ){
-        if( !_initialized )
-            SetAllSpriteSheets( pokeSO );
+    public void Clear(){
+        _spriteRenderer = null;
+        _spriteAnimator = null;
+        _camera = null;
+        _initialized = false;
     }
 
     private void Update(){
         if( _prevAnimSheet != _currentAnimSheet )
             _spriteAnimator.Start();
 
-        SetFacingDirection();
-        PlayAnimations();
-        _prevAnimSheet = _currentAnimSheet;
-        _spriteAnimator.HandleUpdate();
+        if( _initialized ){
+            SetFacingDirection();
+            PlayAnimations();
+            _prevAnimSheet = _currentAnimSheet;
+            _spriteAnimator.HandleUpdate();
+        }
     }
 
     private void LateUpdate(){
-        if( !_isAnimating )
-            Billboard();
+        if( _initialized )
+            if( !_isAnimating )
+                Billboard();
     }
 
     private void Billboard(){
@@ -184,7 +191,7 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     private void SetFacingDirection(){
-        //--Sets facing direction based on the Pokemon's parent transform forward
+        //--Sets facing direction (up or down) based on the Pokemon's parent transform forward
         var projection = Vector3.ProjectOnPlane( _camera.transform.forward, _pokemonTransform.up );
         var angle = Vector3.SignedAngle( projection, _pokemonTransform.forward, _pokemonTransform.up );
         var absAngle = Mathf.Abs( angle );
@@ -249,13 +256,14 @@ public class PokemonAnimator : MonoBehaviour
     public IEnumerator PlayPhysicalAttackAnimation( Transform originalPos, Transform targetPos ){
         Vector3 direction = targetPos.position - transform.position;
         direction.Normalize();
-        Vector3 newPosition = targetPos.position - direction;
+        Vector3 readyPos = targetPos.position - direction;
+        Vector3 attackPos = targetPos.position - new Vector3( 0.01f, 0, 0.01f );
 
         var sequence = DOTween.Sequence();
-        sequence.Append( transform.DOMove( newPosition, 0.4f ) ); //--Move to close range Attack position
+        sequence.Append( transform.DOMove( readyPos, 0.4f ) ); //--Move to close range Attack position
         sequence.AppendInterval( 0.25f );
-        sequence.Append( transform.DOMove( targetPos.position, 0.15f) ); //--Move into target's position
-        sequence.Append( transform.DOMove( newPosition, 0.15f) ); //--Move back to close range Attack position
+        sequence.Append( transform.DOMove( attackPos, 0.15f ) ); //--Move into target's position
+        sequence.Append( transform.DOMove( readyPos, 0.15f) ); //--Move back to close range Attack position
         sequence.AppendInterval( 0.1f );
         sequence.Append( transform.DOMove( originalPos.position, 0.25f ) ); //--Move back to default position
 

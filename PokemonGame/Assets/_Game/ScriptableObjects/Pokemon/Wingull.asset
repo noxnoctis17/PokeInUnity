@@ -333,7 +333,7 @@ MonoBehaviour:
   _spDefense: 30
   _speed: 85
   _catchRate: 190
-  _expYield: 544
+  _expYield: 54
   _growthRate: 0
   _effortPointsYield: 1
   _learnableMoves:

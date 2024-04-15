@@ -7,13 +7,13 @@ public class ExampleSpline : MonoBehaviour {
 	public Transform[] trans;
 
 	LTSpline spline;
-	private GameObject ltLogo;
-	private GameObject ltLogo2;
+	private UnityEngine.GameObject ltLogo;
+	private UnityEngine.GameObject ltLogo2;
 
 	void Start () {
 		spline = new LTSpline( new Vector3[] {trans[0].position, trans[1].position, trans[2].position, trans[3].position, trans[4].position} );
-		ltLogo = GameObject.Find("LeanTweenLogo1");
-		ltLogo2 = GameObject.Find("LeanTweenLogo2");
+        ltLogo = UnityEngine.GameObject.Find("LeanTweenLogo1");
+        ltLogo2 = UnityEngine.GameObject.Find("LeanTweenLogo2");
 
 		LeanTween.moveSpline( ltLogo2, spline.pts, 1f).setEase(LeanTweenType.easeInOutQuad).setLoopPingPong().setOrientToPath(true);
 

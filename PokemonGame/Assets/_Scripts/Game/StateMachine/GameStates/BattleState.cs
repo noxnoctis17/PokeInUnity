@@ -13,9 +13,13 @@ public class BattleState : State<GameStateController>
     public override void EnterState( GameStateController owner ){
         gameStateController = owner;
 
+        //--Initialize Databases
+        ConditionsDB.Init(); //--Status Conditions Database. Might eventually contain weather, terrain, hazards, and effects like tailwind and Trick Room
+        TypeColorsDB.Init(); //--Primary and Secondary colors for each Type. Currently used for the Fight card and mini huds. Fight Cards will eventually be assigned as a single image to individual pokemon, and loaded from there.
+
         //--Set Controls
-        PlayerReferences.Instance.DisableCharacterControls();
-        PlayerReferences.Instance.DisableUI();
+        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableUI();
 
         //--Activate BattleSystem Container
         gameStateController.BattleSystemContainer.SetActive( true );
@@ -26,17 +30,16 @@ public class BattleState : State<GameStateController>
     }
 
     public override void PauseState(){
-        PlayerReferences.Instance.DisableBattleControls();
+        PlayerReferences.Instance.PlayerController.DisableBattleControls();
     }
 
     public override void ReturnToState(){
-        PlayerReferences.Instance.EnableBattleControls();
+        PlayerReferences.Instance.PlayerController.EnableBattleControls();
     }
 
     public override void ExitState(){
         gameStateController.BattleSystemContainer.SetActive( false );
-        // PlayerReferences.Instance.EnableUI();
-        PlayerReferences.Instance.DisableBattleControls(); //--set once overhaul is done
+        PlayerReferences.Instance.PlayerController.DisableBattleControls();
         Debug.Log( "BattleState Exit()" );
     }
 }

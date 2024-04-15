@@ -5,6 +5,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using DG.Tweening;
 using Cinemachine;
+using UnityEngine.EventSystems;
 
 public enum BattleStateEnum { Start, PlayerAction, Busy, NextTurn, SelectingNextPokemon, Over }
 
@@ -25,6 +26,7 @@ public class BattleSystem : BattleStateMachine
     //--Serialized Fields/private-----------------------------------------
     [SerializeField] private BattleArena _battleArena;
     [SerializeField] private GameObject _battleUnitPrefab;
+    [SerializeField] private EventSystem _eventSystem;
     [SerializeField] private BattleHUD _playerHUD;
     [SerializeField] private BattleHUD _enemyHUD;
     [SerializeField] private BattleDialogueBox _dialogueBox;
@@ -145,24 +147,23 @@ public class BattleSystem : BattleStateMachine
         switch( _battleStateEnum ){
             case BattleStateEnum.Busy :
 
-                    PlayerReferences.Instance.DisableBattleControls();
-                    // PlayerReferences.Instance.DisableUI();
-                    BattleUIActions.OnBattleSystemBusy?.Invoke();
+                    PlayerReferences.Instance.PlayerController.DisableBattleControls();
+                    PlayerReferences.Instance.PlayerController.DisableUI();
 
                 break;
 
             case BattleStateEnum.PlayerAction :
 
-                    PlayerReferences.Instance.EnableBattleControls();
-                    // PlayerReferences.Instance.EnableUI();
+                    PlayerReferences.Instance.PlayerController.EnableBattleControls();
+                    PlayerReferences.Instance.PlayerController.EnableUI();
                     OnPlayerAction?.Invoke();
 
                 break;
 
             case BattleStateEnum.SelectingNextPokemon :
 
-                    PlayerReferences.Instance.EnableBattleControls();
-                    // PlayerReferences.Instance.EnableUI();
+                    PlayerReferences.Instance.PlayerController.EnableBattleControls();
+                    PlayerReferences.Instance.PlayerController.EnableUI();
                 
                 break;
         }
@@ -176,11 +177,6 @@ public class BattleSystem : BattleStateMachine
         _battleType = battleType;
         _playerParty = PlayerReferences.Instance.PlayerParty;
 
-        // _playerParty.Init();
-        //--Do we not actually need to re-initialize the player party? it's a cheap way of insta-healing the party after everything, but not intended...
-        //--because it essentially resets a pokemon to its initial state when it would be spawned in. this has consequences of not saving changes to the actual
-        //--mon, such as exp gain and hp loss. i wonder why this was here, and if this was an addition by me or not. i guess i will experiment and see...
-
         SetState( new BattleState_Setup( this ) );
     }
 
@@ -191,11 +187,6 @@ public class BattleSystem : BattleStateMachine
         _playerParty = PlayerReferences.Instance.PlayerParty;
         _enemyTrainerParty = enemyTrainerParty;
 
-        // _playerParty.Init();
-        //--Do we not actually need to re-initialize the player party? it's a cheap way of insta-healing the party after everything, but not intended...
-        //--because it essentially resets a pokemon to its initial state when it would be spawned in. this has consequences of not saving changes to the actual
-        //--mon, such as exp gain and hp loss. i wonder why this was here, and if this was an addition by me or not. i guess i will experiment and see...
-
         SetState( new BattleState_Setup( this ) );
     }
 
@@ -203,28 +194,9 @@ public class BattleSystem : BattleStateMachine
         _isDoublesTrainerBattle = true;
     }
 
-    //--Hopefully this can correctly assign units. The BattleArena passes the gameObject containing the BattleUnit
-    //--that needs to be assigned, as well as a reference to the BattleSystem's appropriate BattleUnit variable.
-    //--The BattleArena class currently also handles the Wild Encounter's BattleUnit case, by passing in the Encounter's
-    //--gameObject as the obj, and the EnemyUnit as the battle unit, instead of an arena gameObject like it would in
-    //--a Trainer Battle, or the Player's sent-out Pokemon
-
     public void AssignUnits_1v1( BattleUnit playerUnit, BattleUnit enemyUnit ){
         _playerUnit = playerUnit;
-        Debug.Log( _playerUnit._pokeSO.pName );
-        
         _enemyUnit = enemyUnit;
-        Debug.Log( _enemyUnit._pokeSO.pName + " obj name: " + name );
-    }
-
-    public void AssignPlayerUnit( BattleUnit playerUnit ){
-        _playerUnit = playerUnit;
-        Debug.Log( _playerUnit._pokeSO.pName );
-    }
-
-    public void AssignEnemyUnit( BattleUnit enemyUnit ){
-        _enemyUnit = enemyUnit;
-        Debug.Log( _enemyUnit._pokeSO.pName + " obj name: " + name );
     }
 
     //--When a Wild Battle is triggered by WildPokemonEvents.OnPlayerEncounter (a player runs into a wild mon),
@@ -242,7 +214,6 @@ public class BattleSystem : BattleStateMachine
     }
 
     private void OpenPartyMenu(){
-        Debug.Log( "OpenPartyMenu Called" );
         _isFaintedSwitch = true;
         _pkmnMenu.gameObject.SetActive( enabled );
         _battleStateEnum = BattleStateEnum.SelectingNextPokemon;
@@ -253,7 +224,6 @@ public class BattleSystem : BattleStateMachine
     
     public void ClosePartyMenu( PokemonClass pokemon ){
         var switchedTo = pokemon;
-        // _pkmnMenu.gameObject.SetActive( !enabled );
         _battleMenu.BattleMenuStateMachine.Pop();
         BattleUIActions.OnSubMenuClosed?.Invoke();
         StartCoroutine( PerformSwitchPokemonCommand( switchedTo ) );
@@ -471,7 +441,7 @@ public class BattleSystem : BattleStateMachine
     //--MAKE A TURN MANAGER INSTEAD HE HE !
     private IEnumerator AfterTurnUpdate(){
         if( _playerUnit.Pokemon.CurrentHP > 0 ){
-            Debug.Log( _playerUnit.Pokemon.CurrentHP );
+            // Debug.Log( _playerUnit.Pokemon.CurrentHP );
             _playerUnit.Pokemon.OnAfterTurn();
             yield return new WaitForSeconds( 0.25f );
             yield return _playerUnit.BattleHUD.UpdateHP();
@@ -480,7 +450,7 @@ public class BattleSystem : BattleStateMachine
         }
 
         if( _enemyUnit.Pokemon.CurrentHP > 0 ){
-            _enemyUnit.Pokemon.OnAfterTurn();
+            // _enemyUnit.Pokemon.OnAfterTurn();
             yield return new WaitForSeconds( 0.25f );
             yield return _enemyHUD.UpdateHP();
             yield return CheckForFaint( _enemyUnit );
@@ -603,7 +573,7 @@ public class BattleSystem : BattleStateMachine
 
         //--If Player's unit has fainted
         if( _playerUnit.Pokemon.SevereStatus?.ID == ConditionID.FNT ){
-            Debug.Log( "HandleFaintedPokemon() Player Unit has fainted" );
+            // Debug.Log( "HandleFaintedPokemon() Player Unit has fainted" );
             //--For singles BattleTypes, we immediately clear the queue and let the player change pokemon
             //--if they have any more remaining in their party. if not, the battle ends, the player should be
             //--brought back to the last visited poke center
@@ -622,7 +592,7 @@ public class BattleSystem : BattleStateMachine
 
         //--If Enemy Unit has fainted
         if( _enemyUnit.Pokemon.SevereStatus?.ID == ConditionID.FNT ){
-            Debug.Log( "HandleFaintedPokemon() Enemy Unit has fainted" );
+            // Debug.Log( "HandleFaintedPokemon() Enemy Unit has fainted" );
             //--For singles BattleTypes, we immediately clear the queue. In the case of an enemy trainer,
             //--we send out their next available pokemon, and if not, the battle is ended because the player won
             if( _enemyUnit.Pokemon == _wildPokemon ){
@@ -726,7 +696,7 @@ public class BattleSystem : BattleStateMachine
         _singleTargetCamera.gameObject.SetActive( true );
 
         int shakeCount = TryToCatchPokemon( _enemyUnit.Pokemon );
-        Debug.Log( _enemyUnit._pokeSO.CatchRate );
+        Debug.Log( _enemyUnit.PokeSO.CatchRate );
         Debug.Log( shakeCount );
 
         for( int i = 0; i < Mathf.Min( shakeCount, 3 ); i++ ){

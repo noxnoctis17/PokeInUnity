@@ -13,7 +13,7 @@ public class BattleUnit : MonoBehaviour
     public BattleHUD BattleHUD { get; set; }
     private BattleAI _battleAI;
     public BattleAI BattleAI => _battleAI;
-    [SerializeField] public PokemonSO _pokeSO; //--why the fuck is this public //--03/26/24 still don't know why this is public lol
+    public PokemonSO PokeSO { get; private set; } //--why the fuck is this public //--03/26/24 still don't know why this is public lol //--04/08/24 made it into a property finally
     [SerializeField] private int _level;
     public int Level => _level;
     [SerializeField] private bool _isAI;
@@ -35,10 +35,10 @@ public class BattleUnit : MonoBehaviour
 
         Pokemon = pokemon;
         _level = pokemon.Level;
-        _pokeSO = pokemon.PokeSO;
+        PokeSO = pokemon.PokeSO;
 
         if( !Pokemon.Equals( _battleSystem.WildPokemon ) ){
-            PokeAnimator.Initialize( _pokeSO );
+            PokeAnimator.Initialize( PokeSO );
         }
         
         PokeAnimator.SetBattleSystem( battleSystem );

@@ -1,6 +1,7 @@
 using UnityEngine;
 using Pathfinding;
 using System;
+using UnityEngine.EventSystems;
 
 public class PlayerReferences : MonoBehaviour
 {
@@ -58,32 +59,6 @@ public class PlayerReferences : MonoBehaviour
       
       //--A* AI Path, will likely not use
       AIPath = GetComponent<AIPath>();
-   }
-
-   public void EnableCharacterControls(){
-      PlayerInput.CharacterControls.Enable();
-      PlayerMovement.AllowMovement = true;
-   }
-
-   public void DisableCharacterControls(){
-      PlayerMovement.AllowMovement = false;
-      PlayerInput.CharacterControls.Disable();
-   }
-
-   public void EnableBattleControls(){
-      PlayerInput.UIBattle.Enable();
-   }
-
-   public void DisableBattleControls(){
-      PlayerInput.UIBattle.Disable();
-   }
-
-   public void EnableUI(){
-      PlayerInput.UI.Enable();
-   }
-
-   public void DisableUI(){
-      PlayerInput.UI.Disable();
    }
 
 }

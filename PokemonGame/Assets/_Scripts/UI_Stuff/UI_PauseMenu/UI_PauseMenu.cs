@@ -36,8 +36,8 @@ public class UI_PauseMenu : MonoBehaviour
 
         Debug.Log( _playerInput );
         //--Reference Assignments
-        PlayerReferences.Instance.DisableCharacterControls();
-        PlayerReferences.Instance.EnableUI();
+        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
+        PlayerReferences.Instance.PlayerController.EnableUI();
 
         //--Events
         _playerInput.UI.Navigate.performed += OnNavigate;
@@ -54,8 +54,8 @@ public class UI_PauseMenu : MonoBehaviour
         _playerInput.UI.Navigate.performed -= OnNavigate;
         ButtonEvents.OnButtonSelected -= SetActiveButton;
 
-        PlayerReferences.Instance.DisableUI();
-        PlayerReferences.Instance.EnableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableUI();
+        PlayerReferences.Instance.PlayerController.EnableCharacterControls();
     }
 
     private void SelectInitialButton(){

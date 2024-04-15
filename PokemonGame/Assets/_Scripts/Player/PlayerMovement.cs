@@ -26,6 +26,7 @@ public class PlayerMovement : MonoBehaviour
         _cameraTransform = PlayerReferences.MainCameraTransform;
         PlayerInput = new PlayerInput();
         GetComponent<PlayerController>().SetPlayerInput( PlayerInput );
+        GetComponent<PlayerController>().SetPlayerMovement( this );
 
         PlayerInput.CharacterControls.Enable();
         PlayerInput.CharacterControls.Walk.started += OnMovementInput;
@@ -125,17 +126,6 @@ public class PlayerMovement : MonoBehaviour
     public IEnumerator MovePlayerIntoBattlePosition( Transform battlePosition ){
         PlayerInput.CharacterControls.Disable();
         yield return new WaitUntil( () => !PlayerInput.CharacterControls.enabled );
-        // transform.position = battlePosition;
         yield return _animator.JumpToBattlePosition( transform, battlePosition );
-
-        // // Debug.Log( "move player into battle position from PlayerMovement" );
-        // Vector3 targetPosition = new Vector3( position.x, _playerTransform.position.y, position.z );
-
-        // //--Calculate the distance to move
-        // Vector3 moveDirection = targetPosition - _playerTransform.position;
-        // float distance = moveDirection.magnitude;
-
-        // //--Move the character controller
-        // _characterController.Move( moveDirection.normalized * distance );
     }
 }

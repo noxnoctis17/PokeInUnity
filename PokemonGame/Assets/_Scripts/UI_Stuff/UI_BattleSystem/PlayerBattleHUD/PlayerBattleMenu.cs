@@ -67,8 +67,8 @@ public class PlayerBattleMenu : MonoBehaviour
         Buttons = null;
 
         //--Controls
-        PlayerReferences.Instance.DisableBattleControls();
-        PlayerReferences.Instance.EnableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableBattleControls();
+        PlayerReferences.Instance.PlayerController.EnableCharacterControls();
     }
 
     private void PushState( State<PlayerBattleMenu> newState ){

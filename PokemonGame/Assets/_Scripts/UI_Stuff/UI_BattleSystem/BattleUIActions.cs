@@ -14,7 +14,7 @@ public class BattleUIActions : MonoBehaviour
     public static Action OnFightMenuClosed;
     public static Action OnPkmnMenuOpened;
     public static Action OnPkmnMenuClosed;
-    public Action<GameObject> OnMenuOpened;
+    public Action<UnityEngine.GameObject> OnMenuOpened;
     public Action<Button> OnButtonSelected;
     public Action<Button> OnButtonDeselected;
 }

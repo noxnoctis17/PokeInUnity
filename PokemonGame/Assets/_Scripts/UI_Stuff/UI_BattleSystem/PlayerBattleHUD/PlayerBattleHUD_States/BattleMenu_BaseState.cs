@@ -79,13 +79,14 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
     private IEnumerator SelectInitialButton(){
         //--Disable Player Controls Immediately
-        PlayerReferences.Instance.DisableCharacterControls();
+        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
 
         //--Give everything some time to assign and set before we select initial button, this will wait for anims eventually
         yield return new WaitForSeconds( 2f );
 
         //--Enable UI Controls After Delay
-        PlayerReferences.Instance.EnableUI();
+        PlayerReferences.Instance.PlayerController.EnableUI();
+        PlayerReferences.Instance.PlayerController.EnableBattleControls();
 
         //--Enable Menu Buttons
         _battleMenu.EnableMenuButtons();
@@ -111,9 +112,14 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     }
 
     private void SetActiveButton( Button button ){
+        var activeScale = new Vector3( 0.4f, 0.4f, 0.4f );
+        var buttonRect = button.GetComponent<RectTransform>();
+
         _previousButton = _activeButton;
         _activeButton = button;
         _memorizeButton = _activeButton;
+
+        buttonRect.localScale = activeScale;
     }
 
     private void ClearSelectedButton(){
@@ -151,13 +157,19 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     //--Increase position value
     private void LeftcreasePositions(){
         foreach( Button button in _battleMenu.Buttons ){
-            var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, -_cardRotationAmount );
-            button.GetComponent<RectTransform>().rotation = newRotation;
+            var buttonRect = button.GetComponent<RectTransform>();
+            var newRotation = buttonRect.rotation * Quaternion.Euler( 0f, 0f, -_cardRotationAmount );
+
+            buttonRect.rotation = newRotation;
 
             if( button == _activeButton ){
                 var setRotation = Quaternion.Euler( 0f, 0f, 45f );
-                button.GetComponent<RectTransform>().rotation = setRotation;
-                button.GetComponent<RectTransform>().SetAsFirstSibling();
+                var inactiveScale = new Vector3( 0.35f, 0.35f, 0.35f );
+
+                buttonRect.rotation = setRotation;
+                buttonRect.localScale = inactiveScale;
+                
+                buttonRect.SetAsFirstSibling();
             }
         }
     }
@@ -165,13 +177,20 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     //--Decrease position value
     private void RightcreasePositions(){
         foreach( Button button in _battleMenu.Buttons ){
-            var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, _cardRotationAmount );
-            button.GetComponent<RectTransform>().rotation = newRotation;
+            var buttonRect = button.GetComponent<RectTransform>();
+            var newRotation = buttonRect.rotation * Quaternion.Euler( 0f, 0f, _cardRotationAmount );
+            var inactiveScale = new Vector3( 0.35f, 0.35f, 0.35f );
+            
+            buttonRect.rotation = newRotation;
 
             if( button == GetBottomCard() ){
                 var setRotation = Quaternion.Euler( 0f, 0f, 0f );
-                button.GetComponent<RectTransform>().rotation = setRotation;
-                button.GetComponent<RectTransform>().SetAsLastSibling();
+                buttonRect.rotation = setRotation;
+
+                buttonRect.SetAsLastSibling();
+            }
+            else{
+                buttonRect.localScale = inactiveScale;
             }
         }
     }

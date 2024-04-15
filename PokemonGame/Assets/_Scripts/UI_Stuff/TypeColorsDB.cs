@@ -25,7 +25,7 @@ public class TypeColorsDB
              //--Electric
 
              //--Grass
-             { PokemonType.Grass, new TypeCardColors( new Color32( 123, 182, 82, 255 ), new Color32( 233, 232, 101, 255 ) ) },
+             { PokemonType.Grass, new TypeCardColors( new Color32( 135, 185, 80, 255 ), new Color32( 233, 232, 101, 255 ) ) },
 
              //--Ice
 

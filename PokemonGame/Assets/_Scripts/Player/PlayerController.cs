@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
@@ -11,22 +12,28 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform _playerCenter;
     [SerializeField] private InputActionProperty _interactButton;
     [SerializeField] private GameObject _pauseMenu;
+    [SerializeField] private EventSystem _eventSystem;
     private PlayerInput _playerInput;
+    private PlayerMovement _playerMovement;
 
     private void OnEnable(){
-        EnableInput();
+        EnableInteract();
         _playerInput.CharacterControls.Interact.performed += OnInteract;
         _playerInput.CharacterControls.PauseMenu.performed += OnPausePressed;
     }
     
     private void OnDisable(){
-        DisableInput();
+        DisableInteract();
         _playerInput.CharacterControls.Interact.performed -= OnInteract;
     }
 
     public void SetPlayerInput( PlayerInput playerInput ){
         _playerInput = playerInput;
         //--this is temporary, i need to reorganize my player controls scripts. Perhaps i'll have a "setup" script that runs and assigns things
+    }
+
+    public void SetPlayerMovement( PlayerMovement playerMovement ){
+        _playerMovement = playerMovement;
     }
     
     private void OnInteract( InputAction.CallbackContext context ){
@@ -44,13 +51,41 @@ public class PlayerController : MonoBehaviour
             _pauseMenu.SetActive( true );
     }
     
-    private void EnableInput(){
+    private void EnableInteract(){
         _interactButton.action.Enable();
     }
 
-    private void DisableInput(){
+    private void DisableInteract(){
         _interactButton.action.Disable();
     }
+
+    public void EnableCharacterControls(){
+      _playerInput.CharacterControls.Enable();
+      _playerMovement.AllowMovement = true;
+   }
+
+   public void DisableCharacterControls(){
+      _playerMovement.AllowMovement = false;
+      _playerInput.CharacterControls.Disable();
+   }
+
+   public void EnableBattleControls(){
+      _playerInput.UIBattle.Enable();
+   }
+
+   public void DisableBattleControls(){
+      _playerInput.UIBattle.Disable();
+   }
+
+   public void EnableUI(){
+    _eventSystem.enabled = true;
+      _playerInput.UI.Enable();
+   }
+
+   public void DisableUI(){
+    _eventSystem.enabled = false;
+      _playerInput.UI.Disable();
+   }
     
 
 #if UNITY_EDITOR

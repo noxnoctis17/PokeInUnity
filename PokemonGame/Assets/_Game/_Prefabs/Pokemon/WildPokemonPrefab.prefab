@@ -142,14 +142,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a9bd87dc27d51c40a7d0c5caf2f5763, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Pokemon:
-    _pokeSO: {fileID: 11400000, guid: 907fa4e48c5f417459b9eec223f7b8c5, type: 2}
-    _level: 20
+  _pokemon:
+    _pokeSO: {fileID: 0}
+    _level: 0
     _showDamageTakenText: {fileID: 0}
     _showMoveUsedText: {fileID: 0}
     HPChanged: 0
   _pokeSO: {fileID: 0}
-  _animator: {fileID: 2578349364860036283}
+  _pokeAnimator: {fileID: 0}
+  CurrentState: {fileID: 0}
   _aggressiveState: {fileID: 5558100218654530813}
   _curiousState: {fileID: 8769125357559437095}
   _idleState: {fileID: 915416553702711842}
@@ -181,7 +182,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2515b1de42c4cf249b7296fdf2423754, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _pokeSO: {fileID: 0}
   _level: 0
   _isAI: 1
 --- !u!114 &5037085297874104730
@@ -509,7 +509,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4993031774147879569}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cafdfd2d5fdd95b419185454117e960a, type: 3}
   m_Name: 
@@ -739,7 +739,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8182975441948800154}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d05f8f4d08dae34facc9df871cb4e10, type: 3}
   m_Name: 
