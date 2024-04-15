@@ -103,6 +103,7 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     public void Clear(){
+        _spriteRenderer.sprite = null;
         _spriteRenderer = null;
         _spriteAnimator = null;
         _camera = null;
@@ -319,6 +320,7 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     public void ResetAnimations(){
+        transform.localPosition = Vector3.zero;
         _spriteRenderer.DOFade( 1, 0f );
         transform.DOScale( Vector3.one, 0f );
     }

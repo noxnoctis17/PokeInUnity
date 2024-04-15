@@ -48,6 +48,11 @@ public class WildPokemon : MonoBehaviour
     public State<WildPokemon> PausedState => _pausedState;
     private bool _initialized;
 
+    private void OnDisable(){
+        if( _initialized )
+            Despawn();
+    }
+
     public void Init( WildPokemonSpawner spawner, PokemonSO pokeSO, int level ){
         Debug.Log( this + " has initialized" );
         Debug.Log( "spawner is: " + _wildPokemonSpawner );
@@ -112,12 +117,6 @@ public class WildPokemon : MonoBehaviour
         //--Deinitialized
         _initialized = false;
 
-        //--Unsubscribe from Events
-        OnPlayerTooFar -= ChangeState;
-        BattleSystem.OnBattleStarted -= DisableCanStartBattle;
-        BattleSystem.OnBattleEnded -= EnableCanStartBattle;
-        _wildPokemonSpawner.OnDespawnCall -= Despawn;
-
         //--Clear the state machine
         WildPokemonStateMachine.ClearActions();
         WildPokemonStateMachine = null;
@@ -135,6 +134,12 @@ public class WildPokemon : MonoBehaviour
         //--Clear Pokemon Data
         _pokemon = null;
         _pokeSO = null;
+
+        //--Unsubscribe from Events
+        OnPlayerTooFar -= ChangeState;
+        BattleSystem.OnBattleStarted -= DisableCanStartBattle;
+        BattleSystem.OnBattleEnded -= EnableCanStartBattle;
+        _wildPokemonSpawner.OnDespawnCall -= Despawn;
 
         //--Despawned event raise
         WildPokemonEvents.OnPokeDespawned?.Invoke(); //--All this does is lower the spawnedAmnt in the spawner

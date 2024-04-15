@@ -60,32 +60,34 @@ public class PlayerController : MonoBehaviour
     }
 
     public void EnableCharacterControls(){
-      _playerInput.CharacterControls.Enable();
-      _playerMovement.AllowMovement = true;
-   }
+        _playerInput.CharacterControls.Enable();
+        _playerMovement.AllowMovement = true;
+    }
 
-   public void DisableCharacterControls(){
-      _playerMovement.AllowMovement = false;
-      _playerInput.CharacterControls.Disable();
-   }
+    public void DisableCharacterControls(){
+        _playerMovement.AllowMovement = false;
+        _playerInput.CharacterControls.Disable();
+    }
 
-   public void EnableBattleControls(){
-      _playerInput.UIBattle.Enable();
-   }
+    public void EnableBattleControls(){
+        _eventSystem.enabled = true;
+        _playerInput.UIBattle.Enable();
+    }
 
-   public void DisableBattleControls(){
-      _playerInput.UIBattle.Disable();
-   }
+    public void DisableBattleControls(){
+        _eventSystem.enabled = false;
+        _playerInput.UIBattle.Disable();
+    }
 
-   public void EnableUI(){
-    _eventSystem.enabled = true;
-      _playerInput.UI.Enable();
-   }
+    public void EnableUI(){
+        _eventSystem.enabled = true;
+        _playerInput.UI.Enable();
+    }
 
-   public void DisableUI(){
-    _eventSystem.enabled = false;
-      _playerInput.UI.Disable();
-   }
+    public void DisableUI(){
+        _eventSystem.enabled = false;
+        _playerInput.UI.Disable();
+    }
     
 
 #if UNITY_EDITOR

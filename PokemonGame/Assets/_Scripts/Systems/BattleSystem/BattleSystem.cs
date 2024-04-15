@@ -148,14 +148,14 @@ public class BattleSystem : BattleStateMachine
             case BattleStateEnum.Busy :
 
                     PlayerReferences.Instance.PlayerController.DisableBattleControls();
-                    PlayerReferences.Instance.PlayerController.DisableUI();
+                    // PlayerReferences.Instance.PlayerController.DisableUI();
 
                 break;
 
             case BattleStateEnum.PlayerAction :
 
                     PlayerReferences.Instance.PlayerController.EnableBattleControls();
-                    PlayerReferences.Instance.PlayerController.EnableUI();
+                    // PlayerReferences.Instance.PlayerController.EnableUI();
                     OnPlayerAction?.Invoke();
 
                 break;
@@ -163,7 +163,7 @@ public class BattleSystem : BattleStateMachine
             case BattleStateEnum.SelectingNextPokemon :
 
                     PlayerReferences.Instance.PlayerController.EnableBattleControls();
-                    PlayerReferences.Instance.PlayerController.EnableUI();
+                    // PlayerReferences.Instance.PlayerController.EnableUI();
                 
                 break;
         }

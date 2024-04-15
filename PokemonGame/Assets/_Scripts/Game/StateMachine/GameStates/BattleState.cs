@@ -19,7 +19,7 @@ public class BattleState : State<GameStateController>
 
         //--Set Controls
         PlayerReferences.Instance.PlayerController.DisableCharacterControls();
-        PlayerReferences.Instance.PlayerController.DisableUI();
+        // PlayerReferences.Instance.PlayerController.DisableUI();
 
         //--Activate BattleSystem Container
         gameStateController.BattleSystemContainer.SetActive( true );

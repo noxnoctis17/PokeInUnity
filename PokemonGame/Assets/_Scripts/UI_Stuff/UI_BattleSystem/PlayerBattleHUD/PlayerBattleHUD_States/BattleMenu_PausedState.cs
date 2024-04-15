@@ -10,7 +10,7 @@ public class BattleMenu_PausedState : State<PlayerBattleMenu>
 
         //--Disable Battle Controls
         PlayerReferences.Instance.PlayerController.DisableBattleControls();
-        PlayerReferences.Instance.PlayerController.DisableUI();
+        // PlayerReferences.Instance.PlayerController.DisableUI();
 
         //--Clear Selected Button so that the BattleHUD UI is no longer navigable or interactable until we return to the base battlehud state
         ClearSelectedButton();
@@ -18,7 +18,7 @@ public class BattleMenu_PausedState : State<PlayerBattleMenu>
 
     public override void ExitState(){
         PlayerReferences.Instance.PlayerController.EnableBattleControls();
-        PlayerReferences.Instance.PlayerController.EnableUI();
+        // PlayerReferences.Instance.PlayerController.EnableUI();
     }
 
     private void ClearSelectedButton(){

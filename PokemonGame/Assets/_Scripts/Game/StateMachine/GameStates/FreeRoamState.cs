@@ -17,7 +17,7 @@ public class FreeRoamState : State<GameStateController>
         //--Set Controls
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
         PlayerReferences.Instance.PlayerController.DisableBattleControls();
-        PlayerReferences.Instance.PlayerController.DisableUI();
+        // PlayerReferences.Instance.PlayerController.DisableUI();
         gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.FreeRoamState );
         Debug.Log( "exploration baaybeee" );
     }

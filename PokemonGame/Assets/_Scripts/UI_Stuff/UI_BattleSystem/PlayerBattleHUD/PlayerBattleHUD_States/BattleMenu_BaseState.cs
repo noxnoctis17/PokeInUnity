@@ -85,7 +85,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
         yield return new WaitForSeconds( 2f );
 
         //--Enable UI Controls After Delay
-        PlayerReferences.Instance.PlayerController.EnableUI();
+        // PlayerReferences.Instance.PlayerController.EnableUI();
         PlayerReferences.Instance.PlayerController.EnableBattleControls();
 
         //--Enable Menu Buttons

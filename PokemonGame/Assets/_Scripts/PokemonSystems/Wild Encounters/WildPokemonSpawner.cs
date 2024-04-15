@@ -38,15 +38,11 @@ public class WildPokemonSpawner : MonoBehaviour
     [SerializeField] private float _wanderRange;
     [SerializeField] private int _spawnedPokemonAmnt;
     [SerializeField] private int _numberToSpawn;
-    [SerializeField] private float _spawnDelay; //--time between spawns
-    [SerializeField] private float _respawnDelayMin; //--minimum time before a pokemon is generated after a despawn event happens
-    [SerializeField] private float _respawnDelayMax; //--maximum time before a pokemon is generated after a despawn event happens
     [SerializeField] private List<Transform> _spawnLocations; //--list of empty game objects to use as the transform.position as spawn points
     private Transform _spawnPoint; //--assign randomly chosen spawnlocation to this for instantiate
     private ObjectPool<GameObject> _spawnPool;
     public int NumberToSpawn => _numberToSpawn;
     public int SpawnedPokemonAmnt => _spawnedPokemonAmnt;
-    public float SpawnDelay => _spawnDelay;
     public List<Transform> SpawnLocations => _spawnLocations;
     // public List<PokemonClass> SpeciesToSpawnList { get; private set; }
     public List<WildEncounterClass> SpeciesToSpawnList { get; private set; }
@@ -74,22 +70,17 @@ public class WildPokemonSpawner : MonoBehaviour
     private void OnEnable(){
         //--Set Events
         WildPokemonEvents.OnPokeDespawned       += DespawnTracker;
-        // BattleSystem.OnBattleStarted            += ChangeStateOnBattleStart;
-        // BattleSystem.OnBattleEnded              += ChangeStateOnBattleEnd;
+        BattleSystem.OnBattleStarted            += ChangeStateOnBattleStart;
+        BattleSystem.OnBattleEnded              += ChangeStateOnBattleEnd;
         OnAddPokemonToSpawn                     += AddPokemonToSpawnList;
         OnSpawnerCanceled                       += ClearToSpawnList;
         OnStateChanged                          += ChangeState;
-
-        // //--Initialize a new List/Queue instance unique to each spawner instance
-        // SpawnerPokemonList = new();
-        // _pokemonToSpawn = new();
-
     }
 
     private void OnDisable() {
         WildPokemonEvents.OnPokeDespawned       -= DespawnTracker;
-        // BattleSystem.OnBattleStarted            -= ChangeStateOnBattleStart;
-        // BattleSystem.OnBattleEnded              -= ChangeStateOnBattleEnd;
+        BattleSystem.OnBattleStarted            -= ChangeStateOnBattleStart;
+        BattleSystem.OnBattleEnded              -= ChangeStateOnBattleEnd;
         OnAddPokemonToSpawn                     -= AddPokemonToSpawnList;
         OnSpawnerCanceled                       -= ClearToSpawnList;
         OnStateChanged                          -= ChangeState;
@@ -101,32 +92,36 @@ public class WildPokemonSpawner : MonoBehaviour
     }
 
     private void Start(){
-        //--Initialize a new List/Queue instance unique to each spawner instance
+        //--Initialize a new ObjectPool per Spawner Instance
         SpeciesToSpawnList = new();
+        //--------------------------------------------
         //------------[ POOL SPAGHETTI ]--------------
+        //--------------------------------------------
         _spawnPool = new( () => {
             //--Create();
             Debug.Log( "SpawnPool.Create()" );
             var spawnObj = Instantiate( _wildPokemonPrefab.gameObject );
             spawnObj.SetActive( false );
             return spawnObj;
-        },
+        },//--------------------------------------------
             //--Get();
             null,
         spawn => {
             //--Release();
             Debug.Log( $"{spawn} has been released" );
             spawn.gameObject.SetActive( false );
-        },
+        },//--------------------------------------------
         spawn => {
             //--Destroy();
             if( spawn != null )
                 Destroy( spawn.gameObject );
 
-        },
+        },//--------------------------------------------
             //--stuff*, starting amount, max amount
         false, _numberToSpawn, _numberToSpawn );
-        //-------------------------------------------
+        //--------------------------------------------
+        //--------------------------------------------
+        //--------------------------------------------
 
         //--Initialize State Machine
         SpawnerStateMachine = new StateMachine<WildPokemonSpawner>( this, _pausedState );
