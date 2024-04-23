@@ -18,8 +18,7 @@ public class BattleState : State<GameStateController>
         TypeColorsDB.Init(); //--Primary and Secondary colors for each Type. Currently used for the Fight card and mini huds. Fight Cards will eventually be assigned as a single image to individual pokemon, and loaded from there.
 
         //--Set Controls
-        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
-        // PlayerReferences.Instance.PlayerController.DisableUI();
+        //--Controls get activated at a later time, when all animations have completed and the menu is finally interactable
 
         //--Activate BattleSystem Container
         gameStateController.BattleSystemContainer.SetActive( true );

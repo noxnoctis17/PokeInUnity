@@ -33,6 +33,13 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
 
     public void OnSubmit( BaseEventData eventData ){
         Debug.Log ("fainted select in button is: " + _isFaintedSelect );
+        //--we're popping the state first because code is sequential
+        //--all battle system stuff would get run to completion before we get to the end, where we'd finally pop the state
+        //--we need to pop the state immediately. i have already made this change in MoveButton. I will likely need to do this
+        //--for the pokeball (soon to be items) button.
+        
+        _pkmnMenu.BattleMenu.BattleMenuStateMachine.Pop();
+
         if( Pokemon.CurrentHP <= 0 ){
             Debug.Log( "You can't select a fainted Pokemon!" ); //message pop up eventually
             return;
@@ -45,7 +52,7 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
 
         if( _isFaintedSelect ){ //--If switch is caused by a faint, we don't add the command to the command queue
             BattleSystem.OnPlayerChoseNextPokemon?.Invoke();
-            _pkmnMenu.BattleSystem.ClosePartyMenu( Pokemon );
+            _pkmnMenu.BattleSystem.SetFaintedSwitchMon( Pokemon );
         }
         else{
             _pkmnMenu.BattleSystem.SetSwitchPokemonCommand( Pokemon );
@@ -54,13 +61,17 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
         }
         
         _pkmnMenu.SetMemoryButton( ThisButton );
-        _pkmnMenu.BattleMenu.BattleMenuStateMachine.Pop();
     }
 
     public void OnCancel( BaseEventData baseEventData ){
-        _pkmnMenu.ClearMemoryButton();
-        BattleUIActions.OnSubMenuClosed?.Invoke();
-        StartCoroutine( WaitForCloseAnims() );
+        if( _isFaintedSelect ){
+            _pkmnMenu.BattleMenu.BattleSystem.DialogueBox.TypeDialogue( "You need to select a Pokemon!" );
+        }
+        else{
+            _pkmnMenu.ClearMemoryButton();
+            BattleUIActions.OnSubMenuClosed?.Invoke();
+            StartCoroutine( WaitForCloseAnims() );
+        }
     }
 
     private IEnumerator WaitForCloseAnims(){

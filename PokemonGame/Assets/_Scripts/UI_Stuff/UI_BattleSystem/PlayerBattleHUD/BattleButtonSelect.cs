@@ -30,7 +30,7 @@ public class BattleButtonSelect : MonoBehaviour, ISelectHandler, IDeselectHandle
     public void OnSubmit( BaseEventData eventData ){
         Debug.Log( "OnSubmit: " + _battleMenu );
         Debug.Log( "OnSubmit: " + _state );
-        _battleMenu.OnChangeState?.Invoke( _state );
+        _battleMenu.OnPushNewState?.Invoke( _state );
     }
     
 }

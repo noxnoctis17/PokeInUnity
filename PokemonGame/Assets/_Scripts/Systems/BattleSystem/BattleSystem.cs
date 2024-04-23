@@ -7,7 +7,7 @@ using DG.Tweening;
 using Cinemachine;
 using UnityEngine.EventSystems;
 
-public enum BattleStateEnum { Start, PlayerAction, Busy, NextTurn, SelectingNextPokemon, Over }
+public enum BattleStateEnum { PlayerAction, Busy, SelectingNextPokemon }
 
 public enum BattleType {
     WildBattle_1v1,
@@ -48,6 +48,7 @@ public class BattleSystem : BattleStateMachine
     //--public/getters/properties----------------------------------------------
     public static BattleSystem Instance;
     public static bool BattleIsActive { get; private set; }
+    public EventSystem EventSystem => _eventSystem;
     public BattleType BattleType => _battleType;
     public BattleArena BattleArena => _battleArena;
     //--Units
@@ -78,22 +79,22 @@ public class BattleSystem : BattleStateMachine
 
     private BattleStateEnum _battleStateEnum;
     public BattleStateEnum BattleStateEnum => _battleStateEnum;
+    public StateStackMachine<BattleSystem> BattleSystemStateMachine { get; private set; }
 
 //================================[ EVENTS ]===================================================================
     public static Action OnBattleStarted;
     public static Action OnBattleEnded;
-    public static Action<BattleSystem> OnPlayerCommandSelect;
-    public static Action OnPlayerAction;
     public static Action OnPlayerPokemonFainted;
     public static Action OnPlayerChoseNextPokemon;
 
 //----------------------------------------------------------------------------
     private int _turnsLeft;
-    // private bool _isFainted;
     private bool _isFaintedSwitch;
     private bool _isSinglesTrainerBattle;
     private bool _isDoublesTrainerBattle;
     private bool _levelUpCompleted;
+    public bool IsSinglesTrainerBattle => _isSinglesTrainerBattle;
+    public bool IsDoublesTrainerBattle => _isDoublesTrainerBattle;
 
 //=========================[ POKEMON AND PLAYER/TRAINER PARTIES ]================================================
     //--private
@@ -126,6 +127,7 @@ public class BattleSystem : BattleStateMachine
     private void OnEnable(){
         Instance = this;
         DamageTakenPopupPrefab = _damageTakenPopupPrefab;
+        // BattleSystemStateMachine = new( this );
 
         DialogueManager.Instance.OnSystemDialogueComplete += SetLevelUpCompleted;
 
@@ -142,31 +144,31 @@ public class BattleSystem : BattleStateMachine
         DialogueManager.Instance.OnSystemDialogueComplete += SetLevelUpCompleted;
     }
 
-    //--no longer using the event system to control player input, need to manually turn the UI controls on and off
-    private void Update(){
-        switch( _battleStateEnum ){
-            case BattleStateEnum.Busy :
+    //--Battle System State Functions. The Current BattleSystem doesn't necessarily progress through states
+    //--In a way that is significant. Currently, the flow of the battle system is mostly hard-coded, and
+    //--depending on the current point in the flow, the state will change between busy, playeraction, and selecting a pokemon
+    //--if the user's pokemon has been fainted (or eventually if forced to switch by shit like self u-turn or enemy roar)
+    //--therefore, based on the actual code executed for each particular state, i don't think it's necessary to manage a state machine
+    //--the one upside of using a state stack machine is being able to literally stack and pop each "state" in any order we might need
+    //--eliminating any manual management of the states beyond pushing or popping the current state. buut...
+    //--we're literally ONLY managing the player's controls in each state. as long as we call the appropriate "state"
+    //--function, the correct set of controls should be set at any given time.
 
-                    PlayerReferences.Instance.PlayerController.DisableBattleControls();
-                    // PlayerReferences.Instance.PlayerController.DisableUI();
+    private void SetBusyState(){
+        Debug.Log( "SetBusyState" );
+        if( PlayerBattleMenu.BattleMenuStateMachine.CurrentState != PlayerBattleMenu.PausedState )
+            PlayerBattleMenu.OnPauseState?.Invoke();
+    }
 
-                break;
+    private void SetPlayerActionState(){
+        Debug.Log( "SetPlayerActionState" );
+        if( PlayerBattleMenu.BattleMenuStateMachine.CurrentState == PlayerBattleMenu.PausedState )
+            PlayerBattleMenu.OnUnpauseState?.Invoke();
+    }
 
-            case BattleStateEnum.PlayerAction :
-
-                    PlayerReferences.Instance.PlayerController.EnableBattleControls();
-                    // PlayerReferences.Instance.PlayerController.EnableUI();
-                    OnPlayerAction?.Invoke();
-
-                break;
-
-            case BattleStateEnum.SelectingNextPokemon :
-
-                    PlayerReferences.Instance.PlayerController.EnableBattleControls();
-                    // PlayerReferences.Instance.PlayerController.EnableUI();
-                
-                break;
-        }
+    private void SetForceSelectPokemonState(){
+        if( PlayerBattleMenu.BattleMenuStateMachine.CurrentState == PlayerBattleMenu.PausedState )
+            PlayerBattleMenu.OnChangeState?.Invoke( _pkmnMenu );
     }
 
     //--Start setting up a battle. Anything that starts a battle needs to set the Battle Type. The Battle Type is responsible
@@ -210,23 +212,30 @@ public class BattleSystem : BattleStateMachine
     }
 
     public void PlayerAction(){
+        Debug.Log( "PlayerAction" );
         _battleStateEnum = BattleStateEnum.PlayerAction;
+        SetPlayerActionState();
     }
 
-    private void OpenPartyMenu(){
+    private void FaintedSwitchPartyMenu(){
         _isFaintedSwitch = true;
-        _pkmnMenu.gameObject.SetActive( enabled );
-        _battleStateEnum = BattleStateEnum.SelectingNextPokemon;
+        SetForceSelectPokemonState();
         OnPlayerPokemonFainted?.Invoke();
         BattleUIActions.OnSubMenuOpened?.Invoke();
         BattleUIActions.OnPkmnMenuOpened?.Invoke();
     }
     
-    public void ClosePartyMenu( PokemonClass pokemon ){
-        var switchedTo = pokemon;
-        _battleMenu.BattleMenuStateMachine.Pop();
-        BattleUIActions.OnSubMenuClosed?.Invoke();
-        StartCoroutine( PerformSwitchPokemonCommand( switchedTo ) );
+    public void SetFaintedSwitchMon( PokemonClass switchedMon ){
+        //--The pkmn menu pops its own state before this function is called, therefore we need to
+        //--Set ourselves back to the busy state.
+        SetBusyState();
+        StartCoroutine( PerformSwitchPokemonCommand( switchedMon ) );
+    }
+
+    private IEnumerator SetForcedSwitchMon( PokemonClass switchedMon ){
+        //--for when something like u-turn or roar happens and we need
+        //--to include it as part of the battle phase coroutine chain
+        yield return PerformSwitchPokemonCommand( switchedMon );
     }
 
     //--Will call this where necessary in HandleFaintedPokemon()
@@ -265,6 +274,7 @@ public class BattleSystem : BattleStateMachine
         //--Add Total Gained Exp. Eventually account for battle participation
         if( TotalPartyExpGain > 0 ){
             _battleStateEnum = BattleStateEnum.Busy;
+            SetBusyState();
 
             //--Gain Exp Dialogue
             yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyExpGain} Exp!" );
@@ -292,7 +302,7 @@ public class BattleSystem : BattleStateMachine
 
                             pokemon.TryLearnMove( pokemon.GetNextLearnableMove(), _learnMoveMenu, this );
 
-                            PlayerBattleMenu.OnChangeState?.Invoke( PlayerBattleMenu.MoveLearnSelectionState );
+                            PlayerBattleMenu.OnPushNewState?.Invoke( PlayerBattleMenu.MoveLearnSelectionState );
                             yield return new WaitUntil( () => !_learnMoveMenu.gameObject.activeSelf );
 
                             if( _learnMoveMenu.ReplacedMove )
@@ -364,7 +374,6 @@ public class BattleSystem : BattleStateMachine
         
         OnBattleEnded?.Invoke();
         BattleUIActions.OnAttackPhaseCompleted?.Invoke();
-        _battleStateEnum = BattleStateEnum.Over;
 
         BattleIsActive = false;
         GameStateController.Instance.GameStateMachine.Pop();
@@ -445,7 +454,7 @@ public class BattleSystem : BattleStateMachine
             _playerUnit.Pokemon.OnAfterTurn();
             yield return new WaitForSeconds( 0.25f );
             yield return _playerUnit.BattleHUD.UpdateHP();
-            Debug.Log( _playerUnit.Pokemon.CurrentHP );
+            // Debug.Log( _playerUnit.Pokemon.CurrentHP );
             yield return CheckForFaint( _playerUnit );
         }
 
@@ -582,7 +591,7 @@ public class BattleSystem : BattleStateMachine
 
                 if( nextPokemon != null ){
                     _commandQueue.Clear();
-                    OpenPartyMenu();
+                    FaintedSwitchPartyMenu();
                 }
                 else{
                     yield return PostBattleScreen();
@@ -624,6 +633,7 @@ public class BattleSystem : BattleStateMachine
         //--I need to see how this functions when it's added as a BattleCommand, rather than just hard
         //--executed, but i can save that for another time, for now.
         _battleStateEnum = BattleStateEnum.Busy;
+        SetBusyState();
 
         yield return _enemyUnit.PokeAnimator.PlayExitBattleAnimation( EnemyTrainer.transform );
         _enemyUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon
@@ -638,13 +648,15 @@ public class BattleSystem : BattleStateMachine
     //--When the player's pokemon faints, this is called explicitly, rather than as a command added to the command queue
     public IEnumerator PerformSwitchPokemonCommand( PokemonClass pokemon ){
         //--for the future if i want to target the previous pokemon with a move (pursuit), specificy the previous pokemon in this class? //--yes 4/12/2023
-        _battleStateEnum = BattleStateEnum.Busy;
+        // _battleStateEnum = BattleStateEnum.Busy;
+        // SetBusyState();
         _playerUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon. Will need to set a previous pokemon soon
 
         if( !_isFaintedSwitch )
             yield return _dialogueBox.TypeDialogue( $"{_playerUnit.Pokemon.PokeSO.pName}, come back!" );
 
         yield return _playerUnit.PokeAnimator.PlayExitBattleAnimation( PlayerReferences.Instance.PlayerCenter );
+        // _playerUnit.PokeAnimator.ResetAnimations(); //--Clear's the animator which resets the animations before initialization of the incoming mon
         
         _playerUnit.Setup( pokemon, _playerHUD, this );
         // _fightMenu.SetUpMoves( pokemon.Moves );
@@ -654,26 +666,29 @@ public class BattleSystem : BattleStateMachine
         yield return new WaitForSeconds( 0.25f );
         // BattleUIActions.OnCommandAnimationsCompleted?.Invoke();
 
-        if( _isFaintedSwitch )
+        if( _isFaintedSwitch ){
+            //--During a fainted switch, the menu gets paused, but because fainted
+            //--switch happens after the command queue, there's never an opportunity for
+            //--the menu to become unpaused, therefore it needs to happen here in this
+            //--fainted switch conditional area
+            PlayerAction();
             _isFaintedSwitch = false;
+        }
+
         yield return new WaitForSeconds( 0.5f );
-        PlayerAction();
+        
     }
 
     public IEnumerator PerformRunFromBattleCommand(){
-        Debug.Log( "You got away!" );
+        // Debug.Log( "You got away!" );
         yield return new WaitForSeconds( 1f );
         EndBattle();
     }
 
     public IEnumerator ThrowPokeball(){
-        Debug.Log( "threw pokeball" );
-        _battleStateEnum = BattleStateEnum.Busy;
-
-        if( _isSinglesTrainerBattle || _isDoublesTrainerBattle ){
-            yield return _dialogueBox.TypeDialogue( $"You can't steal another trainer's Pokemon!" );
-            yield break;
-        }
+        // Debug.Log( "threw pokeball" );
+        // _battleStateEnum = BattleStateEnum.Busy;
+        // SetBusyState();
 
         var playerBallPosition = PlayerReferences.Instance.PlayerCenter.position;
 
@@ -759,6 +774,9 @@ public class BattleSystem : BattleStateMachine
 //--------------------------------------------------------------------------------------------------------
 
     public void DetermineCommandOrder(){
+        SetBusyState();
+        Debug.Log( "DetermineCommandOrder()" );
+
         _commandList = _commandList.OrderBy( prio => prio.CommandPriority ).ThenBy( prio => prio.AttackPriority).ThenBy( prio => prio.UnitAgility ).ToList();
 
         for( int i = _commandList.Count - 1; i >= 0; i-- ){
@@ -775,6 +793,8 @@ public class BattleSystem : BattleStateMachine
         _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
 
+    //--Currently all player options lead to this, where the ai simply chooses a random move
+    //--which then gets added to the command list, and then the priority sorting -> queue execution happens
     public void SetEnemyMoveCommand( BattleUnit attacker, MoveClass move ){
         _useMoveCommand = new UseMoveCommand( move, attacker, _playerUnit, this );
         _commandList.Add( _useMoveCommand );
@@ -805,7 +825,6 @@ public class BattleSystem : BattleStateMachine
 
     public IEnumerator ExecuteCommandQueue(){
         while( _commandQueue.Count > 0 ){
-            _battleStateEnum = BattleStateEnum.Busy;
             yield return _commandQueue.Dequeue().ExecuteBattleCommand();
             _turnsLeft = _commandQueue.Count; //--i have no idea what i was going to use this for
 

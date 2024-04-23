@@ -99,7 +99,7 @@ public class WildPokemonSpawner : MonoBehaviour
         //--------------------------------------------
         _spawnPool = new( () => {
             //--Create();
-            Debug.Log( "SpawnPool.Create()" );
+            // Debug.Log( "SpawnPool.Create()" );
             var spawnObj = Instantiate( _wildPokemonPrefab.gameObject );
             spawnObj.SetActive( false );
             return spawnObj;
@@ -108,7 +108,7 @@ public class WildPokemonSpawner : MonoBehaviour
             null,
         spawn => {
             //--Release();
-            Debug.Log( $"{spawn} has been released" );
+            // Debug.Log( $"{spawn} has been released" );
             spawn.gameObject.SetActive( false );
         },//--------------------------------------------
         spawn => {
@@ -223,7 +223,7 @@ public class WildPokemonSpawner : MonoBehaviour
 
     public WildEncounterClass RandomPokemon(){
         WildEncounterClass pokemon = null;
-        Debug.Log( _randomNumber );
+        // Debug.Log( _randomNumber );
         int prevRand = _randomNumber;
         _totalWeight = 0;
 
@@ -236,7 +236,7 @@ public class WildPokemonSpawner : MonoBehaviour
         if( _randomNumber == prevRand )
             _randomNumber = UnityEngine.Random.Range( 0, _totalWeight ) + 1;
 
-        Debug.Log( _randomNumber );
+        // Debug.Log( _randomNumber );
 
         for( int i = 0; i < _table.Length; i++ ){
             if( _randomNumber <= _table[i] ){
@@ -249,7 +249,7 @@ public class WildPokemonSpawner : MonoBehaviour
             }
         }
 
-        Debug.Log( pokemon.PokeSO.pName + " was generated" );
+        // Debug.Log( pokemon.PokeSO.pName + " was generated" );
         return pokemon;
     }
     // public PokemonClass RandomPokemon(){

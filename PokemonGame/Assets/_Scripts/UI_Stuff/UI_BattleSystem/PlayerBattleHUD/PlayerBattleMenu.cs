@@ -24,7 +24,10 @@ public class PlayerBattleMenu : MonoBehaviour
     public StateStackMachine<PlayerBattleMenu> BattleMenuStateMachine { get; private set; }
     public Button[] Buttons { get; private set; }
     public PlayerInput PlayerInput { get; private set; }
+    public Action<State<PlayerBattleMenu>> OnPushNewState;
     public Action<State<PlayerBattleMenu>> OnChangeState;
+    public Action OnPauseState;
+    public Action OnUnpauseState;
 
     //================================================================================
 
@@ -34,9 +37,12 @@ public class PlayerBattleMenu : MonoBehaviour
         BattleMenuStateMachine = new StateStackMachine<PlayerBattleMenu>( this );
 
         //--Events
-        OnChangeState += PushState;
+        OnPushNewState   += PushNewState;
+        OnChangeState += ChangeState;
+        OnPauseState    += PauseMenu;
+        OnUnpauseState  += UnpauseMenu;
         GameStateController.Instance.OnDialogueStateEntered += PauseMenu;
-        GameStateController.Instance.OnDialogueStateExited += UnPauseMenu;
+        GameStateController.Instance.OnDialogueStateExited  += UnpauseMenu;
         
         //--Reference Assignments
         PlayerInput = PlayerReferences.Instance.PlayerInput;
@@ -49,15 +55,17 @@ public class PlayerBattleMenu : MonoBehaviour
         ResetMenuPositions();
 
         //--Push base menu state
-        PushState( _baseState );
+        PushNewState( _baseState );
     }
 
     private void OnDisable(){
         Debug.Log( "Disable PlayerBattleMenu ");
         //--Events
-        OnChangeState -= PushState;
+        OnPushNewState   -= PushNewState;
+        OnPauseState    -= PauseMenu;
+        OnUnpauseState  -= UnpauseMenu;
         GameStateController.Instance.OnDialogueStateEntered -= PauseMenu;
-        GameStateController.Instance.OnDialogueStateExited -= UnPauseMenu;
+        GameStateController.Instance.OnDialogueStateExited  -= UnpauseMenu;
 
         //--State Machine
         BattleMenuStateMachine.ClearStack();
@@ -71,15 +79,19 @@ public class PlayerBattleMenu : MonoBehaviour
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
     }
 
-    private void PushState( State<PlayerBattleMenu> newState ){
+    private void PushNewState( State<PlayerBattleMenu> newState ){
         BattleMenuStateMachine.Push( newState );
+    }
+
+    private void ChangeState(  State<PlayerBattleMenu> newState  ){
+        BattleMenuStateMachine.ChangeState( newState );
     }
 
     private void PauseMenu(){
         BattleMenuStateMachine.Push( _pauseMenuState );
     }
 
-    private void UnPauseMenu(){
+    private void UnpauseMenu(){
         BattleMenuStateMachine.Pop();
     }
 
@@ -111,20 +123,22 @@ public class PlayerBattleMenu : MonoBehaviour
         }
     }
 
-// #if UNITY_EDITOR
-//     private void OnGUI(){
-//         var style = new GUIStyle();
-//         style.fontSize = 30;
-//         style.fontStyle = FontStyle.Bold;
-//         style.normal.textColor = Color.black;
+#if UNITY_EDITOR
+    private void OnGUI(){
+        var style = new GUIStyle();
+        style.font = Resources.Load<Font>( "Fonts/Gotham Bold Outlined" );
+        style.fontSize = 30;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = Color.white;
+        style.richText = true;
 
-//         GUILayout.BeginArea( new Rect( 0, 0, 600, 500 ) );
-//         GUILayout.Label( "STATE STACK", style );
-//         foreach( var state in BattleMenuStateMachine.StateStack ){
-//             GUILayout.Label( state.GetType().ToString(), style );
-//         }
-//         GUILayout.EndArea();
-//     }
-// #endif
+        GUILayout.BeginArea( new Rect( 0, 0, 600, 500 ) );
+        GUILayout.Label( "STATE STACK", style );
+        foreach( var state in BattleMenuStateMachine.StateStack ){
+            GUILayout.Label( state.GetType().ToString(), style );
+        }
+        GUILayout.EndArea();
+    }
+#endif
 
 }

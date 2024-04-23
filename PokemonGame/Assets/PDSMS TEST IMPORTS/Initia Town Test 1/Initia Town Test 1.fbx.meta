@@ -7,8 +7,43 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: chip_kusa
+    second: {fileID: 2100000, guid: e4959420a73a2ca4a9d76cd6778ba7e8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chip_kusa.001
+    second: {fileID: 2100000, guid: 1e7985d5f121bdb439cb207d4491c98a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: chip_mado_1
     second: {fileID: 2100000, guid: 9adb6de7cc36db24c9d1135111d2e5aa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chip_mado_1.001
+    second: {fileID: 2100000, guid: 163704d1127396249ab7ccb2dada62c0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chip_wood_a
+    second: {fileID: 2100000, guid: c72b55499425e04458c9263c24f1c3cf, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chip_wood_a.001
+    second: {fileID: 2100000, guid: 9c3bf50263b398d4ca45fdf86ae65c19, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chip_wood_b
+    second: {fileID: 2100000, guid: df42141144f3d104b8c6b6e34be7e532, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chip_wood_b.001
+    second: {fileID: 2100000, guid: 155de5296d872ae4ba7859d77298a540, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -77,8 +112,18 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: h_mado_lm1.001
+    second: {fileID: 2100000, guid: cf996977eab1d5046b9ff1248716c456, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: h_mado_lm2
     second: {fileID: 2100000, guid: b75b5f96130edae41b302d2c0fc244c7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: h_mado_lm2.001
+    second: {fileID: 2100000, guid: f7639107228396240ae74a2610e58a0c, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -109,6 +154,16 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: hashi01a.001
     second: {fileID: 2100000, guid: 4fefcdfbdac3bec4ca4fc71feeb40fa6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ike01
+    second: {fileID: 2100000, guid: 9ffa1e4e794f1664b9626d1ee9f99da7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ike01.001
+    second: {fileID: 2100000, guid: 7e9cc197ef8ca8c4ba98909ad263fe83, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -222,6 +277,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: r119_gake01.001
+    second: {fileID: 2100000, guid: 6b53045dd065caf4cab5739b9e266e2b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: sea_gake01
     second: {fileID: 2100000, guid: 826ea9c8738e9d74ca3f88a31452465c, type: 2}
   - first:
@@ -257,8 +317,18 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: t102_01.001
+    second: {fileID: 2100000, guid: 8b4dcb2b27f8ea246b64f7c8ac1fdbcf, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: t1_h_post01_lm1
     second: {fileID: 2100000, guid: 146a3f51ae35bb842a182929734b31f6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: t1_h_post01_lm1.001
+    second: {fileID: 2100000, guid: 1b0d5823655a2804d8e2ad5fbe3c081a, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -267,13 +337,48 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: t1h03_lm1.001
+    second: {fileID: 2100000, guid: 828b844c329b2694e9315c51a207ab4e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: t1h04_lm1
     second: {fileID: 2100000, guid: 07e8e477dcd28144f9d3bd3ef663052f, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: t1h04_lm1.001
+    second: {fileID: 2100000, guid: e9c9ac2f5e5bfde44ae8155e26fdb311, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: t1hy1_lm1
     second: {fileID: 2100000, guid: b9443e153024fcd4b8aa9884e4e90a2b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: t1hy1_lm1.001
+    second: {fileID: 2100000, guid: 612baf5415b3aba43af13975a787678e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: touka_house01
+    second: {fileID: 2100000, guid: fa2e45e90c258ae4d9f299337b2abc9a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: touka_house01.001
+    second: {fileID: 2100000, guid: 2cdea6182820a614bbd906ea38b539ca, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: touka_waku01
+    second: {fileID: 2100000, guid: efee2cd8f44b72a409ac785d8492eaf1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: touka_waku01.001
+    second: {fileID: 2100000, guid: 2b10f261d6608814e9eea355a8824ab8, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

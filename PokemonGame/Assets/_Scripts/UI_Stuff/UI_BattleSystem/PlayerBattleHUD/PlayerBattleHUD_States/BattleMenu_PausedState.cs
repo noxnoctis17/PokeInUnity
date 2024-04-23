@@ -1,11 +1,12 @@
 using NoxNoctisDev.StateMachine;
-using UnityEngine.EventSystems;
+using UnityEngine;
 
 public class BattleMenu_PausedState : State<PlayerBattleMenu>
 {
     private PlayerBattleMenu _battleMenu;
 
     public override void EnterState( PlayerBattleMenu owner ){
+        Debug.Log( "Entering BattleMenu_PausedState" );
         _battleMenu = owner;
 
         //--Disable Battle Controls
@@ -17,12 +18,13 @@ public class BattleMenu_PausedState : State<PlayerBattleMenu>
     }
 
     public override void ExitState(){
+        Debug.Log( "Exiting BattleMenu_PausedState" );
         PlayerReferences.Instance.PlayerController.EnableBattleControls();
         // PlayerReferences.Instance.PlayerController.EnableUI();
     }
 
     private void ClearSelectedButton(){
-        EventSystem.current.SetSelectedGameObject( null );
+        _battleMenu.BattleSystem.EventSystem.SetSelectedGameObject( null );
 
         //--Disable Menu Buttons
         _battleMenu.DisableMenuButtons();

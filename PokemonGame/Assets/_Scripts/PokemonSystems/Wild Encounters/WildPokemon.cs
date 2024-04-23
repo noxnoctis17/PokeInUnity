@@ -54,8 +54,8 @@ public class WildPokemon : MonoBehaviour
     }
 
     public void Init( WildPokemonSpawner spawner, PokemonSO pokeSO, int level ){
-        Debug.Log( this + " has initialized" );
-        Debug.Log( "spawner is: " + _wildPokemonSpawner );
+        // Debug.Log( this + " has initialized" );
+        // Debug.Log( "spawner is: " + _wildPokemonSpawner );
         _initialized = false;
 
         //--References
@@ -110,7 +110,7 @@ public class WildPokemon : MonoBehaviour
     }
 
     public void Despawn(){
-        Debug.Log( this + " has despawned" );
+        // Debug.Log( this + " has despawned" );
         //--Stop despawn timer if it's still running
         StopAllCoroutines();
 

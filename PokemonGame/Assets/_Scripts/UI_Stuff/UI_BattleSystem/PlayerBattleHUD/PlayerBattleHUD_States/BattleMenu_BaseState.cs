@@ -53,7 +53,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     }
 
     public override void PauseState(){
-        Debug.Log( "Paused Base Menu State" );
+        Debug.Log( "PauseState from BattleMenu_BaseState" );
         //--Events
         _playerInput.UIBattle.Navigate.performed -= OnNavigate;
         _battleUIActions.OnButtonSelected -= SetActiveButton;
@@ -66,15 +66,16 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     }
 
     public override void ReturnToState(){
+        Debug.Log( "Returning to BattleMenu_BaseState" );
         //--Events
         _playerInput.UIBattle.Navigate.performed += OnNavigate;
         _battleUIActions.OnButtonSelected += SetActiveButton;
 
-        //--Select Memorize Button
-        SelectMemorizeButton();
-
         //--Enable Menu Buttons
         _battleMenu.EnableMenuButtons();
+
+        //--Select Memorize Button
+        SelectMemorizeButton();
     }
 
     private IEnumerator SelectInitialButton(){
@@ -105,6 +106,8 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     }
 
     private void SelectMemorizeButton(){
+        // Debug.Log( "EventSystem in battlesystem is: " + _battleMenu.BattleSystem.EventSystem.enabled );
+        // Debug.Log( "memorize button is: " + _memorizeButton );
         if( _memorizeButton == null )
             _memorizeButton = _battleMenu.FightButton;
 
@@ -123,7 +126,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     }
 
     private void ClearSelectedButton(){
-        EventSystem.current.SetSelectedGameObject( null );
+        _battleMenu.BattleSystem.EventSystem.SetSelectedGameObject( null );
     }
 
     private void OnNavigate( InputAction.CallbackContext context ){

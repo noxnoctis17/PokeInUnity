@@ -20,7 +20,7 @@ public class TrainerClass : MonoBehaviour, IInteractable
 
 
 	public void Interact(){
-        Debug.Log( $"You've Interacted With {this} Trainer!" );
+        Debug.Log( $"You've Interacted With Trainer {this}!" );
 
         foreach( DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>() ){
             if( responseEvents.DialogueSO == _dialogueSO ){

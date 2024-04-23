@@ -35,10 +35,11 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
 
     public void OnSubmit( BaseEventData baseEventData ){
         BattleUIActions.OnSubMenuClosed?.Invoke();
-        _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
         _fightMenu.SetMemoryButton( _thisButton );
         BattleUIActions.OnCommandUsed?.Invoke();
+        Debug.Log( "MoveButton OnSubmit, Popping Menu State" );
         _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
+        _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
     }
 
     public void OnCancel( BaseEventData baseEventData ){

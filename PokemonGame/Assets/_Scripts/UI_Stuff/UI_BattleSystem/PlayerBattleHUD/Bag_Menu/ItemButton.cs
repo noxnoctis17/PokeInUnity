@@ -22,10 +22,16 @@ public class ItemButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     }
 
     public void OnSubmit( BaseEventData eventData ){
+        _bagMenu.BattleMenu.BattleMenuStateMachine.Pop();
+        
+        if( _battleSystem.IsSinglesTrainerBattle || _battleSystem.IsDoublesTrainerBattle ){
+            StartCoroutine ( _battleSystem.DialogueBox.TypeDialogue( $"You can't steal another trainer's Pokemon!" ) );
+            return;
+        }
+        
         BattleUIActions.OnSubMenuClosed?.Invoke();
         _battleSystem.SetUseItemCommand( /*eventually will be the item or something*/ );
         BattleUIActions.OnCommandUsed?.Invoke();
-        _bagMenu.BattleMenu.BattleMenuStateMachine.Pop();
     }
 
     private IEnumerator WaitForCloseAnims(){

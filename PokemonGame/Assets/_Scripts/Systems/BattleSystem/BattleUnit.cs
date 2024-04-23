@@ -94,7 +94,7 @@ public class BattleUnit : MonoBehaviour
 
         float modifiers = random * type * critical;
         float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attack / defense / 50 + 2 ) * modifiers;
-        int damage = ( int )damageCalc;
+        int damage = (int)Mathf.Max( damageCalc, 1f );
 
         target.UpdateHP( damage );
         ShowDamageTaken( damage, transform.position );

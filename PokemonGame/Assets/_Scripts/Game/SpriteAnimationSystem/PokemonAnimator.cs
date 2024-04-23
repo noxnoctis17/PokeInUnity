@@ -98,11 +98,12 @@ public class PokemonAnimator : MonoBehaviour
         _currentAnimSheet = _defaultAnimSheet;
 
         SetAllSpriteSheets( pokeSO );
-        ResetAnimations();
+        // ResetAnimations();
         _initialized = true;
     }
 
     public void Clear(){
+        ResetAnimations();
         _spriteRenderer.sprite = null;
         _spriteRenderer = null;
         _spriteAnimator = null;

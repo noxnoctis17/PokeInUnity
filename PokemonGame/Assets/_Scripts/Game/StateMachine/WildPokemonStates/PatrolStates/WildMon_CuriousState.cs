@@ -7,7 +7,7 @@ public class WildMon_CuriousState : State<WildPokemon>
     private WildPokemon _wildPokemon;
     
     public override void EnterState( WildPokemon owner ){
-        Debug.Log( _wildPokemon + "Enter State: " + this );
+        // Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
         _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Walking );
         _wildPokemon.AgentMon.SetPath( null );

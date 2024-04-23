@@ -14,8 +14,8 @@ public class RunButton : MonoBehaviour, ISubmitHandler, ICancelHandler
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        _battleSystem.SetRunFromBattleCommand();
         _battleMenu.BattleMenuStateMachine.Pop();
+        _battleSystem.SetRunFromBattleCommand();
         BattleUIActions.OnCommandUsed?.Invoke();
         BattleUIActions.OnSubMenuClosed?.Invoke();
     }

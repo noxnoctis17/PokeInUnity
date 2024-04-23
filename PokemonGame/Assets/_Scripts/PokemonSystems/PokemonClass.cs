@@ -42,7 +42,8 @@ public class PokemonClass
 //--------------------------------------------------------------------------------------------
 //------------------------------------[EFFORT VALUES]-----------------------------------------
 //--------------------------------------------------------------------------------------------
-    public int EffortPoints { get; private set; }
+    public int GainedEffortPoints { get; private set; }
+    public int RemainingEffortPoints { get; private set; }
     public int HP_EVs { get; private set; }
     public int ATK_EVs { get; private set; }
     public int DEF_EVs { get; private set; }
@@ -106,7 +107,7 @@ public class PokemonClass
     }
 
     public void GainExp( int gainedExp, int gainedEP ){
-        EffortPoints += gainedEP;
+        GainedEffortPoints += gainedEP;
 
         if( _level == PokemonSO.MAXLEVEL )
             return;
@@ -291,7 +292,6 @@ public class PokemonClass
     }
 
     public void OnAfterTurn(){
-        Debug.Log( "OnAfterTurn()" );
         SevereStatus?.OnAfterTurn?.Invoke( this );
         VolatileStatus?.OnAfterTurn?.Invoke( this );
     }
