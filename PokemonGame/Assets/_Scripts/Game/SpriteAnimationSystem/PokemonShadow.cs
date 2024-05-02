@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 public class PokemonShadow : MonoBehaviour
@@ -30,6 +31,10 @@ public class PokemonShadow : MonoBehaviour
         _spriteAnimator = new SpriteAnimator( _spriteRenderer );
 
         Initialize();
+    }
+
+    private void OnDestroy(){
+        DOTween.KillAll();
     }
 
     private void Initialize(){

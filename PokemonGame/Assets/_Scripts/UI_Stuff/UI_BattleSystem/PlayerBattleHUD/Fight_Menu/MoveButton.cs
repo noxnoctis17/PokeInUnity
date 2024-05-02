@@ -34,12 +34,17 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     }
 
     public void OnSubmit( BaseEventData baseEventData ){
-        BattleUIActions.OnSubMenuClosed?.Invoke();
-        _fightMenu.SetMemoryButton( _thisButton );
-        BattleUIActions.OnCommandUsed?.Invoke();
-        Debug.Log( "MoveButton OnSubmit, Popping Menu State" );
-        _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
-        _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
+        if( AssignedMove.PP > 0){
+            BattleUIActions.OnSubMenuClosed?.Invoke();
+            _fightMenu.SetMemoryButton( _thisButton );
+            BattleUIActions.OnCommandUsed?.Invoke();
+            Debug.Log( "MoveButton OnSubmit, Popping Menu State" );
+            _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
+            _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
+        }
+        else{
+            StartCoroutine( _battleSystem.DialogueBox.TypeDialogue( "There's no PP left!" ) );
+        }
     }
 
     public void OnCancel( BaseEventData baseEventData ){

@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -40,6 +39,10 @@ public class PokemonParty : MonoBehaviour
         else{
             //--Add to PC
         }
+    }
+
+    public void RestoreSavedParty( List<PokemonClass> restoredParty ){
+        _partyPokemon = restoredParty;
     }
     
 }

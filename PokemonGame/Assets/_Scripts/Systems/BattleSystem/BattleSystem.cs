@@ -317,7 +317,7 @@ public class BattleSystem : BattleStateMachine
 
                 //--Try Learn Moves
                 if( pokemon.GetNextLearnableMove() != null ){
-                    if( pokemon.Moves.Count == PokemonSO.MAXMOVES ){
+                    if( pokemon.ActiveMoves.Count == PokemonSO.MAXMOVES ){
                         yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} is trying to learn {pokemon.GetNextLearnableMove().MoveSO.MoveName}," );
                         yield return _dialogueBox.TypeDialogue( $"But it can't use more than four moves during battle." );
                         yield return _dialogueBox.TypeDialogue( $"Which move will you set aside?" );
@@ -407,8 +407,7 @@ public class BattleSystem : BattleStateMachine
         }
 
         var moveEffects = move.MoveSO.MoveEffects; //--Secondary effects on moves such as burn, para, stat down, etc.
-        // attacker.Pokemon.CurrentPP = attacker.Pokemon.CurrentPP - move.PP; //--Reduces the PP bar by the move's PP //--REDUCE MOVE PP HERE WHEN YOU REIMPLEMENT IT
-        // yield return attacker.BattleHUD.UpdatePP(); //--Updates the PP on the hud
+        move.PP--; //--Reduces the move's PP by 1
 
         //--doing it this way instead of yielding should make it not slow battles down. eventually i will make a queue
         //--that takes these in instead, and not only runs them onto a smaller update bar somewhere in the UI so that

@@ -17,7 +17,7 @@ public class PokemonClass
     public bool IsPlayerUnit { get; private set; }
     public bool IsEnemyUnit { get; private set; }
     public int CurrentHP { get; set; }
-    public List<MoveClass> Moves { get; set; }
+    public List<MoveClass> ActiveMoves { get; set; }
     public Dictionary<Stat, int> Stats { get; private set; }
     public Dictionary<Stat, int> StatChange { get; private set; }
     public Dictionary<PokemonType, TypeCardColors> TypeColors { get; private set; }
@@ -52,7 +52,7 @@ public class PokemonClass
     public int SPE_EVs { get; private set; }
 
 //--------------------------------------------------------------------------------------------
-//------------------------------------[ CONSTRUCTOR ]-----------------------------------------
+//------------------------------------[ CONSTRUCTORS ]----------------------------------------
 //--------------------------------------------------------------------------------------------
 
     public PokemonClass( PokemonSO pokeSO, int level ){
@@ -60,6 +60,34 @@ public class PokemonClass
         _level = level;
 
         Init();
+    }
+
+    public PokemonClass( PokemonSaveData saveData ){
+        _pokeSO = PokemonDB.GetPokemonBySpecies( saveData.Species );
+        _level = saveData.Level;
+        CurrentHP = saveData.CurrentHP;
+        Exp = saveData.Exp;
+        GainedEffortPoints = saveData.GainedEffortPoints;
+        HP_EVs = saveData.HP_EVs;
+        ATK_EVs = saveData.ATK_EVs;
+        DEF_EVs = saveData.DEF_EVs;
+        SPATK_EVs = saveData.SPATK_EVs;
+        SPDEF_EVs = saveData.SPDEF_EVs;
+        SPE_EVs = saveData.SPE_EVs;
+
+        if( saveData.SevereStatus != null )
+            SevereStatus = ConditionsDB.Conditions[saveData.SevereStatus.Value];
+        else
+            SevereStatus = null;
+
+        //--Restore Moves
+        ActiveMoves = saveData.ActiveMoves.Select( s => new MoveClass( s ) ).ToList(); //--Active Moves
+        // LearnedMoves = saveData.LearnedMoves.Select( s => new MoveClass( s ) ).ToList(); //--Full list of known moves, not including active moves. TODO
+
+        CalculateStats();
+
+        ResetStatChanges();
+        VolatileStatus = null;
     }
 
 //--------------------------------------------------------------------------------------------
@@ -72,16 +100,14 @@ public class PokemonClass
     }
     
     public void Init(){
-        Moves = new List<MoveClass>();
-
         //--------GENERATE MOVES-----------
-
+        ActiveMoves = new List<MoveClass>();
         foreach( var move in PokeSO.LearnableMoves ){
             if( move.LevelLearned <= Level ){
-                Moves.Add( new MoveClass( move.MoveSO ) );
+                ActiveMoves.Add( new MoveClass( move.MoveSO ) );
             }
 
-            if( Moves.Count >= PokemonSO.MAXMOVES )
+            if( ActiveMoves.Count >= PokemonSO.MAXMOVES )
                 break;
         }
 
@@ -90,12 +116,33 @@ public class PokemonClass
             Exp = PokeSO.GetExpForLevel( Level );
         // Debug.Log( "Exp After setting in PokemonClass.Init(): " + Exp );
 
+
         CalculateStats();
         CurrentHP = MaxHP;
 
         ResetStatChanges();
         SevereStatus = null;
         VolatileStatus = null;
+    }
+
+    public PokemonSaveData CreateSaveData(){
+        var saveData = new PokemonSaveData(){
+            Species = _pokeSO.Species,
+            Level = _level,
+            CurrentHP = CurrentHP,
+            Exp = Exp,
+            GainedEffortPoints = GainedEffortPoints,
+            HP_EVs = HP_EVs,
+            ATK_EVs = ATK_EVs,
+            DEF_EVs = DEF_EVs,
+            SPATK_EVs = SPATK_EVs,
+            SPDEF_EVs = SPDEF_EVs,
+            SPE_EVs = SPE_EVs,
+            SevereStatus = SevereStatus?.ID,
+            ActiveMoves = ActiveMoves.Select( m => m.CreateSaveData() ).ToList(),
+        };
+
+        return saveData;
     }
 
     public void SetAsPlayerUnit(){
@@ -153,8 +200,8 @@ public class PokemonClass
     }
 
     public void TryLearnMove( LearnableMoves newMove, LearnMoveMenu moveMenu, BattleSystem battleSystem = null ){
-        if( Moves.Count < PokemonSO.MAXMOVES ){
-            Moves.Add( new MoveClass( newMove.MoveSO ) );
+        if( ActiveMoves.Count < PokemonSO.MAXMOVES ){
+            ActiveMoves.Add( new MoveClass( newMove.MoveSO ) );
 
             if( battleSystem == null )
                 DialogueManager.Instance.OnStringDialogueEvent?.Invoke( $"{_pokeSO.pName} learned {newMove.MoveSO.MoveName}!" );
@@ -162,15 +209,15 @@ public class PokemonClass
         else{
             //--Forget a Move After Battle
             battleSystem.LearnMoveMenu.gameObject.SetActive( true ); //--Eventually this will simply open the summary screen under the context of learning a new move
-            moveMenu.Setup( this, Moves.Select( x => x.MoveSO ).ToList(), newMove.MoveSO );
+            moveMenu.Setup( this, ActiveMoves.Select( x => x.MoveSO ).ToList(), newMove.MoveSO );
         }
 
     }
 
     public void ReplaceWithNewMove( MoveBaseSO replacedMove, MoveBaseSO newMove ){
-        for( int i = 0; i < Moves.Count; i++ ){
-            if( Moves[i].MoveSO == replacedMove ){
-                Moves[i] = new MoveClass ( newMove );
+        for( int i = 0; i < ActiveMoves.Count; i++ ){
+            if( ActiveMoves[i].MoveSO == replacedMove ){
+                ActiveMoves[i] = new MoveClass ( newMove );
             }
         }
     }
@@ -272,8 +319,8 @@ public class PokemonClass
     }
 
     public MoveClass GetRandomMove(){
-        int r = UnityEngine.Random.Range( 0, Moves.Count );
-        return Moves[r];
+        int r = UnityEngine.Random.Range( 0, ActiveMoves.Count );
+        return ActiveMoves[r];
     }
 
     public bool OnBeforeTurn(){
@@ -303,4 +350,23 @@ public class DamageDetails
     public bool Fainted {get; set;}
     public float Critical {get; set;}
     public float TypeEffectiveness {get; set;}
+}
+
+[Serializable]
+public class PokemonSaveData
+{
+    public PokemonSpecies Species;
+    public string Nickname;
+    public int Level;
+    public int CurrentHP;
+    public int Exp;
+    public int GainedEffortPoints;
+    public int HP_EVs;
+    public int ATK_EVs;
+    public int DEF_EVs;
+    public int SPATK_EVs;
+    public int SPDEF_EVs;
+    public int SPE_EVs;
+    public ConditionID? SevereStatus;
+    public List<MoveSaveData> ActiveMoves;
 }

@@ -92,6 +92,10 @@ public class PokemonAnimator : MonoBehaviour
         OnAnimationStateChange -= ChangeAnimationState;
     }
 
+    private void OnDestroy(){
+        DOTween.KillAll();
+    }
+
     public void Initialize( PokemonSO pokeSO ){
         //--Default/Initial Animation
         _defaultAnimSheet = _idleDownSprites;

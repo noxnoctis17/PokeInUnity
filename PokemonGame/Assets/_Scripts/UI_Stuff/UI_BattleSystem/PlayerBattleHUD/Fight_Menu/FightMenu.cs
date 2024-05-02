@@ -26,7 +26,7 @@ public class FightMenu : State<PlayerBattleMenu>
         _battleMenu = owner;
         _activeUnit = _battleSystem.PlayerUnit;
 
-        SetUpMoves( _activeUnit.Pokemon.Moves );
+        SetUpMoves( _activeUnit.Pokemon.ActiveMoves );
 
         _initialButton = move1button;
 
@@ -66,7 +66,7 @@ public class FightMenu : State<PlayerBattleMenu>
 
             for( int moveTexti = 0; moveTexti < _ppText.Count; moveTexti++ ){
                 if( i < _moveNameText.Count ){
-                    _ppText[i].text = $"PP: {moves[i].MoveSO.PP}";
+                    _ppText[i].text = $"PP: {moves[i].PP}/{moves[i].MoveSO.PP}";
                     
                     if( moveTexti > i )
                         _ppText[moveTexti].text = "PP: -";

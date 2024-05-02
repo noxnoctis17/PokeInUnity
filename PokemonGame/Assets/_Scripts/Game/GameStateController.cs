@@ -45,6 +45,11 @@ public class GameStateController : MonoBehaviour
         // OnGameStateChanged -= ChangeGameState;
     }
 
+    private void Awake(){
+        PokemonDB.Init();
+        MoveDB.Init();
+    }
+
     private void Start(){
         GameStateMachine = new StateStackMachine<GameStateController>( this );
         GameStateMachine.Push( FreeRoamState.Instance );

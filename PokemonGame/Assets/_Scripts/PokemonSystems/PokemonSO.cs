@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Remoting.Messaging;
 using UnityEngine;
@@ -6,6 +5,8 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Pokemon/New Pokemon")]
 public class PokemonSO : ScriptableObject
 {
+    [SerializeField] private PokemonSpecies _species;
+    public PokemonSpecies Species => _species;
     [SerializeField] string _name;
     public string pName => _name;
     [SerializeField] private WildType _wildType;
@@ -209,12 +210,27 @@ public class TypeChart
 }
 
 public class TypeCardColors
-    {
-        public Color PrimaryColor { get; set; }
-        public Color SecondaryColor { get; set; }
+{
+    public Color PrimaryColor { get; set; }
+    public Color SecondaryColor { get; set; }
 
-        public TypeCardColors( Color primaryColor, Color secondaryColor){
-            PrimaryColor = primaryColor;
-            SecondaryColor = secondaryColor;
-        }
+    public TypeCardColors( Color primaryColor, Color secondaryColor){
+        PrimaryColor = primaryColor;
+        SecondaryColor = secondaryColor;
     }
+}
+
+public enum PokemonSpecies
+{
+    Snasee,
+    Rebellinum,
+    Knighinum,
+    Vulpix,
+    Eevee,
+    Wingull,
+    Roserade,
+    Lilligant,
+    Meouchie,
+    Meomber,
+    Meormor,
+}

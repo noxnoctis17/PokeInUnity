@@ -66,7 +66,7 @@ public class TypeText : MonoBehaviour
         return false;
     }
 
-    //--something something fuck dictionaries yeaaah
+    //--something something fuck dictionaries or whatever
     private readonly struct Punctuation{
         public readonly HashSet<char> Punctuations;
         public readonly float WaitTime;

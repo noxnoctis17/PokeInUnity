@@ -4,7 +4,6 @@ using NoxNoctisDev.StateMachine;
 using UnityEngine;
 using System;
 using UnityEngine.Pool;
-using Pathfinding;
 
 public class WildPokemonSpawner : MonoBehaviour
 {
@@ -112,12 +111,11 @@ public class WildPokemonSpawner : MonoBehaviour
         spawn => {
             //--Release();
             // Debug.Log( $"{spawn} has been released" );
-            spawn.gameObject.SetActive( false );
+            spawn.SetActive( false );
         },//--------------------------------------------
         spawn => {
             //--Destroy();
-            if( spawn != null )
-                Destroy( spawn.gameObject );
+            Destroy( spawn.gameObject );
 
         },//--------------------------------------------
             //--stuff*, starting amount, max amount

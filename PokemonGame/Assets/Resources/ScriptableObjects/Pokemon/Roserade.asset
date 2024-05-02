@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Roserade
+  m_EditorClassIdentifier: 
+  _species: 6
+  _name: Roserade
+  _wildType: 2
+  _description: 
+  _idleUpSprites: []
+  _idleDownSprites: []
+  _walkUpSprites: []
+  _walkDownSprites: []
+  _battlePortrait: {fileID: 21300000, guid: 07b3f0d1e89a857428be7d13fcecf0a9, type: 3}
+  _type1: 5
+  _type2: 8
+  _maxHP: 60
+  _attack: 70
+  _defense: 65
+  _spAttack: 125
+  _spDefense: 105
+  _speed: 90
+  _catchRate: 75
+  _expYield: 258
+  _growthRate: 0
+  _effortPointsYield: 3
+  _learnableMoves: []
