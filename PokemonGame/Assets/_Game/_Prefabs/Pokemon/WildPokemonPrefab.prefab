@@ -150,7 +150,6 @@ MonoBehaviour:
     HPChanged: 0
   _pokeSO: {fileID: 0}
   _pokeAnimator: {fileID: 0}
-  CurrentState: {fileID: 0}
   _aggressiveState: {fileID: 5558100218654530813}
   _curiousState: {fileID: 8769125357559437095}
   _idleState: {fileID: 915416553702711842}
@@ -327,7 +326,7 @@ MonoBehaviour:
   alwaysDrawGizmos: 1
   slowWhenNotFacingTarget: 1
   whenCloseToDestination: 0
-  constrainInsideGraph: 0
+  constrainInsideGraph: 1
 --- !u!1 &2783135347737160500
 GameObject:
   m_ObjectHideFlags: 0

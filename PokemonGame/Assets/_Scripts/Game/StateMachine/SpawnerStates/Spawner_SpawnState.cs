@@ -50,7 +50,6 @@ public class Spawner_SpawnState : State<WildPokemonSpawner>
         
             _spawner.AddToSpawnedAmount();
             _addedAmount++;
-
             yield return delay;
         }
 

@@ -1,7 +1,5 @@
 using UnityEngine;
 using Pathfinding;
-using System;
-using UnityEngine.EventSystems;
 
 public class PlayerReferences : MonoBehaviour
 {
@@ -11,6 +9,7 @@ public class PlayerReferences : MonoBehaviour
 
 //====================[PLAYER OBJECT]===========================
    [SerializeField] private Transform _playerCenter;
+   public PlayerSaving PlayerSaving { get; private set; }
    public Transform PlayerTransform { get; private set; }
    public Transform PlayerCenter { get; private set; }
    public Transform PlayerSpriteTransform { get; private set; }
@@ -24,10 +23,10 @@ public class PlayerReferences : MonoBehaviour
    public static Transform MainCameraTransform { get; private set; }
 
 //==================[DIRECTIONAL LIGHTS]========================
-   [SerializeField] private Transform _sunTransform;
-   [SerializeField] private Transform _moonTransform;
-   public Transform SunTransform { get; private set; }
-   public Transform MoonTransform { get; private set; }
+   // [SerializeField] private Transform _sunTransform;
+   // [SerializeField] private Transform _moonTransform;
+   // public Transform SunTransform { get; private set; }
+   // public Transform MoonTransform { get; private set; }
 
 //=======================[A* AI]==============================
    public AIPath AIPath {get; private set;}
@@ -42,6 +41,7 @@ public class PlayerReferences : MonoBehaviour
       _instance = this;
 
       //--Player
+      PlayerSaving = GetComponentInChildren<PlayerSaving>();
       PlayerTransform = transform;
       PlayerCenter = _playerCenter;
       PlayerSpriteTransform = GetComponentInChildren<SpriteRenderer>().gameObject.transform;
@@ -52,10 +52,6 @@ public class PlayerReferences : MonoBehaviour
 
       //--Current Camera
       MainCameraTransform = _mainCameraTransform;
-
-      //--Current Directional Lights
-      SunTransform = _sunTransform;
-      MoonTransform = _moonTransform;
       
       //--A* AI Path, will likely not use
       AIPath = GetComponent<AIPath>();

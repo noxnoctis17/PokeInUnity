@@ -8,5 +8,4 @@ public class ResponseEvent
     [SerializeField] private UnityEvent _onPickedResponse;
     public UnityEvent OnPickedResponse => _onPickedResponse;
 
-
 }

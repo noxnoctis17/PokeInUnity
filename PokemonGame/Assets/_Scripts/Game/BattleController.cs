@@ -28,12 +28,16 @@ public class BattleController : MonoBehaviour
         _battleSystem.InitializeWildBattle( battleType );
     }
 
-    public void InitTrainerBattle( GameObject enemyTrainer, PokemonParty trainerParty, BattleType battleType ){
+    public void InitTrainerBattle( TrainerClass trainer ){
         //--Push Game State
         GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
 
         //--Initialize Trainer Battle
-        _battleSystem.InitializeTrainerSingles( enemyTrainer, trainerParty, battleType );
+        if( trainer.BattleType == BattleType.TrainerSingles )
+            _battleSystem.InitializeTrainerSingles( trainer );
+            
+        if( trainer.BattleType == BattleType.TrainerDoubles )
+            _battleSystem.InitializeTrainerDoubles( trainer );
         
     }
 }

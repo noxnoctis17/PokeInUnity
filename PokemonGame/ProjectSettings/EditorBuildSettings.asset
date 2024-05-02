@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/InitiaTown/InitiaTown.unity
+    path: Assets/Scenes/Towns/InitiaTown/InitiaTown.unity
     guid: 2cda990e2423bbf4892e6590ba056729
+  - enabled: 1
+    path: Assets/Scenes/Routes/RouteTest01/RouteTest01.unity
+    guid: 24e7710abedb1734c9442c38d36244a0
   m_configObjects: {}

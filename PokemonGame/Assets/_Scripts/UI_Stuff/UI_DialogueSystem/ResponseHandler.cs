@@ -56,22 +56,21 @@ public class ResponseHandler : MonoBehaviour
         
         _temporaryResponseButtons.Clear();
 
-        Debug.Log( _responseEvents );
+        // Debug.Log( _responseEvents );
         if( _responseEvents != null && responseIndex <= _responseEvents.Length ){
-            Debug.Log( _responseEvents );
+            // Debug.Log( _responseEvents );
             //--Set the dialogue finished callback
             DialogueManager.Instance.SetDialogueFinishedCallback( () => {
-                //--Invoke Unit Event
-                Debug.Log( _responseEvents );
-                Debug.Log( _responseEvents[ responseIndex ] );
+                //--Invoke Unity Event
+                Debug.Log( "Dialogue Response Event Callback" );
+                // Debug.Log( _responseEvents );
+                // Debug.Log( _responseEvents[ responseIndex ] );
                 _responseEvents[ responseIndex ].OnPickedResponse?.Invoke();
                 _responseEvents = null;
                 
-            } ); //--Lambdas inide of the overload are funky lookin
+            } ); //--Lambdas inside of the overload are funky lookin
             
         }
-
-        // _responseEvents = null; //--Putting this inside of the callback to see if that fixes or breaks everything more
 
         if( response.DialogueSO ){
             DialogueManager.Instance.OnResponseChosen?.Invoke( response.DialogueSO );
@@ -79,14 +78,6 @@ public class ResponseHandler : MonoBehaviour
         else{
             _dialogueUI.CloseDialogueBox();
         }
-
-        //--I know this method "works"
-
-        // if( _responseEvents != null && responseIndex <= _responseEvents.Length ){
-        //     _responseEvents[ responseIndex ].OnPickedResponse?.Invoke();
-        // }
-
-        // _responseEvents = null;
         
     }
 
@@ -94,4 +85,5 @@ public class ResponseHandler : MonoBehaviour
         yield return new WaitForSeconds(0.15f);
         _initialButton.Select();
     }
+    
 }

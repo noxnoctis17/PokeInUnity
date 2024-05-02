@@ -49,17 +49,17 @@ public class BattleArena : MonoBehaviour
 
             break;
 
-            case BattleType.TrainerDoubles_1v1 :
+            case BattleType.TrainerDoubles :
 
                 yield return TrainerDoubles_1v1(); //--Trainer Battle, Doubles 1v1
 
             break;
 
-            case BattleType.TrainerDoubles_2v1 :
+            case BattleType.TrainerMulti_2v1 :
 
             break;
 
-            case BattleType.TrainerDoubles_2v2 :
+            case BattleType.TrainerMulti_2v2 :
 
             break;
 

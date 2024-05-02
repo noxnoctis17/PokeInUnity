@@ -26,6 +26,9 @@ public class TimeController : MonoBehaviour
         _currentTime = DateTime.Now.Date + TimeSpan.FromHours( _startHour );
         _sunRiseTime = TimeSpan.FromHours( _sunRiseHour );
         _sunSetTime = TimeSpan.FromHours( _sunSetHour );
+
+        _sun = LightReferences.Instance.SunTransform.GetComponent<Light>();
+        _moon = LightReferences.Instance.SunTransform.GetComponent<Light>();
     }
 
     private void Update(){
@@ -54,7 +57,7 @@ public class TimeController : MonoBehaviour
     private void RotateSun(){
         float sunRotation;
 
-        if( _currentTime.TimeOfDay > _sunRiseTime && _currentTime.TimeOfDay > _sunSetTime ){
+        if( _currentTime.TimeOfDay > _sunRiseTime && _currentTime.TimeOfDay < _sunSetTime ){
             TimeSpan sunRiseToSunSetDuration = CalculateTimeDifference( _sunRiseTime, _sunSetTime );
             TimeSpan timeSinceSunRise = CalculateTimeDifference( _sunRiseTime, _currentTime.TimeOfDay );
 

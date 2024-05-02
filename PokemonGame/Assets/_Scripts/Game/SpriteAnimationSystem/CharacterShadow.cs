@@ -14,6 +14,7 @@ public class CharacterShadow : MonoBehaviour
     private float _moveX;
     private float _moveY;
     private bool _wasWalking;
+    private bool _initialized;
 
     public enum FacingDirection {
         Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight,
@@ -21,33 +22,49 @@ public class CharacterShadow : MonoBehaviour
 
     private FacingDirection _facingDirection;
 
-    private void Start(){
+    private void OnEnable(){
+        Portal.OnSceneChanged += ReInitialize;
+        SceneDetails.OnActiveSceneChanged += ReInitialize;
+
         _spriteRenderer = GetComponent<SpriteRenderer>();
         _spriteAnimator = new SpriteAnimator( _spriteRenderer );
-        _sunTransform = PlayerReferences.Instance.SunTransform;
+
+        Initialize();
+    }
+
+    private void Initialize(){
+        _sunTransform = LightReferences.Instance.SunTransform;
         _defaultAnimSheet = _characterAnimator.IdleDownSprites;
         _currentAnimSheet = _defaultAnimSheet;
+        _initialized = true;
+    }
+
+    private void ReInitialize(){
+        _initialized = false;
+        Initialize();
     }
 
     private void Update(){
-        var previousAnimSheet = _currentAnimSheet;
-        UpdateMovement();
-        CalcShadowFacingDirection();
-        SetIdleShadowSprites();
+        if( _initialized ){
+            var previousAnimSheet = _currentAnimSheet;
+            UpdateMovement();
+            CalcShadowFacingDirection();
+            SetIdleShadowSprites();
 
-        if( _currentAnimSheet != previousAnimSheet || _characterAnimator.IsWalking != _wasWalking )
-            _spriteAnimator.Start();
+            if( _currentAnimSheet != previousAnimSheet || _characterAnimator.IsWalking != _wasWalking )
+                _spriteAnimator.Start();
 
-        if( _characterAnimator.IsWalking ){
-            _spriteAnimator.HandleUpdate();
-        }else{
-            // SetIdleSprites();
-            AssignAnimations( _currentAnimSheet );
-            _spriteAnimator.Start();
-            _spriteAnimator?.HandleUpdate();
+            if( _characterAnimator.IsWalking ){
+                _spriteAnimator.HandleUpdate();
+            }else{
+                // SetIdleSprites();
+                AssignAnimations( _currentAnimSheet );
+                _spriteAnimator.Start();
+                _spriteAnimator?.HandleUpdate();
+            }
+
+            _wasWalking = _characterAnimator.IsWalking;
         }
-
-        _wasWalking = _characterAnimator.IsWalking;
     }
 
     private void LateUpdate(){

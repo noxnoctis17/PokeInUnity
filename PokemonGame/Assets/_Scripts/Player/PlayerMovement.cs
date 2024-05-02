@@ -49,6 +49,19 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update(){
         HandleAnimation();
+        // HandleRotation();
+        // HandleGravity();
+
+        // if( AllowMovement ){
+        //     if( _isRunPressed ){
+        //         _characterController.Move( _currentRunMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
+        //     } else {
+        //         _characterController.Move( _currentMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
+        //     }
+        // }
+    }
+
+    private void FixedUpdate(){
         HandleRotation();
         HandleGravity();
 
@@ -127,5 +140,29 @@ public class PlayerMovement : MonoBehaviour
         PlayerInput.CharacterControls.Disable();
         yield return new WaitUntil( () => !PlayerInput.CharacterControls.enabled );
         yield return _animator.JumpToBattlePosition( transform, battlePosition );
+    }
+
+    public IEnumerator MovePlayerToSceneSpawnPoint( Transform spawnPoint ){
+        PlayerInput.CharacterControls.Disable();
+        yield return new WaitUntil( () => !PlayerInput.CharacterControls.enabled );
+        yield return MovePlayerPosition( spawnPoint.position );
+        PlayerInput.CharacterControls.Enable();
+    }
+
+    //--We disable and enable the character controller because it forces a position update after we move the player
+    //--The position it forces is the last position the player was at before we manually update it here
+    //--Waiting for FixedUpdate nor end of frame helped the situation. I'm sure there's a better way, but for now, this is fine.
+    //--That is, of course, until it isn't. --04/27/24
+    public IEnumerator MovePlayerPosition( Vector3 position ){
+        // Debug.Log( "PlayerMovement.MovePlayerPosition()" );
+        // Debug.Log( transform.position );
+        yield return new WaitForFixedUpdate();
+        AllowMovement = false; //--This will prevent movement calls from being made in FixedUpdate after the controller has been disabled
+        _characterController.enabled = false; //--Disable and Enable Character Controller component because of above --04/27/24
+        transform.position = position;
+        yield return new WaitForEndOfFrame();
+        _characterController.enabled = true; //--Disable and Enable Character Controller component because of above --04/27/24
+        AllowMovement = true; //--And then we re-allow movement after enabling the controller
+        // Debug.Log( transform.position );
     }
 }

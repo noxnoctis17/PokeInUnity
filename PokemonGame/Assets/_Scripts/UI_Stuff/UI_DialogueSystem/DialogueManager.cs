@@ -14,7 +14,6 @@ public class DialogueManager : MonoBehaviour
     public Action<DialogueResponseEvents> OnHasResponseEvents;
     [SerializeField] private DialogueUI _dialogueUI;
     public Action DialogueFinishedCallback;
-
     public DialogueUI DialogueUI => _dialogueUI;
 
     private void OnEnable( ){

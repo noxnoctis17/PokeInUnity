@@ -13,9 +13,9 @@ public enum BattleType {
     WildBattle_1v1,
     WildBattle_2v2,
     TrainerSingles,
-    TrainerDoubles_1v1,
-    TrainerDoubles_2v1,
-    TrainerDoubles_2v2,
+    TrainerDoubles,
+    TrainerMulti_2v1,
+    TrainerMulti_2v2,
 
     }
 
@@ -52,7 +52,7 @@ public class BattleSystem : BattleStateMachine
     public BattleType BattleType => _battleType;
     public BattleArena BattleArena => _battleArena;
     //--Units
-    public GameObject EnemyTrainer { get; private set; }
+    public GameObject Trainer1Center { get; private set; }
     public GameObject BattleUnitPrefab => _battleUnitPrefab;
     public BattleUnit PlayerUnit => _playerUnit;
     public BattleUnit EnemyUnit => _enemyUnit;
@@ -98,6 +98,7 @@ public class BattleSystem : BattleStateMachine
 
 //=========================[ POKEMON AND PLAYER/TRAINER PARTIES ]================================================
     //--private
+    private TrainerClass _enemyTrainer1;
     private PokemonParty _playerParty;
     private PokemonParty _enemyTrainerParty;
     private int _playerUnitAmount;
@@ -182,18 +183,22 @@ public class BattleSystem : BattleStateMachine
         SetState( new BattleState_Setup( this ) );
     }
 
-    public void InitializeTrainerSingles( GameObject enemyTrainer, PokemonParty enemyTrainerParty, BattleType battleType ){
-        EnemyTrainer = enemyTrainer;
+    public void InitializeTrainerSingles( TrainerClass trainer ){
         _isSinglesTrainerBattle = true;
-        _battleType = battleType;
+        _enemyTrainer1 = trainer;
+
+        //--Grab refs
+        Trainer1Center = trainer.TrainerCenter;
+        _battleType = trainer.BattleType;
         _playerParty = PlayerReferences.Instance.PlayerParty;
-        _enemyTrainerParty = enemyTrainerParty;
+        _enemyTrainerParty = trainer.TrainerParty;
 
         SetState( new BattleState_Setup( this ) );
     }
 
-    public void InitializeTrainerDoubles(){
+    public void InitializeTrainerDoubles( TrainerClass trainer ){
         _isDoublesTrainerBattle = true;
+        _enemyTrainer1 = trainer;
     }
 
     public void AssignUnits_1v1( BattleUnit playerUnit, BattleUnit enemyUnit ){
@@ -269,71 +274,78 @@ public class BattleSystem : BattleStateMachine
     }
 
     private IEnumerator PostBattleScreen( PokemonClass caughtPokemon = null ){
-        WaitForSeconds wait1 = new( 1f );
+        _battleStateEnum = BattleStateEnum.Busy;
+        SetBusyState();
+        WaitForSeconds wait = new( 1f );
 
         //--Add Total Gained Exp. Eventually account for battle participation
         if( TotalPartyExpGain > 0 ){
-            _battleStateEnum = BattleStateEnum.Busy;
-            SetBusyState();
-
-            //--Gain Exp Dialogue
-            yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyExpGain} Exp!" );
-            yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyEffortGain} Effort Points!" );
-
-            //--Give Exp to each Pokemon in player's party directly
-            foreach( PokemonClass pokemon in PlayerReferences.Instance.PlayerParty.PartyPokemon ){
-
-                //--Gain EXP
-                pokemon.GainExp( TotalPartyExpGain, TotalPartyEffortGain );
-
-                //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
-                yield return RefreshHUD( pokemon );
-
-                //--Check for Level up
-                while( pokemon.CheckForLevelUpBattle() ){
-                    yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} grew to level {pokemon.Level}!" );
-
-                    //--Try Learn Moves
-                    if( pokemon.GetNextLearnableMove() != null ){
-                        if( pokemon.Moves.Count == PokemonSO.MAXMOVES ){
-                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} is trying to learn {pokemon.GetNextLearnableMove().MoveSO.MoveName}," );
-                            yield return _dialogueBox.TypeDialogue( $"But it can't use more than four moves during battle." );
-                            yield return _dialogueBox.TypeDialogue( $"Which move will you set aside?" );
-
-                            pokemon.TryLearnMove( pokemon.GetNextLearnableMove(), _learnMoveMenu, this );
-
-                            PlayerBattleMenu.OnPushNewState?.Invoke( PlayerBattleMenu.MoveLearnSelectionState );
-                            yield return new WaitUntil( () => !_learnMoveMenu.gameObject.activeSelf );
-
-                            if( _learnMoveMenu.ReplacedMove )
-                                yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} learned {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
-                            else
-                                yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} didn't learn {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
-                            
-                        }
-                        else{
-                            pokemon.TryLearnMove( pokemon.GetNextLearnableMove(), _learnMoveMenu, this );
-                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} learned {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
-                        }
-                    }
-
-                    //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
-                    yield return RefreshHUD( pokemon );
-
-                    yield return wait1;
-                }
-            }
+            yield return GivePartyExp( wait );
         }
 
-        //--Add Caught Pokemon to Party here, so it doesn't gain EXP from itself being caught LOL
+        //--Add Caught Pokemon to Party here AFTER exp calculations, so it doesn't gain EXP from itself being caught LOL
         if( caughtPokemon != null){
             _playerParty.AddPokemon( caughtPokemon );
         }
 
-        //--post battle npc dialogue?
+        //--Post Trainer Battle
+        if( _isSinglesTrainerBattle ){
+            _enemyTrainer1.SetDefeated();
+        }
 
-        yield return wait1;
+        yield return wait;
         EndBattle();
+    }
+
+    private IEnumerator GivePartyExp( WaitForSeconds wait ){
+        //--Gain Exp Dialogue
+        yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyExpGain} Exp!" );
+        yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyEffortGain} Effort Points!" );
+
+        //--Give Exp to each Pokemon in player's party directly
+        foreach( PokemonClass pokemon in PlayerReferences.Instance.PlayerParty.PartyPokemon ){
+
+            //--Gain EXP
+            pokemon.GainExp( TotalPartyExpGain, TotalPartyEffortGain );
+
+            //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
+            yield return RefreshHUD( pokemon );
+
+            //--Check for Level up
+            while( pokemon.CheckForLevelUpBattle() ){
+                yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} grew to level {pokemon.Level}!" );
+
+                //--Try Learn Moves
+                if( pokemon.GetNextLearnableMove() != null ){
+                    if( pokemon.Moves.Count == PokemonSO.MAXMOVES ){
+                        yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} is trying to learn {pokemon.GetNextLearnableMove().MoveSO.MoveName}," );
+                        yield return _dialogueBox.TypeDialogue( $"But it can't use more than four moves during battle." );
+                        yield return _dialogueBox.TypeDialogue( $"Which move will you set aside?" );
+
+                        pokemon.TryLearnMove( pokemon.GetNextLearnableMove(), _learnMoveMenu, this );
+
+                        PlayerBattleMenu.OnPushNewState?.Invoke( PlayerBattleMenu.MoveLearnSelectionState );
+                        yield return new WaitUntil( () => !_learnMoveMenu.gameObject.activeSelf );
+
+                        if( _learnMoveMenu.ReplacedMove )
+                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} learned {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
+                        else
+                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} didn't learn {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
+                        
+                    }
+                    else{
+                        pokemon.TryLearnMove( pokemon.GetNextLearnableMove(), _learnMoveMenu, this );
+                        yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.pName} learned {pokemon.GetNextLearnableMove().MoveSO.MoveName}!" );
+                    }
+                }
+
+                //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
+                yield return RefreshHUD( pokemon );
+
+                yield return wait;
+
+            }
+        }
     }
 
     private IEnumerator RefreshHUD( PokemonClass pokemon ){
@@ -635,12 +647,12 @@ public class BattleSystem : BattleStateMachine
         _battleStateEnum = BattleStateEnum.Busy;
         SetBusyState();
 
-        yield return _enemyUnit.PokeAnimator.PlayExitBattleAnimation( EnemyTrainer.transform );
+        yield return _enemyUnit.PokeAnimator.PlayExitBattleAnimation( Trainer1Center.transform );
         _enemyUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon
         _enemyUnit.Setup( pokemon, _enemyHUD, this ); //--Assign and setup the new pokemon
 
         yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.pName}!" );
-        yield return _enemyUnit.PokeAnimator.PlayEnterBattleAnimation( _enemyUnit.transform, EnemyTrainer.transform );
+        yield return _enemyUnit.PokeAnimator.PlayEnterBattleAnimation( _enemyUnit.transform, Trainer1Center.transform );
 
         PlayerAction();
     }

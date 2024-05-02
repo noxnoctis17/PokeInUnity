@@ -1257,7 +1257,10 @@ public class AstarPath : VersionedMonoBehaviour {
 
 		if (scanOnStartup && (!data.cacheStartup || data.file_cachedStartup == null)) {
 			Scan();
+			Debug.Log( "A* has scanned from Awake()" );
 		}
+
+		Debug.Log( "A* Awake() has been called" );
 	}
 
 	/// <summary>Initializes the <see cref="pathProcessor"/> field</summary>

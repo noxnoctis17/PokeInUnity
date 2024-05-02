@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -20,11 +19,16 @@ public class PlayerController : MonoBehaviour
         EnableInteract();
         _playerInput.CharacterControls.Interact.performed += OnInteract;
         _playerInput.CharacterControls.PauseMenu.performed += OnPausePressed;
+        _playerInput.CharacterControls.Save.performed += OnSavePressed;
+        _playerInput.CharacterControls.Load.performed += OnLoadPressed;
     }
     
     private void OnDisable(){
         DisableInteract();
         _playerInput.CharacterControls.Interact.performed -= OnInteract;
+        _playerInput.CharacterControls.PauseMenu.performed -= OnPausePressed;
+        _playerInput.CharacterControls.Save.performed -= OnSavePressed;
+        _playerInput.CharacterControls.Load.performed -= OnLoadPressed;
     }
 
     public void SetPlayerInput( PlayerInput playerInput ){
@@ -49,6 +53,17 @@ public class PlayerController : MonoBehaviour
             _pauseMenu.SetActive( false );
         else
             _pauseMenu.SetActive( true );
+    }
+
+    private void OnSavePressed( InputAction.CallbackContext context ){
+        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.FreeRoamState )
+            SavingSystem.Instance.Save( "SaveSlot_1" );
+    }
+
+    private void OnLoadPressed( InputAction.CallbackContext context ){
+        Debug.Log( "Load Fired" );
+        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.FreeRoamState )
+            SavingSystem.Instance.Load( "SaveSlot_1" );
     }
     
     private void EnableInteract(){

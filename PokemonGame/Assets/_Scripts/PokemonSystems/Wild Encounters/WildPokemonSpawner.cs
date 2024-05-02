@@ -4,6 +4,7 @@ using NoxNoctisDev.StateMachine;
 using UnityEngine;
 using System;
 using UnityEngine.Pool;
+using Pathfinding;
 
 public class WildPokemonSpawner : MonoBehaviour
 {
@@ -39,7 +40,7 @@ public class WildPokemonSpawner : MonoBehaviour
     [SerializeField] private int _spawnedPokemonAmnt;
     [SerializeField] private int _numberToSpawn;
     [SerializeField] private List<Transform> _spawnLocations; //--list of empty game objects to use as the transform.position as spawn points
-    private Transform _spawnPoint; //--assign randomly chosen spawnlocation to this for instantiate
+    private Transform _prevSpawnPoint; //--assign randomly chosen spawnlocation to this for instantiate
     private ObjectPool<GameObject> _spawnPool;
     public int NumberToSpawn => _numberToSpawn;
     public int SpawnedPokemonAmnt => _spawnedPokemonAmnt;
@@ -92,6 +93,8 @@ public class WildPokemonSpawner : MonoBehaviour
     }
 
     private void Start(){
+        AstarPath.active.Scan();
+
         //--Initialize a new ObjectPool per Spawner Instance
         SpeciesToSpawnList = new();
         //--------------------------------------------
@@ -150,14 +153,14 @@ public class WildPokemonSpawner : MonoBehaviour
     private void OnTriggerEnter( Collider collider ){
         if( collider.transform == PlayerReferences.Instance.PlayerTransform ){
             ChangeState( _spawnState );
-            Debug.Log( collider );
+            // Debug.Log( collider );
         }
     }
 
     private void OnTriggerExit( Collider collider ){
         if( collider.transform == PlayerReferences.Instance.PlayerTransform ){
             ChangeState( _canceledState );
-            Debug.Log( collider );
+            // Debug.Log( collider );
         }
     }
 
@@ -165,10 +168,6 @@ public class WildPokemonSpawner : MonoBehaviour
         _lastState = SpawnerStateMachine.CurrentState;
         SpawnerStateMachine.OnQueueNextState?.Invoke( newState );
     }
-
-    // private void AddPokemonToSpawnList( PokemonClass pokemon ){
-    //     SpeciesToSpawnList.Add( pokemon );
-    // }
 
     private void AddPokemonToSpawnList( WildEncounterClass pokemon ){
         SpeciesToSpawnList.Add( pokemon );
@@ -189,36 +188,27 @@ public class WildPokemonSpawner : MonoBehaviour
         OnDespawnCall?.Invoke();
     }
 
-    // private void DespawnPokemon(){
-    //     while( SpawnerPokemonList.Count > 0 ){
-    //         var wildMon = SpawnerPokemonList[0];
-    //         SpawnerPokemonList.RemoveAt( 0 );
-
-    //         if( wildMon != null && !ReferenceEquals( wildMon, null ) ){
-    //             var wildPokemon = wildMon.GetComponent<WildPokemon>();
-                
-    //             if( wildPokemon != null && !ReferenceEquals( wildPokemon, null ) ){
-    //                 wildPokemon.Despawn();
-    //             }
-    //         }
-    //     }
-    // }
-
     private void DespawnTracker(){
         _spawnedPokemonAmnt--;
-
-        // if( PokeSpawnerStateMachine.CurrentState == FinishedState )
-        //     OnStateChanged?.Invoke( SpawnState );
     }
 
     public Vector3 SpawnLocation(){
         int rngLocation;
+        Vector3 spawnPoint = Vector3.zero;
+
         for( int amountOfLocations = 0; amountOfLocations < _spawnLocations.Count; amountOfLocations++ ){
-            rngLocation = UnityEngine.Random.Range( 0, amountOfLocations );
-            _spawnPoint = _spawnLocations[ rngLocation ];
+            rngLocation = UnityEngine.Random.Range( 0, amountOfLocations + 1 );
+            spawnPoint = _spawnLocations[ rngLocation ].position;
+
+            if( _prevSpawnPoint != null && _prevSpawnPoint.position != spawnPoint  ){
+                rngLocation = UnityEngine.Random.Range( 0, amountOfLocations + 1 );
+                spawnPoint = _spawnLocations[ rngLocation ].position;
+            }
+
+            _prevSpawnPoint = _spawnLocations[ rngLocation ];
         }
 
-        return _spawnPoint.position;
+        return spawnPoint;
     }
 
     public WildEncounterClass RandomPokemon(){
@@ -252,36 +242,5 @@ public class WildPokemonSpawner : MonoBehaviour
         // Debug.Log( pokemon.PokeSO.pName + " was generated" );
         return pokemon;
     }
-    // public PokemonClass RandomPokemon(){
-    //     PokemonClass pokemon = null;
-    //     Debug.Log( _randomNumber );
-    //     int prevRand = _randomNumber;
-    //     _totalWeight = 0;
-
-    //     foreach( var num in _table )
-    //     {
-    //         _totalWeight += num;
-    //     }
-
-    //     _randomNumber = UnityEngine.Random.Range( 0, _totalWeight ) + 1;
-    //     if( _randomNumber == prevRand )
-    //         _randomNumber = UnityEngine.Random.Range( 0, _totalWeight ) + 1;
-
-    //     Debug.Log( _randomNumber );
-
-    //     for( int i = 0; i < _table.Length; i++ ){
-    //         if( _randomNumber <= _table[i] ){
-    //             //--remember to now assign the prefab in the spawn state
-    //             pokemon = _encounter[i];
-    //             break;
-    //         }
-    //         else{
-    //             _randomNumber -= _table[i];
-    //         }
-    //     }
-
-    //     Debug.Log( pokemon.PokeSO.pName + " was generated" );
-    //     return pokemon;
-    // }
 
 }
