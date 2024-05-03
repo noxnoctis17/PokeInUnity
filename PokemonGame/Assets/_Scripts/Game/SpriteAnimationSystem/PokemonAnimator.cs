@@ -281,17 +281,18 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     public IEnumerator PlayStatusAttackAnimation(){
-        Transform spin180 = transform;
-        spin180.rotation = transform.rotation * Quaternion.Euler( 1, 180, 1 );
+        Transform parent = GetComponentInParent<Transform>();
+        Vector3 rotate180 = new Vector3( 0f, 180f, 0f );
 
-        _isAnimating = true;
+        // _isAnimating = true;
         var sequence = DOTween.Sequence();
-        sequence.Append( transform.DOLocalRotate( spin180.position, 0.5f ) );
-        sequence.Append( transform.DOLocalRotate( spin180.position, 0.5f ) );
-        sequence.Append( transform.DOShakePosition( 0.5f, 0.5f, 5 ) );
+        sequence.Append( parent.DOJump( parent.position, 1, 1, 0.25f) );
+        sequence.Join( parent.DORotate( rotate180, 0.5f ) );
+        sequence.Append( parent.DOJump( parent.position, 1, 1, 0.25f) );
+        sequence.Join( parent.DORotate( -rotate180, 0.5f ) );
 
         yield return sequence.WaitForCompletion();
-        _isAnimating = false;
+        // _isAnimating = false;
     }
 
     public IEnumerator PlayEnterBattleAnimation( Transform originalPos, Transform player ){

@@ -17,7 +17,7 @@ public class BattleUnit : MonoBehaviour
     [SerializeField] private int _level;
     public int Level => _level;
     [SerializeField] private bool _isAI;
-    public PokemonClass Pokemon { get; set; }
+    public Pokemon Pokemon { get; set; }
     public PokemonAnimator PokeAnimator { get; private set; }
 
     private void OnEnable(){
@@ -29,7 +29,7 @@ public class BattleUnit : MonoBehaviour
         OnIsAI -= EnableAI;
     }
 
-    public void Setup( PokemonClass pokemon, BattleHUD battleHUD, BattleSystem battleSystem ){
+    public void Setup( Pokemon pokemon, BattleHUD battleHUD, BattleSystem battleSystem ){
         _battleSystem = battleSystem;
         _battleAI = GetComponent<BattleAI>();
 
@@ -65,7 +65,7 @@ public class BattleUnit : MonoBehaviour
         GetComponent<BattleAI>().SetupAI( _battleSystem, this );
     }
 
-    public DamageDetails TakeDamage( MoveClass move, PokemonClass attacker ){
+    public DamageDetails TakeDamage( MoveClass move, Pokemon attacker ){
         var target = Pokemon;
         float critical = 1f;
         if( UnityEngine.Random.value * 100f <= 6.25f ) critical = 1.5f;

@@ -18,7 +18,7 @@ public class BattleHUD : MonoBehaviour
     [SerializeField] private Image _severeStatusIcon;
     private int _currentHPTracker;
     public int CurrentHPTracker => _currentHPTracker;
-    private PokemonClass _pokemon;
+    private Pokemon _pokemon;
     private Dictionary<ConditionID, Sprite> _severeStatusIcons;
 
     private void Update(){
@@ -27,7 +27,7 @@ public class BattleHUD : MonoBehaviour
             _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
     }
 
-    public void SetData( PokemonClass pokemon ){
+    public void SetData( Pokemon pokemon ){
         _pokemon = pokemon;
 
         _nameText.text = pokemon.PokeSO.pName;

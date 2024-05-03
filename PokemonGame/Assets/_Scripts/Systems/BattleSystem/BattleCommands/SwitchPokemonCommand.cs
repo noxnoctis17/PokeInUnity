@@ -8,10 +8,10 @@ public class SwitchPokemonCommand : IBattleCommand
     public int CommandPriority => _commandPriority;
     public int AttackPriority => _attackPriority;
     public int UnitAgility => _unitAgility;
-    private PokemonClass _pokemon;
+    private Pokemon _pokemon;
     private BattleSystem _battleSystem;
 
-    public SwitchPokemonCommand( PokemonClass pokemon, BattleSystem battleSystem ){
+    public SwitchPokemonCommand( Pokemon pokemon, BattleSystem battleSystem ){
         _pokemon = pokemon;
         _battleSystem = battleSystem;
         _commandPriority = (int)CommandPriorityEnum.Switch; //--i don't think i'll ever get over this implementation of this lol //--03/26/24 jokes on you you added a system for this

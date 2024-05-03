@@ -102,14 +102,14 @@ public class BattleSystem : BattleStateMachine
     private PokemonParty _playerParty;
     private PokemonParty _enemyTrainerParty;
     private int _playerUnitAmount;
-    private PokemonClass _wildPokemon;
+    private Pokemon _wildPokemon;
     private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
-    private PokemonClass _caughtPokemon; //--Pokemon you caught
+    private Pokemon _caughtPokemon; //--Pokemon you caught
     //--public/getters/properties
     public PokemonParty PlayerParty => _playerParty;
     public PokemonParty EnemyTrainerParty => _enemyTrainerParty;
     public int PlayerUnitAmount => _playerUnitAmount;
-    public PokemonClass WildPokemon => _wildPokemon;
+    public Pokemon WildPokemon => _wildPokemon;
     public WildPokemon EncounteredPokemon => _encounteredPokemon;
 
 //====================================[ COMMAND SYSTEM ]=======================================================
@@ -230,14 +230,14 @@ public class BattleSystem : BattleStateMachine
         BattleUIActions.OnPkmnMenuOpened?.Invoke();
     }
     
-    public void SetFaintedSwitchMon( PokemonClass switchedMon ){
+    public void SetFaintedSwitchMon( Pokemon switchedMon ){
         //--The pkmn menu pops its own state before this function is called, therefore we need to
         //--Set ourselves back to the busy state.
         SetBusyState();
         StartCoroutine( PerformSwitchPokemonCommand( switchedMon ) );
     }
 
-    private IEnumerator SetForcedSwitchMon( PokemonClass switchedMon ){
+    private IEnumerator SetForcedSwitchMon( Pokemon switchedMon ){
         //--for when something like u-turn or roar happens and we need
         //--to include it as part of the battle phase coroutine chain
         yield return PerformSwitchPokemonCommand( switchedMon );
@@ -273,7 +273,7 @@ public class BattleSystem : BattleStateMachine
         Debug.Log( "is level up completed: " + _levelUpCompleted );
     }
 
-    private IEnumerator PostBattleScreen( PokemonClass caughtPokemon = null ){
+    private IEnumerator PostBattleScreen( Pokemon caughtPokemon = null ){
         _battleStateEnum = BattleStateEnum.Busy;
         SetBusyState();
         WaitForSeconds wait = new( 1f );
@@ -303,7 +303,7 @@ public class BattleSystem : BattleStateMachine
         yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyEffortGain} Effort Points!" );
 
         //--Give Exp to each Pokemon in player's party directly
-        foreach( PokemonClass pokemon in PlayerReferences.Instance.PlayerParty.PartyPokemon ){
+        foreach( Pokemon pokemon in PlayerReferences.Instance.PlayerParty.PartyPokemon ){
 
             //--Gain EXP
             pokemon.GainExp( TotalPartyExpGain, TotalPartyEffortGain );
@@ -348,7 +348,7 @@ public class BattleSystem : BattleStateMachine
         }
     }
 
-    private IEnumerator RefreshHUD( PokemonClass pokemon ){
+    private IEnumerator RefreshHUD( Pokemon pokemon ){
         //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
         if( pokemon == _playerUnit.Pokemon ){
             _playerUnit.BattleHUD.RefreshHUD();
@@ -402,11 +402,14 @@ public class BattleSystem : BattleStateMachine
         // Debug.Log( this + " canAttack is: " + canAttack ); //--canAttack log
 
         if( !canAttack ){
+            yield return ShowStatusChanges( attacker.Pokemon );
             yield return attacker.BattleHUD.UpdateHP(); //--if it cannot attack we...update its hp? i wonder why lol. i will need to go back
             yield break; //--o this might be like exclusively added for confusion lol wtf
         }
 
-        var moveEffects = move.MoveSO.MoveEffects; //--Secondary effects on moves such as burn, para, stat down, etc.
+        yield return ShowStatusChanges( attacker.Pokemon );
+
+        // var moveEffects = move.MoveSO.MoveEffects; //--Secondary effects on moves such as burn, para, stat down, etc.
         move.PP--; //--Reduces the move's PP by 1
 
         //--doing it this way instead of yielding should make it not slow battles down. eventually i will make a queue
@@ -463,7 +466,7 @@ public class BattleSystem : BattleStateMachine
         if( _playerUnit.Pokemon.CurrentHP > 0 ){
             // Debug.Log( _playerUnit.Pokemon.CurrentHP );
             _playerUnit.Pokemon.OnAfterTurn();
-            yield return new WaitForSeconds( 0.25f );
+            yield return ShowStatusChanges( _playerUnit.Pokemon );
             yield return _playerUnit.BattleHUD.UpdateHP();
             // Debug.Log( _playerUnit.Pokemon.CurrentHP );
             yield return CheckForFaint( _playerUnit );
@@ -471,7 +474,7 @@ public class BattleSystem : BattleStateMachine
 
         if( _enemyUnit.Pokemon.CurrentHP > 0 ){
             // _enemyUnit.Pokemon.OnAfterTurn();
-            yield return new WaitForSeconds( 0.25f );
+            yield return ShowStatusChanges( _enemyUnit.Pokemon );
             yield return _enemyHUD.UpdateHP();
             yield return CheckForFaint( _enemyUnit );
         }
@@ -505,7 +508,7 @@ public class BattleSystem : BattleStateMachine
     }
 
     //--If a Move has secondary effects, apply them appropriately
-    private IEnumerator RunMoveEffects( MoveEffects effects, MoveTarget moveTarget, PokemonClass attacker, PokemonClass target ){
+    private IEnumerator RunMoveEffects( MoveEffects effects, MoveTarget moveTarget, Pokemon attacker, Pokemon target ){
         //--Modify Stats
         if( effects.StatChangeList != null ){
             if( moveTarget == MoveTarget.self )
@@ -524,7 +527,8 @@ public class BattleSystem : BattleStateMachine
             target.SetVolatileStatus( effects.VolatileStatus ); //--Volatile status like CONFUSION
         }
 
-        yield return null;
+        yield return ShowStatusChanges( attacker );
+        yield return ShowStatusChanges( target );
     }
 
     //--Display text update based on damage done
@@ -544,6 +548,15 @@ public class BattleSystem : BattleStateMachine
 
     public void AfterTurnDialogue( string afterTurnDialogue ){
         StartCoroutine( _dialogueBox.TypeDialogue( afterTurnDialogue ) );
+    }
+
+    private IEnumerator ShowStatusChanges( Pokemon pokemon ){
+        Debug.Log( pokemon );
+        Debug.Log( pokemon.StatusChanges );
+        while( pokemon.StatusChanges.Count > 0 ){
+            var message = pokemon.StatusChanges.Dequeue();
+            yield return _dialogueBox.TypeDialogue( message );
+        }
     }
 
     //--Check to see if a pokemon is fainted
@@ -636,7 +649,7 @@ public class BattleSystem : BattleStateMachine
         yield return null;
     }
 
-    public IEnumerator PerformSwitchEnemyTrainerPokemonCommand( PokemonClass pokemon ){
+    public IEnumerator PerformSwitchEnemyTrainerPokemonCommand( Pokemon pokemon ){
         //--This is currently only happening when the enemy trainer's pokemon faints and they have
         //--more left in their party. AI is eventually going to be expanded on to choose smarter
         //--pokemon instead of just the next one in their party, especially in the case of doubles.
@@ -657,7 +670,7 @@ public class BattleSystem : BattleStateMachine
     }
 
     //--When the player's pokemon faints, this is called explicitly, rather than as a command added to the command queue
-    public IEnumerator PerformSwitchPokemonCommand( PokemonClass pokemon ){
+    public IEnumerator PerformSwitchPokemonCommand( Pokemon pokemon ){
         //--for the future if i want to target the previous pokemon with a move (pursuit), specificy the previous pokemon in this class? //--yes 4/12/2023
         // _battleStateEnum = BattleStateEnum.Busy;
         // SetBusyState();
@@ -760,7 +773,7 @@ public class BattleSystem : BattleStateMachine
         }
     }
 
-    private int TryToCatchPokemon( PokemonClass pokemon ){
+    private int TryToCatchPokemon( Pokemon pokemon ){
         float a = ( 3 * pokemon.MaxHP - 2 * pokemon.CurrentHP ) * pokemon.PokeSO.CatchRate * ConditionsDB.GetStatusBonus( pokemon.SevereStatus ) / ( 3 * pokemon.MaxHP );
 
         if( a >= 255 )
@@ -818,7 +831,7 @@ public class BattleSystem : BattleStateMachine
         _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
 
-    public void SetSwitchPokemonCommand( PokemonClass pokemon ){
+    public void SetSwitchPokemonCommand( Pokemon pokemon ){
         _switchPokemonCommand = new SwitchPokemonCommand( pokemon, this );
         _commandList.Add( _switchPokemonCommand );
         _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();

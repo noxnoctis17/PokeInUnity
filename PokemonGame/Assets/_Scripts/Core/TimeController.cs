@@ -28,7 +28,8 @@ public class TimeController : MonoBehaviour
         _sunSetTime = TimeSpan.FromHours( _sunSetHour );
 
         _sun = LightReferences.Instance.SunTransform.GetComponent<Light>();
-        _moon = LightReferences.Instance.SunTransform.GetComponent<Light>();
+        _moon = LightReferences.Instance.MoonTransform.GetComponent<Light>();
+        _timeText = UI_OverworldManager.Instance.TimeText;
     }
 
     private void Update(){

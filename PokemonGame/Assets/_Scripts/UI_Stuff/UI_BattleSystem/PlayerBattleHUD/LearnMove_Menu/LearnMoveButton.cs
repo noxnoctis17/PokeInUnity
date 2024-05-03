@@ -7,14 +7,14 @@ public class LearnMoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, 
 {
     private BattleSystem _battleSystem;
     private LearnMoveMenu _learnMenu;
-    private MoveBaseSO _assignedMove;
+    private MoveSO _assignedMove;
     public Button ThisButton { get; private set; }
 
     private void OnEnable(){
         ThisButton = GetComponent<Button>();
     }
 
-    public void Setup( BattleSystem battleSystem, LearnMoveMenu learnMenu, MoveBaseSO move ){
+    public void Setup( BattleSystem battleSystem, LearnMoveMenu learnMenu, MoveSO move ){
         _battleSystem = battleSystem;
         _learnMenu = learnMenu;
 

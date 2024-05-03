@@ -8,7 +8,7 @@ using UnityEngine.Pool;
 public class WildPokemonSpawner : MonoBehaviour
 {
     // [SerializeField] private List<PokemonClass> _encounter;
-    [SerializeField] private List<WildEncounterClass> _encounter;
+    [SerializeField] private List<WildEncounter> _encounter;
     [SerializeField] private WildPokemon _wildPokemonPrefab;
     public WildPokemon WildPokemonPrefab => _wildPokemonPrefab;
 
@@ -17,7 +17,7 @@ public class WildPokemonSpawner : MonoBehaviour
     //-------------------------------------------------------------------------------------------------------------//
 
     public Action<State<WildPokemonSpawner>> OnStateChanged;
-    public Action<WildEncounterClass> OnAddPokemonToSpawn;
+    public Action<WildEncounter> OnAddPokemonToSpawn;
     // public Action<PokemonClass> OnAddPokemonToSpawn;
     public Action OnSpawnerCanceled;
     public Action OnDespawnCall;
@@ -45,7 +45,7 @@ public class WildPokemonSpawner : MonoBehaviour
     public int SpawnedPokemonAmnt => _spawnedPokemonAmnt;
     public List<Transform> SpawnLocations => _spawnLocations;
     // public List<PokemonClass> SpeciesToSpawnList { get; private set; }
-    public List<WildEncounterClass> SpeciesToSpawnList { get; private set; }
+    public List<WildEncounter> SpeciesToSpawnList { get; private set; }
     public ObjectPool<GameObject> SpawnPool => _spawnPool;
 
     //-------------------------------------------------------------------------------------------------------------//
@@ -167,7 +167,7 @@ public class WildPokemonSpawner : MonoBehaviour
         SpawnerStateMachine.OnQueueNextState?.Invoke( newState );
     }
 
-    private void AddPokemonToSpawnList( WildEncounterClass pokemon ){
+    private void AddPokemonToSpawnList( WildEncounter pokemon ){
         SpeciesToSpawnList.Add( pokemon );
     }
 
@@ -209,8 +209,8 @@ public class WildPokemonSpawner : MonoBehaviour
         return spawnPoint;
     }
 
-    public WildEncounterClass RandomPokemon(){
-        WildEncounterClass pokemon = null;
+    public WildEncounter RandomPokemon(){
+        WildEncounter pokemon = null;
         // Debug.Log( _randomNumber );
         int prevRand = _randomNumber;
         _totalWeight = 0;

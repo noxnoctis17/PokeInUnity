@@ -13,9 +13,9 @@ public class LearnMoveMenu : State<PlayerBattleMenu>
     [SerializeField] private List<TextMeshProUGUI> _moveNames;
     [SerializeField] private List<LearnMoveButton> _moveButtons;
     public PlayerBattleMenu BattleMenu => _battleMenu;
-    private PokemonClass _pokemon;
-    private MoveBaseSO _newMove;
-    public Action<MoveBaseSO> OnReplaceMove;
+    private Pokemon _pokemon;
+    private MoveSO _newMove;
+    public Action<MoveSO> OnReplaceMove;
     public Action OnDontReplaceMove;
     public bool ReplacedMove { get; private set; }
 
@@ -44,7 +44,7 @@ public class LearnMoveMenu : State<PlayerBattleMenu>
         _moveButtons[0].ThisButton.Select();
     }
 
-    public void Setup( PokemonClass pokemon, List<MoveBaseSO> currentMoves, MoveBaseSO newMove ){
+    public void Setup( Pokemon pokemon, List<MoveSO> currentMoves, MoveSO newMove ){
         for( int i = 0; i < _moveNames.Count - 1; i++ ){
             _moveNames[i].text = currentMoves[i].MoveName;
             _moveButtons[i].Setup( _battleSystem, this, currentMoves[i] );
@@ -58,7 +58,7 @@ public class LearnMoveMenu : State<PlayerBattleMenu>
         StartCoroutine( SetInitialButton() );
     }
 
-    private void ReplaceMove( MoveBaseSO replacedMove ){
+    private void ReplaceMove( MoveSO replacedMove ){
         ReplacedMove = true;
         _pokemon.ReplaceWithNewMove( replacedMove, _newMove );
         _battleMenu.BattleMenuStateMachine.Pop();

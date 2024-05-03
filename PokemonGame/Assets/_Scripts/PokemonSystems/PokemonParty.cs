@@ -6,8 +6,8 @@ public class PokemonParty : MonoBehaviour
 {
     [SerializeField] private bool _isPlayerParty;
     [SerializeField] private bool _isEnemyParty;
-    [SerializeField] private List<PokemonClass> _partyPokemon;
-    public List<PokemonClass> PartyPokemon => _partyPokemon;
+    [SerializeField] private List<Pokemon> _partyPokemon;
+    public List<Pokemon> PartyPokemon => _partyPokemon;
 
     private void Start(){
         Init();
@@ -15,7 +15,7 @@ public class PokemonParty : MonoBehaviour
 
     public void Init(){
         // Debug.Log( "Amount of Pokemon in Player Party: " + _partyPokemon.Count );
-        foreach( PokemonClass pokemon in _partyPokemon ){
+        foreach( Pokemon pokemon in _partyPokemon ){
             pokemon.Init();
             
             if( _isPlayerParty ){
@@ -27,12 +27,12 @@ public class PokemonParty : MonoBehaviour
         }
     }
 
-    public PokemonClass GetHealthyPokemon(){
+    public Pokemon GetHealthyPokemon(){
         return _partyPokemon.Where( x => x.CurrentHP > 0 ).FirstOrDefault();
     }
 
-    public void AddPokemon( PokemonClass pokemon ){
-        PokemonClass copyPokemon = new ( pokemon.PokeSO, pokemon.Level );
+    public void AddPokemon( Pokemon pokemon ){
+        Pokemon copyPokemon = new ( pokemon.PokeSO, pokemon.Level );
 
         if( _partyPokemon.Count < 6 )
             _partyPokemon.Add( copyPokemon );
@@ -41,7 +41,7 @@ public class PokemonParty : MonoBehaviour
         }
     }
 
-    public void RestoreSavedParty( List<PokemonClass> restoredParty ){
+    public void RestoreSavedParty( List<Pokemon> restoredParty ){
         _partyPokemon = restoredParty;
     }
     

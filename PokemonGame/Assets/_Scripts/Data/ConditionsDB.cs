@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class ConditionsDB
 {
-    public static Dictionary<ConditionID, ConditionClass> Conditions { get; set; } 
+    public static Dictionary<ConditionID, Condition> Conditions { get; set; } 
 
     public static void Init(){
         SetDictionary();
@@ -21,45 +21,49 @@ public class ConditionsDB
     }
 
     private static void SetDictionary(){
-        Conditions = new Dictionary<ConditionID, ConditionClass>()
+        Conditions = new Dictionary<ConditionID, Condition>()
         {
             {   //--POISON
-                ConditionID.PSN, new ConditionClass()
+                ConditionID.PSN, new Condition()
                 {
                     ConditionName = "Poison",
-                    OnAfterTurn = ( PokemonClass pokemon ) =>
+                    AfflictionDialogue = "was poisoned!",
+                    OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.UpdateHP( pokemon.MaxHP / 8 );
-                        BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its poisoning!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by poison!" );
                     }}},
                     
             {   //--TOXIC
-                ConditionID.TOX, new ConditionClass()
+                ConditionID.TOX, new Condition()
                 {
                     ConditionName = "Toxic",
-                    OnAfterTurn = ( PokemonClass pokemon ) =>
+                    AfflictionDialogue = "was inflicted with toxic poison!",
+                    OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.UpdateHP( pokemon.MaxHP / 8 );
-                        BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its horrible poisoning!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its horrible poisoning!" );
                     }}},
 
             {   //--BURN
-                ConditionID.BRN, new ConditionClass()
+                ConditionID.BRN, new Condition()
                 {
                     ConditionName = "Burn",
-                    OnAfterTurn = ( PokemonClass pokemon ) =>
+                    AfflictionDialogue = "was burned!",
+                    OnAfterTurn = ( Pokemon pokemon ) =>
                     {
-                        Debug.Log( pokemon.CurrentHP );
+                        // Debug.Log( pokemon.CurrentHP );
                         pokemon.UpdateHP( pokemon.MaxHP / 16 );
-                        BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its burn!" );
-                        Debug.Log( pokemon.CurrentHP );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its burn!" );
+                        // Debug.Log( pokemon.CurrentHP );
                     }}},
 
             {   //-PARAYLSIS
-                ConditionID.PAR, new ConditionClass()
+                ConditionID.PAR, new Condition()
                 {
                     ConditionName = "Paralysis",
-                    OnBeforeTurn = ( PokemonClass pokemon ) =>
+                    AfflictionDialogue = "has been paralyzed!",
+                    OnBeforeTurn = ( Pokemon pokemon ) =>
                     {
                         if( Random.Range( 1, 5 ) == 1 )
                         {
@@ -76,65 +80,68 @@ public class ConditionsDB
                     }}},
 
             {   //--SLEEP
-                ConditionID.SLP, new ConditionClass()
+                ConditionID.SLP, new Condition()
                 {
                     ConditionName = "Sleep",
-                    OnRoundStart = ( PokemonClass pokemon ) =>
+                    AfflictionDialogue = "has fallen asleep!",
+                    OnRoundStart = ( Pokemon pokemon ) =>
                     {
                         //--Sleep is for 1-3 turns? i'm gunna make it a guaranteed 2 turns only
                         pokemon.SevereStatusTime = 2;
                     },
 
-                    OnBeforeTurn = ( PokemonClass pokemon ) =>
+                    OnBeforeTurn = ( Pokemon pokemon ) =>
                     {
                         if( pokemon.SevereStatusTime == 0 )
                         {
                             pokemon.CureSevereStatus();
-                            BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} woke up!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} woke up!" );
                             return true;
                         }
 
-                        BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is fast asleep!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is fast asleep!" );
                         pokemon.SevereStatusTime--;
                         return false;
                     }}},
 
             {   //--FROSTBITE
-                ConditionID.FBT, new ConditionClass()
+                ConditionID.FBT, new Condition()
                 {
                     ConditionName = "Frostbite",
-                    OnAfterTurn = ( PokemonClass pokemon ) =>
+                    AfflictionDialogue = "has become frostbitten!",
+                    OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.UpdateHP( pokemon.MaxHP / 16 );
-                        BattleSystem.Instance.AfterTurnDialogue( $"{pokemon.PokeSO.pName} is hurt by its frostbite!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its frostbite!" );
                     }}},
 
             {   //--FAINT
-                ConditionID.FNT, new ConditionClass()
+                ConditionID.FNT, new Condition()
                 {
                     ConditionName = "Faint",
-                    OnAfterTurn = ( PokemonClass pokemon ) =>
+                    OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.CurrentHP = 0;
                     }
                 }},
 
             {   //--CONFUSION
-                ConditionID.CONFUSION, new ConditionClass()
+                ConditionID.CONFUSION, new Condition()
                 {
                     ConditionName = "Confusion",
-                    OnRoundStart = ( PokemonClass pokemon ) =>
+                    AfflictionDialogue = "became confused!",
+                    OnRoundStart = ( Pokemon pokemon ) =>
                     {
                         //--Confuse for 2-5 turns
                         pokemon.VolatileStatusTime = Random.Range( 2, 6 );
                     },
 
-                    OnBeforeTurn = ( PokemonClass pokemon ) =>
+                    OnBeforeTurn = ( Pokemon pokemon ) =>
                     {
                         if( pokemon.VolatileStatusTime == 0 )
                         {
                             pokemon.CureVolatileStatus();
-                            Debug.Log( $"{pokemon.PokeSO.pName} snapped out of confusion!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} snapped out of confusion!" );
                             return true;
                         }
 
@@ -143,9 +150,9 @@ public class ConditionsDB
                         //--33% Chance to Hurt Itself
                         if( Random.Range( 1,4 ) == 1 )
                         {
-                            Debug.Log( $"{pokemon.PokeSO.pName} is confused!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is confused!" );
                             pokemon.UpdateHP( pokemon.MaxHP / 16 );
-                            Debug.Log( $"{pokemon.PokeSO.pName} hurt itself in confusion!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} hurt itself in confusion!" );
                             return false;
                         }
 
@@ -156,7 +163,7 @@ public class ConditionsDB
         };
     }
 
-    public static float GetStatusBonus( ConditionClass condition ){
+    public static float GetStatusBonus( Condition condition ){
         if( condition == null )
             return 1f;
         else if( condition.ID == ConditionID.SLP )
@@ -178,10 +185,10 @@ public enum ConditionID
     //--Severe Statuses
     PSN, //--Poison. 1/8th max hp at the end of every round
     TOX, //--Toxic. Increasing damage at the end of every round a pokemon stays out. restarts on switch
-    BRN, //--Burn. 1/16th max hp at the end of every round, lowers attack by 25% as part of the SpecialStatChange attribute
+    BRN, //--Burn. 1/16th max hp at the end of every round, cuts attack by 25% as part of the SpecialStatChange attribute
     PAR, //--Paralysis. 75% speed as part of the SpecialStatChange attribute
     SLP, //--Sleep. Guaranteed 2 turns of inactivity
-    FBT, //--Frostbite. 1/16th max hp at the end of every round, lowers attack by 25% as part of the SpecialStatChange attribute
+    FBT, //--Frostbite. 1/16th max hp at the end of every round, cuts special attack by 25% as part of the SpecialStatChange attribute
 
     //--Faint
     FNT, //-You're fuckin dead bro

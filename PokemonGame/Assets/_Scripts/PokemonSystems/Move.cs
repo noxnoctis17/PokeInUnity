@@ -2,10 +2,10 @@ using System;
 
 public class MoveClass
 {
-    public MoveBaseSO MoveSO { get; set; }
+    public MoveSO MoveSO { get; set; }
     public int PP { get; set; }
 
-    public MoveClass( MoveBaseSO mBase ){
+    public MoveClass( MoveSO mBase ){
         MoveSO = mBase;
         PP = MoveSO.PP;
     }

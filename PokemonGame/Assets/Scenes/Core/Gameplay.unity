@@ -33,7 +33,7 @@ RenderSettings:
   m_HaloTexture: {fileID: 0}
   m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
   m_DefaultReflectionMode: 0
-  m_DefaultReflectionResolution: 64
+  m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 0.5
   m_CustomReflection: {fileID: 0}
@@ -97,7 +97,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000004, guid: 8096bf7fc8f44104b9f8b78d6d46b19b, type: 2}
+  m_LightingDataAsset: {fileID: 112000004, guid: 40a598d5153c59845a3ae3538b1a8720, type: 2}
   m_LightingSettings: {fileID: 4890085278179872738, guid: ef47def2e20944246a855aa2ecf7a349, type: 2}
 --- !u!196 &4
 NavMeshSettings:
@@ -1279,7 +1279,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 146765293}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.23803188, y: 1e-45, z: -0, w: 0.9712574}
+  m_LocalRotation: {x: 0.23803188, y: -1e-45, z: -0, w: 0.9712574}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3507,6 +3507,7 @@ GameObject:
   - component: {fileID: 344366099}
   - component: {fileID: 344366098}
   - component: {fileID: 344366097}
+  - component: {fileID: 344366101}
   m_Layer: 5
   m_Name: -----MAIN UI----------------------------
   m_TagString: Untagged
@@ -3597,6 +3598,19 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!114 &344366101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 344366096}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a2fbfe7f3006fc40ae1eafa6e9ded9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _timeText: {fileID: 1251133885}
 --- !u!1 &355501719
 GameObject:
   m_ObjectHideFlags: 0
@@ -4459,7 +4473,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &428591195
 Transform:
   m_ObjectHideFlags: 0
@@ -8013,7 +8027,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1605322133}
   - {fileID: 529468149}
   - {fileID: 569117053}
   - {fileID: 787137015}
@@ -11033,7 +11046,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1015433911}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.2669336, y: 3e-45, z: -1e-45, w: 0.96371496}
+  m_LocalRotation: {x: 0.2669336, y: -3e-45, z: 1e-45, w: 0.96371496}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -12770,7 +12783,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1170984981}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.26693356, y: 4e-45, z: -1e-45, w: 0.96371496}
+  m_LocalRotation: {x: 0.26693356, y: -4e-45, z: 1e-45, w: 0.96371496}
   m_LocalPosition: {x: 12.119648, y: -84.55641, z: -108.55919}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -13364,7 +13377,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -100, y: -28.9}
+  m_AnchoredPosition: {x: -125, y: -50}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1251133885
@@ -13389,8 +13402,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: hh:mm
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 251b3c3a1718b0142947b569a92b20ee, type: 2}
-  m_sharedMaterial: {fileID: -3481418765996941147, guid: 251b3c3a1718b0142947b569a92b20ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 9207b4a01209a6c498989e9ba6b4a5fa, type: 2}
+  m_sharedMaterial: {fileID: -3481418765996941147, guid: 9207b4a01209a6c498989e9ba6b4a5fa, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -13414,14 +13427,14 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 40
-  m_fontSizeBase: 40
+  m_fontSize: 50
+  m_fontSizeBase: 50
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -16140,12 +16153,12 @@ GameObject:
   - component: {fileID: 1605322133}
   - component: {fileID: 1605322134}
   m_Layer: 0
-  m_Name: ----TIME CONTROLLER----
+  m_Name: -----TIME CONTROLLER----------------
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1605322133
 Transform:
   m_ObjectHideFlags: 0
@@ -16159,7 +16172,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 758500514}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1605322134
 MonoBehaviour:
@@ -16176,9 +16189,9 @@ MonoBehaviour:
   _sun: {fileID: 0}
   _moon: {fileID: 0}
   _maxSunLightIntensity: 1
-  _maxMoonLightIntensity: 0.5
-  _timeMultiplier: 2000
-  _startHour: 1
+  _maxMoonLightIntensity: 0.25
+  _timeMultiplier: 60
+  _startHour: 10
   _sunRiseHour: 6.5
   _sunSetHour: 21
   _timeText: {fileID: 0}
@@ -18162,8 +18175,8 @@ Transform:
   - {fileID: 415161992}
   - {fileID: 344366100}
   - {fileID: 1419629147}
-  - {fileID: 1013199756}
   - {fileID: 758500514}
+  - {fileID: 1013199756}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1845554874
@@ -18659,7 +18672,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1899367338}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.2669336, y: 3e-45, z: -1e-45, w: 0.96371496}
+  m_LocalRotation: {x: 0.2669336, y: 1e-45, z: -0, w: 0.96371496}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -20559,4 +20572,5 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1845554873}
+  - {fileID: 1605322133}
   - {fileID: 1989137958}

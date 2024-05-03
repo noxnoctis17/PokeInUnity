@@ -6,7 +6,7 @@ public class BattleAI : MonoBehaviour
     public Action OnPlayerCommandSelect;
     private BattleSystem _battleSystem;
     private BattleUnit _battleUnit;
-    private PokemonClass _pokemon;
+    private Pokemon _pokemon;
     private MoveClass _move;
 
     private void Start(){

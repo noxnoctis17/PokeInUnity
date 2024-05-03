@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class PlayerSaving : MonoBehaviour, ISavable
 {
-
     public object CaptureState(){
         var playerPosition = PlayerReferences.Instance.PlayerTransform.position;
         var playerParty = PlayerReferences.Instance.PlayerParty;
@@ -22,7 +21,7 @@ public class PlayerSaving : MonoBehaviour, ISavable
         var saveData = (PlayerSaveData)state;
         var savedPosition = saveData.SavedPosition;
         var playerParty = PlayerReferences.Instance.PlayerParty;
-        var restoredParty = saveData.PlayerParty.Select( p => new PokemonClass( p ) ).ToList();
+        var restoredParty = saveData.PlayerParty.Select( p => new Pokemon( p ) ).ToList();
 
         //--Restore Player Position
         Vector3 position = new( savedPosition[0], savedPosition[1], savedPosition[2] );

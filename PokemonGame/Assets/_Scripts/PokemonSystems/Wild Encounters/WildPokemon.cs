@@ -7,9 +7,9 @@ using Pathfinding;
 public class WildPokemon : MonoBehaviour
 {
     //----------------------[ POKEMON SO ]--------------------------
-    [SerializeField] private PokemonClass _pokemon;
+    [SerializeField] private Pokemon _pokemon;
     [SerializeField] private PokemonSO _pokeSO;
-    public PokemonClass Pokemon => _pokemon;
+    public Pokemon Pokemon => _pokemon;
     public PokemonSO PokeSO => _pokeSO;
     private WildPokemonSpawner _wildPokemonSpawner;
 
@@ -61,7 +61,7 @@ public class WildPokemon : MonoBehaviour
         //--References
         _wildPokemonSpawner = spawner;
         _pokeSO = pokeSO;
-        _pokemon = new PokemonClass( _pokeSO, level );
+        _pokemon = new Pokemon( _pokeSO, level );
         
         //--Set State Machine & Initial State
         WildPokemonStateMachine = new StateMachine<WildPokemon>( this, _wanderState );

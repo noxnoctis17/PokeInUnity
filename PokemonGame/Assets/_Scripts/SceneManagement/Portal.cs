@@ -3,23 +3,44 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Linq;
 using System;
+using DG.Tweening;
 
 public enum PortalDestinationID { A, B, C, D, E, }
+public enum PortalType{ Local, NewScene, }
 
 public class Portal : MonoBehaviour
 {
-    [SerializeField] private int _sceneToLoad = -1; //--Default -1 because indexed scenes start at 0. This will return an error so we know we fucked up
+    private SceneManagerTWO _sceneManager;
+    [SerializeField] private SceneDetails _sceneToLoad; //--If null, this will return an error so we know we fucked up
     [SerializeField] private GameObject _spawnPoint;
     [SerializeField] private PortalDestinationID _destinationID;
-    [SerializeField] private bool _loadScene; //--to test the portal within the same scene/additively loaded scenes
+    [SerializeField] private PortalType _portalType; //--to test the portal within the same scene/additively loaded scenes
     private GameObject _player;
     public GameObject SpawnPoint => _spawnPoint;
     public PortalDestinationID DestinationID => _destinationID;
     public static Action OnSceneChanged;
 
-    private IEnumerator SwitchScene(){
+    private void Awake(){
+        _sceneManager = SceneManagerTWO.Instance;
+    }
+
+    private IEnumerator SwitchScene( SceneDetails indoorScene = null ){
         DontDestroyOnLoad( gameObject );
-        yield return SceneManager.LoadSceneAsync( _sceneToLoad );
+        
+        switch( _sceneToLoad.SceneType ){
+            case SceneType.Indoors:
+            Debug.Log( "loading indoor scene" );
+                yield return _sceneManager.LoadIndoorScene( _sceneToLoad.name );
+
+            break;
+
+            case SceneType.Outdoors:
+            Debug.Log( "loading overworld" );
+                yield return _sceneManager.LoadOverworld( indoorScene );
+
+            break;
+        }
+
         OnSceneChanged?.Invoke();
 
         yield return TeleportPlayer();
@@ -28,6 +49,8 @@ public class Portal : MonoBehaviour
     }
 
     private IEnumerator TeleportPlayer(){
+        yield return null;
+
         var destination = FindObjectsOfType<Portal>().First( x => x != this && x.DestinationID == DestinationID );
         yield return _player.GetComponent<PlayerMovement>().MovePlayerToSceneSpawnPoint( destination.SpawnPoint.transform );
     }
@@ -36,8 +59,12 @@ public class Portal : MonoBehaviour
         if( collider.CompareTag("Player") ){
             _player = collider.gameObject;
 
-            if( _loadScene )
-                StartCoroutine( SwitchScene() );
+            //--If the portal leads to a new scene, we proceed with loading it. this excludes outdoor to outdoor, that's local despite cross-scene?
+            //--Else we simply teleport the player to the local location
+            if( _portalType == PortalType.NewScene ){
+                var indoorScene = SceneManagerTWO.Instance.ActiveScene;
+                StartCoroutine( SwitchScene( indoorScene ) );
+            }
             else
                 StartCoroutine( TeleportPlayer() );
         }

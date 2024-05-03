@@ -12,15 +12,15 @@ public class PartyMember_UI : MonoBehaviour
     private int _currentHPTracker;
     public int HP => _currentHPTracker;
 
-    private PokemonClass _pokemon;
-    public PokemonClass Pokemon => _pokemon;
+    private Pokemon _pokemon;
+    public Pokemon Pokemon => _pokemon;
 
     private void Update(){
         if( _currentHPTracker != _hpBar.hpBar.value )
         _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
     }
 
-    public void SetData( PokemonClass pokemon ){
+    public void SetData( Pokemon pokemon ){
         _pokemon = pokemon;
 
         _nameText.text = pokemon.PokeSO.pName;

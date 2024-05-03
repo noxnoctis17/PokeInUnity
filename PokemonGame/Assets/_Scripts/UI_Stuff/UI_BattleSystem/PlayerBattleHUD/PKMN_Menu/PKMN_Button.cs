@@ -7,7 +7,7 @@ public class PKMN_Button : MonoBehaviour, ISelectHandler, IDeselectHandler, ICan
 {
     [SerializeField] private PKMNMenu _pkmnMenu;
     [SerializeField] GameObject _selectedOutline;
-    public PokemonClass Pokemon;
+    public Pokemon Pokemon;
     public Button ThisButton { get; private set; }
     private bool _isFaintedSelect;
 

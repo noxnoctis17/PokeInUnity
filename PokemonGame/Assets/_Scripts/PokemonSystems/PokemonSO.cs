@@ -111,9 +111,9 @@ public class PokemonSO : ScriptableObject
 public class LearnableMoves
 {
     [Header("Move Pool")]
-    [SerializeField] private MoveBaseSO _moveSO;
+    [SerializeField] private MoveSO _moveSO;
     [SerializeField] private int _levelLearned;
-    public MoveBaseSO MoveSO => _moveSO;
+    public MoveSO MoveSO => _moveSO;
     public int LevelLearned => _levelLearned;
 }
 

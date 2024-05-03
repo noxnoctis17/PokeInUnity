@@ -16,7 +16,7 @@ public class PartyScreen : MonoBehaviour
         _pkmnButton = GetComponentsInChildren<PKMN_Button>();
     }
 
-    public void SetParty( List<PokemonClass> pokemon ){
+    public void SetParty( List<Pokemon> pokemon ){
         // Debug.Log( "SetParty Party Amount: " + pokemon.Count );
         // Debug.Log( "SetParty _memberSlots Amount: " + _memberSlots.Length );
         for( int i = 0; i < _memberSlots.Length; i++ ){

@@ -1,11 +1,10 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
 
-[System.Serializable]
-public class PokemonClass
+[Serializable]
+public class Pokemon
 {
     [SerializeField] private PokemonSO _pokeSO;
     [SerializeField] private int _level;
@@ -21,12 +20,13 @@ public class PokemonClass
     public Dictionary<Stat, int> Stats { get; private set; }
     public Dictionary<Stat, int> StatChange { get; private set; }
     public Dictionary<PokemonType, TypeCardColors> TypeColors { get; private set; }
-    public ConditionClass SevereStatus { get; private set; }
-    public ConditionClass VolatileStatus { get; private set; }
+    public Condition SevereStatus { get; private set; }
+    public Condition VolatileStatus { get; private set; }
     public Action OnStatusChanged;
     public int SevereStatusTime { get; set; }
     public int VolatileStatusTime { get; set; }
-    public bool HPChanged;
+    public bool HPChanged { get; set; }
+    public Queue<string> StatusChanges { get; private set; }
 
 //--------------------------------------------------------------------------------------------
 //-----------------------------------[POKEMON STATS]------------------------------------------
@@ -55,14 +55,14 @@ public class PokemonClass
 //------------------------------------[ CONSTRUCTORS ]----------------------------------------
 //--------------------------------------------------------------------------------------------
 
-    public PokemonClass( PokemonSO pokeSO, int level ){
+    public Pokemon( PokemonSO pokeSO, int level ){
         _pokeSO = pokeSO;
         _level = level;
 
         Init();
     }
 
-    public PokemonClass( PokemonSaveData saveData ){
+    public Pokemon( PokemonSaveData saveData ){
         _pokeSO = PokemonDB.GetPokemonBySpecies( saveData.Species );
         _level = saveData.Level;
         CurrentHP = saveData.CurrentHP;
@@ -88,6 +88,8 @@ public class PokemonClass
 
         ResetStatChanges();
         VolatileStatus = null;
+
+        StatusChanges = new Queue<string>();
     }
 
 //--------------------------------------------------------------------------------------------
@@ -123,6 +125,8 @@ public class PokemonClass
         ResetStatChanges();
         SevereStatus = null;
         VolatileStatus = null;
+
+        StatusChanges = new Queue<string>();
     }
 
     public PokemonSaveData CreateSaveData(){
@@ -214,7 +218,7 @@ public class PokemonClass
 
     }
 
-    public void ReplaceWithNewMove( MoveBaseSO replacedMove, MoveBaseSO newMove ){
+    public void ReplaceWithNewMove( MoveSO replacedMove, MoveSO newMove ){
         for( int i = 0; i < ActiveMoves.Count; i++ ){
             if( ActiveMoves[i].MoveSO == replacedMove ){
                 ActiveMoves[i] = new MoveClass ( newMove );
@@ -261,7 +265,20 @@ public class PokemonClass
 
             StatChange[stat] = Mathf.Clamp( StatChange[stat] + change, -6, 6 );
 
-            Debug.Log( $"{stat} has been changed to: {StatChange[stat]}" );
+            if( change == 1 )
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} rose by {StatChange[stat]} stage!" );
+            if( change > 1 )
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} sharply rose by {StatChange[stat]} stages!" );
+            if( change == 6 )
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} maxed out at stage {StatChange[stat]}!" );
+            if( change == -1 )
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} decreased by {StatChange[stat]} stage!" );
+            if( change < -1 )
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} sharply decreased by {StatChange[stat]} stages!" );
+            if( change == -6 )
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} bottomed out at stage {StatChange[stat]}!" );
+
+            // Debug.Log( $"{stat} has been changed to: {StatChange[stat]}" );
         }
     }
 
@@ -295,7 +312,8 @@ public class PokemonClass
 
         SevereStatus = ConditionsDB.Conditions[conditionID];
         SevereStatus?.OnRoundStart?.Invoke( this );
-        Debug.Log($"{_pokeSO.pName} has been afflicted with: {ConditionsDB.Conditions[conditionID].ConditionName}");
+        StatusChanges.Enqueue( $"{_pokeSO.pName} {SevereStatus.AfflictionDialogue}" );
+        // Debug.Log($"{_pokeSO.pName} has been afflicted with: {ConditionsDB.Conditions[conditionID].ConditionName}");
         OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
     }
 
@@ -324,18 +342,15 @@ public class PokemonClass
     }
 
     public bool OnBeforeTurn(){
-        bool canPerformMove = true;
-        if(SevereStatus?.OnBeforeTurn != null){
-            if(!SevereStatus.OnBeforeTurn(this))
-                canPerformMove = false;
-        }
+        //--Severe Status
+        if( SevereStatus?.OnBeforeTurn != null )
+            return SevereStatus.OnBeforeTurn( this );
 
-        if(VolatileStatus?.OnBeforeTurn != null){
-            if(!VolatileStatus.OnBeforeTurn(this))
-                canPerformMove = false;
-        }
+        //--Volatile Status
+        if( VolatileStatus?.OnBeforeTurn != null )
+            return VolatileStatus.OnBeforeTurn( this );
 
-        return canPerformMove;
+        return true;
     }
 
     public void OnAfterTurn(){
@@ -347,9 +362,9 @@ public class PokemonClass
 
 public class DamageDetails
 {
-    public bool Fainted {get; set;}
-    public float Critical {get; set;}
-    public float TypeEffectiveness {get; set;}
+    public bool Fainted { get; set; }
+    public float Critical { get; set; }
+    public float TypeEffectiveness { get; set; }
 }
 
 [Serializable]

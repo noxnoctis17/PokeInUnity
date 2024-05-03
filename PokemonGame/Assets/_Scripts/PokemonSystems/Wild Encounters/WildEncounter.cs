@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [System.Serializable]
-public class WildEncounterClass
+public class WildEncounter
 {
     [SerializeField] private PokemonSO _pokeSO;
     [SerializeField] private int _level;
