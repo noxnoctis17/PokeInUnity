@@ -266,19 +266,17 @@ public class Pokemon
             StatChange[stat] = Mathf.Clamp( StatChange[stat] + change, -6, 6 );
 
             if( change == 1 )
-                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} rose by {StatChange[stat]} stage!" );
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} rose by {change} stage!" );
             if( change > 1 )
-                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} sharply rose by {StatChange[stat]} stages!" );
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} sharply rose by {change} stages!" );
             if( change == 6 )
-                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} maxed out at stage {StatChange[stat]}!" );
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} maxed out at stage {change}!" );
             if( change == -1 )
-                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} decreased by {StatChange[stat]} stage!" );
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} decreased by {change} stage!" );
             if( change < -1 )
-                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} sharply decreased by {StatChange[stat]} stages!" );
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} sharply decreased by {change} stages!" );
             if( change == -6 )
-                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} bottomed out at stage {StatChange[stat]}!" );
-
-            // Debug.Log( $"{stat} has been changed to: {StatChange[stat]}" );
+                StatusChanges.Enqueue( $"{PokeSO.pName}'s {stat} bottomed out at stage {change}!" );
         }
     }
 

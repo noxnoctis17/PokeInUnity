@@ -1,59 +1,53 @@
 using System;
+using System.Collections.Generic;
+using EasyButtons;
+using Eflatun.SceneReference;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public enum SceneType { Outdoors, Indoors, Cave, Core }
 
-public class SceneDetails : MonoBehaviour
+[Serializable]
+public class SceneDetails
 {
     [SerializeField] private SceneType _sceneType;
+    [SerializeField] private SceneReference _sceneReference;
     public SceneType SceneType => _sceneType;
-    public Scene ActiveScene;
+    public SceneReference SceneReference => _sceneReference;
+    public string SceneName => _sceneReference.Name;
     public bool IsLoaded { get; private set; }
-    public static Action OnActiveSceneChanged;
-    public static Action<SceneDetails> OnNewActiveScene;
-    public static Action OnLeavingScene;
+    private List<SavableEntity> _savableEntities;
 
-    //--TODO: REMOVE THIS WHEN YOU EVENTUALLY MAKE A BOOTSTRAP SCENE OR SOMETHING, THESE ARE MY CURRENTLY LOADED OVERWORLD TEST AREAS
-    private void Awake(){
-        if( gameObject.name == "InitiaTown" || gameObject.name == "RouteTest01" )
-            IsLoaded = true;
+    public void SetIsLoaded( bool isLoaded ){
+        Debug.Log( $"SetIsLoaded: {isLoaded} in scene: {SceneName}" );
+        IsLoaded = isLoaded;
     }
 
     public void LoadSceneAdditively(){
+        //--Load scene state here
         if( !IsLoaded ){
-            SceneManager.LoadSceneAsync( gameObject.name, LoadSceneMode.Additive );
+            var asyncOP = SceneManager.LoadSceneAsync( SceneName, LoadSceneMode.Additive );
             IsLoaded = true;
+
+            asyncOP.completed += ( AsyncOperation op ) =>
+            {   //--Async Operation callback "completed". once the loadscene async operation is completed, this event is raised. we subscribe to it here
+                //--So that we don't try to get and potentially restore savable entities before they scene fully loads, in which some objects might not
+                //--have been fully loaded in yet.
+                _savableEntities = SceneManagerTWO.Instance.GetSceneSavables( this );
+                SavingSystem.Instance.RestoreEntityStates( _savableEntities );
+            };
         }
     }
 
     public void UnloadScene(){
+        //--Save scene state here
         if( IsLoaded ){
-            SceneManager.UnloadSceneAsync( gameObject.name );
+            SavingSystem.Instance.CaptureEntityStates( _savableEntities );
+
+            SceneManager.UnloadSceneAsync( SceneName );
             IsLoaded = false;
         }
-    }
-
-    private void OnTriggerEnter( Collider col ){
-        if( col.CompareTag( "Player" ) ){
-            Debug.Log( $"Entered {gameObject.name}" );
-            // LoadScene();
-            SetActiveScene();
-        }
-    }
-
-    private void OnTriggerExit( Collider col ){
-        if( col.CompareTag( "Player" ) ){
-            Debug.Log( $"Exited {gameObject.name}" );
-        }
-    }
-
-    private void SetActiveScene(){
-        OnLeavingScene?.Invoke();
-        Scene targetScene = SceneManager.GetSceneByName( gameObject.name );
-        SceneManager.SetActiveScene( targetScene );
-        OnNewActiveScene?.Invoke( this );
-        OnActiveSceneChanged?.Invoke();
     }
     
 }

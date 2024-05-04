@@ -25,7 +25,7 @@ public class PokemonShadow : MonoBehaviour
 
     private void OnEnable(){
         Portal.OnSceneChanged += ReInitialize;
-        SceneDetails.OnActiveSceneChanged += ReInitialize;
+        SceneEvents.OnActiveSceneChanged += ReInitialize;
 
         _spriteRenderer = GetComponent<SpriteRenderer>();
         _spriteAnimator = new SpriteAnimator( _spriteRenderer );
