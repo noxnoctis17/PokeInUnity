@@ -4,11 +4,11 @@ using UnityEngine.UI;
 
 public class PartyMember_UI : MonoBehaviour
 {
-    [SerializeField] TextMeshProUGUI _nameText;
-    [SerializeField] TextMeshProUGUI _levelText;
-    [SerializeField] Image _battlePortrait;
-    [SerializeField] HPBar _hpBar;
-    [SerializeField] TextMeshProUGUI _currentHPText;
+    [SerializeField] private TextMeshProUGUI _nameText;
+    [SerializeField] private TextMeshProUGUI _levelText;
+    [SerializeField] private Image _battlePortrait;
+    [SerializeField] private HPBar _hpBar;
+    [SerializeField] private TextMeshProUGUI _currentHPText;
     private int _currentHPTracker;
     public int HP => _currentHPTracker;
 

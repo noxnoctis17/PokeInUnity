@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class TileCombiner : EditorWindow
 {
-    [SerializeField] private GameObject _parentObject;
+    [SerializeField] private UnityEngine.GameObject _parentObject;
     [SerializeField] private MeshFilter[] _sourceMeshes;
     [SerializeField] private MeshFilter _mergedMesh;
 

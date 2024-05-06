@@ -6,8 +6,8 @@ using UnityEngine.UI;
 
 public class DialogueUI : MonoBehaviour
 {
-    [SerializeField] private GameObject _generalDialogueBox, _leftDialogueBox_1, _rightDialogueBox_1;
-    [SerializeField] private GameObject _speakerNameBox;
+    [SerializeField] private UnityEngine.GameObject _generalDialogueBox, _leftDialogueBox_1, _rightDialogueBox_1;
+    [SerializeField] private UnityEngine.GameObject _speakerNameBox;
     [SerializeField] private TMP_Text _speakerNameText, _leftSpeakerNameText_1, _rightSpeakerNameText_1;
     [SerializeField] private TMP_Text _dialogueText;
     [SerializeField] private TMP_Text _leftSpeakerText_1, _leftSpeakerText_2, _rightSpeakerText_1, _rightSpeakerText_2;

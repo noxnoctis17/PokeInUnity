@@ -33,7 +33,7 @@ public class BattleSystem : BattleStateMachine
     [SerializeField] private Transform _damageTakenPopupPrefab;
     [SerializeField] private PlayerBattleMenu _battleMenu;
     [SerializeField] private FightMenu _fightMenu;
-    [SerializeField] private PKMNMenu _pkmnMenu;
+    [SerializeField] private PKMNMenu_Battle _pkmnMenu;
     [SerializeField] private PartyScreen _partyScreen;
     [SerializeField] private LearnMoveMenu _learnMoveMenu;
     [SerializeField] private AudioSource _audioSource;
@@ -66,7 +66,7 @@ public class BattleSystem : BattleStateMachine
     //--Menus and Screens
     public PlayerBattleMenu PlayerBattleMenu => _battleMenu;
     public FightMenu FightMenu => _fightMenu;
-    public PKMNMenu PKMNMenu => _pkmnMenu;
+    public PKMNMenu_Battle PKMNMenu => _pkmnMenu;
     public PartyScreen PartyScreen => _partyScreen;
     public LearnMoveMenu LearnMoveMenu => _learnMoveMenu;
     //--EXP

@@ -27,8 +27,11 @@ public class StateStackMachine<T>
         Debug.Log( "StateStack Machine Pop() by: " + _owner );
         StateStack.Pop();
         CurrentState.ExitState();
-        CurrentState = StateStack.Peek();
-        CurrentState.ReturnToState();
+
+        if( StateStack.Peek() != null){
+            CurrentState = StateStack.Peek();
+            CurrentState.ReturnToState();
+        }
     }
 
     public void ChangeState( State<T> newState ){

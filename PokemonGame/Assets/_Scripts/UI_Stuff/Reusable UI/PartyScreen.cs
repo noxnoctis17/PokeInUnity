@@ -3,17 +3,21 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 
+public enum PartyScreenContext { Battle, PauseMenu, ItemUse, Trade,  }
+
 public class PartyScreen : MonoBehaviour
 {
+    private PartyScreenContext _partyScreenContext;
     private PartyMember_UI[] _memberSlots;
     private PKMN_Button[] _pkmnButton;
     [SerializeField] private Button _partyButton1;
     public Button PartyButton1 => _partyButton1;
     public Action<Button> OnSubmittedButton;
 
-    public void Init(){
+    public void Init( PartyScreenContext context ){
         _memberSlots = GetComponentsInChildren<PartyMember_UI>( true );
         _pkmnButton = GetComponentsInChildren<PKMN_Button>();
+        _partyScreenContext = context;
     }
 
     public void SetParty( List<Pokemon> pokemon ){
@@ -48,6 +52,7 @@ public class PartyScreen : MonoBehaviour
     private void AssignPokemonToButtons(){
         for( int i = 0; i < _pkmnButton.Length; i++ ){
             _pkmnButton[i].Pokemon = _memberSlots[i].Pokemon;
+            _pkmnButton[i].Setup( _partyScreenContext );
         }
     }
 

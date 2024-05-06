@@ -11,7 +11,7 @@ public class BattleState_Setup : InBattleStates
         BattleSystem.OnBattleStarted?.Invoke();
         yield return new WaitForSeconds(0.1f);
         yield return BattleSystem.BattleArena.PrepareArena( BattleSystem );
-        yield return SetUpPlayer();
+        // yield return SetUpPlayer(); //--Depcrecated i suppose lol
         BattleSystem.PlayerAction();
     }
 
@@ -21,8 +21,8 @@ public class BattleState_Setup : InBattleStates
 
         //--Set up Player UI
         // BattleSystem.FightMenu.SetUpMoves( BattleSystem.PlayerUnit.Pokemon.Moves );
-        BattleSystem.PartyScreen.Init();
-        BattleSystem.PartyScreen.SetParty( BattleSystem.PlayerParty.PartyPokemon );
+        // BattleSystem.PartyScreen.Init();
+        // BattleSystem.PartyScreen.SetParty( BattleSystem.PlayerParty.PartyPokemon );
         yield return null;
     }
 

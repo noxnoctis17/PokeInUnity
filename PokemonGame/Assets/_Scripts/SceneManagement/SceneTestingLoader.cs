@@ -6,7 +6,6 @@ using UnityEngine;
 public class SceneTestingLoader : MonoBehaviour
 {
     [SerializeField] private SceneManagerTWO _sceneManager;
-    [SerializeField] private SceneType _sceneType;
     [SerializeField] private bool _standardTesting; //--Check this to simply start in InitiaTown with adjacent routes loaded
 
     private void OnEnable(){
@@ -31,8 +30,5 @@ public class SceneTestingLoader : MonoBehaviour
 
     private IEnumerator LoadOverworld(){
         yield return _sceneManager.LoadOverworld();
-        
-        // if( !_sceneManager.GameplayScene.IsLoaded )
-            // yield return SceneManager.LoadSceneAsync( _sceneManager.GameplayScene.gameObject.name, LoadSceneMode.Additive );
     }
 }

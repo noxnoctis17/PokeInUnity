@@ -1,19 +1,19 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using NoxNoctisDev.StateMachine;
 
-public class UI_PauseMenuButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ISubmitHandler
+public class UI_PauseMenuButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ISubmitHandler, ICancelHandler
 {
-    [SerializeField] private UI_PauseMenu _pauseMenu;
+    private UI_PauseMenu _pauseMenu;
+    [SerializeField] private State<UI_PauseMenuStateMachine> _pauseMenuState;
     private Button _thisButton;
     private UI_PauseMenuButton_Events _buttonEvents;
-    public int ButtonCurrentPosition { get; private set; }
 
-    private void OnEnable(){
+    public void Setup( UI_PauseMenu pauseMenu ){
+        _pauseMenu = pauseMenu;
         _buttonEvents = _pauseMenu.ButtonEvents;
         _thisButton = GetComponent<Button>();
-
-        Debug.Log( _thisButton + " " + gameObject );
     }
 
     public void OnSelect( BaseEventData eventData ){
@@ -27,10 +27,13 @@ public class UI_PauseMenuButton : MonoBehaviour, ISelectHandler, IDeselectHandle
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        Debug.Log( "submitted you titted !!!!!!!!" );
+        Debug.Log( $"{gameObject.name} was submitted" );
+        _buttonEvents.OnButtonSubmitted?.Invoke( _thisButton );
+        _pauseMenu.PauseMenuStateMachine.PushNewState( _pauseMenuState );
     }
 
-    public void ChangePosition( int position ){
-        
+    public void OnCancel( BaseEventData eventData ){
+        _pauseMenu.PauseMenuStateMachine.CloseCurrentMenu();
     }
+
 }

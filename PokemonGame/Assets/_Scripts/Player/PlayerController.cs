@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -10,25 +9,23 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float _interactableRayLength;
     [SerializeField] private Transform _playerCenter;
     [SerializeField] private InputActionProperty _interactButton;
-    [SerializeField] private GameObject _pauseMenu;
     [SerializeField] private EventSystem _eventSystem;
     private PlayerInput _playerInput;
     private PlayerMovement _playerMovement;
+    public static Action OnPause;
 
     private void OnEnable(){
         EnableInteract();
         _playerInput.CharacterControls.Interact.performed += OnInteract;
         _playerInput.CharacterControls.PauseMenu.performed += OnPausePressed;
-        _playerInput.CharacterControls.Save.performed += OnSavePressed;
-        _playerInput.CharacterControls.Load.performed += OnLoadPressed;
+        OnPause += OnPauseTest;
     }
     
     private void OnDisable(){
         DisableInteract();
         _playerInput.CharacterControls.Interact.performed -= OnInteract;
         _playerInput.CharacterControls.PauseMenu.performed -= OnPausePressed;
-        _playerInput.CharacterControls.Save.performed -= OnSavePressed;
-        _playerInput.CharacterControls.Load.performed -= OnLoadPressed;
+        OnPause -= OnPauseTest;
     }
 
     public void SetPlayerInput( PlayerInput playerInput ){
@@ -49,15 +46,12 @@ public class PlayerController : MonoBehaviour
     }
 
     private void OnPausePressed( InputAction.CallbackContext context ){
-        if( _pauseMenu.activeSelf )
-            _pauseMenu.SetActive( false );
-        else
-            _pauseMenu.SetActive( true );
+        Debug.Log( "Pause Pressed" );
+        OnPause?.Invoke();
     }
 
-    private void OnSavePressed( InputAction.CallbackContext context ){
-        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.FreeRoamState )
-            SavingSystem.Instance.Save( "SaveSlot_1" );
+    private void OnPauseTest(){
+        Debug.Log( "yep pause was infact pressed" );
     }
 
     private void OnLoadPressed( InputAction.CallbackContext context ){

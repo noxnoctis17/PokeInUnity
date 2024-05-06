@@ -13,9 +13,9 @@ public class TilePlacer : EditorWindow
 
 //-----------------------------------------------------------------------
 
-    public GameObject GridObject;
-    private GameObject[] MapObjects;
-    public GameObject SelectedMapObject;
+    public UnityEngine.GameObject GridObject;
+    private UnityEngine.GameObject[] MapObjects;
+    public UnityEngine.GameObject SelectedMapObject;
     public Material PreviewMaterial;
     public int GridCellSize;
     public float GridExtent;
@@ -112,8 +112,8 @@ public class TilePlacer : EditorWindow
 
         using(new EditorGUI.DisabledScope( Selection.gameObjects.Length == 0 ) )
         if(GUILayout.Button("Rotate Selection +90")){
-            foreach( GameObject selected in Selection.gameObjects ){
-                Quaternion rot = selected.transform.rotation;
+            foreach(UnityEngine.GameObject selected in Selection.gameObjects ){
+                    Quaternion rot = selected.transform.rotation;
                 rot = rot * Quaternion.Euler( 0f, 90f , 0f );
                 selected.transform.rotation = rot;
             }
@@ -137,8 +137,9 @@ public class TilePlacer : EditorWindow
 
         Rect rect = new Rect( 4, 4, 200, 20 );
 
-        foreach( GameObject mapObject in MapObjects ){
-            if( GUI.Button(rect, mapObject.name) ){
+        foreach(UnityEngine.GameObject mapObject in MapObjects)
+        {
+            if(GUI.Button(rect, mapObject.name) ){
                 SelectedMapObject = mapObject;
                 SelectedMapObject.transform.rotation = _selectedMapObjectRotation;
                 Repaint();
@@ -234,7 +235,7 @@ public class TilePlacer : EditorWindow
         if(SelectedMapObject == null)
             return;
 
-        GameObject SpawnedObject = (GameObject)PrefabUtility.InstantiatePrefab( SelectedMapObject );
+        UnityEngine.GameObject SpawnedObject = (UnityEngine.GameObject)PrefabUtility.InstantiatePrefab(SelectedMapObject);
 
         Undo.RegisterCreatedObjectUndo( SpawnedObject, "PlacedMapObject" );
 
@@ -245,30 +246,30 @@ public class TilePlacer : EditorWindow
         SnapPlacedThings(SpawnedObject);
     }
 
-    private void ApplyHeightOffset(GameObject spawnedObject){
+    private void ApplyHeightOffset(UnityEngine.GameObject spawnedObject){
         Vector3 hOff = spawnedObject.transform.position;
         hOff.y = hOff.y + HeightOffset;
         spawnedObject.transform.position = hOff;
     }
 
-    private void RotatePlacedObject(GameObject spawnedObject){
+    private void RotatePlacedObject(UnityEngine.GameObject spawnedObject){
         spawnedObject.transform.rotation = _selectedMapObjectRotation;
     }
 
     private void SnapSelectedThings(){
-        foreach(GameObject gobj in Selection.gameObjects){
+        foreach(UnityEngine.GameObject gobj in Selection.gameObjects){
             Undo.RecordObject(gobj.transform, UNDO_STR_SNAP);
-            gobj.transform.position = gobj.transform.position.Round( GridCellSize );
+            gobj.transform.position = gobj.transform.position.Round(GridCellSize);
         }
     }
     private void SnapSelectedThingsXZ(){
-        foreach(GameObject gobj in Selection.gameObjects){
+        foreach(UnityEngine.GameObject gobj in Selection.gameObjects){
             Undo.RecordObject(gobj.transform, UNDO_STR_SNAP);
-            gobj.transform.position = gobj.transform.position.RoundXZ( GridCellSize );
+            gobj.transform.position = gobj.transform.position.RoundXZ(GridCellSize);
         }
     }
 
-    private void SnapPlacedThings(GameObject gobj){
+    private void SnapPlacedThings(UnityEngine.GameObject gobj){
         Undo.RecordObject(gobj.transform, UNDO_STR_SNAP);
         Vector3 oldPosition = gobj.transform.position;
         Vector3 snappedPosition = oldPosition.Round( GridCellSize );

@@ -8,4 +8,5 @@ public class UI_PauseMenuButton_Events : MonoBehaviour
 {
     public Action<Button> OnButtonSelected;
     public Action<Button> OnButtonDeselected;
+    public Action<Button> OnButtonSubmitted;
 }

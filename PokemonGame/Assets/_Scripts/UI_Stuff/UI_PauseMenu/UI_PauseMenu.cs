@@ -1,148 +1,105 @@
+using System.Collections;
+using NoxNoctisDev.StateMachine;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-public class UI_PauseMenu : MonoBehaviour
+public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
 {
-    [SerializeField] private Button _fight, _party, _bag, _run;
-    private Button[] _buttons;
+    public UI_PauseMenuStateMachine PauseMenuStateMachine { get; private set; }
     public UI_PauseMenuButton_Events ButtonEvents { get; private set; }
-    private Button _activeButton;
-    private Button _memorizeButton;
-    private Button _previousButton;
-    private PlayerInput _playerInput;
-    private float _cardRotationAmount;
+    [SerializeField] private Button _pokedexButton, _pokemonButton, _bagButton, _saveButton, _loadButton, _optionsButton;
+    private Button[] _buttons;
+    private Button _initialButton;
+    public Button LastButton { get; private set; }
 
-    /// <summary>
-    /// to handle the card shuffling on the menu, each time you select a button to the right
-    /// the currently selected button will always get sent to the back most position.
-    /// the cards, which never actually move in the X or Y direction, and instead only rotate from the bottom left
-    /// corner pivot by 15 degrees relative to the previous card ( 0, -15, -30, -45 ) will increase
-    /// their rotation by 15 degrees. if the way i've imagined this and sorta tested IRL works out correctly, what will happen is this:
-    /// the layering of all cards will stay consistent, with the top most being sent to the back, the one under it will now be the top most,
-    /// and so on down the line. they will all rotate by 15 degrees in the correct direction.
-    /// 
-    /// if you scroll to the left, the opposite should happen. the bottom most card should be brought to the top, and its rotation should be
-    /// changed from -45 to 0, while all cards will have their rotation "decreased" by 15 degrees
-    /// </summary>
+    public override void EnterState( UI_PauseMenuStateMachine owner ){
+        PauseMenuStateMachine = owner;
+        gameObject.SetActive( true );
 
-    private void OnEnable(){
         //--Components
-        _playerInput = PlayerReferences.Instance.PlayerInput;
         ButtonEvents = GetComponent<UI_PauseMenuButton_Events>();
+        Debug.Log( ButtonEvents );
 
-        //--Set Button Array
-        _buttons = new Button[] { _fight, _party, _bag, _run };
+        //--Events
+        ButtonEvents.OnButtonSubmitted += SetMemoryButton;
 
-        Debug.Log( _playerInput );
-        //--Reference Assignments
+        //--Set Controls
         PlayerReferences.Instance.PlayerController.DisableCharacterControls();
         PlayerReferences.Instance.PlayerController.EnableUI();
 
-        //--Events
-        _playerInput.UI.Navigate.performed += OnNavigate;
-        _playerInput.UI.Cancel.performed += CloseMenu;
-        ButtonEvents.OnButtonSelected += SetActiveButton;
+        //--Throw Buttons in Array for mass handling
+        _buttons = new Button[]{ _pokedexButton, _pokemonButton, _bagButton, _saveButton, _loadButton, _optionsButton };
+        SetupButtons();
 
-        //--Other
-        _cardRotationAmount = 15;
-        SelectInitialButton();
+        //--Select Initial Button
+        _initialButton = _pokemonButton;
+        StartCoroutine( SetInitialButton() );
     }
 
-    private void OnDisable(){
+    public override void ReturnToState(){
         //--Events
-        _playerInput.UI.Navigate.performed -= OnNavigate;
-        ButtonEvents.OnButtonSelected -= SetActiveButton;
+        ButtonEvents.OnButtonSubmitted += SetMemoryButton;
+        
+        //--Enable interactability of buttons in this menu
+        foreach( Button button in _buttons ){
+            button.interactable = true;
+        }
 
+        SelectMemoryButton();
+    }
+
+    public override void PauseState(){
+        //--Events
+        ButtonEvents.OnButtonSubmitted -= SetMemoryButton;
+
+        //--Disable interactability of buttons in this menu
+        foreach( Button button in _buttons ){
+            button.interactable = false;
+        }
+    }
+
+    public override void ExitState(){
+        //--Set Controls
         PlayerReferences.Instance.PlayerController.DisableUI();
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
+
+        //--Events
+        ButtonEvents.OnButtonSubmitted -= SetMemoryButton;
+
+        CloseMenu();
     }
 
-    private void SelectInitialButton(){
-        Debug.Log( _memorizeButton );
-        if( _memorizeButton == null )
-            _activeButton = _fight;
-        else
-            _activeButton = _memorizeButton;
-
-        if( _previousButton == null )
-            _previousButton = _run;
-
-        _activeButton.Select();
-    }
-
-    private void SetActiveButton( Button button ){
-        _previousButton = _activeButton;
-        _activeButton = button;
-        _memorizeButton = _activeButton;
-    }
-
-    private void OnNavigate( InputAction.CallbackContext context ){
-        Vector2 direction = context.ReadValue<Vector2>();
-
-        //--Player moved through the menu to the right
-        if( direction.x > 0 ){
-            RightcreasePositions();
-            Debug.Log( "rightcrease" );
-        }
-
-        //--Player moved through the menu to the left
-        if( direction.x < 0 ){
-            LeftcreasePositions();
-            Debug.Log( "leftcrease" );
+    private void SetupButtons(){
+        foreach( Button button in _buttons ){
+            button.GetComponent<UI_PauseMenuButton>().Setup( this );
         }
     }
 
-    private void CloseMenu( InputAction.CallbackContext context ){
+    private IEnumerator SetInitialButton(){
+        yield return new WaitForSeconds( 0.15f );
+        if( LastButton != null )
+            SelectMemoryButton();
+        else{
+            SetMemoryButton( _initialButton );
+        }
+    }
+
+    public void SetMemoryButton( Button lastButton ){
+        LastButton = lastButton;
+        SelectMemoryButton();
+    }
+
+    private void SelectMemoryButton(){
+        LastButton.Select();
+    }
+
+    public void ClearMemoryButton(){
+        LastButton = null;
+        _initialButton.Select();
+    }
+
+    public void CloseMenu(){
         gameObject.SetActive( false );
     }
 
-    //--Increase position value
-    private void RightcreasePositions(){
-        foreach( Button button in _buttons ){
-            var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, _cardRotationAmount );
-            button.GetComponent<RectTransform>().rotation = newRotation;
-
-            if( button == _activeButton ){
-                var setRotation = Quaternion.Euler( 0f, 0f, -45f );
-                button.GetComponent<RectTransform>().rotation = setRotation;
-            }
-        }
-
-        _activeButton.GetComponent<RectTransform>().SetAsFirstSibling();
-    }
-
-    //--Decrease position value
-    private void LeftcreasePositions(){
-        foreach( Button button in _buttons ){
-            var newRotation = button.GetComponent<RectTransform>().rotation * Quaternion.Euler( 0f, 0f, -_cardRotationAmount );
-            button.GetComponent<RectTransform>().rotation = newRotation;
-
-            if( button == GetBottomCard() ){
-                var setRotation = Quaternion.Euler( 0f, 0f, 0f );
-                button.GetComponent<RectTransform>().rotation = setRotation;
-            }
-        }
-
-        GetBottomCard().GetComponent<RectTransform>().SetAsLastSibling();
-    }
-
-    private Button GetBottomCard(){
-        Button card;
-
-        for( int i = 0; i < _buttons.Length; i++ ){
-            if( _activeButton == _buttons[i] ){
-                if( i == 0 ){
-                    card = _buttons[3];
-                    return card;
-                }
-                else{
-                    card = _buttons[ i - 1 ];
-                    return card;
-                }
-            }
-        }
-
-        return default;
-    }
 }
