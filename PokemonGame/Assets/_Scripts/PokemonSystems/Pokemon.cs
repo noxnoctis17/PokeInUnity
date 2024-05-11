@@ -22,11 +22,14 @@ public class Pokemon
     public Dictionary<PokemonType, TypeCardColors> TypeColors { get; private set; }
     public Condition SevereStatus { get; private set; }
     public Condition VolatileStatus { get; private set; }
-    public Action OnStatusChanged;
     public int SevereStatusTime { get; set; }
     public int VolatileStatusTime { get; set; }
     public bool HPChanged { get; set; }
     public Queue<string> StatusChanges { get; private set; }
+
+//==================[ Events ]===========================================
+    public event Action OnStatusChanged;
+    public event Action OnHpChanged;
 
 //--------------------------------------------------------------------------------------------
 //-----------------------------------[POKEMON STATS]------------------------------------------
@@ -102,6 +105,7 @@ public class Pokemon
     }
     
     public void Init(){
+        Debug.Log( PokeSO.pName + ": called Init()" );
         //--------GENERATE MOVES-----------
         ActiveMoves = new List<MoveClass>();
         foreach( var move in PokeSO.LearnableMoves ){
@@ -292,9 +296,16 @@ public class Pokemon
         };
     }
 
-    public void UpdateHP( int damage ){
+    public void IncreaseHP( int amount ){
+        CurrentHP = Mathf.Clamp( CurrentHP + amount, 0, MaxHP );
+        HPChanged = true;
+        OnHpChanged?.Invoke();
+    }
+
+    public void DecreaseHP( int damage ){
         CurrentHP = Mathf.Clamp( CurrentHP - damage, 0, MaxHP );
         HPChanged = true;
+        OnHpChanged?.Invoke();
     }
 
     private void UpdateHPOnLevelup( int previousMaxHP ){

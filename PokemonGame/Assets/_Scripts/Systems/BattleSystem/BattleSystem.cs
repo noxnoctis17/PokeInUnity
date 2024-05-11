@@ -33,8 +33,8 @@ public class BattleSystem : BattleStateMachine
     [SerializeField] private Transform _damageTakenPopupPrefab;
     [SerializeField] private PlayerBattleMenu _battleMenu;
     [SerializeField] private FightMenu _fightMenu;
-    [SerializeField] private PKMNMenu_Battle _pkmnMenu;
-    [SerializeField] private PartyScreen _partyScreen;
+    [SerializeField] private PartyScreen_Battle _pkmnMenu;
+    [SerializeField] private PartyDisplay _partyDisplay;
     [SerializeField] private LearnMoveMenu _learnMoveMenu;
     [SerializeField] private AudioSource _audioSource;
     [SerializeField] private GameObject _thrownPokeBall;
@@ -66,8 +66,8 @@ public class BattleSystem : BattleStateMachine
     //--Menus and Screens
     public PlayerBattleMenu PlayerBattleMenu => _battleMenu;
     public FightMenu FightMenu => _fightMenu;
-    public PKMNMenu_Battle PKMNMenu => _pkmnMenu;
-    public PartyScreen PartyScreen => _partyScreen;
+    public PartyScreen_Battle PKMNMenu => _pkmnMenu;
+    public PartyDisplay PartyDisplay => _partyDisplay;
     public LearnMoveMenu LearnMoveMenu => _learnMoveMenu;
     //--EXP
     public int TotalPartyExpGain { get; private set; }
@@ -367,7 +367,7 @@ public class BattleSystem : BattleStateMachine
         if( _isSinglesTrainerBattle || _isDoublesTrainerBattle )
             _enemyTrainerParty = null;
 
-        _pkmnMenu.PartyScreen.ClearParty();
+        // _pkmnMenu.PartyScreen.ClearParty();
         _playerParty = null;
 
         _isSinglesTrainerBattle = false;

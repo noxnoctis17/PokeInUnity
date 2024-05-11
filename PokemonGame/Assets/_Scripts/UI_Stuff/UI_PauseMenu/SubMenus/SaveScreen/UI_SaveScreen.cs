@@ -29,6 +29,14 @@ public class UI_SaveScreen : State<UI_PauseMenuStateMachine>
         _saveButton.Setup( _pauseMenuStateMachine, this );
     }
 
+    public override void ReturnToState(){
+        OnSaveMade += UpdateSaveInfo;
+    }
+
+    public override void PauseState(){
+        OnSaveMade -= UpdateSaveInfo;
+    }
+
     public override void ExitState(){
         OnSaveMade -= UpdateSaveInfo;
         gameObject.SetActive( false );
@@ -38,4 +46,5 @@ public class UI_SaveScreen : State<UI_PauseMenuStateMachine>
         var lastsaveTime = PlaytimeTracker.Instance.LastSavePlaytime;
         _playtimeText.text = $"Playtime: {lastsaveTime:h\\hm\\ms\\s}";
     }
+
 }

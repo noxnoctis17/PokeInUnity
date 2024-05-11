@@ -279,6 +279,7 @@ GameObject:
   - component: {fileID: 4184459960802797988}
   - component: {fileID: 7972416213339437236}
   - component: {fileID: 2109925629408453506}
+  - component: {fileID: 4181225385610949507}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -371,7 +372,6 @@ MonoBehaviour:
       m_SingletonActionBindings: []
       m_Flags: 0
     m_Reference: {fileID: -8694376875045232012, guid: a7e013922887e864da1abd9d68999244, type: 3}
-  _pauseMenu: {fileID: 0}
   _eventSystem: {fileID: 0}
 --- !u!114 &37269934942262741
 MonoBehaviour:
@@ -409,17 +409,14 @@ MonoBehaviour:
     _level: 100
     _showDamageTakenText: {fileID: 0}
     _showMoveUsedText: {fileID: 0}
-    HPChanged: 0
   - _pokeSO: {fileID: 11400000, guid: 5b7746c85c300df4cb44d1db90eb5d8d, type: 2}
     _level: 100
     _showDamageTakenText: {fileID: 0}
     _showMoveUsedText: {fileID: 0}
-    HPChanged: 0
   - _pokeSO: {fileID: 11400000, guid: 974d42124e9b4484ca8b0788c1caaecb, type: 2}
     _level: 100
     _showDamageTakenText: {fileID: 0}
     _showMoveUsedText: {fileID: 0}
-    HPChanged: 0
 --- !u!114 &5504983208346184905
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -481,6 +478,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   uniqueId: 
+--- !u!114 &4181225385610949507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7993903386403970428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b93e5da95968bf84e9c8908366567956, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _itemSlots: []
 --- !u!1 &8237588402114524832
 GameObject:
   m_ObjectHideFlags: 0

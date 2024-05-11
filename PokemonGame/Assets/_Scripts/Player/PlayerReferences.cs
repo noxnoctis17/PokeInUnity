@@ -1,5 +1,4 @@
 using UnityEngine;
-using Pathfinding;
 
 public class PlayerReferences : MonoBehaviour
 {
@@ -10,26 +9,18 @@ public class PlayerReferences : MonoBehaviour
 //====================[PLAYER OBJECT]===========================
    [SerializeField] private Transform _playerCenter;
    public PlayerSaving PlayerSaving { get; private set; }
-   public Transform PlayerTransform { get; private set; }
-   public Transform PlayerCenter { get; private set; }
    public Transform PlayerSpriteTransform { get; private set; }
-   public PlayerInput PlayerInput { get; private set; }
    public PlayerMovement PlayerMovement { get; private set; }
    public PlayerController PlayerController { get; private set; }
    public PokemonParty PlayerParty { get; private set; }
+   public Inventory PlayerInventory { get; private set; }
+   public Transform PlayerTransform { get; private set; }
+   public Transform PlayerCenter { get; private set; }
+   public PlayerInput PlayerInput { get; private set; }
 
 //========================[CAMERA]==============================
    [SerializeField] private Transform _mainCameraTransform;
    public static Transform MainCameraTransform { get; private set; }
-
-//==================[DIRECTIONAL LIGHTS]========================
-   // [SerializeField] private Transform _sunTransform;
-   // [SerializeField] private Transform _moonTransform;
-   // public Transform SunTransform { get; private set; }
-   // public Transform MoonTransform { get; private set; }
-
-//=======================[A* AI]==============================
-   public AIPath AIPath {get; private set;}
 
 //=======================[ACTIONS]==============================
    
@@ -41,20 +32,20 @@ public class PlayerReferences : MonoBehaviour
       _instance = this;
 
       //--Player
-      PlayerSaving = GetComponentInChildren<PlayerSaving>();
-      PlayerTransform = transform;
-      PlayerCenter = _playerCenter;
-      PlayerSpriteTransform = GetComponentInChildren<SpriteRenderer>().gameObject.transform;
-      PlayerMovement = GetComponent<PlayerMovement>();
-      PlayerController = GetComponent<PlayerController>();
-      PlayerParty = GetComponent<PokemonParty>();
-      PlayerInput = PlayerMovement.PlayerInput;
+      PlayerSaving            = GetComponentInChildren<PlayerSaving>();
+      PlayerSpriteTransform   = GetComponentInChildren<SpriteRenderer>().gameObject.transform;
+      PlayerMovement          = GetComponent<PlayerMovement>();
+      PlayerController        = GetComponent<PlayerController>();
+      PlayerParty             = GetComponent<PokemonParty>();
+      PlayerInventory         = GetComponent<Inventory>();
+      PlayerTransform         = transform;
+      PlayerCenter            = _playerCenter;
+      PlayerInput             = PlayerMovement.PlayerInput;
+      //--PlayerFlags         = GetComponent<PlayerFlags>();
 
       //--Current Camera
       MainCameraTransform = _mainCameraTransform;
       
-      //--A* AI Path, will likely not use
-      AIPath = GetComponent<AIPath>();
    }
 
 }

@@ -1,40 +1,33 @@
 using UnityEngine;
 using System.Collections;
 using UnityEngine.UI;
+using NoxNoctisDev.StateMachine;
 
-public class PKMNMenu_Battle : PKMNMenu_Base<PlayerBattleMenu>
+public class PartyScreen_Battle : State<PlayerBattleMenu>, IPartyScreen
 {
     [SerializeField] private BattleSystem _battleSystem;
-    [SerializeField] private PartyScreen _partyScreen;
+    [SerializeField] private PartyDisplay _partyDisplay;
     [SerializeField] private PartyScreenContext _partyScreenContext;
     private Button _initialButton;
     public BattleSystem BattleSystem => _battleSystem;
-    public PartyScreen PartyScreen => _partyScreen;
+    public PartyDisplay PartyDisplay => _partyDisplay;
     public PlayerBattleMenu BattleMenu { get; private set; }
     public Button LastButton { get; private set; }
 
     public override void EnterState( PlayerBattleMenu owner ){
+        //--State Machinee
         BattleMenu = owner;
 
-        PKMNMenu_Events.OnPopPartyScreenState += PopScreenState;
-
-        _partyScreen.Init( _partyScreenContext );
-        _partyScreen.SetParty( _battleSystem.PlayerParty.PartyPokemon );
-
+        //--Open Menu
         gameObject.SetActive( true );
-        // Debug.Log( "EnterState: " + this );
 
-        _initialButton = _partyScreen.PartyButton1;
+        //--Select Initial Button
+        _initialButton = _partyDisplay.PartyButton1;
         StartCoroutine( SetInitialButton() );
     }
 
     public override void ExitState(){
-        PKMNMenu_Events.OnPopPartyScreenState -= PopScreenState;
         gameObject.SetActive( false );
-    }
-
-    private void PopScreenState(){
-        BattleMenu.BattleMenuStateMachine.Pop();
     }
 
     private IEnumerator SetInitialButton(){

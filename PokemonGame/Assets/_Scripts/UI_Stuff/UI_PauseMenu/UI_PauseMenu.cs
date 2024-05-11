@@ -2,6 +2,7 @@ using System.Collections;
 using NoxNoctisDev.StateMachine;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
 {
@@ -10,15 +11,20 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
     [SerializeField] private Button _pokedexButton, _pokemonButton, _bagButton, _saveButton, _loadButton, _optionsButton;
     private Button[] _buttons;
     private Button _initialButton;
+    private Vector3 _defaultScale;
     public Button LastButton { get; private set; }
+
+    private void Awake(){
+        _defaultScale = transform.localScale;
+        ScaleOut();
+    }
 
     public override void EnterState( UI_PauseMenuStateMachine owner ){
         PauseMenuStateMachine = owner;
-        gameObject.SetActive( true );
 
         //--Components
         ButtonEvents = GetComponent<UI_PauseMenuButton_Events>();
-        Debug.Log( ButtonEvents );
+        // Debug.Log( ButtonEvents );
 
         //--Events
         ButtonEvents.OnButtonSubmitted += SetMemoryButton;
@@ -30,6 +36,10 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         //--Throw Buttons in Array for mass handling
         _buttons = new Button[]{ _pokedexButton, _pokemonButton, _bagButton, _saveButton, _loadButton, _optionsButton };
         SetupButtons();
+
+        //--Open Menu
+        gameObject.SetActive( true );
+        ScaleIn();
 
         //--Select Initial Button
         _initialButton = _pokemonButton;
@@ -45,6 +55,9 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
             button.interactable = true;
         }
 
+        ScaleIn();
+
+        //--Select Memorize Button
         SelectMemoryButton();
     }
 
@@ -56,6 +69,8 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         foreach( Button button in _buttons ){
             button.interactable = false;
         }
+
+        ScaleOut();
     }
 
     public override void ExitState(){
@@ -65,8 +80,16 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
 
         //--Events
         ButtonEvents.OnButtonSubmitted -= SetMemoryButton;
-
+        
         CloseMenu();
+    }
+
+    private void ScaleIn(){
+        transform.DOScale( _defaultScale, 0.25f );
+    }
+
+    private void ScaleOut(){
+        transform.DOScale( 0, 0.25f );
     }
 
     private void SetupButtons(){
@@ -99,6 +122,7 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
     }
 
     public void CloseMenu(){
+        ScaleOut();
         gameObject.SetActive( false );
     }
 

@@ -8,24 +8,30 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float _interactableDetectionRadius;
     [SerializeField] private float _interactableRayLength;
     [SerializeField] private Transform _playerCenter;
-    [SerializeField] private InputActionProperty _interactButton;
     [SerializeField] private EventSystem _eventSystem;
+    [SerializeField] private bool _disableMouse;
     private PlayerInput _playerInput;
     private PlayerMovement _playerMovement;
-    public static Action OnPause;
+    public static event Action OnPause;
 
     private void OnEnable(){
-        EnableInteract();
+        // EnableInteract();
         _playerInput.CharacterControls.Interact.performed += OnInteract;
         _playerInput.CharacterControls.PauseMenu.performed += OnPausePressed;
-        OnPause += OnPauseTest;
+        _playerInput.CharacterControls.Load.performed += OnLoadPressed;
+
+        //--Lock and Hide mouse
+        if( _disableMouse ){
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
     
     private void OnDisable(){
-        DisableInteract();
+        // DisableInteract();
         _playerInput.CharacterControls.Interact.performed -= OnInteract;
         _playerInput.CharacterControls.PauseMenu.performed -= OnPausePressed;
-        OnPause -= OnPauseTest;
+        _playerInput.CharacterControls.Load.performed -= OnLoadPressed;
     }
 
     public void SetPlayerInput( PlayerInput playerInput ){
@@ -38,34 +44,20 @@ public class PlayerController : MonoBehaviour
     }
     
     private void OnInteract( InputAction.CallbackContext context ){
-        RaycastHit raymond;
-        
-        if( Physics.Raycast( _playerCenter.position, transform.forward/*.MovementAxisCorrection( PlayerReferences.MainCameraTransform )*/, out raymond, _interactableRayLength ) ){
+        if( Physics.Raycast( _playerCenter.position, transform.forward/*.MovementAxisCorrection( PlayerReferences.MainCameraTransform )*/, out RaycastHit raymond, _interactableRayLength ) ){
             raymond.transform.GetComponent<IInteractable>()?.Interact();
         }
     }
 
     private void OnPausePressed( InputAction.CallbackContext context ){
-        Debug.Log( "Pause Pressed" );
+        // Debug.Log( "Pause Pressed" );
         OnPause?.Invoke();
-    }
-
-    private void OnPauseTest(){
-        Debug.Log( "yep pause was infact pressed" );
     }
 
     private void OnLoadPressed( InputAction.CallbackContext context ){
         Debug.Log( "Load Fired" );
         if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.FreeRoamState )
             SavingSystem.Instance.Load( "SaveSlot_1" );
-    }
-    
-    private void EnableInteract(){
-        _interactButton.action.Enable();
-    }
-
-    private void DisableInteract(){
-        _interactButton.action.Disable();
     }
 
     public void EnableCharacterControls(){

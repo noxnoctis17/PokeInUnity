@@ -23,8 +23,9 @@ public class UseMoveCommand : IBattleCommand
         _target = target;
         _battleSystem = battleSystem;
         _commandPriority = (int)CommandPriorityEnum.Attack;
+        _attackPriority = (int)_move.MoveSO.MovePriority;
         _unitAgility = attacker.Pokemon.Speed;
-        DeterminePriority();
+        // DeterminePriority();
     }
 
     public IEnumerator ExecuteBattleCommand(){

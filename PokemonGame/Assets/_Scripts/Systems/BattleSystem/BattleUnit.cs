@@ -96,7 +96,7 @@ public class BattleUnit : MonoBehaviour
         float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attack / defense / 50 + 2 ) * modifiers;
         int damage = (int)Mathf.Max( damageCalc, 1f );
 
-        target.UpdateHP( damage );
+        target.DecreaseHP( damage );
         ShowDamageTaken( damage, transform.position );
 
         return damageDetails;

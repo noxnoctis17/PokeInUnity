@@ -1,42 +1,38 @@
 using UnityEngine;
 using System.Collections;
 using UnityEngine.UI;
+using NoxNoctisDev.StateMachine;
 
-public class PKMNMenu_PauseScreen : PKMNMenu_Base<UI_PauseMenuStateMachine>
+public class PartyScreen_PauseScreen : State<UI_PauseMenuStateMachine>, IPartyScreen
 {
-    [SerializeField] private PartyScreen _partyScreen;
-    [SerializeField] private PartyScreenContext _partyScreenContext;
-    private UI_PauseMenuStateMachine _pauseMenuStateMachine;
+    [SerializeField] private PartyDisplay _partyDisplay;
+    // [SerializeField] private PartyScreenContext _partyScreenContext;
+    public UI_PauseMenuStateMachine PauseMenuStateMachine { get; private set; }
     private Button _initialButton;
-    public PartyScreen PartyScreen => _partyScreen;
+    public PartyDisplay PartyDisplay => _partyDisplay;
     public Button LastButton { get; private set; }
 
     public override void EnterState( UI_PauseMenuStateMachine owner ){
         //--Set State Machine
-        _pauseMenuStateMachine = owner;
-
-        PKMNMenu_Events.OnPopPartyScreenState += PopScreenState;
-
-        //--Initialize Party Screen
-        _partyScreen.Init( _partyScreenContext );
-        _partyScreen.SetParty( PlayerReferences.Instance.PlayerParty.PartyPokemon );
+        PauseMenuStateMachine = owner;
 
         //--Open Menu
         gameObject.SetActive( true );
         Debug.Log( "EnterState: " + this );
 
         //--Select Initial Button
-        _initialButton = _partyScreen.PartyButton1;
+        _initialButton = _partyDisplay.PartyButton1;
         StartCoroutine( SetInitialButton() );
     }
 
-    public override void ExitState(){
-        PKMNMenu_Events.OnPopPartyScreenState -= PopScreenState;
-        gameObject.SetActive( false );
+    public override void ReturnToState(){
     }
 
-    private void PopScreenState(){
-        _pauseMenuStateMachine.PauseMenuStateMachine.Pop();
+    public override void PauseState(){
+    }
+
+    public override void ExitState(){
+        gameObject.SetActive( false );
     }
 
     private IEnumerator SetInitialButton(){

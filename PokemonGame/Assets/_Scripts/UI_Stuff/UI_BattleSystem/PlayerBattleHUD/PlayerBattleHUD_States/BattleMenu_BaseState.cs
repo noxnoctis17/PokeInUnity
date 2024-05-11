@@ -115,7 +115,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     }
 
     private void SetActiveButton( Button button ){
-        var activeScale = new Vector3( 0.4f, 0.4f, 0.4f );
+        var activeScale = new Vector3( 1.1f, 1.1f, 1.1f );
         var buttonRect = button.GetComponent<RectTransform>();
 
         _previousButton = _activeButton;
@@ -167,7 +167,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
             if( button == _activeButton ){
                 var setRotation = Quaternion.Euler( 0f, 0f, 45f );
-                var inactiveScale = new Vector3( 0.35f, 0.35f, 0.35f );
+                var inactiveScale = new Vector3( 1f, 1f, 1f );
 
                 buttonRect.rotation = setRotation;
                 buttonRect.localScale = inactiveScale;
@@ -182,7 +182,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
         foreach( Button button in _battleMenu.Buttons ){
             var buttonRect = button.GetComponent<RectTransform>();
             var newRotation = buttonRect.rotation * Quaternion.Euler( 0f, 0f, _cardRotationAmount );
-            var inactiveScale = new Vector3( 0.35f, 0.35f, 0.35f );
+            var inactiveScale = new Vector3( 1f, 1f, 1f );
             
             buttonRect.rotation = newRotation;
 

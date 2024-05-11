@@ -99,27 +99,29 @@ public class WildPokemonSpawner : MonoBehaviour
         //--------------------------------------------
         //------------[ POOL SPAGHETTI ]--------------
         //--------------------------------------------
-        _spawnPool = new( () => {
-            //--Create();
-            // Debug.Log( "SpawnPool.Create()" );
+        _spawnPool = new( () =>
+        //--Create()-------------------------------------------------------------------
+        {
             var spawnObj = Instantiate( _wildPokemonPrefab.gameObject );
             spawnObj.SetActive( false );
             return spawnObj;
-        },//--------------------------------------------
-            //--Get();
-            null,
-        spawn => {
-            //--Release();
-            // Debug.Log( $"{spawn} has been released" );
+        },
+        null,
+        //--Get()----------------------------------------------------------------------
+        spawn =>
+        //--Release()------------------------------------------------------------------
+        {
             spawn.SetActive( false );
-        },//--------------------------------------------
-        spawn => {
-            //--Destroy();
+        },
+        spawn =>
+        //--Destroy()-------------------------------------------------------------------
+        {
             Destroy( spawn.gameObject );
 
-        },//--------------------------------------------
-            //--stuff*, starting amount, max amount
-        false, _numberToSpawn, _numberToSpawn );
+        },
+        //--stuff*, starting amount, max amount
+        false, _numberToSpawn, _numberToSpawn
+        );
         //--------------------------------------------
         //--------------------------------------------
         //--------------------------------------------
@@ -128,10 +130,10 @@ public class WildPokemonSpawner : MonoBehaviour
         SpawnerStateMachine = new StateMachine<WildPokemonSpawner>( this, _pausedState );
         SpawnerStateMachine.Initialize();
     }
-
+    //*
     //--stuff: have unity handle management if you think your code might return an object to the pool that has already been returned to the pool
     //--I'm a master coder and therefore do not have to worry about this, so it's set to false 04/14/24
-
+    //*
     private void Update(){
         SpawnerStateMachine.Update();
     }

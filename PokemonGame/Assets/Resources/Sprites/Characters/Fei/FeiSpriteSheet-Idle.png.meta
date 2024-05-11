@@ -1,0 +1,1366 @@
+fileFormatVersion: 2
+guid: 5c5d40903b4421b41b5b2b336533c58a
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -8438801856691238126
+    second: FeiSpriteSheet-Idle_0
+  - first:
+      213: 1622911447097805507
+    second: FeiSpriteSheet-Idle_1
+  - first:
+      213: -8769153625313328557
+    second: FeiSpriteSheet-Idle_2
+  - first:
+      213: 3216787771487400448
+    second: FeiSpriteSheet-Idle_3
+  - first:
+      213: -1435875133759882299
+    second: FeiSpriteSheet-Idle_4
+  - first:
+      213: -6844869890631232065
+    second: FeiSpriteSheet-Idle_5
+  - first:
+      213: -409757945604039214
+    second: FeiSpriteSheet-Idle_6
+  - first:
+      213: -6123170777879873041
+    second: FeiSpriteSheet-Idle_7
+  - first:
+      213: -1445233639119562133
+    second: FeiSpriteSheet-Idle_8
+  - first:
+      213: 1555872692440871954
+    second: FeiSpriteSheet-Idle_9
+  - first:
+      213: -9189690449045731693
+    second: FeiSpriteSheet-Idle_10
+  - first:
+      213: -1974462229340545222
+    second: FeiSpriteSheet-Idle_11
+  - first:
+      213: 1859826837961656636
+    second: FeiSpriteSheet-Idle_12
+  - first:
+      213: -5732636161955162810
+    second: FeiSpriteSheet-Idle_13
+  - first:
+      213: 4399455189762788341
+    second: FeiSpriteSheet-Idle_14
+  - first:
+      213: 4266169015711847952
+    second: FeiSpriteSheet-Idle_15
+  - first:
+      213: -6978909343679181548
+    second: FeiSpriteSheet-Idle_16
+  - first:
+      213: -8723118243699826754
+    second: FeiSpriteSheet-Idle_17
+  - first:
+      213: 4978734390013364345
+    second: FeiSpriteSheet-Idle_18
+  - first:
+      213: -624456185237167663
+    second: FeiSpriteSheet-Idle_19
+  - first:
+      213: 7461828312797126737
+    second: FeiSpriteSheet-Idle_20
+  - first:
+      213: -6041114836857189971
+    second: FeiSpriteSheet-Idle_21
+  - first:
+      213: -95243875845792240
+    second: FeiSpriteSheet-Idle_22
+  - first:
+      213: -2027747941461990248
+    second: FeiSpriteSheet-Idle_23
+  - first:
+      213: -56071751053618503
+    second: FeiSpriteSheet-Idle_24
+  - first:
+      213: -8721688435401199514
+    second: FeiSpriteSheet-Idle_25
+  - first:
+      213: 4713041615435281815
+    second: FeiSpriteSheet-Idle_26
+  - first:
+      213: 8673898273280031866
+    second: FeiSpriteSheet-Idle_27
+  - first:
+      213: 7119445463559903357
+    second: FeiSpriteSheet-Idle_28
+  - first:
+      213: 1070617697477614762
+    second: FeiSpriteSheet-Idle_29
+  - first:
+      213: -4066644997317967567
+    second: FeiSpriteSheet-Idle_30
+  - first:
+      213: -2583040824632010001
+    second: FeiSpriteSheet-Idle_31
+  - first:
+      213: 2618643390457280454
+    second: FeiSpriteSheet-Idle_32
+  - first:
+      213: 5816217964062397221
+    second: FeiSpriteSheet-Idle_33
+  - first:
+      213: 2453917939032795640
+    second: FeiSpriteSheet-Idle_34
+  - first:
+      213: -535407566491300595
+    second: FeiSpriteSheet-Idle_35
+  - first:
+      213: 969051715890394201
+    second: FeiSpriteSheet-Idle_36
+  - first:
+      213: 6195978026947307665
+    second: FeiSpriteSheet-Idle_37
+  - first:
+      213: -8377326981083714216
+    second: FeiSpriteSheet-Idle_38
+  - first:
+      213: 1083178959718999361
+    second: FeiSpriteSheet-Idle_39
+  - first:
+      213: 4075570494313181552
+    second: FeiSpriteSheet-Idle_40
+  - first:
+      213: -3563586110528605857
+    second: FeiSpriteSheet-Idle_41
+  - first:
+      213: 1758600971658748376
+    second: FeiSpriteSheet-Idle_42
+  - first:
+      213: -6883165484514746438
+    second: FeiSpriteSheet-Idle_43
+  - first:
+      213: -2200516427283521986
+    second: FeiSpriteSheet-Idle_44
+  - first:
+      213: -796457809221023139
+    second: FeiSpriteSheet-Idle_45
+  - first:
+      213: -5870118901028850091
+    second: FeiSpriteSheet-Idle_46
+  - first:
+      213: 818363047100745563
+    second: FeiSpriteSheet-Idle_47
+  externalObjects: {}
+  serializedVersion: 12
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 64
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 1
+  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Windows Store Apps
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Server
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_0
+      rect:
+        serializedVersion: 2
+        x: 24
+        y: 693
+        width: 27
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 21b030a0c6a53ea80800000000000000
+      internalID: -8438801856691238126
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_1
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 693
+        width: 27
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3ca0e22dc5db58610800000000000000
+      internalID: 1622911447097805507
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_2
+      rect:
+        serializedVersion: 2
+        x: 152
+        y: 693
+        width: 27
+        height: 47
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 352ce5e1d35bd4680800000000000000
+      internalID: -8769153625313328557
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_3
+      rect:
+        serializedVersion: 2
+        x: 213
+        y: 693
+        width: 26
+        height: 47
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 002b3555f6354ac20800000000000000
+      internalID: 3216787771487400448
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_4
+      rect:
+        serializedVersion: 2
+        x: 276
+        y: 693
+        width: 27
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5cbfc666c2fb21ce0800000000000000
+      internalID: -1435875133759882299
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_5
+      rect:
+        serializedVersion: 2
+        x: 340
+        y: 693
+        width: 27
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb59823a9132201a0800000000000000
+      internalID: -6844869890631232065
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_6
+      rect:
+        serializedVersion: 2
+        x: 26
+        y: 596
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2dd9068c15f305af0800000000000000
+      internalID: -409757945604039214
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_7
+      rect:
+        serializedVersion: 2
+        x: 90
+        y: 596
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fe9fa659e90260ba0800000000000000
+      internalID: -6123170777879873041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_8
+      rect:
+        serializedVersion: 2
+        x: 154
+        y: 596
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b6a55d299af71fbe0800000000000000
+      internalID: -1445233639119562133
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_9
+      rect:
+        serializedVersion: 2
+        x: 216
+        y: 596
+        width: 23
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2143bac68f1979510800000000000000
+      internalID: 1555872692440871954
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_10
+      rect:
+        serializedVersion: 2
+        x: 281
+        y: 596
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 39644d4c939a77080800000000000000
+      internalID: -9189690449045731693
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_11
+      rect:
+        serializedVersion: 2
+        x: 345
+        y: 596
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a3f1bb5401d4994e0800000000000000
+      internalID: -1974462229340545222
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_12
+      rect:
+        serializedVersion: 2
+        x: 27
+        y: 500
+        width: 22
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c394174c7ae6fc910800000000000000
+      internalID: 1859826837961656636
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_13
+      rect:
+        serializedVersion: 2
+        x: 91
+        y: 500
+        width: 23
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6459a1498c59170b0800000000000000
+      internalID: -5732636161955162810
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_14
+      rect:
+        serializedVersion: 2
+        x: 156
+        y: 500
+        width: 23
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5fb4f0f8f210e0d30800000000000000
+      internalID: 4399455189762788341
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_15
+      rect:
+        serializedVersion: 2
+        x: 219
+        y: 500
+        width: 23
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 016584ddd1a743b30800000000000000
+      internalID: 4266169015711847952
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_16
+      rect:
+        serializedVersion: 2
+        x: 282
+        y: 500
+        width: 20
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41d09528deee52f90800000000000000
+      internalID: -6978909343679181548
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_17
+      rect:
+        serializedVersion: 2
+        x: 346
+        y: 500
+        width: 20
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ebfda86ac2241f680800000000000000
+      internalID: -8723118243699826754
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_18
+      rect:
+        serializedVersion: 2
+        x: 29
+        y: 403
+        width: 24
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 97884cb9c84081540800000000000000
+      internalID: 4978734390013364345
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_19
+      rect:
+        serializedVersion: 2
+        x: 93
+        y: 403
+        width: 25
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1d1a425786c7557f0800000000000000
+      internalID: -624456185237167663
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_20
+      rect:
+        serializedVersion: 2
+        x: 157
+        y: 403
+        width: 26
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 150a937e05dbd8760800000000000000
+      internalID: 7461828312797126737
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_21
+      rect:
+        serializedVersion: 2
+        x: 219
+        y: 403
+        width: 27
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: da909c52016a92ca0800000000000000
+      internalID: -6041114836857189971
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_22
+      rect:
+        serializedVersion: 2
+        x: 284
+        y: 403
+        width: 24
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 01e1e251330adaef0800000000000000
+      internalID: -95243875845792240
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_23
+      rect:
+        serializedVersion: 2
+        x: 348
+        y: 403
+        width: 26
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 894e02f9dfdfbd3e0800000000000000
+      internalID: -2027747941461990248
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_24
+      rect:
+        serializedVersion: 2
+        x: 28
+        y: 302
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9b2d38c1a0bc83ff0800000000000000
+      internalID: -56071751053618503
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_25
+      rect:
+        serializedVersion: 2
+        x: 92
+        y: 302
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6607746d39656f680800000000000000
+      internalID: -8721688435401199514
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_26
+      rect:
+        serializedVersion: 2
+        x: 161
+        y: 302
+        width: 23
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 79537a3e066186140800000000000000
+      internalID: 4713041615435281815
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_27
+      rect:
+        serializedVersion: 2
+        x: 219
+        y: 302
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a7cfab4f580ef5870800000000000000
+      internalID: 8673898273280031866
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_28
+      rect:
+        serializedVersion: 2
+        x: 283
+        y: 302
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d78114dbde95dc260800000000000000
+      internalID: 7119445463559903357
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_29
+      rect:
+        serializedVersion: 2
+        x: 347
+        y: 302
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aac566c9f199bde00800000000000000
+      internalID: 1070617697477614762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_30
+      rect:
+        serializedVersion: 2
+        x: 34
+        y: 206
+        width: 20
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1314e33cbef5097c0800000000000000
+      internalID: -4066644997317967567
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_31
+      rect:
+        serializedVersion: 2
+        x: 98
+        y: 206
+        width: 20
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fea1a773e02372cd0800000000000000
+      internalID: -2583040824632010001
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_32
+      rect:
+        serializedVersion: 2
+        x: 158
+        y: 206
+        width: 23
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c771a91a4a475420800000000000000
+      internalID: 2618643390457280454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_33
+      rect:
+        serializedVersion: 2
+        x: 221
+        y: 206
+        width: 23
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5235f243c6b57b050800000000000000
+      internalID: 5816217964062397221
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_34
+      rect:
+        serializedVersion: 2
+        x: 286
+        y: 206
+        width: 23
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8f922083d511e0220800000000000000
+      internalID: 2453917939032795640
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_35
+      rect:
+        serializedVersion: 2
+        x: 351
+        y: 206
+        width: 22
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d0dca3da7a9d198f0800000000000000
+      internalID: -535407566491300595
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_36
+      rect:
+        serializedVersion: 2
+        x: 26
+        y: 109
+        width: 26
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 95431aeb663c27d00800000000000000
+      internalID: 969051715890394201
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_37
+      rect:
+        serializedVersion: 2
+        x: 92
+        y: 109
+        width: 24
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 198e15410398cf550800000000000000
+      internalID: 6195978026947307665
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_38
+      rect:
+        serializedVersion: 2
+        x: 154
+        y: 109
+        width: 27
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 85da535ee71cdbb80800000000000000
+      internalID: -8377326981083714216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_39
+      rect:
+        serializedVersion: 2
+        x: 217
+        y: 109
+        width: 26
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1456a326689380f00800000000000000
+      internalID: 1083178959718999361
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_40
+      rect:
+        serializedVersion: 2
+        x: 282
+        y: 109
+        width: 25
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 071b99275c55f8830800000000000000
+      internalID: 4075570494313181552
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_41
+      rect:
+        serializedVersion: 2
+        x: 347
+        y: 109
+        width: 24
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f513d6b20599b8ec0800000000000000
+      internalID: -3563586110528605857
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_42
+      rect:
+        serializedVersion: 2
+        x: 26
+        y: 16
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8d16069244ec76810800000000000000
+      internalID: 1758600971658748376
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_43
+      rect:
+        serializedVersion: 2
+        x: 90
+        y: 16
+        width: 27
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: abfd44dd5751a70a0800000000000000
+      internalID: -6883165484514746438
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_44
+      rect:
+        serializedVersion: 2
+        x: 154
+        y: 16
+        width: 27
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e3e9a5dd7f13671e0800000000000000
+      internalID: -2200516427283521986
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_45
+      rect:
+        serializedVersion: 2
+        x: 219
+        y: 16
+        width: 28
+        height: 49
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d5a8bc2a7d962f4f0800000000000000
+      internalID: -796457809221023139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_46
+      rect:
+        serializedVersion: 2
+        x: 283
+        y: 16
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5567ed2f5f5298ea0800000000000000
+      internalID: -5870118901028850091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FeiSpriteSheet-Idle_47
+      rect:
+        serializedVersion: 2
+        x: 347
+        y: 16
+        width: 27
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b570fbffad86b5b00800000000000000
+      internalID: 818363047100745563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    nameFileIdTable:
+      FeiSpriteSheet-Idle_0: -8438801856691238126
+      FeiSpriteSheet-Idle_1: 1622911447097805507
+      FeiSpriteSheet-Idle_10: -9189690449045731693
+      FeiSpriteSheet-Idle_11: -1974462229340545222
+      FeiSpriteSheet-Idle_12: 1859826837961656636
+      FeiSpriteSheet-Idle_13: -5732636161955162810
+      FeiSpriteSheet-Idle_14: 4399455189762788341
+      FeiSpriteSheet-Idle_15: 4266169015711847952
+      FeiSpriteSheet-Idle_16: -6978909343679181548
+      FeiSpriteSheet-Idle_17: -8723118243699826754
+      FeiSpriteSheet-Idle_18: 4978734390013364345
+      FeiSpriteSheet-Idle_19: -624456185237167663
+      FeiSpriteSheet-Idle_2: -8769153625313328557
+      FeiSpriteSheet-Idle_20: 7461828312797126737
+      FeiSpriteSheet-Idle_21: -6041114836857189971
+      FeiSpriteSheet-Idle_22: -95243875845792240
+      FeiSpriteSheet-Idle_23: -2027747941461990248
+      FeiSpriteSheet-Idle_24: -56071751053618503
+      FeiSpriteSheet-Idle_25: -8721688435401199514
+      FeiSpriteSheet-Idle_26: 4713041615435281815
+      FeiSpriteSheet-Idle_27: 8673898273280031866
+      FeiSpriteSheet-Idle_28: 7119445463559903357
+      FeiSpriteSheet-Idle_29: 1070617697477614762
+      FeiSpriteSheet-Idle_3: 3216787771487400448
+      FeiSpriteSheet-Idle_30: -4066644997317967567
+      FeiSpriteSheet-Idle_31: -2583040824632010001
+      FeiSpriteSheet-Idle_32: 2618643390457280454
+      FeiSpriteSheet-Idle_33: 5816217964062397221
+      FeiSpriteSheet-Idle_34: 2453917939032795640
+      FeiSpriteSheet-Idle_35: -535407566491300595
+      FeiSpriteSheet-Idle_36: 969051715890394201
+      FeiSpriteSheet-Idle_37: 6195978026947307665
+      FeiSpriteSheet-Idle_38: -8377326981083714216
+      FeiSpriteSheet-Idle_39: 1083178959718999361
+      FeiSpriteSheet-Idle_4: -1435875133759882299
+      FeiSpriteSheet-Idle_40: 4075570494313181552
+      FeiSpriteSheet-Idle_41: -3563586110528605857
+      FeiSpriteSheet-Idle_42: 1758600971658748376
+      FeiSpriteSheet-Idle_43: -6883165484514746438
+      FeiSpriteSheet-Idle_44: -2200516427283521986
+      FeiSpriteSheet-Idle_45: -796457809221023139
+      FeiSpriteSheet-Idle_46: -5870118901028850091
+      FeiSpriteSheet-Idle_47: 818363047100745563
+      FeiSpriteSheet-Idle_5: -6844869890631232065
+      FeiSpriteSheet-Idle_6: -409757945604039214
+      FeiSpriteSheet-Idle_7: -6123170777879873041
+      FeiSpriteSheet-Idle_8: -1445233639119562133
+      FeiSpriteSheet-Idle_9: 1555872692440871954
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

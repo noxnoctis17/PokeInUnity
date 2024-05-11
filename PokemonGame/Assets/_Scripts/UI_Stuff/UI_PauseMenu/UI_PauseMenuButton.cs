@@ -18,16 +18,16 @@ public class UI_PauseMenuButton : MonoBehaviour, ISelectHandler, IDeselectHandle
 
     public void OnSelect( BaseEventData eventData ){
         _buttonEvents.OnButtonSelected?.Invoke( _thisButton );
-        Debug.Log( "selected: " + gameObject );
+        // Debug.Log( "selected: " + gameObject );
     }
 
     public void OnDeselect( BaseEventData eventData ){
         _buttonEvents.OnButtonDeselected?.Invoke( _thisButton );
-        Debug.Log( "deselected: " + gameObject );
+        // Debug.Log( "deselected: " + gameObject );
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        Debug.Log( $"{gameObject.name} was submitted" );
+        // Debug.Log( $"{gameObject.name} was submitted" );
         _buttonEvents.OnButtonSubmitted?.Invoke( _thisButton );
         _pauseMenu.PauseMenuStateMachine.PushNewState( _pauseMenuState );
     }

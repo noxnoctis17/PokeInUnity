@@ -30,7 +30,7 @@ public class ConditionsDB
                     AfflictionDialogue = "was poisoned!",
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
-                        pokemon.UpdateHP( pokemon.MaxHP / 8 );
+                        pokemon.DecreaseHP( pokemon.MaxHP / 8 );
                         pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by poison!" );
                     }}},
                     
@@ -41,7 +41,7 @@ public class ConditionsDB
                     AfflictionDialogue = "was inflicted with toxic poison!",
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
-                        pokemon.UpdateHP( pokemon.MaxHP / 8 );
+                        pokemon.DecreaseHP( pokemon.MaxHP / 8 );
                         pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its horrible poisoning!" );
                     }}},
 
@@ -53,7 +53,7 @@ public class ConditionsDB
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         // Debug.Log( pokemon.CurrentHP );
-                        pokemon.UpdateHP( pokemon.MaxHP / 16 );
+                        pokemon.DecreaseHP( pokemon.MaxHP / 16 );
                         pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its burn!" );
                         // Debug.Log( pokemon.CurrentHP );
                     }}},
@@ -111,7 +111,7 @@ public class ConditionsDB
                     AfflictionDialogue = "has become frostbitten!",
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
-                        pokemon.UpdateHP( pokemon.MaxHP / 16 );
+                        pokemon.DecreaseHP( pokemon.MaxHP / 16 );
                         pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its frostbite!" );
                     }}},
 
@@ -151,7 +151,7 @@ public class ConditionsDB
                         if( Random.Range( 1,4 ) == 1 )
                         {
                             pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is confused!" );
-                            pokemon.UpdateHP( pokemon.MaxHP / 16 );
+                            pokemon.DecreaseHP( pokemon.MaxHP / 16 );
                             pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} hurt itself in confusion!" );
                             return false;
                         }
