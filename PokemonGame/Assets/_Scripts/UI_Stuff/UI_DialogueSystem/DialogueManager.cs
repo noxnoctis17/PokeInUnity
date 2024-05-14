@@ -1,26 +1,24 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance;
-    public Action OnDialogueStarted;
-    public Action OnDialogueFinished;
+    [SerializeField] private DialogueUI _dialogueUI;
+    public DialogueUI DialogueUI => _dialogueUI;
     public Action<DialogueSO> OnDialogueEvent;
     public Action<string> OnStringDialogueEvent;
     public Action<string, bool> OnBattleDialogueEvent;
     public Action<bool> OnSystemDialogueComplete;
     public Action<DialogueSO> OnResponseChosen;
     public Action<DialogueResponseEvents> OnHasResponseEvents;
-    [SerializeField] private DialogueUI _dialogueUI;
     public Action DialogueFinishedCallback;
-    public DialogueUI DialogueUI => _dialogueUI;
 
     private void OnEnable( ){
         Instance = this;
         OnDialogueEvent             += PlayDialogue;
         OnStringDialogueEvent       += PlayDialogue;
-        OnBattleDialogueEvent       += PlayDialogue;
         OnResponseChosen            += ContinueDialogue;
         OnHasResponseEvents         += AddResponseEvents;
     }
@@ -28,7 +26,6 @@ public class DialogueManager : MonoBehaviour
     private void OnDisable( ){
         OnDialogueEvent             -= PlayDialogue;
         OnStringDialogueEvent       -= PlayDialogue;
-        OnBattleDialogueEvent       -= PlayDialogue;
         OnResponseChosen            -= ContinueDialogue;
         OnHasResponseEvents         -= AddResponseEvents;
     }
@@ -44,26 +41,25 @@ public class DialogueManager : MonoBehaviour
         _dialogueUI.StartDialogue( dialogueSO );
     }
 
-    private void PlayDialogue( string dialogue ){
+    public void PlayDialogue( string dialogue ){
         Debug.Log( "PlayDialogue()" );
 
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
             Debug.Log( "pushed dialogue state ");
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
-        Debug.Log( dialogue );
-        _dialogueUI.StartDialogue( dialogue );
+
+        StartCoroutine( _dialogueUI.StartSystemMessage( dialogue ) );
     }
 
-    private void PlayDialogue( string dialogue, bool battle ){
+    public IEnumerator PlaySystemMessageCoroutine( string dialogue ){
         Debug.Log( "PlayDialogue()" );
 
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
             Debug.Log( "pushed dialogue state ");
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
-        Debug.Log( dialogue );
-        _dialogueUI.StartDialogue( dialogue, battle );
+        yield return _dialogueUI.StartSystemMessage( dialogue );
     }
 
     private void ContinueDialogue( DialogueSO dialogueSO ){

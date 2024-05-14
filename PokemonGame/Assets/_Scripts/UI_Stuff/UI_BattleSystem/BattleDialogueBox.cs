@@ -21,6 +21,8 @@ public class BattleDialogueBox : MonoBehaviour
 
     public IEnumerator TypeDialogue( string dialogue, bool wait = false ){
         PlayerReferences.Instance.PlayerController.DisableBattleControls();
+        yield return new WaitForEndOfFrame();
+        
         AnimateDialogueBox( wait );
         _dialogueText.text = "";
         foreach( var letter in dialogue.ToCharArray() )
@@ -29,8 +31,11 @@ public class BattleDialogueBox : MonoBehaviour
             yield return new WaitForSeconds( 0.5f/60 );
         }
 
-        if( wait )
+        if( wait ){
+            PlayerReferences.Instance.PlayerController.EnableBattleControls();
             yield return new WaitUntil( _playerInput.UIBattle.Submit.WasReleasedThisFrame );
+            PlayerReferences.Instance.PlayerController.DisableBattleControls();
+        }
 
         yield return new WaitForSeconds( 1f );
         PlayerReferences.Instance.PlayerController.EnableBattleControls();

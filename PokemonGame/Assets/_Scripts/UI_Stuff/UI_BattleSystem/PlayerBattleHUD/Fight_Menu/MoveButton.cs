@@ -39,7 +39,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
             _fightMenu.SetMemoryButton( _thisButton );
             BattleUIActions.OnCommandUsed?.Invoke();
             Debug.Log( "MoveButton OnSubmit, Popping Menu State" );
-            _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
+            _fightMenu.BattleMenu.StateMachine.Pop();
             _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
         }
         else{
@@ -57,7 +57,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     private IEnumerator WaitForCloseAnims(){
         yield return new WaitForSeconds( 0.1f );
         gameObject.GetComponent<Outline>().enabled = false;
-        _fightMenu.BattleMenu.BattleMenuStateMachine.Pop();
+        _fightMenu.BattleMenu.StateMachine.Pop();
     }
 
     private IEnumerator WaitForMoveDialogue(){

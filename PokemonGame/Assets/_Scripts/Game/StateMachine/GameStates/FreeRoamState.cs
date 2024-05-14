@@ -22,18 +22,18 @@ public class FreeRoamState : State<GameStateController>
         Debug.Log( "exploration baaybeee" );
     }
 
-    public override void PauseState(){
-        //--Disable Character Controls
-        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
-        Debug.Log( "paused exporation babe :c" );
-    }
-
     public override void ReturnToState(){
         //--Re-enable Controls
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
         //--Set Enum for quick ref
         gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.FreeRoamState );
         Debug.Log( "exploration AGAIN baaybeee" );
+    }
+
+    public override void PauseState(){
+        //--Disable Character Controls
+        PlayerReferences.Instance.PlayerController.DisableCharacterControls();
+        Debug.Log( "paused exporation babe :c" );
     }
 
     public override void ExitState(){

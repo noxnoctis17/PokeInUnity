@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9885decd78ea3484c9d3177b10d4c89f, type: 3}
   m_Name: Ultra Ball
   m_EditorClassIdentifier: 
+  _itemCategory: 1
   _itemName: Ultra Ball
   _itemDescription: "An ultra-high-performance Pok\xE9 Ball that provides a higher
     success rate for catching Pok\xE9mon than a Great Ball. 2x Capture Rate."

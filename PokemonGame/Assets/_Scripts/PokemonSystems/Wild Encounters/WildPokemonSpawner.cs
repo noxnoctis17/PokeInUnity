@@ -96,40 +96,28 @@ public class WildPokemonSpawner : MonoBehaviour
 
         //--Initialize a new ObjectPool per Spawner Instance
         SpeciesToSpawnList = new();
-        //--------------------------------------------
-        //------------[ POOL SPAGHETTI ]--------------
-        //--------------------------------------------
-        _spawnPool = new( () =>
-        //--Create()-------------------------------------------------------------------
-        {
-            var spawnObj = Instantiate( _wildPokemonPrefab.gameObject );
-            spawnObj.SetActive( false );
-            return spawnObj;
-        },
-        null,
-        //--Get()----------------------------------------------------------------------
-        spawn =>
-        //--Release()------------------------------------------------------------------
-        {
-            spawn.SetActive( false );
-        },
-        spawn =>
-        //--Destroy()-------------------------------------------------------------------
-        {
-            Destroy( spawn.gameObject );
-
-        },
-        //--stuff*, starting amount, max amount
-        false, _numberToSpawn, _numberToSpawn
-        );
-        //--------------------------------------------
-        //--------------------------------------------
-        //--------------------------------------------
+        _spawnPool = new ( () => { return SpawnPoolCreate(); },
+        spawn => { /*SpawnPoolGet( spawn );*/ },
+        spawn => { SpawnPoolRelease( spawn ); },
+        spawn => { Destroy( spawn ); },
+        //--Handle Dupes, Starting Amount, Max Amount
+        false, _numberToSpawn, _numberToSpawn );
 
         //--Initialize State Machine
         SpawnerStateMachine = new StateMachine<WildPokemonSpawner>( this, _pausedState );
         SpawnerStateMachine.Initialize();
     }
+
+    private GameObject SpawnPoolCreate(){
+        var spawnObj = Instantiate( _wildPokemonPrefab.gameObject );
+        spawnObj.SetActive( false );
+        return spawnObj;
+    }
+
+    private void SpawnPoolRelease( GameObject spawn ){
+        spawn.SetActive( false );
+    }
+
     //*
     //--stuff: have unity handle management if you think your code might return an object to the pool that has already been returned to the pool
     //--I'm a master coder and therefore do not have to worry about this, so it's set to false 04/14/24

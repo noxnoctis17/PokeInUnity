@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 
-public enum PartyScreenContext { Battle, PauseMenu, ItemUse, Trade,  }
+public enum PartyScreenContext { Battle, Pause, UseItemPaused, UseItemBattle, Trade,  }
 
 public class PartyDisplay : MonoBehaviour
 {
@@ -66,6 +66,7 @@ public class PartyDisplay : MonoBehaviour
     }
 
     public void SetPartyButtons_Interactable( bool isInteractable ){
+        Debug.Log( $"SetPartyButtons_Interactable: {isInteractable}" );
         foreach( PokemonButton button in _pkmnButtons ){
             button.ThisButton.interactable = isInteractable;
         }

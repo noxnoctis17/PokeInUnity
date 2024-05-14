@@ -29,7 +29,7 @@ public class UseMoveCommand : IBattleCommand
     }
 
     public IEnumerator ExecuteBattleCommand(){
-        yield return _battleSystem.StartCoroutine( _battleSystem.PerformMoveCommand( _move, _attacker, _target ) );
+        yield return _battleSystem.PerformMoveCommand( _move, _attacker, _target );
     }
 
     private void DeterminePriority(){

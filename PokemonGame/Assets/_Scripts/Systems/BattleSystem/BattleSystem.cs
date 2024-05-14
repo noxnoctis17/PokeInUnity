@@ -35,7 +35,7 @@ public class BattleSystem : BattleStateMachine
     [SerializeField] private FightMenu _fightMenu;
     [SerializeField] private PartyScreen_Battle _pkmnMenu;
     [SerializeField] private PartyDisplay _partyDisplay;
-    [SerializeField] private LearnMoveMenu _learnMoveMenu;
+    [SerializeField] private BattleMenu_LearnMoveState _learnMoveMenu;
     [SerializeField] private AudioSource _audioSource;
     [SerializeField] private GameObject _thrownPokeBall;
     [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
@@ -68,7 +68,7 @@ public class BattleSystem : BattleStateMachine
     public FightMenu FightMenu => _fightMenu;
     public PartyScreen_Battle PKMNMenu => _pkmnMenu;
     public PartyDisplay PartyDisplay => _partyDisplay;
-    public LearnMoveMenu LearnMoveMenu => _learnMoveMenu;
+    public BattleMenu_LearnMoveState LearnMoveMenu => _learnMoveMenu;
     //--EXP
     public int TotalPartyExpGain { get; private set; }
     public int TotalPartyEffortGain { get; private set; }
@@ -82,8 +82,8 @@ public class BattleSystem : BattleStateMachine
     public StateStackMachine<BattleSystem> BattleSystemStateMachine { get; private set; }
 
 //================================[ EVENTS ]===================================================================
-    public static Action OnBattleStarted;
-    public static Action OnBattleEnded;
+    public static event Action OnBattleStarted;
+    public static event Action OnBattleEnded;
     public static Action OnPlayerPokemonFainted;
     public static Action OnPlayerChoseNextPokemon;
 
@@ -99,6 +99,7 @@ public class BattleSystem : BattleStateMachine
 //=========================[ POKEMON AND PLAYER/TRAINER PARTIES ]================================================
     //--private
     private TrainerClass _enemyTrainer1;
+    private Inventory _playerInventory;
     private PokemonParty _playerParty;
     private PokemonParty _enemyTrainerParty;
     private int _playerUnitAmount;
@@ -106,6 +107,7 @@ public class BattleSystem : BattleStateMachine
     private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
     private Pokemon _caughtPokemon; //--Pokemon you caught
     //--public/getters/properties
+    public Inventory Inventory => _playerInventory;
     public PokemonParty PlayerParty => _playerParty;
     public PokemonParty EnemyTrainerParty => _enemyTrainerParty;
     public int PlayerUnitAmount => _playerUnitAmount;
@@ -128,7 +130,7 @@ public class BattleSystem : BattleStateMachine
     private void OnEnable(){
         Instance = this;
         DamageTakenPopupPrefab = _damageTakenPopupPrefab;
-        // BattleSystemStateMachine = new( this );
+        _playerInventory = PlayerReferences.Instance.PlayerInventory;
 
         DialogueManager.Instance.OnSystemDialogueComplete += SetLevelUpCompleted;
 
@@ -137,6 +139,7 @@ public class BattleSystem : BattleStateMachine
         DialogueBoxeUpdates = new Queue<BattleDialogueBox>(); //--?? was this for my passive dialogue box? --3/26/24 probably lol
         TotalPartyExpGain = 0;
         BattleIsActive = true;
+        OnBattleStarted?.Invoke();
     }
 
     private void OnDisable(){
@@ -157,18 +160,18 @@ public class BattleSystem : BattleStateMachine
 
     private void SetBusyState(){
         Debug.Log( "SetBusyState" );
-        if( PlayerBattleMenu.BattleMenuStateMachine.CurrentState != PlayerBattleMenu.PausedState )
+        if( PlayerBattleMenu.StateMachine.CurrentState != PlayerBattleMenu.PausedState )
             PlayerBattleMenu.OnPauseState?.Invoke();
     }
 
     private void SetPlayerActionState(){
         Debug.Log( "SetPlayerActionState" );
-        if( PlayerBattleMenu.BattleMenuStateMachine.CurrentState == PlayerBattleMenu.PausedState )
+        if( PlayerBattleMenu.StateMachine.CurrentState == PlayerBattleMenu.PausedState )
             PlayerBattleMenu.OnUnpauseState?.Invoke();
     }
 
     private void SetForceSelectPokemonState(){
-        if( PlayerBattleMenu.BattleMenuStateMachine.CurrentState == PlayerBattleMenu.PausedState )
+        if( PlayerBattleMenu.StateMachine.CurrentState == PlayerBattleMenu.PausedState )
             PlayerBattleMenu.OnChangeState?.Invoke( _pkmnMenu );
     }
 
@@ -384,16 +387,15 @@ public class BattleSystem : BattleStateMachine
         ConditionsDB.Clear();
         TypeColorsDB.Clear();
         
-        OnBattleEnded?.Invoke();
         BattleUIActions.OnAttackPhaseCompleted?.Invoke();
+        OnBattleEnded?.Invoke();
 
         BattleIsActive = false;
         GameStateController.Instance.GameStateMachine.Pop();
-        // GameStateController.Instance.GameStateMachine.ChangeState( FreeRoamState.Instance );
     }
 
 //-------------------------------------------------------------------------------------------------------
-//----------------------------------------------COMMANDS-------------------------------------------------
+//--------------------------------------------[ COMMANDS ]-----------------------------------------------
 //-------------------------------------------------------------------------------------------------------
 
     //--Perform any Move
@@ -403,8 +405,10 @@ public class BattleSystem : BattleStateMachine
 
         if( !canAttack ){
             yield return ShowStatusChanges( attacker.Pokemon );
-            yield return attacker.BattleHUD.UpdateHP(); //--if it cannot attack we...update its hp? i wonder why lol. i will need to go back
-            yield break; //--o this might be like exclusively added for confusion lol wtf
+            //--if it cannot attack we...update its hp? i wonder why lol. i will need to go back
+            //--o this might be like exclusively added for confusion lol wtf
+            yield return attacker.BattleHUD.WaitForHPUpdate();
+            yield break;
         }
 
         yield return ShowStatusChanges( attacker.Pokemon );
@@ -436,7 +440,7 @@ public class BattleSystem : BattleStateMachine
                     yield return attacker.PokeAnimator.PlaySpecialAttackAnimation();
                 
                 var damageDetails = target.TakeDamage( move, attacker.Pokemon );
-                yield return target.BattleHUD.UpdateHP();
+                yield return target.BattleHUD.WaitForHPUpdate();
                 yield return ShowDamageDetails( damageDetails );
             }
 
@@ -467,7 +471,7 @@ public class BattleSystem : BattleStateMachine
             // Debug.Log( _playerUnit.Pokemon.CurrentHP );
             _playerUnit.Pokemon.OnAfterTurn();
             yield return ShowStatusChanges( _playerUnit.Pokemon );
-            yield return _playerUnit.BattleHUD.UpdateHP();
+            yield return _playerUnit.BattleHUD.WaitForHPUpdate();
             // Debug.Log( _playerUnit.Pokemon.CurrentHP );
             yield return CheckForFaint( _playerUnit );
         }
@@ -475,7 +479,7 @@ public class BattleSystem : BattleStateMachine
         if( _enemyUnit.Pokemon.CurrentHP > 0 ){
             // _enemyUnit.Pokemon.OnAfterTurn();
             yield return ShowStatusChanges( _enemyUnit.Pokemon );
-            yield return _enemyHUD.UpdateHP();
+            yield return _enemyHUD.WaitForHPUpdate();
             yield return CheckForFaint( _enemyUnit );
         }
 
@@ -700,7 +704,19 @@ public class BattleSystem : BattleStateMachine
         }
 
         yield return new WaitForSeconds( 0.5f );
-        
+    }
+
+    public IEnumerator PerformUseItemCommand( Pokemon pokemon, Item item ){
+        var itemUsed = _playerInventory.UseItem( item, pokemon );
+
+        if( itemUsed != null ){
+            yield return _dialogueBox.TypeDialogue( itemUsed.UseText( pokemon ), true );
+        }
+        else{
+            yield return _dialogueBox.TypeDialogue( "It didn't have any effect!", true );
+        }
+
+        yield return null;
     }
 
     public IEnumerator PerformRunFromBattleCommand(){
@@ -710,10 +726,6 @@ public class BattleSystem : BattleStateMachine
     }
 
     public IEnumerator ThrowPokeball(){
-        // Debug.Log( "threw pokeball" );
-        // _battleStateEnum = BattleStateEnum.Busy;
-        // SetBusyState();
-
         var playerBallPosition = PlayerReferences.Instance.PlayerCenter.position;
 
         yield return _dialogueBox.TypeDialogue( $"Catch threw a Pokeball!" );
@@ -825,8 +837,8 @@ public class BattleSystem : BattleStateMachine
         DetermineCommandOrder();
     }
 
-    public void SetUseItemCommand(){
-        _useItemCommand = new UseItemCommand( this );
+    public void SetUseItemCommand( Pokemon pokemon, Item item ){
+        _useItemCommand = new UseItemCommand( this, pokemon, item );
         _commandList.Add( _useItemCommand );
         _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
     }
@@ -848,6 +860,8 @@ public class BattleSystem : BattleStateMachine
     }
 
     public IEnumerator ExecuteCommandQueue(){
+        yield return new WaitForEndOfFrame();
+
         while( _commandQueue.Count > 0 ){
             yield return _commandQueue.Dequeue().ExecuteBattleCommand();
             _turnsLeft = _commandQueue.Count; //--i have no idea what i was going to use this for

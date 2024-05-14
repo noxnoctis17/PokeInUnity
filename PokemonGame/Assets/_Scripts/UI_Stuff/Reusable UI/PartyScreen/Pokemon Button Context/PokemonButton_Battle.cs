@@ -28,7 +28,7 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
         //--all battle system stuff would get run to completion before we get to the end, where we'd finally pop the state
         //--we need to pop the state immediately. i have already made this change in MoveButton. I will likely need to do this
         //--for the pokeball (soon to be items) button.
-        _partyScreen.BattleMenu.BattleMenuStateMachine.Pop();
+        _partyScreen.BattleMenu.StateMachine.Pop();
 
         if( _pokemon.CurrentHP <= 0 ){
             Debug.Log( "You can't select a fainted Pokemon!" ); //message pop up eventually
@@ -73,7 +73,7 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
     }
 
     public void CloseContextMenu(){
-        _partyScreen.BattleMenu.BattleMenuStateMachine.Pop();
+        _partyScreen.BattleMenu.StateMachine.Pop();
     }
 
 

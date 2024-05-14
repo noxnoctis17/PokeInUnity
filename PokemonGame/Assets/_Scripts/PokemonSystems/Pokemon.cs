@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
+using UnityEngine.Analytics;
 
 [Serializable]
 public class Pokemon
@@ -24,7 +25,6 @@ public class Pokemon
     public Condition VolatileStatus { get; private set; }
     public int SevereStatusTime { get; set; }
     public int VolatileStatusTime { get; set; }
-    public bool HPChanged { get; set; }
     public Queue<string> StatusChanges { get; private set; }
 
 //==================[ Events ]===========================================
@@ -207,7 +207,7 @@ public class Pokemon
         return _pokeSO.LearnableMoves.Where( x => x.LevelLearned == _level ).FirstOrDefault();
     }
 
-    public void TryLearnMove( LearnableMoves newMove, LearnMoveMenu moveMenu, BattleSystem battleSystem = null ){
+    public void TryLearnMove( LearnableMoves newMove, BattleMenu_LearnMoveState moveMenu, BattleSystem battleSystem = null ){
         if( ActiveMoves.Count < PokemonSO.MAXMOVES ){
             ActiveMoves.Add( new MoveClass( newMove.MoveSO ) );
 
@@ -298,13 +298,11 @@ public class Pokemon
 
     public void IncreaseHP( int amount ){
         CurrentHP = Mathf.Clamp( CurrentHP + amount, 0, MaxHP );
-        HPChanged = true;
         OnHpChanged?.Invoke();
     }
 
     public void DecreaseHP( int damage ){
         CurrentHP = Mathf.Clamp( CurrentHP - damage, 0, MaxHP );
-        HPChanged = true;
         OnHpChanged?.Invoke();
     }
 
@@ -317,13 +315,19 @@ public class Pokemon
     }
 
     public void SetSevereStatus( ConditionID conditionID ){
-        if( SevereStatus != null ) return;
+        if( SevereStatus != null && conditionID == ConditionID.FNT ){
+            SevereStatus = ConditionsDB.Conditions[conditionID];
+        }
+        else if( SevereStatus != null )
+            return;
 
         SevereStatus = ConditionsDB.Conditions[conditionID];
-        SevereStatus?.OnRoundStart?.Invoke( this );
-        StatusChanges.Enqueue( $"{_pokeSO.pName} {SevereStatus.AfflictionDialogue}" );
-        // Debug.Log($"{_pokeSO.pName} has been afflicted with: {ConditionsDB.Conditions[conditionID].ConditionName}");
-        OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
+
+        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
+            SevereStatus?.OnRoundStart?.Invoke( this );
+            StatusChanges.Enqueue( $"{_pokeSO.pName} {SevereStatus.AfflictionDialogue}" );
+            OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
+        }
     }
 
     public void CureSevereStatus(){

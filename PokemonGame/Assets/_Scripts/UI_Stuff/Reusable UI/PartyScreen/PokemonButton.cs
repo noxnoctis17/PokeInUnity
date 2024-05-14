@@ -8,7 +8,8 @@ public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, IC
     [SerializeField] private GameObject _selectedOutline;
     [SerializeField] private PokemonButton_Battle _battleContext;
     [SerializeField] private PokemonButton_PauseScreen _pauseContext;
-    [SerializeField] private PokemonButton_UseItem _itemContext;
+    [SerializeField] private PokemonButton_UseItemFromPause _useItemPauseContext;
+    [SerializeField] private PokemonButton_UseItemInBattle _useItemBattleContext;
     private PartyDisplay _partyDisplay;
     private IPartyScreen _parentMenu;
     private PartyScreenContext _partyScreenContext;
@@ -29,13 +30,18 @@ public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, IC
                 _buttonContext.Init( partyScreen, this, _parentMenu );
             break;
 
-            case PartyScreenContext.PauseMenu:
+            case PartyScreenContext.Pause:
                 _buttonContext = _pauseContext;
                 _buttonContext.Init( partyScreen, this, _parentMenu );
             break;
 
-            case PartyScreenContext.ItemUse:
-                _buttonContext = _itemContext;
+            case PartyScreenContext.UseItemPaused:
+                _buttonContext = _useItemPauseContext;
+                _buttonContext.Init( partyScreen, this, _parentMenu );
+            break;
+
+            case PartyScreenContext.UseItemBattle:
+                _buttonContext = _useItemBattleContext;
                 _buttonContext.Init( partyScreen, this, _parentMenu );
             break;
         }

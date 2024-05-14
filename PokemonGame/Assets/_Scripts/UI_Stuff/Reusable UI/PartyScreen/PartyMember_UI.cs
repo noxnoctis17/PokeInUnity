@@ -21,10 +21,6 @@ public class PartyMember_UI : MonoBehaviour
         _pokemon.OnHpChanged += UpdateData;
     }
 
-    private void OnDestroy(){
-        _pokemon.OnHpChanged -= UpdateData;
-    }
-
     private void Update(){
         if( _currentHPTracker != _hpBar.hpBar.value )
         _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";

@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 public class MoveClass
 {
@@ -13,6 +14,10 @@ public class MoveClass
     public MoveClass( MoveSaveData saveData ){
         MoveSO = MoveDB.GetMoveByName( saveData.MoveName );
         PP = saveData.PP;
+    }
+
+    public void RestorePP( int amount ){
+        PP = Mathf.Clamp( PP + amount, 0, MoveSO.PP );
     }
 
     public MoveSaveData CreateSaveData(){

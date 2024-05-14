@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Snasee_IdleDown_0
+      name: Snasee_Idle_0
       rect:
         serializedVersion: 2
-        x: 0
+        x: 27
         y: 96
-        width: 96
-        height: 96
+        width: 42
+        height: 41
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -137,20 +137,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 559ed15af6b89c54989178e9e756bec1
-      internalID: 999315869
+      spriteID: 2d52b9b2d5acfbd4ba3dd1f7a413f905
+      internalID: -112119446
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Snasee_IdleDown_1
+      name: Snasee_Idle_1
       rect:
         serializedVersion: 2
-        x: 96
+        x: 122
         y: 96
-        width: 96
-        height: 96
+        width: 43
+        height: 41
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -158,20 +158,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 9724e1a006f5c7347ab4e9904ee7e657
-      internalID: -922883062
+      spriteID: d932347ec9c5f8e4bbb75f22d212acb2
+      internalID: 1445655039
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Snasee_IdleDown_2
+      name: Snasee_Idle_2
       rect:
         serializedVersion: 2
-        x: 192
+        x: 218
         y: 96
-        width: 96
-        height: 96
+        width: 42
+        height: 44
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -179,20 +179,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 030a37383f8878e48a6ef3b888e6ffbf
-      internalID: 1974127179
+      spriteID: 046ed86192258ed47966d6b9510f546a
+      internalID: 1232599375
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Snasee_IdleUp_3
+      name: Snasee_Idle_3
       rect:
         serializedVersion: 2
-        x: 0
+        x: 20
         y: 0
-        width: 96
-        height: 96
+        width: 42
+        height: 36
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -200,8 +200,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e41fcf487211f174ab174f884bdddb17
-      internalID: 449579599
+      spriteID: 6f2e20f4720fc714d815d7612876e4b3
+      internalID: -2105536150
       vertices: []
       indices: 
       edges: []
@@ -217,10 +217,10 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      Snasee_IdleDown_0: 999315869
-      Snasee_IdleDown_1: -922883062
-      Snasee_IdleDown_2: 1974127179
-      Snasee_IdleUp_3: 449579599
+      Snasee_Idle_0: -112119446
+      Snasee_Idle_1: 1445655039
+      Snasee_Idle_2: 1232599375
+      Snasee_Idle_3: -2105536150
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

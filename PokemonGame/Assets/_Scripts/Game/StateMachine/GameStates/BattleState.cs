@@ -14,7 +14,7 @@ public class BattleState : State<GameStateController>
         gameStateController = owner;
 
         //--Initialize Databases
-        ConditionsDB.Init(); //--Status Conditions Database. Might eventually contain weather, terrain, hazards, and effects like tailwind and Trick Room
+        // ConditionsDB.Init(); //--idk what the fuck
         TypeColorsDB.Init(); //--Primary and Secondary colors for each Type. Currently used for the Fight card and mini huds. Fight Cards will eventually be assigned as a single image to individual pokemon, and loaded from there.
 
         //--Set Controls

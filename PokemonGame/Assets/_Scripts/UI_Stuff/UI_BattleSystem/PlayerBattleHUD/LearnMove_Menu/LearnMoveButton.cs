@@ -6,7 +6,7 @@ using UnityEngine.UI;
 public class LearnMoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICancelHandler, ISubmitHandler
 {
     private BattleSystem _battleSystem;
-    private LearnMoveMenu _learnMenu;
+    private BattleMenu_LearnMoveState _learnMenu;
     private MoveSO _assignedMove;
     public Button ThisButton { get; private set; }
 
@@ -14,7 +14,7 @@ public class LearnMoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, 
         ThisButton = GetComponent<Button>();
     }
 
-    public void Setup( BattleSystem battleSystem, LearnMoveMenu learnMenu, MoveSO move ){
+    public void Setup( BattleSystem battleSystem, BattleMenu_LearnMoveState learnMenu, MoveSO move ){
         _battleSystem = battleSystem;
         _learnMenu = learnMenu;
 
@@ -41,6 +41,6 @@ public class LearnMoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, 
 
     private IEnumerator WaitForCloseAnims(){
         yield return new WaitForSeconds( 0.1f );
-        _learnMenu.BattleMenu.BattleMenuStateMachine.Pop();
+        _learnMenu.BattleMenu.StateMachine.Pop();
     }
 }

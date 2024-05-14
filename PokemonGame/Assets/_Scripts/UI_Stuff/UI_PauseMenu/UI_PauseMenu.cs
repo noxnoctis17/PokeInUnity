@@ -6,7 +6,7 @@ using DG.Tweening;
 
 public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
 {
-    public UI_PauseMenuStateMachine PauseMenuStateMachine { get; private set; }
+    public UI_PauseMenuStateMachine StateMachine { get; private set; }
     public UI_PauseMenuButton_Events ButtonEvents { get; private set; }
     [SerializeField] private Button _pokedexButton, _pokemonButton, _bagButton, _saveButton, _loadButton, _optionsButton;
     private Button[] _buttons;
@@ -20,7 +20,7 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
     }
 
     public override void EnterState( UI_PauseMenuStateMachine owner ){
-        PauseMenuStateMachine = owner;
+        StateMachine = owner;
 
         //--Components
         ButtonEvents = GetComponent<UI_PauseMenuButton_Events>();

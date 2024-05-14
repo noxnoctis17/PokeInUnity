@@ -12,53 +12,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
   m_Name: Snasee
   m_EditorClassIdentifier: 
+  _species: 0
   _name: Snasee
   _wildType: 1
   _description: These seedlings are bursting with energy. They are excited to experience
     the world with their trainer.
   _idleUpSprites:
-  - {fileID: 449579599, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -2105536150, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
   _idleDownSprites:
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: -922883062, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
-  - {fileID: 1974127179, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -112119446, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1445655039, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1232599375, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
   _walkUpSprites:
-  - {fileID: 449579599, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -2105536150, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
   _walkDownSprites:
-  - {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: -112119446, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1445655039, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
+  - {fileID: 1232599375, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
   _battlePortrait: {fileID: 999315869, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
   _type1: 5
   _type2: 0

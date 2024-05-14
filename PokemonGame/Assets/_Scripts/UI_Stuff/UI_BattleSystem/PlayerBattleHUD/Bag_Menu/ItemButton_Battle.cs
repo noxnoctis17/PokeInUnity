@@ -5,7 +5,7 @@ using UnityEngine.EventSystems;
 public class ItemButton_Battle : MonoBehaviour, ISelectHandler, IDeselectHandler, ICancelHandler, ISubmitHandler
 {
     [SerializeField] private BattleSystem _battleSystem;
-    [SerializeField] private Bag_BattleMenu _bagMenu;
+    [SerializeField] private BagScreen_Battle _bagMenu;
 
 
     public void OnSelect( BaseEventData eventData ){
@@ -22,7 +22,7 @@ public class ItemButton_Battle : MonoBehaviour, ISelectHandler, IDeselectHandler
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        _bagMenu.BattleMenu.BattleMenuStateMachine.Pop();
+        _bagMenu.BattleMenu.StateMachine.Pop();
         
         if( _battleSystem.IsSinglesTrainerBattle || _battleSystem.IsDoublesTrainerBattle ){
             StartCoroutine ( _battleSystem.DialogueBox.TypeDialogue( $"You can't steal another trainer's Pokemon!" ) );
@@ -30,12 +30,12 @@ public class ItemButton_Battle : MonoBehaviour, ISelectHandler, IDeselectHandler
         }
         
         BattleUIActions.OnSubMenuClosed?.Invoke();
-        _battleSystem.SetUseItemCommand( /*eventually will be the item or something*/ );
+        // _battleSystem.SetUseItemCommand( /*eventually will be the item or something*/ );
         BattleUIActions.OnCommandUsed?.Invoke();
     }
 
     private IEnumerator WaitForCloseAnims(){
         yield return new WaitForSeconds( 0.1f );
-        _bagMenu.BattleMenu.BattleMenuStateMachine.Pop();
+        _bagMenu.BattleMenu.StateMachine.Pop();
     }
 }

@@ -12,7 +12,7 @@ public class GameStateController : MonoBehaviour
 
     //--State Machine Enums for quick reference for current state
     public enum GameStateEnum{
-        FreeRoamState, DialogueState, BattleState,
+        FreeRoamState, DialogueState, BattleState, PauseScreenState,
     }
 
     public GameStateEnum CurrentStateEnum { get; private set; }
@@ -46,6 +46,7 @@ public class GameStateController : MonoBehaviour
     }
 
     private void Awake(){
+        ConditionsDB.Init();
         PokemonDB.Init();
         MoveDB.Init();
     }
@@ -53,6 +54,10 @@ public class GameStateController : MonoBehaviour
     private void Start(){
         GameStateMachine = new StateStackMachine<GameStateController>( this );
         GameStateMachine.Push( FreeRoamState.Instance );
+    }
+
+    public void PushGameState( State<GameStateController> newState ){
+        GameStateMachine.Push( newState );
     }
 
     public void ChangeGameStateEnum( GameStateEnum stateEnum ){

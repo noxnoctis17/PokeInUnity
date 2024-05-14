@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class DialogueUI : MonoBehaviour
 {
-    [SerializeField] private UnityEngine.GameObject _generalDialogueBox, _leftDialogueBox_1, _rightDialogueBox_1;
+    [SerializeField] private UnityEngine.GameObject _gameboyDialogueBox, _leftDialogueBox_1, _rightDialogueBox_1;
     [SerializeField] private UnityEngine.GameObject _speakerNameBox;
     [SerializeField] private TMP_Text _speakerNameText, _leftSpeakerNameText_1, _rightSpeakerNameText_1;
     [SerializeField] private TMP_Text _dialogueText;
@@ -30,16 +30,10 @@ public class DialogueUI : MonoBehaviour
         StartCoroutine( ActiveDialogueCoroutine );
     }
 
-    public void StartDialogue( string dialogue ){
+    public IEnumerator StartSystemMessage( string dialogue ){
         Debug.Log( "StartDialogue" );
-        ActiveDialogueCoroutine = StepThroughDialogue( dialogue );
-        StartCoroutine( ActiveDialogueCoroutine );
-    }
-
-    public void StartDialogue( string dialogue, bool battle ){
-        Debug.Log( "StartDialogue" );
-        ActiveDialogueCoroutine = StepThroughDialogue( dialogue, battle );
-        StartCoroutine( ActiveDialogueCoroutine );
+        ActiveDialogueCoroutine = StepThroughSystemMessage( dialogue );
+        yield return ActiveDialogueCoroutine;
     }
 
     public void AddResponseEvents( ResponseEvent[] responseEvents ){
@@ -71,13 +65,13 @@ public class DialogueUI : MonoBehaviour
             return _rightSpeakerText_1;
         }
         else{
-            _generalDialogueBox.SetActive( true );
+            _gameboyDialogueBox.SetActive( true );
             return _dialogueText;
         }
     }
 
     private TMP_Text SetDialogueBox(){
-            _generalDialogueBox.SetActive( true );
+            _gameboyDialogueBox.SetActive( true );
             return _dialogueText;
     }
 
@@ -150,39 +144,18 @@ public class DialogueUI : MonoBehaviour
         
     }
 
-    private IEnumerator StepThroughDialogue( string dialogue ){
+    private IEnumerator StepThroughSystemMessage( string dialogue ){
+        PlayerReferences.Instance.PlayerController.DisableUI();
         var currentSpeakerText = SetDialogueBox();
 
         yield return RunTypingEffect( dialogue, currentSpeakerText );
 
-        currentSpeakerText.text = dialogue;
-
-        yield return null;
+        // currentSpeakerText.text = dialogue;
+        // yield return null;
+        PlayerReferences.Instance.PlayerController.EnableUI();
+        yield return new WaitForEndOfFrame();
         yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
         CloseDialogueBox();
-
-        yield return new WaitForSeconds( 0.25f );
-        
-    }
-
-    private IEnumerator StepThroughDialogue( string dialogue, bool battle ){
-        var currentSpeakerText = SetDialogueBox();
-
-        yield return RunTypingEffect( dialogue, currentSpeakerText );
-
-        currentSpeakerText.text = dialogue;
-
-        yield return null;
-        yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
-
-        CloseDialogueBox();
-
-        yield return new WaitForSeconds( 0.25f );
-
-        if( battle ){
-            DialogueManager.Instance.OnSystemDialogueComplete?.Invoke( true );
-            Debug.Log( "invoked system dialogue complete" );
-        }
     }
 
     private IEnumerator RunTypingEffect( string dialogue, TMP_Text currentSpeakerText ){
@@ -197,23 +170,25 @@ public class DialogueUI : MonoBehaviour
     }
     
     public void CloseDialogueBox(){
-        Debug.Log( this + "CloseDialogueBox" );
+        Debug.Log( "CloseDialogueBox()" );
         GameStateController.Instance.GameStateMachine.Pop();
+        StopAllCoroutines();
         
-        _dialogueText.text = string.Empty;
-        _leftSpeakerText_1.text = string.Empty;
-        _rightSpeakerText_1.text = string.Empty;
+        _dialogueText.text          = string.Empty;
+        _leftSpeakerText_1.text     = string.Empty;
+        _rightSpeakerText_1.text    = string.Empty;
 
         ClearDialoguePortraits();
         ClearSpeakerNameText();
 
-        _generalDialogueBox.SetActive( false );
+        _gameboyDialogueBox.SetActive( false );
         _leftDialogueBox_1.SetActive( false );
         _rightDialogueBox_1.SetActive( false );
 
         //--Check and Execute the Callback on ResponsePicked, so that the Unity Event will trigger after Dialogue is completely over.
         //--This is especially important for trainer battles that have follow up dialogue before starting !!
         if ( DialogueManager.Instance.DialogueFinishedCallback != null ){
+            Debug.Log( "DialogueFinishedCallback Raised" );
             DialogueManager.Instance.DialogueFinishedCallback.Invoke();
             DialogueManager.Instance.DialogueFinishedCallback = null;
         }

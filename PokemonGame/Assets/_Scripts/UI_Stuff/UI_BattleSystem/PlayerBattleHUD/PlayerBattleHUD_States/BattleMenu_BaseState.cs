@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using NoxNoctisDev.StateMachine;
-using UnityEngine.EventSystems;
 
 public class BattleMenu_BaseState : State<PlayerBattleMenu>
 {

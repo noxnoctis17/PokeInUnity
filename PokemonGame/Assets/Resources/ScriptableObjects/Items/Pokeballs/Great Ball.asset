@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9885decd78ea3484c9d3177b10d4c89f, type: 3}
   m_Name: Great Ball
   m_EditorClassIdentifier: 
+  _itemCategory: 1
   _itemName: Great Ball
   _itemDescription: A good, high-performance Poke Ball that provides a higher success
     rate for catching Pokemon than a standard Poke Ball. 1.5x Capture Rate.

@@ -6,7 +6,7 @@ using TMPro;
 using NoxNoctisDev.StateMachine;
 using Unity.VisualScripting;
 
-public class LearnMoveMenu : State<PlayerBattleMenu>
+public class BattleMenu_LearnMoveState : State<PlayerBattleMenu>
 {
     private PlayerBattleMenu _battleMenu;
     [SerializeField] private BattleSystem _battleSystem;
@@ -61,11 +61,11 @@ public class LearnMoveMenu : State<PlayerBattleMenu>
     private void ReplaceMove( MoveSO replacedMove ){
         ReplacedMove = true;
         _pokemon.ReplaceWithNewMove( replacedMove, _newMove );
-        _battleMenu.BattleMenuStateMachine.Pop();
+        _battleMenu.StateMachine.Pop();
     }
 
     private void SetReplacedMoveFalse(){
         ReplacedMove = false;
-        _battleMenu.BattleMenuStateMachine.Pop();
+        _battleMenu.StateMachine.Pop();
     }
 }

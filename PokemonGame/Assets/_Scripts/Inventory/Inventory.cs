@@ -4,12 +4,25 @@ using UnityEngine;
 
 public class Inventory : MonoBehaviour
 {
-    [SerializeField] private List<ItemSlot> _itemSlots; //--?? instead of inventory?
-    public List<ItemSlot> ItemSlots => _itemSlots;
+    [SerializeField] private List<Item> _itemList; //--?? instead of inventory?
+    public List<Item> ItemList => _itemList;
     public event Action OnInventoryUpdated;
-    public event Action<ItemSlot> OnItemRemoved;
+    public event Action<Item> OnItemRemoved;
 
-    public ItemSO UseItem( ItemSlot item, Pokemon pokemon, Action onItemUsed ){
+    //--Use Item
+    public ItemSO UseItem( Item item, Pokemon pokemon ){
+        var itemUsed = item.ItemSO.Use( pokemon );
+
+        if( itemUsed ){
+            RemoveItem( item );
+            return item.ItemSO;
+        }
+
+        return null;
+    }
+
+    //--Use Item with a callback
+    public ItemSO UseItem( Item item, Pokemon pokemon, Action onItemUsed ){
         var itemUsed = item.ItemSO.Use( pokemon );
 
         if( itemUsed ){
@@ -21,12 +34,18 @@ public class Inventory : MonoBehaviour
         return null;
     }
 
-    public void RemoveItem( ItemSlot item ){
+    //--Check if Item is usable, probably only for Battle use
+    public bool CheckIfItemUsable( Item item, Pokemon pokemon ){
+        return item.ItemSO.CheckIfUsable( pokemon );
+    }
+
+    //--Decrease item count by 1, remove from inventory if count == 0
+    public void RemoveItem( Item item ){
         item.DecreaseItemCount();
 
         if( item.ItemCount == 0 ){
             OnItemRemoved?.Invoke( item );
-            _itemSlots.Remove( item );
+            _itemList.Remove( item );
         }
 
         OnInventoryUpdated?.Invoke();
@@ -35,7 +54,7 @@ public class Inventory : MonoBehaviour
 }
 
 [Serializable]
-public class ItemSlot
+public class Item
 {
     [SerializeField] private ItemSO _itemSO;
     [SerializeField] private int _itemCount;

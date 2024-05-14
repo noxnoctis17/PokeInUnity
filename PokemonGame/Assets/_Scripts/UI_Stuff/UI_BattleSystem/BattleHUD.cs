@@ -28,6 +28,11 @@ public class BattleHUD : MonoBehaviour
     }
 
     public void SetData( Pokemon pokemon ){
+        if( _pokemon != null ){
+            _pokemon.OnStatusChanged    -= SetSevereStatusIcon;
+            _pokemon.OnHpChanged        -= UpdateHP;
+        }
+
         _pokemon = pokemon;
 
         _nameText.text = pokemon.PokeSO.pName;
@@ -58,17 +63,21 @@ public class BattleHUD : MonoBehaviour
         };
 
         SetSevereStatusIcon();
-        _pokemon.OnStatusChanged += SetSevereStatusIcon;
+        _pokemon.OnStatusChanged    += SetSevereStatusIcon;
+        _pokemon.OnHpChanged        += UpdateHP;
+        BattleSystem.OnBattleEnded += ClearData;
     }
 
-    public IEnumerator UpdateHP(){
-        // Debug.Log( "UpdateHP Before if()" );
-        if( _pokemon.HPChanged ){
-            // Debug.Log( "After if()" );
-            yield return _hpBar.AnimateHP( _pokemon.CurrentHP );
-            _pokemon.HPChanged = false;
-        }
-        
+    private void UpdateHP(){
+        StartCoroutine( UpdateHPCoroutine() );
+    }
+
+    public IEnumerator UpdateHPCoroutine(){
+        yield return _hpBar.AnimateHP( _pokemon.CurrentHP );
+    }
+
+    public IEnumerator WaitForHPUpdate(){
+        yield return new WaitUntil( () => _hpBar.IsUpdating == false );
     }
 
     public void SetExp(){
@@ -113,6 +122,12 @@ public class BattleHUD : MonoBehaviour
         _levelText.text = "" + _pokemon.Level;
         _hpBar.SetHP( _pokemon.CurrentHP, _pokemon.MaxHP );
         _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+    }
+
+    private void ClearData(){
+        _pokemon.OnStatusChanged    -= SetSevereStatusIcon;
+        _pokemon.OnHpChanged        -= UpdateHP;
+        BattleSystem.OnBattleEnded  -= ClearData;
     }
 
     private void SetColors(){

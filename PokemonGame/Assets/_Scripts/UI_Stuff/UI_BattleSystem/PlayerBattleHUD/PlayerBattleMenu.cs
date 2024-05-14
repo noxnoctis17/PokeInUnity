@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using NoxNoctisDev.StateMachine;
 using System;
-using System.Collections;
 
 public class PlayerBattleMenu : MonoBehaviour
 {
@@ -21,7 +20,7 @@ public class PlayerBattleMenu : MonoBehaviour
     public Button BagButton => _bagButton;
     public Button RunButton => _runButton;
     public BattleUIActions BUIActions { get; private set; }
-    public StateStackMachine<PlayerBattleMenu> BattleMenuStateMachine { get; private set; }
+    public StateStackMachine<PlayerBattleMenu> StateMachine { get; private set; }
     public Button[] Buttons { get; private set; }
     public PlayerInput PlayerInput { get; private set; }
     public Action<State<PlayerBattleMenu>> OnPushNewState;
@@ -34,11 +33,11 @@ public class PlayerBattleMenu : MonoBehaviour
     private void OnEnable(){
         Debug.Log( "Enable PlayerBattleMenu ");
         //--State Machine
-        BattleMenuStateMachine = new StateStackMachine<PlayerBattleMenu>( this );
+        StateMachine = new StateStackMachine<PlayerBattleMenu>( this );
 
         //--Events
-        OnPushNewState   += PushNewState;
-        OnChangeState += ChangeState;
+        OnPushNewState  += PushState;
+        OnChangeState   += ChangeState;
         OnPauseState    += PauseMenu;
         OnUnpauseState  += UnpauseMenu;
         GameStateController.Instance.OnDialogueStateEntered += PauseMenu;
@@ -55,21 +54,21 @@ public class PlayerBattleMenu : MonoBehaviour
         ResetMenuPositions();
 
         //--Push base menu state
-        PushNewState( _baseState );
+        PushState( _baseState );
     }
 
     private void OnDisable(){
         Debug.Log( "Disable PlayerBattleMenu ");
         //--Events
-        OnPushNewState   -= PushNewState;
+        OnPushNewState  -= PushState;
         OnPauseState    -= PauseMenu;
         OnUnpauseState  -= UnpauseMenu;
         GameStateController.Instance.OnDialogueStateEntered -= PauseMenu;
         GameStateController.Instance.OnDialogueStateExited  -= UnpauseMenu;
 
         //--State Machine
-        BattleMenuStateMachine.ClearStack();
-        BattleMenuStateMachine = null;
+        StateMachine.ClearStack();
+        StateMachine = null;
 
         //--Buttons
         Buttons = null;
@@ -79,20 +78,24 @@ public class PlayerBattleMenu : MonoBehaviour
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
     }
 
-    private void PushNewState( State<PlayerBattleMenu> newState ){
-        BattleMenuStateMachine.Push( newState );
+    public void PopState(){
+        StateMachine.Pop();
     }
 
-    private void ChangeState(  State<PlayerBattleMenu> newState  ){
-        BattleMenuStateMachine.ChangeState( newState );
+    public void ChangeState( State<PlayerBattleMenu> newState ){
+        StateMachine.ChangeState( newState );
+    }
+
+    private void PushState( State<PlayerBattleMenu> newState ){
+        StateMachine.Push( newState );
     }
 
     private void PauseMenu(){
-        BattleMenuStateMachine.Push( _pauseMenuState );
+        StateMachine.Push( _pauseMenuState );
     }
 
     private void UnpauseMenu(){
-        BattleMenuStateMachine.Pop();
+        StateMachine.Pop();
     }
 
     public void ResetMenuPositions(){
@@ -134,7 +137,7 @@ public class PlayerBattleMenu : MonoBehaviour
 
         GUILayout.BeginArea( new Rect( 0, 0, 600, 500 ) );
         GUILayout.Label( "STATE STACK", style );
-        foreach( var state in BattleMenuStateMachine.StateStack ){
+        foreach( var state in StateMachine.StateStack ){
             GUILayout.Label( state.GetType().ToString(), style );
         }
         GUILayout.EndArea();

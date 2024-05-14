@@ -29,11 +29,11 @@ public class UI_PauseMenuButton : MonoBehaviour, ISelectHandler, IDeselectHandle
     public void OnSubmit( BaseEventData eventData ){
         // Debug.Log( $"{gameObject.name} was submitted" );
         _buttonEvents.OnButtonSubmitted?.Invoke( _thisButton );
-        _pauseMenu.PauseMenuStateMachine.PushNewState( _pauseMenuState );
+        _pauseMenu.StateMachine.PushState( _pauseMenuState );
     }
 
     public void OnCancel( BaseEventData eventData ){
-        _pauseMenu.PauseMenuStateMachine.CloseCurrentMenu();
+        _pauseMenu.StateMachine.PopState();
     }
 
 }

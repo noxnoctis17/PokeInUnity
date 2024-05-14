@@ -8,7 +8,6 @@ public class BattleState_Setup : InBattleStates
 
     public override IEnumerator Start(){
         BattleUIActions.OnBattleSystemBusy?.Invoke();
-        BattleSystem.OnBattleStarted?.Invoke();
         yield return new WaitForSeconds(0.1f);
         yield return BattleSystem.BattleArena.PrepareArena( BattleSystem );
         // yield return SetUpPlayer(); //--Depcrecated i suppose lol

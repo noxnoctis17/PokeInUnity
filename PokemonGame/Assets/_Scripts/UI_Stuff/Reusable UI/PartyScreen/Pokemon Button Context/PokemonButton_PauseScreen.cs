@@ -1,18 +1,16 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
 {
     private PartyDisplay _partyDisplay;
-    private PartyScreen_PauseScreen _pokemonScreen;
+    private PartyScreen_Pause _pokemonScreen;
     private Pokemon _pokemon;
     private PokemonButton _pkmnButton;
 
     public void Init(  PartyDisplay partyScreen, PokemonButton button, IPartyScreen pokemonScreen ){
         _partyDisplay = partyScreen;
         _pkmnButton = button;
-        _pokemonScreen = (PartyScreen_PauseScreen)pokemonScreen;
+        _pokemonScreen = (PartyScreen_Pause)pokemonScreen;
         _pokemon = _pkmnButton.Pokemon;
         // _pkmnMenuPauseScreen = _pkmnMenu.GetComponent<PKMNMenu_PauseScreen>(); //really gotta clean this process up. make a middle ground inheritor for this shit or something
     }
@@ -36,7 +34,7 @@ public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
     }
 
     public void CloseContextMenu(){
-        _pokemonScreen.PauseMenuStateMachine.CloseCurrentMenu();
+        _pokemonScreen.PauseMenuStateMachine.PopState();
     }
 
 }

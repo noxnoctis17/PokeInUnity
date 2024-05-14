@@ -7,6 +7,7 @@ public class HPBar : MonoBehaviour
     [SerializeField] private Slider _hpBar;
     public Slider hpBar => _hpBar;
     private int _newHP;
+    public bool IsUpdating { get; private set; }
 
     public void SetMaxHP( int hp ){
         _hpBar.maxValue = hp;
@@ -23,6 +24,7 @@ public class HPBar : MonoBehaviour
     }
 
     public IEnumerator AnimateHP( int hp ){
+        IsUpdating = true;
         UpdateCurrentHP( hp );
 
         float previousHP = _hpBar.value;
@@ -34,6 +36,6 @@ public class HPBar : MonoBehaviour
         }
 
         _hpBar.value = _newHP;
-
+        IsUpdating = false;
     }
 }

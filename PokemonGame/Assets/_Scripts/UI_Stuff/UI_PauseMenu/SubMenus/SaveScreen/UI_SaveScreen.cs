@@ -1,7 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using EasyButtons.Editor;
 using NoxNoctisDev.StateMachine;
 using TMPro;
 using UnityEngine;

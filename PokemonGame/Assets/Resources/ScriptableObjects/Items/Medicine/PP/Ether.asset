@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e78838e3a06b624f83e2c8070f2587d, type: 3}
+  m_Name: Ether
+  m_EditorClassIdentifier: 
+  _itemCategory: 0
+  _itemName: Ether
+  _itemDescription: A medicine that can be used to restore 10 PP to a single move
+    that a Pokemon knows.
+  _icon: {fileID: 727771274, guid: 21300b8f653f84040b7bd287d401a64f, type: 3}
+  _hpHealAmnt: 0
+  _restoreMaxHP: 0
+  _ppHealAmnt: 10
+  _restoreMaxPP: 0
+  _status: 0
+  _restoreAllStatus: 0
+  _revive: 0
+  _maxRevive: 0

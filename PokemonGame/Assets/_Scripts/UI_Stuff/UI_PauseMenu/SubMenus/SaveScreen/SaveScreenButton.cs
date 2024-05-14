@@ -22,6 +22,6 @@ public class SaveScreenButton : MonoBehaviour, ISubmitHandler, ICancelHandler
     }
     
     public void OnCancel( BaseEventData eventData ){
-        _pauseMenuStateMachine.CloseCurrentMenu();
+        _pauseMenuStateMachine.PopState();
     }
 }

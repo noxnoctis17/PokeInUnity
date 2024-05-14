@@ -1,23 +1,27 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using TMPro;
 
 public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHandler, ISubmitHandler, ICancelHandler
 {
     [SerializeField] private TextMeshProUGUI _itemName;
     [SerializeField] private TextMeshProUGUI _itemCountText;
     [SerializeField] private Image _itemIcon;
-    private Bag_PauseScreen _bagScreen;
+    private BagScreenContext _bagScreenContext;
+    private BagScreen_Battle _bagScreenBattle;
+    private BagScreen_Pause _bagScreenPause;
     private RectTransform _rectTransform;
     public RectTransform RectTransform => _rectTransform;
-    public ItemSlot ItemSlot { get; private set; }
+    public Item ItemSlot { get; private set; }
     public float RectHeight { get; private set; }
     public Button ThisButton { get; private set; }
 
-    public void Init( Bag_PauseScreen bagScreen, ItemSlot itemSlot ){
-        //--Set Bag Screen
-        _bagScreen = bagScreen;
+    public void Init( IBagScreen bagScreen, Item itemSlot, BagScreenContext context ){
+        //--Set Bag Screen Context
+        _bagScreenContext = context;
+        SetBagScreen( bagScreen );
+
         ItemSlot = itemSlot;
         _rectTransform = GetComponent<RectTransform>();
         RectHeight = _rectTransform.rect.height;
@@ -28,24 +32,24 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
         }
     }
 
+    private void SetBagScreen( IBagScreen bagScreen ){
+        switch( _bagScreenContext )
+        {
+            case BagScreenContext.Battle:
+                _bagScreenBattle = (BagScreen_Battle)bagScreen;
+            break;
+
+            case BagScreenContext.Pause:
+                _bagScreenPause = (BagScreen_Pause)bagScreen;
+            break;
+        }
+    }
+
     public void UpdateInfo(){
         //--Set Button Text
         _itemName.text      = ItemSlot.ItemSO.ItemName;
         _itemCountText.text = $"{ItemSlot.ItemCount}";
         _itemIcon.sprite = ItemSlot.ItemSO.Icon;
-    }
-
-    public void OnSelect( BaseEventData eventData ){
-        if( ItemSlot == null )
-            return;
-
-        _bagScreen.OnButtonSelected?.Invoke( this );
-        _bagScreen.ItemName.text            = ItemSlot.ItemSO.ItemName;
-        _bagScreen.ItemDescription.text     = ItemSlot.ItemSO.ItemDescription;
-    }
-
-    public void OnDeselect( BaseEventData eventData ){
-
     }
 
     public void OnSubmit( BaseEventData eventData ){
@@ -61,10 +65,51 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
         //--through selecting the ball item from the bag and having an option to do so and use
         //--it on a pokemon in the party field of the bag screen
         
-        _bagScreen.UseItem( ItemSlot );
+        switch( _bagScreenContext )
+        {
+            case BagScreenContext.Battle:
+                _bagScreenBattle.UseItem( ItemSlot );
+            break;
+
+            case BagScreenContext.Pause:
+                _bagScreenPause.UseItem( ItemSlot );
+            break;
+        }
+    }
+
+    public void OnSelect( BaseEventData eventData ){
+        if( ItemSlot == null )
+            return;
+
+        switch( _bagScreenContext )
+        {
+            case BagScreenContext.Battle:
+                _bagScreenBattle.BagDisplay.SetSelectedItemInfoField( ItemSlot.ItemSO.ItemName, ItemSlot.ItemSO.ItemDescription ); 
+                _bagScreenBattle.BagDisplay.OnButtonSelected?.Invoke( this );
+            break;
+
+            case BagScreenContext.Pause:
+                _bagScreenPause.BagDisplay.SetSelectedItemInfoField( ItemSlot.ItemSO.ItemName, ItemSlot.ItemSO.ItemDescription ); 
+                _bagScreenPause.BagDisplay.OnButtonSelected?.Invoke( this );
+            break;
+        }
+    }
+
+    public void OnDeselect( BaseEventData eventData ){
+
     }
 
     public void OnCancel( BaseEventData eventData ){
-        _bagScreen.PauseMenuStateMachine.CloseCurrentMenu();
+        switch( _bagScreenContext )
+        {
+            case BagScreenContext.Battle:
+                _bagScreenBattle.BattleMenu.PopState();
+            break;
+
+            case BagScreenContext.Pause:
+                _bagScreenPause.PauseMenuStateMachine.PopState();
+            break;
+        }
+        
     }
 }

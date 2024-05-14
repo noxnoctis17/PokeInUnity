@@ -14,7 +14,7 @@ public class RunButton : MonoBehaviour, ISubmitHandler, ICancelHandler
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        _battleMenu.BattleMenuStateMachine.Pop();
+        _battleMenu.StateMachine.Pop();
         _battleSystem.SetRunFromBattleCommand();
         BattleUIActions.OnCommandUsed?.Invoke();
         BattleUIActions.OnSubMenuClosed?.Invoke();
@@ -27,6 +27,6 @@ public class RunButton : MonoBehaviour, ISubmitHandler, ICancelHandler
 
     private IEnumerator WaitForCloseAnims(){
         yield return new WaitForSeconds( 0.1f );
-        _battleMenu.BattleMenuStateMachine.Pop();
+        _battleMenu.StateMachine.Pop();
     }
 }
