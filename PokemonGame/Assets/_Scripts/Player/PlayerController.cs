@@ -55,9 +55,10 @@ public class PlayerController : MonoBehaviour
     }
 
     private void OnLoadPressed( InputAction.CallbackContext context ){
-        Debug.Log( "Load Fired" );
-        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.FreeRoamState )
+        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.FreeRoamState ){
+            Debug.Log( "Load Fired" );
             SavingSystem.Instance.Load( "SaveSlot_1" );
+        }
     }
 
     public void EnableCharacterControls(){

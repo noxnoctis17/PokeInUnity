@@ -5,37 +5,45 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Pool;
 using System.Collections.Generic;
+using UnityEngine.InputSystem;
 
 public enum BagScreenContext { Battle, Pause, GiveShortcut, }
 
 [Serializable]
-public class BagCategory
+public class BagPocket
 {
-    private List<Item> _categoryItems;
-    public List<Item> CategoryItems => _categoryItems;
+    [SerializeField] private ItemCategory _itemCategory;
+    [SerializeField] private GameObject _itemPocket;
+    public GameObject ItemPocket => _itemPocket;
+    public List<ItemButton_PauseScreen> ItemButtons { get; private set; }
 
-    public void Init(){
-        _categoryItems = new();
-    }
-
-    public void SetCategoryItems( Item item ){
-        _categoryItems.Add( item );
+    public void SetItemButtons(){
+        var itemButtonArray = _itemPocket.GetComponentsInChildren<ItemButton_PauseScreen>();
+        ItemButtons = itemButtonArray.ToList();
     }
 }
+
 
 public class BagDisplay : MonoBehaviour
 {
     [SerializeField] private BagScreenContext _bagScreenContext;
     [SerializeField] private ItemButton_PauseScreen _itemButtonPrefab;
-    [SerializeField] private GameObject _itemContainer;
+    [SerializeField] private Transform _itemPoolContainer;
+    [Space( 20 )]
+    [SerializeField] private BagPocket _medicinePocket;
+    [SerializeField] private BagPocket _pokeballPocket;
+    [SerializeField] private BagPocket _tmPocket;
+    [Space( 20 )]
     [SerializeField] private Button _noneButton;
     [SerializeField] private TextMeshProUGUI _itemName;
     [SerializeField] private TextMeshProUGUI _itemDescription;
     [SerializeField] private PartyDisplay _partyDisplay;
-    [SerializeField] private BagCategory[] _bagCategories;
+    private BagPocket[] _availablePockets;
+    private BagPocket _currentPocket;
     private IBagScreen _parentMenu;
+    private bool _canChangePockets;
     private ObjectPool<ItemButton_PauseScreen> _itemPool;
-    private RectTransform _itemContainerRect;
+    private RectTransform _currentPocketRect;
     private ItemButton_PauseScreen _selectedButton;
     public Button InitialButton { get; private set; }
     public Button LastButton { get; private set; }
@@ -48,9 +56,10 @@ public class BagDisplay : MonoBehaviour
     public PartyDisplay PartyDisplay => _partyDisplay;
     public Action<ItemButton_PauseScreen> OnButtonSelected;
     public Action OnItemListRequest;
+    public event Action OnPocketChanged;
 
-    private Action _enterDialogueWrapper;
-    private Action _exitDialogueWrapper;
+    public Action EnterDialogueWrapper;
+    public Action ExitDialogueWrapper;
     
     //--Constants
     const int ITEMS_IN_VIEWPORT = 10;
@@ -64,17 +73,16 @@ public class BagDisplay : MonoBehaviour
         //--So we only sub in OnEnable();
         OnButtonSelected += SetSelectedButton;
         OnItemListRequest += UpdateItemList;
-        GameStateController.Instance.OnDialogueStateEntered += _enterDialogueWrapper;
-        GameStateController.Instance.OnDialogueStateExited += _exitDialogueWrapper;
+        PlayerReferences.Instance.PlayerInput.UI.Navigate.performed += NavigatePockets;
     }
 
     private void Awake(){
-        _enterDialogueWrapper = () => SetItemButtons_Interactable( false );
-        _exitDialogueWrapper = () => SetItemButtons_Interactable( true );
+        EnterDialogueWrapper = () => SetItemButtons_Interactable( false );
+        ExitDialogueWrapper = () => SetItemButtons_Interactable( true );
 
         //--Initialize a new ObjectPool of Buttons for each Item
         _itemPool = new( () => { return ItemPoolCreate(); },
-        itemButton => { /*ItemPoolGet();*/ }, //--unused
+        itemButton => { /*ItemPoolGet( itemButton );*/ },
         itemButton => { ItemPoolRelease( itemButton ); },
         itemButton => { ItemPoolDestroy( itemButton ); },
         //--Handle Dupes, Starting Amount in Pool, Max Amount in Pool------------------------
@@ -92,17 +100,19 @@ public class BagDisplay : MonoBehaviour
         //--For example, if we pick up an item in the overworld, or a key item is consumed, the itemlist should be updated
         // PlayerInventory.OnItemRemoved -= ReleaseExpendedItemToPool;
         // PlayerInventory.OnInventoryUpdated -= UpdateItemList
-        GameStateController.Instance.OnDialogueStateEntered -= _enterDialogueWrapper;
-        GameStateController.Instance.OnDialogueStateExited -= _exitDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateEntered -= EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited -= ExitDialogueWrapper;
+        PlayerReferences.Instance.PlayerInput.UI.Navigate.performed -= NavigatePockets;
     }
 
     private ItemButton_PauseScreen ItemPoolCreate(){
-        var itemButton = Instantiate( _itemButtonPrefab, _itemContainer.transform );
+        var itemButton = Instantiate( _itemButtonPrefab, _itemPoolContainer );
         return itemButton;
     }
 
     private void ItemPoolRelease( ItemButton_PauseScreen itemButton ){
         itemButton.gameObject.SetActive( false );
+        itemButton.gameObject.transform.SetParent( _itemPoolContainer );
     }
 
     private void ItemPoolDestroy( ItemButton_PauseScreen itemButton ){
@@ -123,6 +133,10 @@ public class BagDisplay : MonoBehaviour
         PlayerInventory.OnItemRemoved += ReleaseExpendedItemToPool;
         PlayerInventory.OnInventoryUpdated += UpdateItemList;
 
+        //--Setup Pockets
+        SetAvailablePockets();
+        _currentPocket = _availablePockets[0];
+
         //--Open Menu
         gameObject.SetActive( true );
 
@@ -141,8 +155,113 @@ public class BagDisplay : MonoBehaviour
             UpdateItemList();
 
             //--Grab the viewport's rect for scrolling
-            _itemContainerRect = _itemContainer.GetComponent<RectTransform>();
+            _currentPocketRect = _medicinePocket.ItemPocket.GetComponent<RectTransform>();
         }
+    }
+
+    private void SetAvailablePockets(){
+        switch( _bagScreenContext )
+        {
+            case BagScreenContext.Battle:
+                _availablePockets = new BagPocket[] { _medicinePocket, _pokeballPocket, };
+            break;
+
+            case BagScreenContext.Pause:
+                _availablePockets = new BagPocket[] { _medicinePocket, _pokeballPocket, _tmPocket };
+            break;
+
+            case BagScreenContext.GiveShortcut:
+                //--When you select a pokemon and choose "Give", this will be that context
+                //--I don't think it will be any different from pause, though. pause will likely have
+                //--a Give() that can just be directly called or something from the item button under this context
+            break;
+        }
+
+        Debug.Log( $"Available Pockets Count: {_availablePockets.Length}" );
+    }
+
+    private void NavigatePockets( InputAction.CallbackContext context ){
+        Vector2 direction = context.ReadValue<Vector2>();
+
+        if( _canChangePockets ){
+            //--Player moved Right through the menu
+            if( direction.x > 0 )
+                NextPocketRight();
+
+            //--Player moved Left through the menu
+            if( direction.x < 0 )
+                NextPocketLeft();
+        }
+    }
+
+    private void NextPocketRight(){
+        //--Hide the current pocket's scrollview contents
+        _currentPocket.ItemPocket.SetActive( false );
+
+        //--If previous pocket had no items, handle None Button
+        if( _currentPocket.ItemButtons.Count == 0 ){
+            _noneButton.gameObject.SetActive( false );
+            _noneButton.gameObject.transform.SetParent( transform );
+        }
+
+        //--Navigate forwards through the array of available pockets
+        for( int i = 0; i < _availablePockets.Length; i++ ){
+            if( _availablePockets[i] == _currentPocket ){
+                if( _availablePockets[i] == _availablePockets[^1] )
+                    _currentPocket = _availablePockets[0];
+                else
+                    _currentPocket = _availablePockets[ i + 1 ];
+            }
+        }
+
+        //--If new pocket does not have items, display none button!!!
+        //--Else set new pocket's initial button to the first item in that pocket's button list
+        if( _currentPocket.ItemButtons.Count == 0 ){
+            _noneButton.gameObject.transform.SetParent( _currentPocket.ItemPocket.transform );
+            InitialButton = _noneButton;
+            _noneButton.gameObject.SetActive( true );
+        }
+        else{
+            InitialButton = _currentPocket.ItemButtons[0].ThisButton;
+        }
+
+        //--Notify the current BagScreen its pocket has been changed so it can select the new initial button
+        OnPocketChanged?.Invoke();
+
+        //--Show the new current pocket's scrollview contents
+        _currentPocket.ItemPocket.SetActive( true );
+    }
+
+    private void NextPocketLeft(){
+        //--Hide the current pocket's scrollview contents
+        _currentPocket.ItemPocket.SetActive( false );
+
+        //--Navigate backwards through the array of available pockets
+        for( int i = 0; i < _availablePockets.Length; i++ ){
+            if( _availablePockets[i] == _currentPocket ){
+                if( _availablePockets[i] == _availablePockets[0] )
+                    _currentPocket = _availablePockets[^1];
+                else
+                    _currentPocket = _availablePockets[ i - 1 ];
+            }
+        }
+
+        //--If new pocket does not have items, display none button!!!
+        //--Else set new pocket's initial button to the first item in that pocket's button list
+        if( _currentPocket.ItemButtons.Count == 0 ){
+            _noneButton.gameObject.transform.SetParent( _currentPocket.ItemPocket.transform );
+            InitialButton = _noneButton;
+            _noneButton.gameObject.SetActive( true );
+        }
+        else{
+            InitialButton = _currentPocket.ItemButtons[0].ThisButton;
+        }
+
+        //--Notify the current BagScreen its pocket has been changed so it can select the new initial button
+        OnPocketChanged?.Invoke();
+
+        //--Show the new current pocket's scrollview contents
+        _currentPocket.ItemPocket.SetActive( true );
     }
 
     public void SetSelectedItem( Item item ){
@@ -155,11 +274,9 @@ public class BagDisplay : MonoBehaviour
     }
 
     private void ReleaseExpendedItemToPool( Item item ){
-        foreach( var button in ItemButtons ){
-            var itemButton = button.GetComponent<ItemButton_PauseScreen>();
-
-            if( ReferenceEquals( itemButton.ItemSlot, ItemSelected ) ){
-                ItemButtons.Remove( button );
+        foreach( var itemButton in _currentPocket.ItemButtons ){
+            if( ReferenceEquals( itemButton.Item, ItemSelected ) ){
+                _currentPocket.ItemButtons.Remove( itemButton );
                 _itemPool.Release( itemButton );
                 ItemSelected = null;
                 break;
@@ -167,23 +284,51 @@ public class BagDisplay : MonoBehaviour
         }
     }
 
+    private void PopulatePockets(){
+        foreach( var pocket in _availablePockets ){
+            pocket.SetItemButtons();
+        }
+    }
+
+    private void SortItemsToPockets( ItemButton_PauseScreen itemButton ){
+        ItemCategory itemCategory = itemButton.Item.ItemSO.ItemCategory;
+
+        switch( itemCategory )
+        {
+            case ItemCategory.Medicine:
+                itemButton.gameObject.transform.SetParent( _medicinePocket.ItemPocket.transform );
+            break;
+
+            case ItemCategory.PokeBall:
+                itemButton.gameObject.transform.SetParent( _pokeballPocket.ItemPocket.transform );
+            break;
+
+            case ItemCategory.TM:
+                itemButton.gameObject.transform.SetParent( _tmPocket.ItemPocket.transform );
+            break;
+        }
+    }
+
     private void UpdateItemList(){
-        //--Instantiate a new item button inside the item button container for each item in
+        //--Instantiate a new item button inside the respective item button container for each item in
         //--the player's invenvtory that isn't accounted for. Sometimes this is all items.
         if( _itemPool.CountActive < PlayerInventory.ItemList.Count ){
             int amountToGet = PlayerInventory.ItemList.Count;
+
             foreach( var itemSlot in PlayerInventory.ItemList ){
                 if( amountToGet > _itemPool.CountActive ){
                     var itemButton = _itemPool.Get();
                     itemButton.Init( _parentMenu, itemSlot, _bagScreenContext );
+                    SortItemsToPockets( itemButton );
                     itemButton.gameObject.SetActive( true );
                 }
             }
             //--Setup New Item Buttons
             ItemButtons = null;
-            ItemButtons = new();               //--Initialize Button List
-            ItemButtons = GetItemButtons();    //--Populate the Button List with updated, active from the pool, Item Buttons
-            InitialButton = ItemButtons[0].ThisButton;   //--Set Initial Button to the first Item Button in the List
+            ItemButtons = new();                        //--Initialize Button List
+            PopulatePockets();                          //--Assign all new buttons to their respective pocket's item button list
+            ItemButtons = _currentPocket.ItemButtons;   //--Populate the Button List with updated items from the current pocket
+            InitialButton = ItemButtons[0].ThisButton;  //--Set Initial Button to the first Item Button in the List
         }
         else{
             //--Update Existing Item Info
@@ -201,13 +346,8 @@ public class BagDisplay : MonoBehaviour
             LastButton = null;
         }
         else{
-            LastButton = ItemButtons.First( item => item.ItemSlot.ItemSO.ItemName == ItemSelected.ItemSO.ItemName ).ThisButton;
+            LastButton = _currentPocket.ItemButtons.First( item => item.Item.ItemSO.ItemName == ItemSelected.ItemSO.ItemName ).ThisButton;
         }
-    }
-
-    private List<ItemButton_PauseScreen> GetItemButtons(){
-        var itemButtonArray = _itemContainer.GetComponentsInChildren<ItemButton_PauseScreen>();
-        return itemButtonArray.ToList();
     }
 
     private void SetSelectedButton( ItemButton_PauseScreen itemButton ){
@@ -221,37 +361,21 @@ public class BagDisplay : MonoBehaviour
         var currentPosition = _selectedButton.RectTransform.localPosition.y;
         var startScrollingPosition = ITEMS_IN_VIEWPORT - ITEMS_LEFT_BEFORE_SCROLL;
         float scrollPosition = currentPosition - startScrollingPosition * -_selectedButton.RectHeight;
-        _itemContainerRect.localPosition = new Vector2( _itemContainerRect.localPosition.x, -scrollPosition );
+        _currentPocketRect.localPosition = new Vector2( _currentPocketRect.localPosition.x, -scrollPosition );
     }
 
-    // private IEnumerator SetInitialButton(){
-    //     yield return new WaitForSeconds( 0.15f );
-
-    //     if( LastButton != null )
-    //         SelectMemoryButton();
-    //     else{
-    //         SetMemoryButton( InitialButton );
-    //     }
-    // }
-
-    // public void SetMemoryButton( Button lastButton ){
-    //     LastButton = lastButton;
-    //     SelectMemoryButton();
-    // }
-
-    // private void SelectMemoryButton(){
-    //     LastButton.Select();
-    // }
-
-    // public void ClearMemoryButton(){
-    //     LastButton = null;
-    //     InitialButton.Select();
-    // }
-
     public void SetItemButtons_Interactable( bool isInteractable ){
-        Debug.Log( $"SetItemButtons_Interactable: {isInteractable}" );
-        foreach( ItemButton_PauseScreen button in ItemButtons ){
-            button.ThisButton.interactable = isInteractable;
+        // Debug.Log( $"SetItemButtons_Interactable: {isInteractable}" );
+        _canChangePockets = isInteractable;
+
+        //--Loop through each available pocket's items and set them uninteractable
+        // foreach( var pocket in _availablePockets ){
+        //     foreach( ItemButton_PauseScreen button in pocket.ItemButtons ){
+        //         button.ThisButton.interactable = isInteractable;
+        //     }
+        // }
+        foreach( ItemButton_PauseScreen button in _currentPocket.ItemButtons ){
+                button.ThisButton.interactable = isInteractable;
         }
     }
 

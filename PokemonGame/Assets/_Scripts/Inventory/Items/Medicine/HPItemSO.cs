@@ -9,7 +9,7 @@ public class HPItemSO : ItemSO
     private int _previousHP;
 
     public override bool Use( Pokemon pokemon ){
-        if( pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT )
             return false;
 
         //--Potion Item

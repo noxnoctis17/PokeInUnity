@@ -17,11 +17,8 @@ MonoBehaviour:
   _itemDescription: A spray-type medicine for treating poisoning. It can be used
     to lift the effects of being poisoned from a Pokemon.
   _icon: {fileID: -392952024, guid: 21300b8f653f84040b7bd287d401a64f, type: 3}
-  _hpHealAmnt: 0
-  _restoreMaxHP: 0
-  _ppHealAmnt: 0
-  _restoreMaxPP: 0
   _status: 1
+  _recoverText: recovered from their poisoning!
   _restoreAllStatus: 0
   _revive: 0
   _maxRevive: 0

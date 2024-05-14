@@ -17,11 +17,8 @@ MonoBehaviour:
   _itemDescription: "A spray-type medicine for treating burns. It can be used to
     cure a Pok\xE9mon suffering from frostbite."
   _icon: {fileID: -1424652291, guid: 21300b8f653f84040b7bd287d401a64f, type: 3}
-  _hpHealAmnt: 0
-  _restoreMaxHP: 0
-  _ppHealAmnt: 0
-  _restoreMaxPP: 0
   _status: 6
+  _recoverText: recovered from their frostbite!
   _restoreAllStatus: 0
   _revive: 0
   _maxRevive: 0

@@ -105,7 +105,7 @@ public class Pokemon
     }
     
     public void Init(){
-        Debug.Log( PokeSO.pName + ": called Init()" );
+        // Debug.Log( PokeSO.pName + ": called Init()" );
         //--------GENERATE MOVES-----------
         ActiveMoves = new List<MoveClass>();
         foreach( var move in PokeSO.LearnableMoves ){

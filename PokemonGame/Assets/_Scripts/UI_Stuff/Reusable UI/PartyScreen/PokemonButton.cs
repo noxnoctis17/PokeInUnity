@@ -27,24 +27,22 @@ public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, IC
         {
             case PartyScreenContext.Battle:
                 _buttonContext = _battleContext;
-                _buttonContext.Init( partyScreen, this, _parentMenu );
             break;
 
             case PartyScreenContext.Pause:
                 _buttonContext = _pauseContext;
-                _buttonContext.Init( partyScreen, this, _parentMenu );
             break;
 
             case PartyScreenContext.UseItemPaused:
                 _buttonContext = _useItemPauseContext;
-                _buttonContext.Init( partyScreen, this, _parentMenu );
             break;
 
             case PartyScreenContext.UseItemBattle:
                 _buttonContext = _useItemBattleContext;
-                _buttonContext.Init( partyScreen, this, _parentMenu );
             break;
         }
+
+        _buttonContext.Init( partyScreen, this, _parentMenu );
     }
 
     public void OnSelect( BaseEventData eventData ){

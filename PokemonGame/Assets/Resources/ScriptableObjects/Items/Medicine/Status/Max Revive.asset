@@ -17,11 +17,8 @@ MonoBehaviour:
   _itemDescription: A medicine that can be used to revive a Pokemon that has fainted.
     It also fully restores the Pokemon's max HP.
   _icon: {fileID: -77247049, guid: 21300b8f653f84040b7bd287d401a64f, type: 3}
-  _hpHealAmnt: 0
-  _restoreMaxHP: 0
-  _ppHealAmnt: 0
-  _restoreMaxPP: 0
   _status: 7
+  _recoverText: was revived and regained all of its HP!
   _restoreAllStatus: 0
   _revive: 0
   _maxRevive: 1

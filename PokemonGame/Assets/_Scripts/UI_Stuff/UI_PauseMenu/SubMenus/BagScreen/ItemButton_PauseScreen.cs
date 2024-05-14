@@ -13,7 +13,7 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
     private BagScreen_Pause _bagScreenPause;
     private RectTransform _rectTransform;
     public RectTransform RectTransform => _rectTransform;
-    public Item ItemSlot { get; private set; }
+    public Item Item { get; private set; }
     public float RectHeight { get; private set; }
     public Button ThisButton { get; private set; }
 
@@ -22,12 +22,12 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
         _bagScreenContext = context;
         SetBagScreen( bagScreen );
 
-        ItemSlot = itemSlot;
+        Item = itemSlot;
         _rectTransform = GetComponent<RectTransform>();
         RectHeight = _rectTransform.rect.height;
         ThisButton = GetComponent<Button>();
 
-        if( ItemSlot != null ){
+        if( Item != null ){
             UpdateInfo();
         }
     }
@@ -47,13 +47,13 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
 
     public void UpdateInfo(){
         //--Set Button Text
-        _itemName.text      = ItemSlot.ItemSO.ItemName;
-        _itemCountText.text = $"{ItemSlot.ItemCount}";
-        _itemIcon.sprite = ItemSlot.ItemSO.Icon;
+        _itemName.text      = Item.ItemSO.ItemName;
+        _itemCountText.text = $"{Item.ItemCount}";
+        _itemIcon.sprite = Item.ItemSO.Icon;
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        if( ItemSlot == null ){
+        if( Item == null ){
             Debug.Log( "You have no items!" );
             return;
         }
@@ -68,28 +68,28 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
         switch( _bagScreenContext )
         {
             case BagScreenContext.Battle:
-                _bagScreenBattle.UseItem( ItemSlot );
+                _bagScreenBattle.UseItem( Item );
             break;
 
             case BagScreenContext.Pause:
-                _bagScreenPause.UseItem( ItemSlot );
+                _bagScreenPause.UseItem( Item );
             break;
         }
     }
 
     public void OnSelect( BaseEventData eventData ){
-        if( ItemSlot == null )
+        if( Item == null )
             return;
 
         switch( _bagScreenContext )
         {
             case BagScreenContext.Battle:
-                _bagScreenBattle.BagDisplay.SetSelectedItemInfoField( ItemSlot.ItemSO.ItemName, ItemSlot.ItemSO.ItemDescription ); 
+                _bagScreenBattle.BagDisplay.SetSelectedItemInfoField( Item.ItemSO.ItemName, Item.ItemSO.ItemDescription ); 
                 _bagScreenBattle.BagDisplay.OnButtonSelected?.Invoke( this );
             break;
 
             case BagScreenContext.Pause:
-                _bagScreenPause.BagDisplay.SetSelectedItemInfoField( ItemSlot.ItemSO.ItemName, ItemSlot.ItemSO.ItemDescription ); 
+                _bagScreenPause.BagDisplay.SetSelectedItemInfoField( Item.ItemSO.ItemName, Item.ItemSO.ItemDescription ); 
                 _bagScreenPause.BagDisplay.OnButtonSelected?.Invoke( this );
             break;
         }

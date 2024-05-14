@@ -20,11 +20,13 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
     public Action<Pokemon, Item> OnItemCommand;
 
     public override void EnterState( PlayerBattleMenu owner ){
-        Debug.Log( "EnterState: " + this );
+        Debug.Log( $"{this} EnterState()" );
         _battleMenu = owner;
 
         //--Events
         OnItemCommand += SetItemCommand;
+        GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
 
         //--Request Itemlist
         UpdateItemList();
@@ -44,6 +46,10 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
 
     public override void ReturnToState(){
         Debug.Log( $"{this} ReturnToState()" );
+        //--Events
+        GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
+
         //--Enable Item Buttons
         _bagDisplay.SetItemButtons_Interactable( true );
 
@@ -53,6 +59,10 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
 
     public override void PauseState(){
         Debug.Log( $"{this} PauseState()" );
+        //--Events
+        GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
+
         //--Disable Item Buttons
         _bagDisplay.SetItemButtons_Interactable( false );
     }
@@ -60,6 +70,8 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
     public override void ExitState(){
         //--Events
         OnItemCommand -= SetItemCommand;
+        GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
 
         //--Request Itemlist
         UpdateItemList();

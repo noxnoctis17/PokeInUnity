@@ -124,6 +124,9 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
     public void CloseMenu(){
         ScaleOut();
         gameObject.SetActive( false );
+        
+        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.PauseScreenState )
+            GameStateController.Instance.GameStateMachine.Pop();
     }
 
 }

@@ -5,11 +5,15 @@ public class StatusRecoveryItemSO : ItemSO
 {
     [Header( "Status" )]
     [SerializeField] private ConditionID _status;
+
+    [TextArea(3, 10)]
+    [SerializeField] private string _recoverText;
     [SerializeField] private bool _restoreAllStatus; //--Excluding FNT
     [SerializeField] private bool _revive; //--Cure FNT status + heal max hp
     [SerializeField] private bool _maxRevive; //--Cure FNT status + heal max hp
 
     public override bool Use( Pokemon pokemon ){
+        //--Revive
         if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT ){
             if( _revive ){
                 pokemon.CureSevereStatus();
@@ -68,10 +72,7 @@ public class StatusRecoveryItemSO : ItemSO
     }
 
     public override string UseText( Pokemon pokemon ){
-        if( !_revive || !_maxRevive )
-            return $"You used a {ItemName}! {pokemon.PokeSO.pName} recovered from their {pokemon.SevereStatus.ID}!";
-
-        return $"You used a {ItemName}! {pokemon.PokeSO.pName} was revived!";
+        return $"You used a {ItemName}! {pokemon.PokeSO.pName} {_recoverText}";
     }
 
 }

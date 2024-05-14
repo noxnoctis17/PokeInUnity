@@ -17,11 +17,8 @@ MonoBehaviour:
   _itemDescription: A spray-type medicine that is broadly effective. It can be used
     to cure any status condition a Pokemon may have.
   _icon: {fileID: 1367059609, guid: 21300b8f653f84040b7bd287d401a64f, type: 3}
-  _hpHealAmnt: 0
-  _restoreMaxHP: 0
-  _ppHealAmnt: 0
-  _restoreMaxPP: 0
   _status: 0
+  _recoverText: had their status restored!
   _restoreAllStatus: 1
   _revive: 0
   _maxRevive: 0

@@ -23,6 +23,11 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
         PauseMenuStateMachine = owner;
         _playerInventory = _bagDisplay.PlayerInventory;
 
+        //--Events
+        _bagDisplay.OnPocketChanged += SetNewInitialButton;
+        GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
+
         //--Request Itemlist
         UpdateItemList();
 
@@ -44,17 +49,29 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
         //--Enable Item Buttons
         _bagDisplay.SetItemButtons_Interactable( true );
 
+        //--Events
+        GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
+
         //--Select Appropriate Button
         StartCoroutine( SetInitialButton() );
     }
 
     public override void PauseState(){
         Debug.Log( $"{this} PauseState()" );
+        //--Events
+        GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
+
         //--Disable Item Buttons
         _bagDisplay.SetItemButtons_Interactable( false );
     }
 
     public override void ExitState(){
+        //--Events
+        GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
+        
         //--Close menu
         gameObject.SetActive( false );
     }
@@ -66,6 +83,11 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
     public void UseItem( Item item ){
         _bagDisplay.SetSelectedItem( item );
         PauseMenuStateMachine.StateMachine.Push( _useItemFromBagState );
+    }
+
+    private void SetNewInitialButton(){
+        LastButton = _bagDisplay.InitialButton;
+        SelectMemoryButton();
     }
 
     private IEnumerator SetInitialButton(){

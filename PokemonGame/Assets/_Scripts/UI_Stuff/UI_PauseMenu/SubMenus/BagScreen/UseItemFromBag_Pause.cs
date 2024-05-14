@@ -53,8 +53,6 @@ public class UseItemFromBag_Pause : State<UI_PauseMenuStateMachine>
         _bagDisplay.PartyDisplay.OnSubmittedButton -= SetMemoryButton;
         GameStateController.Instance.OnDialogueStateEntered -= PauseState;
         GameStateController.Instance.OnDialogueStateExited -= ReturnToState;
-        // GameStateController.Instance.OnDialogueStateEntered -= _enterDialogueWrapper;
-        // GameStateController.Instance.OnDialogueStateExited -= _exitDialogueWrapper;
 
         _bagDisplay.PartyDisplay.SetPartyButtons_Interactable( false );
     }
