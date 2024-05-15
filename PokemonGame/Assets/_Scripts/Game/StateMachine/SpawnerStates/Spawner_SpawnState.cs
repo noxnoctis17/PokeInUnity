@@ -40,7 +40,7 @@ public class Spawner_SpawnState : State<WildPokemonSpawner>
             var position = _spawner.SpawnLocation();
             var pokemon = _spawner.RandomPokemon();
 
-            Debug.Log( pokemon.PokeSO.pName + " will be spawned" );
+            // Debug.Log( pokemon.PokeSO.pName + " will be spawned" );
             
             yield return null;
 

@@ -54,25 +54,25 @@ public class StatusRecoveryItemSO : ItemSO
     }
 
     public override bool CheckIfUsable( Pokemon pokemon ){
-        if( pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus == null )
             return false;
+
+        //--Revive Item
+        if( _revive && pokemon.SevereStatus.ID == ConditionID.FNT || _maxRevive && pokemon.SevereStatus.ID == ConditionID.FNT )
+            return true;
 
         //--Status Item
-        if( _restoreAllStatus || _status != ConditionID.NONE )
-            if( pokemon.SevereStatus == null && pokemon.VolatileStatus == null )
-                return false;
+        if( _restoreAllStatus )
+            return true;
 
         if( _status != pokemon.SevereStatus.ID )
-            return false;
-
-        if( _status != pokemon.VolatileStatus.ID )
             return false;
 
         return true;
     }
 
     public override string UseText( Pokemon pokemon ){
-        return $"You used a {ItemName}! {pokemon.PokeSO.pName} {_recoverText}";
+        return $"You used {ItemName}! {pokemon.PokeSO.pName} {_recoverText}";
     }
 
 }

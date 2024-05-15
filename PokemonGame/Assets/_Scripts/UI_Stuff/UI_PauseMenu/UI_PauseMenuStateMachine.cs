@@ -42,7 +42,7 @@ public class UI_PauseMenuStateMachine : State<UI_PauseMenuStateMachine>
     }
 
     private void HandlePauseMenu(){
-        Debug.Log( "HandlePauseMenu()" );
+        // Debug.Log( "HandlePauseMenu()" );
         if( StateMachine.CurrentState == this ){
             GameStateController.Instance.PushGameState( PauseScreenState.Instance );
             PushState( _pauseMenu );
@@ -53,10 +53,13 @@ public class UI_PauseMenuStateMachine : State<UI_PauseMenuStateMachine>
             StateMachine.Pop();
         }
         else
-            Debug.Log( "State out of range or some shit" );
+            Debug.LogError( "State out of range or some shit" );
     }
 
     private void OnGUI(){
+        if( !StateMachineDisplays.Show_PauseScreenStateStack )
+            return; 
+
         var style = new GUIStyle();
         style.fontSize = 30;
         style.fontStyle = FontStyle.Bold;

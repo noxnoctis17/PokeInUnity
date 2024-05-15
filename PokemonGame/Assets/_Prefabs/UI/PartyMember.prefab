@@ -241,7 +241,7 @@ GameObject:
   - component: {fileID: 358208447429745779}
   - component: {fileID: 1939906870992287372}
   m_Layer: 0
-  m_Name: PlayerUnitStatusPlaceholder
+  m_Name: SevereStatusIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1177,6 +1177,7 @@ MonoBehaviour:
   _battlePortrait: {fileID: 3886925541486103115}
   _hpBar: {fileID: 3886925542071489181}
   _currentHPText: {fileID: 3886925541633205274}
+  _severeStatusIcon: {fileID: 1939906870992287372}
 --- !u!114 &4512567790163045297
 MonoBehaviour:
   m_ObjectHideFlags: 0

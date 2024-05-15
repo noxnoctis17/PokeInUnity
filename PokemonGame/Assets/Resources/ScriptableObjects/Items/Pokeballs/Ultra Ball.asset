@@ -17,3 +17,4 @@ MonoBehaviour:
   _itemDescription: "An ultra-high-performance Pok\xE9 Ball that provides a higher
     success rate for catching Pok\xE9mon than a Great Ball. 2x Capture Rate."
   _icon: {fileID: -1108243946, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _catchRate: 2

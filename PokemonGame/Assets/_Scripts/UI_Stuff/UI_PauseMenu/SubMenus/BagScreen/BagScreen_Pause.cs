@@ -60,6 +60,7 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
     public override void PauseState(){
         Debug.Log( $"{this} PauseState()" );
         //--Events
+        _bagDisplay.OnPocketChanged -= SetNewInitialButton;
         GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
 
@@ -85,7 +86,12 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
         PauseMenuStateMachine.StateMachine.Push( _useItemFromBagState );
     }
 
+    public void UseTM( Item item ){
+
+    }
+
     private void SetNewInitialButton(){
+        PlayerReferences.Instance.PlayerController.EventSystem.SetSelectedGameObject( null );
         LastButton = _bagDisplay.InitialButton;
         SelectMemoryButton();
     }

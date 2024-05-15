@@ -37,6 +37,7 @@ public class PokemonParty : MonoBehaviour
         Debug.Log( "PartySetter();" );
         _partyPokemon = party;
         OnPartyUpdated?.Invoke();
+        Init();
     }
 
     public Pokemon GetHealthyPokemon(){

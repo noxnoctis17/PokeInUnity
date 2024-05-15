@@ -10,4 +10,8 @@ public class TMItemSO : ItemSO
     public override bool Use( Pokemon pokemon ){
         return true;
     }
+
+    public override bool CheckIfUsable(Pokemon pokemon){
+        return false;
+    }
 }

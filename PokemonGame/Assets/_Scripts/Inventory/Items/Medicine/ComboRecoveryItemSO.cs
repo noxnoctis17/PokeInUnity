@@ -14,7 +14,7 @@ public class ComboRecoveryItemSO : ItemSO
     [SerializeField] private bool _maxRevive; //--Cure FNT status + heal max hp
 
     public override bool Use( Pokemon pokemon ){
-        if( pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT )
             return false;
         
         //--Potion Item
@@ -41,7 +41,7 @@ public class ComboRecoveryItemSO : ItemSO
             if( pokemon.SevereStatus.ID != ConditionID.FNT )
                 return false;
         
-        if( pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT )
             return false;
 
         //--Potion Item

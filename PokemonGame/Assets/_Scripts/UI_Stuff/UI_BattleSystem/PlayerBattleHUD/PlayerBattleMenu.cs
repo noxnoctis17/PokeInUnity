@@ -128,6 +128,9 @@ public class PlayerBattleMenu : MonoBehaviour
 
 #if UNITY_EDITOR
     private void OnGUI(){
+        if( !StateMachineDisplays.Show_PlayerBattleMenuStateStack )
+            return; 
+
         var style = new GUIStyle();
         style.font = Resources.Load<Font>( "Fonts/Gotham Bold Outlined" );
         style.fontSize = 30;

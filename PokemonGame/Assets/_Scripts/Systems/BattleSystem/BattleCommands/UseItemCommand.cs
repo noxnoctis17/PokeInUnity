@@ -20,7 +20,10 @@ public class UseItemCommand : IBattleCommand
     }
 
     public IEnumerator ExecuteBattleCommand(){
-        yield return _battleSystem.PerformUseItemCommand( _pokemon, _item );
-        // yield return _battleSystem.ThrowPokeball();
+        if( _item.ItemSO.ItemCategory == ItemCategory.PokeBall )
+            yield return _battleSystem.ThrowPokeball( _item );
+        else
+            yield return _battleSystem.PerformUseItemCommand( _pokemon, _item );
+        
     }
 }

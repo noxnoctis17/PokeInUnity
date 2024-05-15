@@ -17,3 +17,4 @@ MonoBehaviour:
   _itemDescription: A device for catching wild Pokemon. It's thrown like a ball at
     a Pokemon, comfortably encapsulating its target. 1x Capture Rate.
   _icon: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _catchRate: 1

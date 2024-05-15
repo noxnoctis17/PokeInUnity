@@ -16,7 +16,6 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
         _pkmnButton = button;
         _partyScreen = (PartyScreen_Battle)battleMenu;
         _pokemon = _pkmnButton.Pokemon;
-        _dialogueBox = BattleSystem.Instance.DialogueBox;
 
         BattleSystem.OnPlayerPokemonFainted += SetFaintSelectTrue;
         BattleSystem.OnPlayerChoseNextPokemon += SetFaintSelectFalse;
@@ -24,6 +23,8 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
 
     public void ContextSubmit(){
         Debug.Log ("fainted select in button is: " + _isFaintedSelect );
+        _dialogueBox = BattleSystem.Instance.DialogueBox;
+        
         //--we're popping the state first because code is sequential
         //--all battle system stuff would get run to completion before we get to the end, where we'd finally pop the state
         //--we need to pop the state immediately. i have already made this change in MoveButton. I will likely need to do this

@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool _disableMouse;
     private PlayerInput _playerInput;
     private PlayerMovement _playerMovement;
+    public EventSystem EventSystem => _eventSystem;
     public static event Action OnPause;
 
     private void OnEnable(){
@@ -73,11 +74,13 @@ public class PlayerController : MonoBehaviour
 
     public void EnableBattleControls(){
         _eventSystem.enabled = true;
+        EnableUI();
         _playerInput.UIBattle.Enable();
     }
 
     public void DisableBattleControls(){
         _eventSystem.enabled = false;
+        DisableUI();
         _playerInput.UIBattle.Disable();
     }
 

@@ -17,19 +17,18 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
     public float RectHeight { get; private set; }
     public Button ThisButton { get; private set; }
 
-    public void Init( IBagScreen bagScreen, Item itemSlot, BagScreenContext context ){
+    public void Init( IBagScreen bagScreen, Item item, BagScreenContext context ){
         //--Set Bag Screen Context
         _bagScreenContext = context;
         SetBagScreen( bagScreen );
 
-        Item = itemSlot;
+        Item = item;
         _rectTransform = GetComponent<RectTransform>();
         RectHeight = _rectTransform.rect.height;
         ThisButton = GetComponent<Button>();
 
-        if( Item != null ){
+        if( Item != null )
             UpdateInfo();
-        }
     }
 
     private void SetBagScreen( IBagScreen bagScreen ){
@@ -68,7 +67,16 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
         switch( _bagScreenContext )
         {
             case BagScreenContext.Battle:
-                _bagScreenBattle.UseItem( Item );
+                if( Item.ItemSO.ItemCategory == ItemCategory.PokeBall ){
+                    if( Item.ItemSO.CheckIfUsable( null ) )
+                        _bagScreenBattle.UsePokeball( Item );
+                }
+                else{
+                    if( Item.ItemSO.ItemCategory == ItemCategory.TM )
+                        _bagScreenPause.UseTM( Item );
+                    else
+                        _bagScreenBattle.UseItem( Item );
+                }
             break;
 
             case BagScreenContext.Pause:

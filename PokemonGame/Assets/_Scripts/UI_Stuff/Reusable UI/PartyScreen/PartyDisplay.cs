@@ -4,7 +4,7 @@ using System;
 
 public enum PartyScreenContext { Battle, Pause, UseItemPaused, UseItemBattle, Trade,  }
 
-public class PartyDisplay : MonoBehaviour
+public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
 {
     [SerializeField] private PartyScreenContext _partyScreenContext;
     [SerializeField] private Button _partyButton1;
@@ -16,17 +16,14 @@ public class PartyDisplay : MonoBehaviour
     public PokemonButton[] PKMNButtons => _pkmnButtons;
     public Action<Button> OnSubmittedButton;
 
-    private void Awake(){
-        Init();
-
-        _playerParty.OnPartyUpdated += SetParty;
-    }
-
-    private void Init(){
+    public void Init(){
         _memberSlots = GetComponentsInChildren<PartyMember_UI>( true );
         _pkmnButtons = GetComponentsInChildren<PokemonButton>();
         _playerParty = PlayerReferences.Instance.PlayerParty;
-        _parentMenu = GetComponentInParent<IPartyScreen>();
+        _parentMenu = GetComponentInParent<IPartyScreen>( true );
+
+        _playerParty.OnPartyUpdated += SetParty;
+
         SetParty();
     }
 

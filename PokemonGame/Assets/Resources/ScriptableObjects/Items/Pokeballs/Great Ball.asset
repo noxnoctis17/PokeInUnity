@@ -17,3 +17,4 @@ MonoBehaviour:
   _itemDescription: A good, high-performance Poke Ball that provides a higher success
     rate for catching Pokemon than a standard Poke Ball. 1.5x Capture Rate.
   _icon: {fileID: -222215688, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _catchRate: 1.5

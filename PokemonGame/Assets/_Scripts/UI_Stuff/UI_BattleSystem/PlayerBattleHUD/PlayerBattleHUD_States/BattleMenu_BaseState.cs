@@ -24,7 +24,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
         _battleUIActions = _battleMenu.BUIActions;
 
         //--Events
-        _playerInput.UIBattle.Navigate.performed += OnNavigate;
+        _playerInput.UI.Navigate.performed += OnNavigate;
         _battleUIActions.OnButtonSelected += SetActiveButton;
 
         //--Select Initial Button
@@ -41,7 +41,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     public override void ExitState(){
         Debug.Log( "Exit Base Menu State" );
         //--Events
-        _playerInput.UIBattle.Navigate.performed -= OnNavigate;
+        _playerInput.UI.Navigate.performed -= OnNavigate;
         _battleUIActions.OnButtonSelected -= SetActiveButton;
 
         //--Clear Selected Button
@@ -54,7 +54,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     public override void PauseState(){
         Debug.Log( "PauseState from BattleMenu_BaseState" );
         //--Events
-        _playerInput.UIBattle.Navigate.performed -= OnNavigate;
+        _playerInput.UI.Navigate.performed -= OnNavigate;
         _battleUIActions.OnButtonSelected -= SetActiveButton;
 
         //--Clear Selected Button
@@ -67,7 +67,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     public override void ReturnToState(){
         Debug.Log( "Returning to BattleMenu_BaseState" );
         //--Events
-        _playerInput.UIBattle.Navigate.performed += OnNavigate;
+        _playerInput.UI.Navigate.performed += OnNavigate;
         _battleUIActions.OnButtonSelected += SetActiveButton;
 
         //--Enable Menu Buttons
@@ -85,7 +85,6 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
         yield return new WaitForSeconds( 2f );
 
         //--Enable UI Controls After Delay
-        // PlayerReferences.Instance.PlayerController.EnableUI();
         PlayerReferences.Instance.PlayerController.EnableBattleControls();
 
         //--Enable Menu Buttons

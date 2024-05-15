@@ -13,12 +13,8 @@ public class BattleState : State<GameStateController>
     public override void EnterState( GameStateController owner ){
         gameStateController = owner;
 
-        //--Initialize Databases
-        // ConditionsDB.Init(); //--idk what the fuck
-        TypeColorsDB.Init(); //--Primary and Secondary colors for each Type. Currently used for the Fight card and mini huds. Fight Cards will eventually be assigned as a single image to individual pokemon, and loaded from there.
-
         //--Set Controls
-        //--Controls get activated at a later time, when all animations have completed and the menu is finally interactable
+        //--Controls get activated right before selecting a playerbattlemenu button in BattleMenu_BaseState
 
         //--Activate BattleSystem Container
         gameStateController.BattleSystemContainer.SetActive( true );

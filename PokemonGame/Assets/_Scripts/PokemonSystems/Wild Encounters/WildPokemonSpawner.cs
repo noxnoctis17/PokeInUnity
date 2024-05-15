@@ -99,7 +99,7 @@ public class WildPokemonSpawner : MonoBehaviour
         _spawnPool = new ( () => { return SpawnPoolCreate(); },
         spawn => { /*SpawnPoolGet( spawn );*/ },
         spawn => { SpawnPoolRelease( spawn ); },
-        spawn => { Destroy( spawn ); },
+        spawn => { /*Destroy( spawn );*/ },
         //--Handle Dupes, Starting Amount, Max Amount
         false, _numberToSpawn, _numberToSpawn );
 

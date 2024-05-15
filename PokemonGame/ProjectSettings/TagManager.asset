@@ -9,6 +9,7 @@ TagManager:
   - SunLight
   - MAST_Holder
   - FxTemporaire
+  - InitializeMeDaddy
   layers:
   - Default
   - TransparentFX

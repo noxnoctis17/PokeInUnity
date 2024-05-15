@@ -171,6 +171,7 @@ public class BattleSystem : BattleStateMachine
     }
 
     private void SetForceSelectPokemonState(){
+        Debug.Log( "SetForceSelectPokemonState" );
         if( PlayerBattleMenu.StateMachine.CurrentState == PlayerBattleMenu.PausedState )
             PlayerBattleMenu.OnChangeState?.Invoke( _pkmnMenu );
     }
@@ -383,9 +384,6 @@ public class BattleSystem : BattleStateMachine
 
         TotalPartyExpGain = 0;
         TotalPartyEffortGain = 0;
-
-        ConditionsDB.Clear();
-        TypeColorsDB.Clear();
         
         BattleUIActions.OnAttackPhaseCompleted?.Invoke();
         OnBattleEnded?.Invoke();
@@ -725,15 +723,18 @@ public class BattleSystem : BattleStateMachine
         EndBattle();
     }
 
-    public IEnumerator ThrowPokeball(){
+    public IEnumerator ThrowPokeball( Item ball ){
         var playerBallPosition = PlayerReferences.Instance.PlayerCenter.position;
+        _playerInventory.UsePokeball( ball );
 
-        yield return _dialogueBox.TypeDialogue( $"Catch threw a Pokeball!" );
+        yield return _dialogueBox.TypeDialogue( $"Catch threw a {ball.ItemSO.ItemName}!" );
 
         var thrownBall = Instantiate( _thrownPokeBall, playerBallPosition, Quaternion.identity );
         var originalPos = _enemyUnit.transform;
         Vector3 originalScale = _enemyUnit.transform.localScale;
-        Vector3 ballBouncePos = new Vector3( 0.5f, 0.5f, 3f );
+        Vector3 ballBouncePos = new ( 0.5f, 0.5f, 3f );
+
+        thrownBall.GetComponentInChildren<PokeballAnimator>().SetBallSprite( ball.ItemSO.Icon );
 
         var sequence = DOTween.Sequence();
         sequence.Append( thrownBall.transform.DOJump( _enemyUnit.transform.position, 3f, 1, 0.75f ) );
@@ -746,9 +747,9 @@ public class BattleSystem : BattleStateMachine
         _singleTargetCamera.LookAt = thrownBall.transform;
         _singleTargetCamera.gameObject.SetActive( true );
 
-        int shakeCount = TryToCatchPokemon( _enemyUnit.Pokemon );
-        Debug.Log( _enemyUnit.PokeSO.CatchRate );
-        Debug.Log( shakeCount );
+        int shakeCount = TryToCatchPokemon( _enemyUnit.Pokemon, (PokeballItemSO)ball.ItemSO );
+        // Debug.Log( _enemyUnit.PokeSO.CatchRate );
+        Debug.Log( $"Shake Count: {shakeCount}" );
 
         for( int i = 0; i < Mathf.Min( shakeCount, 3 ); i++ ){
             yield return new WaitForSeconds( 0.5f );
@@ -785,8 +786,9 @@ public class BattleSystem : BattleStateMachine
         }
     }
 
-    private int TryToCatchPokemon( Pokemon pokemon ){
-        float a = ( 3 * pokemon.MaxHP - 2 * pokemon.CurrentHP ) * pokemon.PokeSO.CatchRate * ConditionsDB.GetStatusBonus( pokemon.SevereStatus ) / ( 3 * pokemon.MaxHP );
+    private int TryToCatchPokemon( Pokemon pokemon, PokeballItemSO pokeball ){
+        Debug.Log( $"Ball Catchrate: {pokeball.CatchRate}" );
+        float a = ( 3 * pokemon.MaxHP - 2 * pokemon.CurrentHP ) * pokemon.PokeSO.CatchRate * pokeball.CatchRate * ConditionsDB.GetStatusBonus( pokemon.SevereStatus ) / ( 3 * pokemon.MaxHP );
 
         if( a >= 255 )
             return 4;
@@ -811,7 +813,7 @@ public class BattleSystem : BattleStateMachine
 
     public void DetermineCommandOrder(){
         SetBusyState();
-        Debug.Log( "DetermineCommandOrder()" );
+        // Debug.Log( "DetermineCommandOrder()" );
 
         _commandList = _commandList.OrderBy( prio => prio.CommandPriority ).ThenBy( prio => prio.AttackPriority).ThenBy( prio => prio.UnitAgility ).ToList();
 

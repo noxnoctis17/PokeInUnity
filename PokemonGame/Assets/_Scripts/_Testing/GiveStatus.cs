@@ -11,8 +11,8 @@ public class GiveStatus : MonoBehaviour, IInteractable
         secondMon.SetSevereStatus( ConditionID.BRN );
         thirdMon.SetSevereStatus( ConditionID.FBT );
 
-        Debug.Log( $"{firstMon.PokeSO.pName}'s status condition is: {firstMon.SevereStatus.ID}" );
-        Debug.Log( $"{secondMon.PokeSO.pName}'s status condition is: {secondMon.SevereStatus.ID}" );
-        Debug.Log( $"{thirdMon.PokeSO.pName}'s status condition is: {thirdMon.SevereStatus.ID}" );
+        // Debug.Log( $"{firstMon.PokeSO.pName}'s status condition is: {firstMon.SevereStatus.ID}" );
+        // Debug.Log( $"{secondMon.PokeSO.pName}'s status condition is: {secondMon.SevereStatus.ID}" );
+        // Debug.Log( $"{thirdMon.PokeSO.pName}'s status condition is: {thirdMon.SevereStatus.ID}" );
     }
 }

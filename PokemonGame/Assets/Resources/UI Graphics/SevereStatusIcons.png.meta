@@ -183,7 +183,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: SevereStatusIcons_0
+      name: Poison
       rect:
         serializedVersion: 2
         x: 10
@@ -191,7 +191,7 @@ TextureImporter:
         width: 176
         height: 44
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -204,7 +204,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: SevereStatusIcons_1
+      name: Toxic
       rect:
         serializedVersion: 2
         x: 196
@@ -212,7 +212,7 @@ TextureImporter:
         width: 176
         height: 44
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -225,7 +225,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: SevereStatusIcons_2
+      name: Faint
       rect:
         serializedVersion: 2
         x: 382
@@ -233,7 +233,7 @@ TextureImporter:
         width: 176
         height: 44
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -246,15 +246,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: SevereStatusIcons_3
+      name: Frostbite
       rect:
         serializedVersion: 2
-        x: 568
+        x: 569
         y: 62
         width: 176
         height: 44
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -267,7 +267,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: SevereStatusIcons_4
+      name: Paralysis
       rect:
         serializedVersion: 2
         x: 10
@@ -275,7 +275,7 @@ TextureImporter:
         width: 176
         height: 44
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -288,7 +288,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: SevereStatusIcons_5
+      name: Sleep
       rect:
         serializedVersion: 2
         x: 196
@@ -296,7 +296,7 @@ TextureImporter:
         width: 176
         height: 44
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -309,7 +309,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: SevereStatusIcons_6
+      name: Burn
       rect:
         serializedVersion: 2
         x: 382
@@ -317,7 +317,7 @@ TextureImporter:
         width: 176
         height: 44
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -340,13 +340,13 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      SevereStatusIcons_0: 896191836369537843
-      SevereStatusIcons_1: 2352180951898478359
-      SevereStatusIcons_2: -7452732557255770674
-      SevereStatusIcons_3: 1785575157610298856
-      SevereStatusIcons_4: -9214844456516014364
-      SevereStatusIcons_5: -8984888025403936351
-      SevereStatusIcons_6: -4177409873628252127
+      Burn: -4177409873628252127
+      Faint: -7452732557255770674
+      Frostbite: 1785575157610298856
+      Paralysis: -9214844456516014364
+      Poison: 896191836369537843
+      Sleep: -8984888025403936351
+      Toxic: 2352180951898478359
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

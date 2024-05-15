@@ -4,8 +4,10 @@ using UnityEngine;
 public class ConditionsDB
 {
     public static Dictionary<ConditionID, Condition> Conditions { get; set; } 
+    public static string StatusIconsPath;
 
     public static void Init(){
+        LoadStatusIcons();
         SetDictionary();
 
         foreach( var kvp in Conditions ){
@@ -20,6 +22,10 @@ public class ConditionsDB
         Conditions = null;
     }
 
+    private static void LoadStatusIcons(){
+        StatusIconsPath = "Assets/Resources/UI Graphics/SevereStatusIcons.png";
+    }
+
     private static void SetDictionary(){
         Conditions = new Dictionary<ConditionID, Condition>()
         {
@@ -28,6 +34,7 @@ public class ConditionsDB
                 {
                     ConditionName = "Poison",
                     AfflictionDialogue = "was poisoned!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.PSN],
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.DecreaseHP( pokemon.MaxHP / 8 );
@@ -38,7 +45,8 @@ public class ConditionsDB
                 ConditionID.TOX, new Condition()
                 {
                     ConditionName = "Toxic",
-                    AfflictionDialogue = "was inflicted with toxic poison!",
+                    AfflictionDialogue = "was severely poisoned!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.TOX],
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.DecreaseHP( pokemon.MaxHP / 8 );
@@ -50,6 +58,7 @@ public class ConditionsDB
                 {
                     ConditionName = "Burn",
                     AfflictionDialogue = "was burned!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.BRN],
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         // Debug.Log( pokemon.CurrentHP );
@@ -63,6 +72,7 @@ public class ConditionsDB
                 {
                     ConditionName = "Paralysis",
                     AfflictionDialogue = "has been paralyzed!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.PAR],
                     OnBeforeTurn = ( Pokemon pokemon ) =>
                     {
                         if( Random.Range( 1, 5 ) == 1 )
@@ -84,6 +94,7 @@ public class ConditionsDB
                 {
                     ConditionName = "Sleep",
                     AfflictionDialogue = "has fallen asleep!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.SLP],
                     OnRoundStart = ( Pokemon pokemon ) =>
                     {
                         //--Sleep is for 1-3 turns? i'm gunna make it a guaranteed 2 turns only
@@ -109,6 +120,7 @@ public class ConditionsDB
                 {
                     ConditionName = "Frostbite",
                     AfflictionDialogue = "has become frostbitten!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.FBT],
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.DecreaseHP( pokemon.MaxHP / 16 );
@@ -119,6 +131,7 @@ public class ConditionsDB
                 ConditionID.FNT, new Condition()
                 {
                     ConditionName = "Faint",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.FNT],
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.CurrentHP = 0;
@@ -130,6 +143,7 @@ public class ConditionsDB
                 {
                     ConditionName = "Confusion",
                     AfflictionDialogue = "became confused!",
+                    // StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.CNF],
                     OnRoundStart = ( Pokemon pokemon ) =>
                     {
                         //--Confuse for 2-5 turns

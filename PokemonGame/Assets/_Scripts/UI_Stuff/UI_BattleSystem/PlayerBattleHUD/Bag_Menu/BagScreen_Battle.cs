@@ -8,7 +8,6 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
 {
     [SerializeField] private BattleSystem _battleSystem;
     [SerializeField] private PlayerBattleMenu _battleMenu;
-    [SerializeField] private Button _throwBall; //--temporary for catch pokemon testing
     [SerializeField] private BagDisplay _bagDisplay;
     [SerializeField] private PartyDisplay _partyDisplay;
     [SerializeField] private UseItemFromBag_Battle _useItemFromBagState;
@@ -25,6 +24,7 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
 
         //--Events
         OnItemCommand += SetItemCommand;
+        _bagDisplay.OnPocketChanged += SetNewInitialButton;
         GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
 
@@ -46,12 +46,12 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
 
     public override void ReturnToState(){
         Debug.Log( $"{this} ReturnToState()" );
+        //--Enable Item Buttons
+        _bagDisplay.SetItemButtons_Interactable( true );
+
         //--Events
         GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
-
-        //--Enable Item Buttons
-        _bagDisplay.SetItemButtons_Interactable( true );
 
         //--Select Appropriate Button
         StartCoroutine( SetInitialButton() );
@@ -70,6 +70,7 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
     public override void ExitState(){
         //--Events
         OnItemCommand -= SetItemCommand;
+        _bagDisplay.OnPocketChanged -= SetNewInitialButton;
         GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
 
@@ -89,8 +90,38 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
         _battleMenu.StateMachine.Push( _useItemFromBagState );
     }
 
+    public void UsePokeball( Item item ){
+        _bagDisplay.SetSelectedItem( item );
+        SetItemCommand( null, item );
+    }
+
+    private void SetNewInitialButton(){
+        PlayerReferences.Instance.PlayerController.EventSystem.SetSelectedGameObject( null );
+        LastButton = _bagDisplay.InitialButton;
+        SelectMemoryButton();
+    }
+
     private IEnumerator SetInitialButton(){
         yield return new WaitForSeconds( 0.15f );
+
+        if( LastButton != null )
+            SelectMemoryButton();
+        else{
+            SetMemoryButton( _initialButton );
+        }
+    }
+
+    public void SetMemoryButton( Button lastButton ){
+        LastButton = lastButton;
+        SelectMemoryButton();
+    }
+
+    private void SelectMemoryButton(){
+        LastButton.Select();
+    }
+
+    public void ClearMemoryButton(){
+        LastButton = null;
         _initialButton.Select();
     }
 

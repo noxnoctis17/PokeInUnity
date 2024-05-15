@@ -37,21 +37,19 @@ public class GameStateController : MonoBehaviour
 
     private void OnEnable(){
         Instance = this;
-        // OnGameStateChanged += ChangeGameState;
         WildmonStateDisplayTest = new();
     }
 
-    private void OnDisable(){
-        // OnGameStateChanged -= ChangeGameState;
-    }
-
     private void Awake(){
+        //--Initialize Databases
+        TypeColorsDB.Init();
         ConditionsDB.Init();
         PokemonDB.Init();
         MoveDB.Init();
     }
 
     private void Start(){
+        //--State Machine
         GameStateMachine = new StateStackMachine<GameStateController>( this );
         GameStateMachine.Push( FreeRoamState.Instance );
     }
@@ -64,11 +62,16 @@ public class GameStateController : MonoBehaviour
         CurrentStateEnum = stateEnum;
     }
 
+    public static bool EnableStateStack;
+
     private void OnGUI(){
+        if( !StateMachineDisplays.Show_GameStateStateStack )
+            return;
+
         var style = new GUIStyle();
         style.fontSize = 30;
         style.fontStyle = FontStyle.Bold;
-        style.normal.textColor = Color.black;
+        style.normal.textColor = Color.white;
 
         GUILayout.BeginArea( new Rect( 710, 0, 600, 500 ) );
         GUILayout.Label( "STATE STACK", style );

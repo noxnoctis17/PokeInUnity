@@ -36,7 +36,7 @@ public class PPItemSO : ItemSO
     }
 
     public override bool CheckIfUsable( Pokemon pokemon ){
-        if( pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT )
             return false;
 
         //--PP Restore

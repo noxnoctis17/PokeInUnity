@@ -2,7 +2,6 @@ using System.Collections;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
-using System.Collections.Generic;
 using DG.Tweening;
 
 public class BattleHUD : MonoBehaviour
@@ -14,17 +13,19 @@ public class BattleHUD : MonoBehaviour
     [SerializeField] private HPBar _hpBar;
     [SerializeField] private GameObject _expBar;
     [SerializeField] private TextMeshProUGUI _currentHPText;
-    [SerializeField] private Sprite _psnIcon, _toxIcon, _brnIcon, _parIcon, _slpIcon, _fbtIcon, _fntIcon;
     [SerializeField] private Image _severeStatusIcon;
+    private Pokemon _pokemon;
+    private Camera _camera;
     private int _currentHPTracker;
     public int CurrentHPTracker => _currentHPTracker;
-    private Pokemon _pokemon;
-    private Dictionary<ConditionID, Sprite> _severeStatusIcons;
 
     private void Update(){
         //--Update HP
         if( _currentHPTracker != _hpBar.hpBar.value )
             _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+
+        if( _pokemon != null && _pokemon.IsEnemyUnit )
+            UpdateWildHUDPosition();
     }
 
     public void SetData( Pokemon pokemon ){
@@ -34,11 +35,13 @@ public class BattleHUD : MonoBehaviour
         }
 
         _pokemon = pokemon;
+        _camera = PlayerReferences.MainCameraTransform.GetComponent<Camera>();
 
         _nameText.text = pokemon.PokeSO.pName;
         _levelText.text = "" + pokemon.Level;
 
-        _battlePortrait.sprite = _pokemon.PokeSO.BattlePortrait;
+        if( _pokemon.IsPlayerUnit )
+            _battlePortrait.sprite = _pokemon.PokeSO.BattlePortrait;
 
         //--Set Type Colors
         if( _type1Color || _type2Color != null ){
@@ -50,17 +53,6 @@ public class BattleHUD : MonoBehaviour
 
         _currentHPTracker = pokemon.CurrentHP;
         _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
-
-        _severeStatusIcons = new Dictionary<ConditionID, Sprite>()
-        {
-            { ConditionID.PSN, _psnIcon },
-            { ConditionID.TOX, _toxIcon },
-            { ConditionID.BRN, _brnIcon },
-            { ConditionID.PAR, _parIcon },
-            { ConditionID.SLP, _slpIcon },
-            { ConditionID.FBT, _fbtIcon },
-            { ConditionID.FNT, _fntIcon },
-        };
 
         SetSevereStatusIcon();
         _pokemon.OnStatusChanged    += SetSevereStatusIcon;
@@ -115,7 +107,7 @@ public class BattleHUD : MonoBehaviour
         }
 
         _severeStatusIcon.gameObject.SetActive( true );
-        _severeStatusIcon.sprite = _severeStatusIcons[_pokemon.SevereStatus.ID];
+        _severeStatusIcon.sprite = StatusIconAtlas.StatusIcons[_pokemon.SevereStatus.ID];
     }
 
     public void RefreshHUD(){
@@ -142,6 +134,11 @@ public class BattleHUD : MonoBehaviour
             else
                 _type2Color.color = TypeColorsDB.TypeColors[type2].SecondaryColor;
         }
+    }
+
+    private void UpdateWildHUDPosition(){
+        var wildPokemonPos = BattleSystem.Instance.EncounteredPokemon.gameObject.transform.position;
+        transform.position = _camera.WorldToScreenPoint( new Vector3( wildPokemonPos.x, wildPokemonPos.y + 3f, wildPokemonPos.z ) );
     }
 
 }

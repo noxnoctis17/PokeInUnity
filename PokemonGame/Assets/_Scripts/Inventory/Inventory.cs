@@ -34,6 +34,10 @@ public class Inventory : MonoBehaviour
         return null;
     }
 
+    public void UsePokeball( Item item ){
+        RemoveItem( item );
+    }
+
     //--Check if Item is usable, probably only for Battle use
     public bool CheckIfItemUsable( Item item, Pokemon pokemon ){
         return item.ItemSO.CheckIfUsable( pokemon );
@@ -74,9 +78,9 @@ public class Item
     }
 
     public void DecreaseItemCount(){
-        Debug.Log( _itemCount );
+        // Debug.Log( _itemCount );
         _itemCount--;
-        Debug.Log( _itemCount );
+        // Debug.Log( _itemCount );
 
         if( _itemCount < 0 )
             _itemCount = 0;

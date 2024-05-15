@@ -33,7 +33,7 @@ public class BattleDialogueBox : MonoBehaviour
 
         if( wait ){
             PlayerReferences.Instance.PlayerController.EnableBattleControls();
-            yield return new WaitUntil( _playerInput.UIBattle.Submit.WasReleasedThisFrame );
+            yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
             PlayerReferences.Instance.PlayerController.DisableBattleControls();
         }
 
@@ -49,7 +49,7 @@ public class BattleDialogueBox : MonoBehaviour
         LeanTween.moveLocalX( gameObject, -360, 0.2f );
 
         if( wait )
-            yield return new WaitUntil( _playerInput.UIBattle.Submit.WasReleasedThisFrame );
+            yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
 
         StartCoroutine( HideBoxDelay( wait ) );
     }

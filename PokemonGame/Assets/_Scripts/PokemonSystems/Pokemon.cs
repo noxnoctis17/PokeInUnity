@@ -78,8 +78,10 @@ public class Pokemon
         SPDEF_EVs = saveData.SPDEF_EVs;
         SPE_EVs = saveData.SPE_EVs;
 
-        if( saveData.SevereStatus != null )
+        if( saveData.SevereStatus != null ){
             SevereStatus = ConditionsDB.Conditions[saveData.SevereStatus.Value];
+            OnStatusChanged?.Invoke();
+        }
         else
             SevereStatus = null;
 
@@ -148,6 +150,7 @@ public class Pokemon
             SPE_EVs = SPE_EVs,
             SevereStatus = SevereStatus?.ID,
             ActiveMoves = ActiveMoves.Select( m => m.CreateSaveData() ).ToList(),
+            IsPlayerUnit = IsPlayerUnit,
         };
 
         return saveData;
@@ -326,8 +329,10 @@ public class Pokemon
         if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
             SevereStatus?.OnRoundStart?.Invoke( this );
             StatusChanges.Enqueue( $"{_pokeSO.pName} {SevereStatus.AfflictionDialogue}" );
-            OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
         }
+
+        Debug.Log( $"{_pokeSO.pName} {SevereStatus.AfflictionDialogue}" );
+        OnStatusChanged?.Invoke();
     }
 
     public void CureSevereStatus(){
@@ -397,4 +402,5 @@ public class PokemonSaveData
     public int SPE_EVs;
     public ConditionID? SevereStatus;
     public List<MoveSaveData> ActiveMoves;
+    public bool IsPlayerUnit;
 }
