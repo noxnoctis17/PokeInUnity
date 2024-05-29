@@ -10,7 +10,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     [SerializeField] private FightMenu _fightMenu;
     [SerializeField] private BattleDialogueBox _dialogueBox;
     [SerializeField] private TextMeshProUGUI _moveDescription;
-    public MoveClass AssignedMove { get; set; }
+    public Move AssignedMove { get; set; }
     private Button _thisButton;
 
 

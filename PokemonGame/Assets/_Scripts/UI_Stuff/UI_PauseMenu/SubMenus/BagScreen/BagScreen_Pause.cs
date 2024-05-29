@@ -1,6 +1,4 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using NoxNoctisDev.StateMachine;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,11 +9,13 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
     [SerializeField] private BagDisplay _bagDisplay;
     [SerializeField] private PartyDisplay _partyDisplay;
     [SerializeField] private UseItemFromBag_Pause _useItemFromBagState;
+    [SerializeField] private LearnMove_Pause _learnMoveMenu;
     private Inventory _playerInventory;
     private Button _initialButton;
     public Button LastButton { get; private set; }
     public BagDisplay BagDisplay => _bagDisplay;
     public PartyDisplay PartyDisplay => _partyDisplay;
+    public LearnMove_Pause LearnMoveMenu => _learnMoveMenu;
 
     public override void EnterState( UI_PauseMenuStateMachine owner ){
         Debug.Log( $"{this} EnterState()" );
@@ -24,7 +24,7 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
         _playerInventory = _bagDisplay.PlayerInventory;
 
         //--Events
-        _bagDisplay.OnPocketChanged += SetNewInitialButton;
+        _bagDisplay.OnPocketChanged += SetNewPocketInitialButton;
         GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
 
@@ -50,6 +50,7 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
         _bagDisplay.SetItemButtons_Interactable( true );
 
         //--Events
+        _bagDisplay.OnPocketChanged += SetNewPocketInitialButton;
         GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
 
@@ -60,7 +61,7 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
     public override void PauseState(){
         Debug.Log( $"{this} PauseState()" );
         //--Events
-        _bagDisplay.OnPocketChanged -= SetNewInitialButton;
+        _bagDisplay.OnPocketChanged -= SetNewPocketInitialButton;
         GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
 
@@ -70,6 +71,7 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
 
     public override void ExitState(){
         //--Events
+        _bagDisplay.OnPocketChanged -= SetNewPocketInitialButton;
         GameStateController.Instance.OnDialogueStateEntered -= _bagDisplay.EnterDialogueWrapper;
         GameStateController.Instance.OnDialogueStateExited -= _bagDisplay.ExitDialogueWrapper;
         
@@ -87,10 +89,15 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
     }
 
     public void UseTM( Item item ){
+        //--Code to display whether a pokemon can learn
+        //--or whether it already knows the selected TM
+        //--on the party screen. and by code i probably mean an event
+        //--that raises it for PokemonButton_UseItemFromPause
 
+        UseItem( item );
     }
 
-    private void SetNewInitialButton(){
+    private void SetNewPocketInitialButton(){
         PlayerReferences.Instance.PlayerController.EventSystem.SetSelectedGameObject( null );
         LastButton = _bagDisplay.InitialButton;
         SelectMemoryButton();

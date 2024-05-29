@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 1944533695260379685}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.063, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -72,8 +72,8 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 677566043
+  m_SortingLayer: 2
   m_SortingOrder: 0
   m_Sprite: {fileID: 1335551054, guid: 7b355435ed899614e8e4b9ae32eafe9a, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -98,40 +98,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16048607544499744a10a49adb98abe4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _parentTransform: {fileID: 7879678094370305246}
   _idleUpSprites:
-  - {fileID: -51994689, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 1543359966, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _idleDownSprites:
-  - {fileID: 693204279, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: -436359718, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _idleLeftSprites:
-  - {fileID: -470286063, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 395595644, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _idleRightSprites:
-  - {fileID: 1088416104, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: -1004738257, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _idleUpLeftSprites:
-  - {fileID: -101769384, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 97900761, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _idleUpRightSprites:
-  - {fileID: 283756484, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: -2041992529, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _idleDownLeftSprites:
-  - {fileID: 438715210, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: -1945945442, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _idleDownRightSprites:
-  - {fileID: -367477537, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 1623942102, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _walkDownSprites:
   - {fileID: -754055444, guid: 7b355435ed899614e8e4b9ae32eafe9a, type: 3}
   - {fileID: 1335551054, guid: 7b355435ed899614e8e4b9ae32eafe9a, type: 3}
   - {fileID: 1767350674, guid: 7b355435ed899614e8e4b9ae32eafe9a, type: 3}
   _walkUpSprites:
-  - {fileID: -51994689, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 1543359966, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _walkLeftSprites:
-  - {fileID: -470286063, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 395595644, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _walkRightSprites:
-  - {fileID: 1088416104, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: -1004738257, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _walkUpLeftSprites:
-  - {fileID: -101769384, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 97900761, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _walkUpRightSprites:
-  - {fileID: 283756484, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: -2041992529, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _walkDownLeftSprites:
-  - {fileID: 438715210, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: -1945945442, guid: 264905533f028854689968ae5b3a0da3, type: 3}
   _walkDownRightSprites:
-  - {fileID: -367477537, guid: 264905533f028854689968ae5b3a0da3, type: 3}
+  - {fileID: 1623942102, guid: 264905533f028854689968ae5b3a0da3, type: 3}
 --- !u!1 &2452169651929891914
 GameObject:
   m_ObjectHideFlags: 0
@@ -203,8 +204,8 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: -1287303087
+  m_SortingLayer: 1
   m_SortingOrder: 0
   m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -216,7 +217,7 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
-  m_SpriteSortPoint: 0
+  m_SpriteSortPoint: 1
 --- !u!114 &3340163205380625538
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -255,7 +256,7 @@ Transform:
   m_GameObject: {fileID: 5387339767478965832}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.5, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -271,12 +272,12 @@ GameObject:
   m_Component:
   - component: {fileID: 7879678094370305246}
   - component: {fileID: 5063925689413948341}
+  - component: {fileID: 4184459960802797988}
   - component: {fileID: 8647949782049962077}
   - component: {fileID: 5710010954320444033}
   - component: {fileID: 37269934942262741}
   - component: {fileID: 2978490516173425355}
   - component: {fileID: 5504983208346184905}
-  - component: {fileID: 4184459960802797988}
   - component: {fileID: 7972416213339437236}
   - component: {fileID: 2109925629408453506}
   - component: {fileID: 4181225385610949507}
@@ -297,11 +298,11 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4, y: 4, z: 4}
+  m_LocalScale: {x: 3.5, y: 3.5, z: 3.5}
   m_ConstrainProportionsScale: 1
   m_Children:
-  - {fileID: 9092969949149136886}
   - {fileID: 8099696588271180299}
+  - {fileID: 9092969949149136886}
   - {fileID: 7994842023583199587}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -324,13 +325,36 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 1
-  m_Radius: 0.25
+  m_Height: 0.5
+  m_Radius: 0.15
   m_SlopeLimit: 50
   m_StepOffset: 0.25
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0.5, z: 0}
+  m_Center: {x: 0, y: 0.215, z: 0}
+--- !u!136 &4184459960802797988
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7993903386403970428}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.15
+  m_Height: 0.5
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.215, z: 0}
 --- !u!114 &8647949782049962077
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -358,21 +382,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _interactableDetectionRadius: 4
-  _interactableRayLength: 4.5
+  _interactableRayLength: 7
   _playerCenter: {fileID: 9092969949149136886}
-  _interactButton:
-    m_UseReference: 1
-    m_Action:
-      m_Name: Interact Button
-      m_Type: 0
-      m_ExpectedControlType: 
-      m_Id: 93ed3d91-512b-499b-a0c7-2168b2cf6187
-      m_Processors: 
-      m_Interactions: 
-      m_SingletonActionBindings: []
-      m_Flags: 0
-    m_Reference: {fileID: -8694376875045232012, guid: a7e013922887e864da1abd9d68999244, type: 3}
   _eventSystem: {fileID: 0}
+  _disableMouse: 0
 --- !u!114 &37269934942262741
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -388,7 +401,7 @@ MonoBehaviour:
   _cameraTransform: {fileID: 0}
   _characterController: {fileID: 5063925689413948341}
   _animator: {fileID: 2797354020689292116}
-  _speed: 20
+  _speed: 10
   _runMultiplier: 1.5
 --- !u!114 &2978490516173425355
 MonoBehaviour:
@@ -405,18 +418,26 @@ MonoBehaviour:
   _isPlayerParty: 1
   _isEnemyParty: 0
   _partyPokemon:
+  - _pokeSO: {fileID: 11400000, guid: 634ad68f5c0cc414683f8e161754da62, type: 2}
+    _level: 16
+    _showDamageTakenText: {fileID: 0}
+    _showMoveUsedText: {fileID: 0}
+    CurrentBallType: 0
   - _pokeSO: {fileID: 11400000, guid: 42fea52d1abeae7448a3c262cc9c23de, type: 2}
     _level: 100
     _showDamageTakenText: {fileID: 0}
     _showMoveUsedText: {fileID: 0}
-  - _pokeSO: {fileID: 11400000, guid: 5b7746c85c300df4cb44d1db90eb5d8d, type: 2}
-    _level: 100
+    CurrentBallType: 0
+  - _pokeSO: {fileID: 11400000, guid: 354914a75f00d4e4da6588a7acd50afd, type: 2}
+    _level: 15
     _showDamageTakenText: {fileID: 0}
     _showMoveUsedText: {fileID: 0}
-  - _pokeSO: {fileID: 11400000, guid: 974d42124e9b4484ca8b0788c1caaecb, type: 2}
-    _level: 100
+    CurrentBallType: 0
+  - _pokeSO: {fileID: 11400000, guid: ebf27d1674e5292418a8fa692f72e5bc, type: 2}
+    _level: 15
     _showDamageTakenText: {fileID: 0}
     _showMoveUsedText: {fileID: 0}
+    CurrentBallType: 0
 --- !u!114 &5504983208346184905
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -430,29 +451,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _battleSystem: {fileID: 0}
---- !u!136 &4184459960802797988
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7993903386403970428}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.14
-  m_Height: 1
-  m_Direction: 1
-  m_Center: {x: 0, y: 0.6, z: 0}
 --- !u!114 &7972416213339437236
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -477,7 +475,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4881f89f8b930e34489bbb86116ccd4d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  uniqueId: 
+  uniqueId: 08edb32b-0163-42be-a559-835ec7104bcc
 --- !u!114 &4181225385610949507
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -490,7 +488,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b93e5da95968bf84e9c8908366567956, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _itemSlots: []
+  _itemGetContainer: {fileID: 0}
+  _itemIcon: {fileID: 0}
+  _itemGetText: {fileID: 0}
+  _itemList: []
 --- !u!1 &8237588402114524832
 GameObject:
   m_ObjectHideFlags: 0

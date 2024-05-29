@@ -61,7 +61,7 @@ public class ComboRecoveryItemSO : ItemSO
     }
 
     public override string UseText( Pokemon pokemon ){
-        return $"You used a {ItemName}! {pokemon.PokeSO.pName} was fully restored!";
+        return $"You used a {ItemName}! {pokemon.PokeSO.Name} was fully restored!";
     }
 
 }

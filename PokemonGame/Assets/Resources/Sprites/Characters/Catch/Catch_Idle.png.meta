@@ -48,7 +48,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 56
+  spritePixelsToUnits: 96
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Catch_Idle_Up_0
+      name: Catch_Idle_Up
       rect:
         serializedVersion: 2
         x: 0
-        y: 56
-        width: 56
-        height: 56
+        y: 96
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -137,20 +137,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 3117f56da3921da43976c5f6d070e553
-      internalID: -51994689
+      spriteID: 44333c6ba7fd9e24f905ca83b4ad4ebc
+      internalID: 1543359966
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Catch_Idle_Down_0
+      name: Catch_Idle_Down
       rect:
         serializedVersion: 2
-        x: 56
-        y: 56
-        width: 56
-        height: 56
+        x: 96
+        y: 96
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -158,20 +158,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 0d3d58b7156da084b9fce5ff9ed6a6d2
-      internalID: 693204279
+      spriteID: 9a08d5d703bf1564394df4cb09829fd8
+      internalID: -436359718
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Catch_Idle_Left_0
+      name: Catch_Idle_Left
       rect:
         serializedVersion: 2
-        x: 112
-        y: 56
-        width: 56
-        height: 56
+        x: 192
+        y: 96
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -179,20 +179,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: af67b958ff871314ab4537e662e662db
-      internalID: -470286063
+      spriteID: 2220b3e9960159e4e89c93a599d58925
+      internalID: 395595644
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Catch_Idle_Right_0
+      name: Catch_Idle_Right
       rect:
         serializedVersion: 2
-        x: 168
-        y: 56
-        width: 56
-        height: 56
+        x: 288
+        y: 96
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -200,20 +200,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 3e069c10e168f5c4e9dbc1a177beb564
-      internalID: 1088416104
+      spriteID: 70cbf599194ed2f4bacb81c1afbc3f54
+      internalID: -1004738257
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Catch_Idle_Down-Left_0
+      name: Catch_Idle_Down_Left
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 56
-        height: 56
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -221,20 +221,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e0d9090bc0ff31f47920ebdfb65fcd71
-      internalID: 438715210
+      spriteID: bed84ec89fd9a1b47a2ce733bf878691
+      internalID: -1945945442
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Catch_Idle_Down-Right_0
+      name: Catch_Idle_Down_Right
       rect:
         serializedVersion: 2
-        x: 56
+        x: 96
         y: 0
-        width: 56
-        height: 56
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -242,20 +242,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: f7afb6b3bacd93b459cb2265651baa06
-      internalID: -367477537
+      spriteID: 3c7fe685f7cd07e4db8989e179775824
+      internalID: 1623942102
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Catch_Idle_Up-Left_0
+      name: Catch_Idle_Up_Left
       rect:
         serializedVersion: 2
-        x: 112
+        x: 192
         y: 0
-        width: 56
-        height: 56
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -263,20 +263,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 0ed5c475ad6e88b438bec12d5ed1693d
-      internalID: -101769384
+      spriteID: 68c5575aa271ab94792b26b7e7ff1132
+      internalID: 97900761
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Catch_Idle_Up-Right_0
+      name: Catch_Idle_Up_Right
       rect:
         serializedVersion: 2
-        x: 168
+        x: 288
         y: 0
-        width: 56
-        height: 56
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -284,8 +284,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: b372836e5d0210042bb5af6341990ae1
-      internalID: 283756484
+      spriteID: 1fabf7f80ce391e4f8aeb94d1fbe1b7f
+      internalID: -2041992529
       vertices: []
       indices: 
       edges: []
@@ -301,14 +301,14 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      Catch_Idle_Down-Left_0: 438715210
-      Catch_Idle_Down-Right_0: -367477537
-      Catch_Idle_Down_0: 693204279
-      Catch_Idle_Left_0: -470286063
-      Catch_Idle_Right_0: 1088416104
-      Catch_Idle_Up-Left_0: -101769384
-      Catch_Idle_Up-Right_0: 283756484
-      Catch_Idle_Up_0: -51994689
+      Catch_Idle_Down: -436359718
+      Catch_Idle_Down_Left: -1945945442
+      Catch_Idle_Down_Right: 1623942102
+      Catch_Idle_Left: 395595644
+      Catch_Idle_Right: -1004738257
+      Catch_Idle_Up: 1543359966
+      Catch_Idle_Up_Left: 97900761
+      Catch_Idle_Up_Right: -2041992529
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

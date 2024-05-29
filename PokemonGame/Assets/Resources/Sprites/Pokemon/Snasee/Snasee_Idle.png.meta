@@ -126,10 +126,10 @@ TextureImporter:
       name: Snasee_Idle_0
       rect:
         serializedVersion: 2
-        x: 27
+        x: 0
         y: 96
-        width: 42
-        height: 41
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -147,10 +147,10 @@ TextureImporter:
       name: Snasee_Idle_1
       rect:
         serializedVersion: 2
-        x: 122
+        x: 96
         y: 96
-        width: 43
-        height: 41
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -168,10 +168,10 @@ TextureImporter:
       name: Snasee_Idle_2
       rect:
         serializedVersion: 2
-        x: 218
+        x: 192
         y: 96
-        width: 42
-        height: 44
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -189,10 +189,10 @@ TextureImporter:
       name: Snasee_Idle_3
       rect:
         serializedVersion: 2
-        x: 20
+        x: 0
         y: 0
-        width: 42
-        height: 36
+        width: 96
+        height: 96
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

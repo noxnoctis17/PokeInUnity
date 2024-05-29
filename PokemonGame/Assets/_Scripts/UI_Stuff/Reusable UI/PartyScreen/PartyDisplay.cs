@@ -15,6 +15,22 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
     public Button PartyButton1 => _partyButton1;
     public PokemonButton[] PKMNButtons => _pkmnButtons;
     public Action<Button> OnSubmittedButton;
+    public Action<bool> OnHPPocketEntered;
+    public Action<Item, bool> OnTMSelected;
+
+    private void OnEnable(){
+        if( _partyScreenContext == PartyScreenContext.UseItemPaused ){
+            OnHPPocketEntered += SetHPBarActive;
+            OnTMSelected += SetStatusText_TM;
+        }
+    }
+
+    private void OnDisable(){
+        if( _partyScreenContext == PartyScreenContext.UseItemPaused ){
+            OnHPPocketEntered -= SetHPBarActive;
+            OnTMSelected -= SetStatusText_TM;
+        }
+    }
 
     public void Init(){
         _memberSlots = GetComponentsInChildren<PartyMember_UI>( true );
@@ -66,6 +82,20 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
         Debug.Log( $"SetPartyButtons_Interactable: {isInteractable}" );
         foreach( PokemonButton button in _pkmnButtons ){
             button.ThisButton.interactable = isInteractable;
+        }
+    }
+
+    private void SetHPBarActive( bool show ){
+        Debug.Log( "SetHPBarActive" );
+        foreach( PartyMember_UI icon in _memberSlots ){
+            icon.ShowHPBar( show );
+        }
+    }
+
+    private void SetStatusText_TM( Item item, bool show = false ){
+        Debug.Log( "SetStatusText_TM" );
+        foreach( PartyMember_UI icon in _memberSlots ){
+            icon.UpdateStatusText_TM( item, show );
         }
     }
 

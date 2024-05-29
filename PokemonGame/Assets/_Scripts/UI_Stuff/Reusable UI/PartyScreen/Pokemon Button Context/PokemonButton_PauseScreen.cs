@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
@@ -18,7 +19,10 @@ public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
     public void ContextSubmit(){
         Debug.Log( _pokemon );
         Debug.Log( _pokemon.PokeSO );
-        Debug.Log( _pokemon.PokeSO.pName );
+        Debug.Log( _pokemon.PokeSO.Name );
+        Debug.Log( $"{_pokemon.PokeSO.Name} can evolve: {_pokemon.CanEvolveByLevelUp}" );
+        if( _pokemon.CanEvolveByLevelUp )
+            StartCoroutine( TriggerEvolution() );
     }
 
     public void ContextSelected(){
@@ -35,6 +39,14 @@ public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
 
     public void CloseContextMenu(){
         _pokemonScreen.PauseMenuStateMachine.PopState();
+    }
+
+    private IEnumerator TriggerEvolution(){
+        _partyDisplay.SetPartyButtons_Interactable( false );
+        var evolution = _pokemon.CheckForEvolution();
+        GameStateController.Instance.PushGameState( EvolutionManager.Instance );
+        yield return EvolutionManager.Instance.Evolve( _pokemon, evolution );
+        _partyDisplay.SetPartyButtons_Interactable( true );
     }
 
 }

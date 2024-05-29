@@ -12,14 +12,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool _disableMouse;
     private PlayerInput _playerInput;
     private PlayerMovement _playerMovement;
+    private Vector3[] _interactRayOffsets;
     public EventSystem EventSystem => _eventSystem;
     public static event Action OnPause;
 
     private void OnEnable(){
         // EnableInteract();
-        _playerInput.CharacterControls.Interact.performed += OnInteract;
-        _playerInput.CharacterControls.PauseMenu.performed += OnPausePressed;
-        _playerInput.CharacterControls.Load.performed += OnLoadPressed;
+        _playerInput.CharacterControls.Interact.performed   += OnInteract;
+        _playerInput.CharacterControls.PauseMenu.performed  += OnPausePressed;
+        _playerInput.CharacterControls.Load.performed       += OnLoadPressed;
 
         //--Lock and Hide mouse
         if( _disableMouse ){
@@ -30,9 +31,9 @@ public class PlayerController : MonoBehaviour
     
     private void OnDisable(){
         // DisableInteract();
-        _playerInput.CharacterControls.Interact.performed -= OnInteract;
-        _playerInput.CharacterControls.PauseMenu.performed -= OnPausePressed;
-        _playerInput.CharacterControls.Load.performed -= OnLoadPressed;
+        _playerInput.CharacterControls.Interact.performed   -= OnInteract;
+        _playerInput.CharacterControls.PauseMenu.performed  -= OnPausePressed;
+        _playerInput.CharacterControls.Load.performed       -= OnLoadPressed;
     }
 
     public void SetPlayerInput( PlayerInput playerInput ){
@@ -45,13 +46,24 @@ public class PlayerController : MonoBehaviour
     }
     
     private void OnInteract( InputAction.CallbackContext context ){
-        if( Physics.Raycast( _playerCenter.position, transform.forward/*.MovementAxisCorrection( PlayerReferences.MainCameraTransform )*/, out RaycastHit raymond, _interactableRayLength ) ){
-            raymond.transform.GetComponent<IInteractable>()?.Interact();
+
+        _interactRayOffsets = new Vector3[]
+        {
+            new ( _playerCenter.position.x, _playerCenter.position.y + 0.75f, _playerCenter.position.z ),
+            new ( _playerCenter.position.x, _playerCenter.position.y - 0.75f, _playerCenter.position.z ),
+            new ( _playerCenter.position.x + 0.35f, _playerCenter.position.y, _playerCenter.position.z ),
+            new ( _playerCenter.position.x - 0.35f, _playerCenter.position.y, _playerCenter.position.z ),
+        };
+
+        foreach( var offset in _interactRayOffsets ){
+            if( Physics.Raycast( offset, transform.forward, out RaycastHit raymond, _interactableRayLength ) ){
+                raymond.transform.GetComponent<IInteractable>()?.Interact();
+                break;
+            }
         }
     }
 
     private void OnPausePressed( InputAction.CallbackContext context ){
-        // Debug.Log( "Pause Pressed" );
         OnPause?.Invoke();
     }
 
@@ -99,7 +111,12 @@ public class PlayerController : MonoBehaviour
     
     public void OnDrawGizmos(){
         Gizmos.DrawWireSphere( transform.position, _interactableDetectionRadius );
-        Debug.DrawRay( _playerCenter.position, transform.forward * _interactableRayLength, Color.red );
+        
+        //--Middle Rays
+        Debug.DrawRay( new Vector3( _playerCenter.position.x, _playerCenter.position.y + 0.75f, _playerCenter.position.z ), transform.forward * _interactableRayLength, Color.red );
+        Debug.DrawRay( new Vector3( _playerCenter.position.x, _playerCenter.position.y - 0.75f, _playerCenter.position.z ), transform.forward * _interactableRayLength, Color.red );
+        Debug.DrawRay( new Vector3( _playerCenter.position.x + 0.35f, _playerCenter.position.y, _playerCenter.position.z ), transform.forward * _interactableRayLength, Color.red );
+        Debug.DrawRay( new Vector3( _playerCenter.position.x - 0.35f, _playerCenter.position.y, _playerCenter.position.z ), transform.forward * _interactableRayLength, Color.red );
     }
 
 #endif

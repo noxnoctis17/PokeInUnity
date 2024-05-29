@@ -15,7 +15,7 @@ public class TrainerClass : MonoBehaviour, IInteractable, ISavable
     [SerializeField] private DialogueSO _postBattleDialogueSO;
     [SerializeField] private GameObject _trainerCenter;
     [SerializeField] private bool _isDefeated;
-    // private bool _isRematchable; //--TODO
+     [SerializeField] private bool _isRematchable;
 
     //--Public
     public TrainerSO TrainerSO => _trainerSO;
@@ -24,6 +24,7 @@ public class TrainerClass : MonoBehaviour, IInteractable, ISavable
     public DialogueSO DialogueSO => _dialogueSO;
     public GameObject TrainerCenter => _trainerCenter;
     public bool IsDefeated => _isDefeated;
+    public bool IsRematchable => _isRematchable;
 
     //--You need to create a callback that returns whether the trainer or player won the battle
     //--and there you can set _isDefeated. Right now this class doesn't actually work very well lol --04/29/24
@@ -33,7 +34,7 @@ public class TrainerClass : MonoBehaviour, IInteractable, ISavable
     //--dialogue when there's no response event to trigger one.
 	public void Interact(){
         Debug.Log( $"You've Interacted With Trainer {this}!" );
-        if( !_isDefeated ){
+        if( !_isDefeated || _isRematchable ){
             foreach( DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>() ){
                 if( responseEvents.DialogueSO == _dialogueSO ){
                     DialogueManager.Instance.OnHasResponseEvents?.Invoke( responseEvents );
@@ -68,10 +69,9 @@ public class TrainerClass : MonoBehaviour, IInteractable, ISavable
         _isDefeated = true;
     }
 
-    //--TODO
-    // public void SetRematchable(){
-    //     _isRematchable = true;
-    // }
+    public void SetRematchable( bool rematchable ){
+        _isRematchable = rematchable;
+    }
 
     public object CaptureState(){
         return _isDefeated;

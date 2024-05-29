@@ -8,10 +8,13 @@ public class TMItemSO : ItemSO
     public MoveSO MoveSO => _moveSO;
 
     public override bool Use( Pokemon pokemon ){
-        return true;
+        return pokemon.CheckHasMove( _moveSO );
     }
 
-    public override bool CheckIfUsable(Pokemon pokemon){
-        return false;
+    public override bool CheckIfUsable( Pokemon pokemon ){
+        if( !pokemon.CheckCanLearnMove( _moveSO ) )
+            return false;
+
+        return true;
     }
 }

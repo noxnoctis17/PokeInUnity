@@ -72,7 +72,7 @@ public class StatusRecoveryItemSO : ItemSO
     }
 
     public override string UseText( Pokemon pokemon ){
-        return $"You used {ItemName}! {pokemon.PokeSO.pName} {_recoverText}";
+        return $"You used {ItemName}! {pokemon.PokeSO.Name} {_recoverText}";
     }
 
 }

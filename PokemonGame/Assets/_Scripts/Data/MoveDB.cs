@@ -10,12 +10,12 @@ public class MoveDB
 
         var dbArray = Resources.LoadAll<MoveSO>( "" );
         foreach( var moveSO in dbArray ){
-            if( _moveDB.ContainsKey( moveSO.MoveName ) ){
-                Debug.LogError( $"Duplicate Move: {moveSO.MoveName}" );
+            if( _moveDB.ContainsKey( moveSO.Name ) ){
+                Debug.LogError( $"Duplicate Move: {moveSO.Name}" );
                 continue;
             }
 
-            _moveDB[moveSO.MoveName] = moveSO;
+            _moveDB[moveSO.Name] = moveSO;
 
         }
     }

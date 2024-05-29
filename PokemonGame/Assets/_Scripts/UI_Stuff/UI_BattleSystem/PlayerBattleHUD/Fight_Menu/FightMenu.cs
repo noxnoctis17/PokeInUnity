@@ -45,16 +45,16 @@ public class FightMenu : State<PlayerBattleMenu>
     //--never be able to access this menu (by enabling it via player battle menu submit on fight button)
     //--without the currently active pokemon set in the battle system
 
-    public void SetUpMoves( List<MoveClass> moves ){
+    public void SetUpMoves( List<Move> moves ){
         SetMoveNames( moves );
         SetMoveButtons( moves );
     }
 
-    private void SetMoveNames( List<MoveClass> moves ){
+    private void SetMoveNames( List<Move> moves ){
         for( int i = 0; i < moves.Count; i++ ){
             for( int moveTexti = 0; moveTexti < _moveNameText.Count; moveTexti++ ){
                 if( i < _moveNameText.Count ){
-                    _moveNameText[i].text = moves[i].MoveSO.MoveName;
+                    _moveNameText[i].text = moves[i].MoveSO.Name;
                     
                     if( moveTexti > i )
                         _moveNameText[moveTexti].text = "-";
@@ -78,7 +78,7 @@ public class FightMenu : State<PlayerBattleMenu>
         }
     }
 
-    private void SetMoveButtons( List<MoveClass> moves ){
+    private void SetMoveButtons( List<Move> moves ){
         for( int m = 0; m < moves.Count; m++ ){
             for( int b = 0; b < _moveButtons.Count; b++ ){
                 _moveButtons[m].GetComponent<Button>().interactable = true;

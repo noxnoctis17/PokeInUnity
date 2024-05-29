@@ -9,7 +9,7 @@ public class CharacterAnimator : MonoBehaviour
     private SpriteRenderer _spriteRenderer;
     private SpriteAnimator _spriteAnimator;
     private Transform _camera;
-    private Transform _playerTransform;
+    [SerializeField] private Transform _parentTransform;
 
 
     //==[SPRITES]==
@@ -94,7 +94,8 @@ public class CharacterAnimator : MonoBehaviour
         _spriteRenderer = GetComponent<SpriteRenderer>();
         _spriteAnimator = new SpriteAnimator( _spriteRenderer );
         _camera = PlayerReferences.MainCameraTransform;
-        _playerTransform = PlayerReferences.Instance.PlayerTransform;
+        // _parentTransform = GetComponentInParent<Transform>();
+        // _parentTransform = PlayerReferences.Instance.PlayerTransform;
 
         //--Default/Initial Animation
         _defaultAnimSheet = _idleDownSprites;
@@ -104,6 +105,7 @@ public class CharacterAnimator : MonoBehaviour
     }
 
     private void Update(){
+        Billboard();
         var previousAnimSheet = _currentAnimSheet;
         SetSpritePerspective();
         SetWalkingSprites();
@@ -123,10 +125,6 @@ public class CharacterAnimator : MonoBehaviour
         _wasWalking = IsWalking;
     }
 
-    private void LateUpdate(){
-        Billboard();
-    }
-
     private void Billboard(){
         transform.forward = _camera.forward;
     }
@@ -141,8 +139,8 @@ public class CharacterAnimator : MonoBehaviour
     //--Somehow this Just Worked™
     private void SetSpritePerspective(){
         //--Sets facing direction based on the player transform forward
-        var projection = Vector3.ProjectOnPlane( _camera.transform.forward, _playerTransform.up );
-        var angle = Vector3.SignedAngle( projection, _playerTransform.forward, _playerTransform.up );
+        var projection = Vector3.ProjectOnPlane( _camera.transform.forward, _parentTransform.up );
+        var angle = Vector3.SignedAngle( projection, _parentTransform.forward, _parentTransform.up );
         var absAngle = Mathf.Abs( angle );
 
         if( absAngle <= _rotationStep )
@@ -159,16 +157,16 @@ public class CharacterAnimator : MonoBehaviour
 
     //--This is to set the shadow facing direction based on the character's forward angle. i don't know math tho lol
     private void GetCharacterForwardDirection(){
-        var absAngle = Mathf.Abs( _playerTransform.forward.y );
+        var absAngle = Mathf.Abs( _parentTransform.forward.y );
 
         if( absAngle > _rotationStep )
             _facingDirection = FacingDirection.Up;
         else if( absAngle <= _rotationStep * 3 )
-            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.UpLeft : _facingDirection = FacingDirection.UpRight;
+            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.UpLeft      : _facingDirection = FacingDirection.UpRight;
         else if( absAngle <= _rotationStep * 5 )
-            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.Left : _facingDirection = FacingDirection.Right;
+            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.Left        : _facingDirection = FacingDirection.Right;
         else if( absAngle <= _rotationStep * 7 )
-            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.DownLeft : _facingDirection = FacingDirection.DownRight;
+            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.DownLeft    : _facingDirection = FacingDirection.DownRight;
     }
 
     private void SetIdleSprites(){

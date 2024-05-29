@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Vulpix
+  m_EditorClassIdentifier: 
+  _species: 3
+  _name: Vulpix
+  _wildType: 1
+  _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _description: 
+  _maxHP: 38
+  _attack: 41
+  _defense: 40
+  _spAttack: 50
+  _spDefense: 65
+  _speed: 65
+  _catchRate: 190
+  _expYield: 600
+  _growthRate: 0
+  _effortPointsYield: 1
+  _idleUpSprites:
+  - {fileID: -269381785, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 1566927057, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 539983657, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: -223874061, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 362240601, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: -1672695683, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 614828874, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 642412482, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 1749884036, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 727703573, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 1042522224, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: -1282062426, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 565199246, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: -1656518834, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 1353901037, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  - {fileID: 49853031, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
+  _idleDownSprites:
+  - {fileID: -1848336895, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 327344040, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 768257270, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 1858057145, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: -242713128, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: -1852101921, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 882943754, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 2003097982, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 119844186, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 349407912, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: -188024415, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 1932579823, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 1881488497, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: -634569019, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: -1530377565, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  - {fileID: 2067603412, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
+  _walkUpSprites: []
+  _walkDownSprites: []
+  _cardPortrait: {fileID: 0}
+  _type1: 2
+  _type2: 0
+  _evolutions: []
+  _learnableMoves:
+  - _moveSO: {fileID: 11400000, guid: df26f8fdc623a8c4a8fa00b7161745de, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+    _levelLearned: 8
+  - _moveSO: {fileID: 11400000, guid: 515914ffed551a049b0d54446055012a, type: 2}
+    _levelLearned: 16
+  _teachableMoves: []

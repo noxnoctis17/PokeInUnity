@@ -29,50 +29,75 @@ public class ConditionsDB
     private static void SetDictionary(){
         Conditions = new Dictionary<ConditionID, Condition>()
         {
+//========================================================================================================================================
+//========================================================[ SEVERE STATUS ]===============================================================
+//========================================================================================================================================
             {   //--POISON
                 ConditionID.PSN, new Condition()
                 {
-                    ConditionName = "Poison",
-                    AfflictionDialogue = "was poisoned!",
-                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.PSN],
+                    Name = "Poison",
+                    StartMessage = "was poisoned!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.PSN].icon,
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.DecreaseHP( pokemon.MaxHP / 8 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by poison!" );
-                    }}},
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by poison!" );
+                    }}
+            },
                     
             {   //--TOXIC
                 ConditionID.TOX, new Condition()
                 {
-                    ConditionName = "Toxic",
-                    AfflictionDialogue = "was severely poisoned!",
-                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.TOX],
+                    Name = "Toxic",
+                    StartMessage = "was severely poisoned!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.TOX].icon,
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.DecreaseHP( pokemon.MaxHP / 8 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its horrible poisoning!" );
-                    }}},
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by its horrible poisoning!" );
+                    }}
+            },
 
             {   //--BURN
                 ConditionID.BRN, new Condition()
                 {
-                    ConditionName = "Burn",
-                    AfflictionDialogue = "was burned!",
-                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.BRN],
+                    Name = "Burn",
+                    StartMessage = "was burned!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.BRN].icon,
+
+                    //--Immediate necessary changes that don't return a bool
+                    OnApplyStatus = ( Pokemon pokemon ) =>
+                    {
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s Attack Stat is: {pokemon.Attack}" );
+                        pokemon.ApplyDirectStatChange( Stat.Attack, 0.5f );
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s Attack Stat is: {pokemon.Attack}" );
+                    },
+
+                    //--Effects that run after a turn is completed.
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         // Debug.Log( pokemon.CurrentHP );
                         pokemon.DecreaseHP( pokemon.MaxHP / 16 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its burn!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by its burn!" );
                         // Debug.Log( pokemon.CurrentHP );
-                    }}},
+                    }}
+            },
 
             {   //-PARAYLSIS
                 ConditionID.PAR, new Condition()
                 {
-                    ConditionName = "Paralysis",
-                    AfflictionDialogue = "has been paralyzed!",
-                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.PAR],
+                    Name = "Paralysis",
+                    StartMessage = "has been paralyzed!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.PAR].icon,
+
+                    //--Immediate necessary changes that don't return a bool
+                    OnApplyStatus = ( Pokemon pokemon ) =>
+                    {
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s Speed Stat is: {pokemon.Speed}" );
+                        pokemon.ApplyDirectStatChange( Stat.Speed, 0.25f );
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s Speed Stat is: {pokemon.Speed}" );
+                    },
+
                     OnBeforeTurn = ( Pokemon pokemon ) =>
                     {
                         if( Random.Range( 1, 5 ) == 1 )
@@ -87,15 +112,16 @@ public class ConditionsDB
                         }
 
                         return true;
-                    }}},
+                    }}
+            },
 
             {   //--SLEEP
                 ConditionID.SLP, new Condition()
                 {
-                    ConditionName = "Sleep",
-                    AfflictionDialogue = "has fallen asleep!",
-                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.SLP],
-                    OnRoundStart = ( Pokemon pokemon ) =>
+                    Name = "Sleep",
+                    StartMessage = "has fallen asleep!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.SLP].icon,
+                    OnStart = ( Pokemon pokemon ) =>
                     {
                         //--Sleep is for 1-3 turns? i'm gunna make it a guaranteed 2 turns only
                         pokemon.SevereStatusTime = 2;
@@ -106,45 +132,61 @@ public class ConditionsDB
                         if( pokemon.SevereStatusTime == 0 )
                         {
                             pokemon.CureSevereStatus();
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} woke up!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} woke up!" );
                             return true;
                         }
 
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is fast asleep!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is fast asleep!" );
                         pokemon.SevereStatusTime--;
                         return false;
-                    }}},
+                    }}
+            },
 
             {   //--FROSTBITE
                 ConditionID.FBT, new Condition()
                 {
-                    ConditionName = "Frostbite",
-                    AfflictionDialogue = "has become frostbitten!",
-                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.FBT],
+                    Name = "Frostbite",
+                    StartMessage = "has become frostbitten!",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.FBT].icon,
+
+                    //--Immediate necessary changes that don't return a bool
+                    OnApplyStatus = ( Pokemon pokemon ) =>
+                    {
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s Sp.Atk Stat is: {pokemon.SpAttack}" );
+                        pokemon.ApplyDirectStatChange( Stat.SpAttack, 0.5f );
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s Sp.Atk Stat is: {pokemon.SpAttack}" );
+                    },
+
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.DecreaseHP( pokemon.MaxHP / 16 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is hurt by its frostbite!" );
-                    }}},
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by its frostbite!" );
+                    }}
+            },
 
             {   //--FAINT
                 ConditionID.FNT, new Condition()
                 {
-                    ConditionName = "Faint",
-                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.FNT],
+                    Name = "Faint",
+                    StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.FNT].icon,
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.CurrentHP = 0;
                     }
-                }},
+                }
+            },
+
+//========================================================================================================================================
+//=======================================================[ VOLATILE STATUS ]==============================================================
+//========================================================================================================================================
 
             {   //--CONFUSION
                 ConditionID.CONFUSION, new Condition()
                 {
-                    ConditionName = "Confusion",
-                    AfflictionDialogue = "became confused!",
+                    Name = "Confusion",
+                    StartMessage = "became confused!",
                     // StatusIcon = StatusIconAtlas.StatusIcons[ConditionID.CNF],
-                    OnRoundStart = ( Pokemon pokemon ) =>
+                    OnStart = ( Pokemon pokemon ) =>
                     {
                         //--Confuse for 2-5 turns
                         pokemon.VolatileStatusTime = Random.Range( 2, 6 );
@@ -155,7 +197,7 @@ public class ConditionsDB
                         if( pokemon.VolatileStatusTime == 0 )
                         {
                             pokemon.CureVolatileStatus();
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} snapped out of confusion!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} snapped out of confusion!" );
                             return true;
                         }
 
@@ -164,19 +206,150 @@ public class ConditionsDB
                         //--33% Chance to Hurt Itself
                         if( Random.Range( 1,4 ) == 1 )
                         {
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} is confused!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is confused!" );
                             pokemon.DecreaseHP( pokemon.MaxHP / 16 );
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.pName} hurt itself in confusion!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} hurt itself in confusion!" );
                             return false;
                         }
 
                         //--Perform Move
                         return true;
-                    }}},
+                    }}
+            },
+
+//========================================================================================================================================
+//===========================================================[ WEATHER ]==================================================================
+//========================================================================================================================================
+
+            {   //--Harsh Sunlight
+                ConditionID.SUNNY, new Condition()
+                {
+                    Name = "Harsh Sunlight",
+                    StartMessage = "The sunlight turned harsh!",
+                    EffectMessage = "The sunlight is strong.",
+                    EndMessage = "The harsh sunlight faded.",
+
+                    OnDamageModify = ( Pokemon source, Pokemon target, Move move ) =>
+                    {
+                        if( move.MoveSO.Type == PokemonType.Fire )
+                            return 1.5f;
+                        else if( move.MoveSO.Type == PokemonType.Water )
+                            return 0.5f;
+
+                        return 1f;
+                    },
+                }
+
+            },
+
+            {   //--RAIN
+                ConditionID.RAIN, new Condition()
+                {
+                    Name = "Heavy Rain",
+                    StartMessage = "It started raining!",
+                    EffectMessage = "The rain continues to fall.",
+                    EndMessage = "The rain stopped.",
+
+                    OnDamageModify = ( Pokemon source, Pokemon target, Move move ) =>
+                    {
+                        if( move.MoveSO.Type == PokemonType.Water )
+                            return 1.5f;
+                        else if( move.MoveSO.Type == PokemonType.Fire )
+                            return 0.5f;
+
+                        return 1f;
+                    },
+                }
+
+            },
+
+            {   //--SANDSTORM
+                ConditionID.SANDSTORM, new Condition()
+                {
+                    Name = "Sandstorm",
+                    StartMessage = "A sandstorm kicked up!",
+                    EffectMessage = "The sandstorm rages!",
+                    EndMessage = "The sandstorm subsided.",
+
+                    //--This should only be called when a pokemon enters the field and a
+                    //--Weather Condition is currently active. Really only for Sandstorm and Snow, but who knows
+                    OnEnterWeather = ( Pokemon pokemon ) =>
+                    {
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        if( pokemon.CheckTypes( PokemonType.Rock ) )
+                            pokemon.ApplyDirectStatChange( Stat.SpDefense, 1.5f );
+
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        
+                    },
+
+                    OnWeather = ( Pokemon pokemon ) =>
+                    {
+                        //--If the Pokemon is Rock, Ground, or Steel type we simply return. Else, the Pokemon takes sandstorm damage
+                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) )
+                            return;
+                        else{
+                            var damage = Mathf.RoundToInt( pokemon.MaxHP / 16f );
+                            pokemon.DecreaseHP( damage );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is buffeted by the sandstorm!" );
+                        }
+                    },
+
+                    OnExitWeather = ( Pokemon pokemon ) =>
+                    {
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        //--check snow, but because we add a 1.5f modifier, we have to remove the same value from the list of modifiers for this stat
+                        if( pokemon.CheckTypes( PokemonType.Rock ) )
+                            pokemon.RemoveDirectStatChange( Stat.SpDefense, 1.5f );
+                            
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                    }
+                }
+
+            },
+
+            {   //--SNOW
+                ConditionID.SNOW, new Condition()
+                {
+                    Name = "Snowscape",
+                    StartMessage = "It started snowing!",
+                    EffectMessage = "The snow continues to fall.",
+                    EndMessage = "The snowfall stopped.",
+
+                    //--This should only be called when a pokemon enters the field and a
+                    //--Weather Condition is currently active. Really only for Sandstorm and Snow, but who knows
+                    OnEnterWeather = ( Pokemon pokemon ) =>
+                    {
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                        //--Ice type pokemon gain a 50% defense boost in snow
+                        if( pokemon.CheckTypes( PokemonType.Ice ) )
+                            pokemon.ApplyDirectStatChange( Stat.Defense, 1.5f );
+
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                        
+                    },
+
+                    //--Called when a pokemon leaves the field during a weather condition
+                    OnExitWeather = ( Pokemon pokemon ) =>
+                    {
+                        //--Ice type pokemon gain a 50% defense boost in snow
+                        //--When we remove direct stat changes, we actually need to remove the value that was
+                        //--added to the list of modifiers for that stat, because those modifiers are
+                        //--multipled together to get the total modifier that gets multiplied to the stat (before stat stages)
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                        if( pokemon.CheckTypes( PokemonType.Ice ) )
+                            pokemon.RemoveDirectStatChange( Stat.Defense, 1.5f );
+
+                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                    }
+                }
+
+            }
 
         };
     }
 
+    //--Status bonus that gets added when trying to catch a pokemon. buffed sleep from 2 to 2.5, buffed para from 1.5 to 2
     public static float GetStatusBonus( Condition condition ){
         if( condition == null )
             return 1f;
@@ -184,11 +357,12 @@ public class ConditionsDB
             return 2.5f;
         else if( condition.ID == ConditionID.PAR )
             return 2f;
-        else if( condition.ID == ConditionID.FBT || condition.ID == ConditionID.BRN || condition.ID == ConditionID.PSN )
+        else if( condition.ID == ConditionID.FBT || condition.ID == ConditionID.BRN || condition.ID == ConditionID.PSN || condition.ID == ConditionID.TOX )
             return 1.5f;
 
         return 1;
     }
+
 }
 
 public enum ConditionID
@@ -209,4 +383,11 @@ public enum ConditionID
 
     //--Volatile Statuses. Give them their own icon. maybe with a counter on it to show amount of turns left afflicted?
     CONFUSION, //--Lasts for a preset 2-5 turns. 33% chance to inflict self damage for a set 1/16th max hp
+
+    //--Weather
+    SUNNY,
+    RAIN,
+    SANDSTORM,
+    SNOW,
+    SHADOWSKY,
 }

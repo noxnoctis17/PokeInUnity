@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Meouchie
+  m_EditorClassIdentifier: 
+  _species: 8
+  _name: Meouchie
+  _wildType: 3
+  _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _description: 
+  _maxHP: 50
+  _attack: 65
+  _defense: 35
+  _spAttack: 40
+  _spDefense: 30
+  _speed: 65
+  _catchRate: 255
+  _expYield: 62
+  _growthRate: 0
+  _effortPointsYield: 1
+  _idleUpSprites:
+  - {fileID: 1120229855, guid: de38c64e068f3034bb3d79d2324be734, type: 3}
+  _idleDownSprites:
+  - {fileID: -728477192, guid: 138c4be0c856e9244b830bfe46882e7e, type: 3}
+  _walkUpSprites:
+  - {fileID: 1120229855, guid: de38c64e068f3034bb3d79d2324be734, type: 3}
+  _walkDownSprites:
+  - {fileID: -728477192, guid: 138c4be0c856e9244b830bfe46882e7e, type: 3}
+  _cardPortrait: {fileID: 0}
+  _type1: 2
+  _type2: 0
+  _evolutions:
+  - _evolution: {fileID: 11400000, guid: 6403833eb92c02743b1f0a1dd59bd54e, type: 2}
+    _evolutionLevel: 16
+  _learnableMoves:
+  - _moveSO: {fileID: 11400000, guid: 5d553f5d14160a84abfc235ff20f078f, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
+    _levelLearned: 3
+  - _moveSO: {fileID: 11400000, guid: 447507f70d65b32489bced1ea8e59884, type: 2}
+    _levelLearned: 6
+  - _moveSO: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+    _levelLearned: 9
+  - _moveSO: {fileID: 11400000, guid: c2b24e02eb1d207418bdfa5afb1a057e, type: 2}
+    _levelLearned: 12
+  - _moveSO: {fileID: 11400000, guid: 96507582872733441811a436aa883f27, type: 2}
+    _levelLearned: 15
+  _teachableMoves: []

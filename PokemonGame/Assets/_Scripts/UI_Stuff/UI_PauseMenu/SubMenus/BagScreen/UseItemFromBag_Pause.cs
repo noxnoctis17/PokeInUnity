@@ -29,6 +29,9 @@ public class UseItemFromBag_Pause : State<UI_PauseMenuStateMachine>
         _pkmnButtons = new PokemonButton[]{};
         _pkmnButtons = _bagDisplay.PartyDisplay.PKMNButtons;
 
+        if( _bagDisplay.ItemSelected.ItemSO.ItemCategory == ItemCategory.TM )
+            _bagDisplay.PartyDisplay.OnTMSelected?.Invoke( _bagDisplay.ItemSelected, true );
+
         //--Select Initial Button;
         _initialButton = _pkmnButtons[0].ThisButton;
         _bagDisplay.PartyDisplay.SetPartyButtons_Interactable( true );
@@ -53,6 +56,9 @@ public class UseItemFromBag_Pause : State<UI_PauseMenuStateMachine>
         _bagDisplay.PartyDisplay.OnSubmittedButton -= SetMemoryButton;
         GameStateController.Instance.OnDialogueStateEntered -= PauseState;
         GameStateController.Instance.OnDialogueStateExited -= ReturnToState;
+
+        if( _bagDisplay.ItemSelected != null && _bagDisplay.ItemSelected.ItemSO.ItemCategory == ItemCategory.TM )
+            _bagDisplay.PartyDisplay.OnTMSelected?.Invoke( _bagDisplay.ItemSelected, false );
 
         _bagDisplay.PartyDisplay.SetPartyButtons_Interactable( false );
     }

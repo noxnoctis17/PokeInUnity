@@ -2,17 +2,22 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
+using System.ComponentModel;
 
 public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHandler, ISubmitHandler, ICancelHandler
 {
     [SerializeField] private TextMeshProUGUI _itemName;
     [SerializeField] private TextMeshProUGUI _itemCountText;
     [SerializeField] private Image _itemIcon;
+    [SerializeField] private bool _isExitButton;
+    private bool _exitButtonInitialized;
     private BagScreenContext _bagScreenContext;
     private BagScreen_Battle _bagScreenBattle;
     private BagScreen_Pause _bagScreenPause;
     private RectTransform _rectTransform;
     public RectTransform RectTransform => _rectTransform;
+    public bool IsExitButton => _isExitButton;
+    public bool ExitButtonInitialized => _exitButtonInitialized;
     public Item Item { get; private set; }
     public float RectHeight { get; private set; }
     public Button ThisButton { get; private set; }
@@ -26,6 +31,9 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
         _rectTransform = GetComponent<RectTransform>();
         RectHeight = _rectTransform.rect.height;
         ThisButton = GetComponent<Button>();
+
+        if( _isExitButton )
+            _exitButtonInitialized = true;
 
         if( Item != null )
             UpdateInfo();
@@ -45,6 +53,9 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
     }
 
     public void UpdateInfo(){
+        if( _isExitButton )
+            return;
+
         //--Set Button Text
         _itemName.text      = Item.ItemSO.ItemName;
         _itemCountText.text = $"{Item.ItemCount}";
@@ -52,8 +63,8 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
     }
 
     public void OnSubmit( BaseEventData eventData ){
-        if( Item == null ){
-            Debug.Log( "You have no items!" );
+        if( _isExitButton ){
+            ExecuteEvents.Execute( gameObject, eventData, ExecuteEvents.cancelHandler );
             return;
         }
         //--just a reminder, if you want to get the actual class of the items
@@ -71,32 +82,41 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
                     if( Item.ItemSO.CheckIfUsable( null ) )
                         _bagScreenBattle.UsePokeball( Item );
                 }
-                else{
-                    if( Item.ItemSO.ItemCategory == ItemCategory.TM )
-                        _bagScreenPause.UseTM( Item );
-                    else
-                        _bagScreenBattle.UseItem( Item );
-                }
+                else
+                    _bagScreenBattle.UseItem( Item );
             break;
 
+            //--In the case of TMs, we want to set distinct visual data on the pokemon buttons
+            //--when we push the useitemfrombag state to allow the user to select a pokemon
+            //--from the party field. so we use TMs with a different function call
             case BagScreenContext.Pause:
-                _bagScreenPause.UseItem( Item );
+                if( Item.ItemSO.ItemCategory == ItemCategory.TM )
+                        _bagScreenPause.UseTM( Item );
+                else
+                    _bagScreenPause.UseItem( Item );
             break;
         }
     }
 
     public void OnSelect( BaseEventData eventData ){
-        if( Item == null )
-            return;
-
         switch( _bagScreenContext )
         {
             case BagScreenContext.Battle:
+                if( _isExitButton ){
+                    _bagScreenBattle.BagDisplay.SetSelectedItemInfoField( "Exit", "Exit Bag Menu." ); 
+                    _bagScreenBattle.BagDisplay.OnButtonSelected?.Invoke( this );
+                    break;
+                }
                 _bagScreenBattle.BagDisplay.SetSelectedItemInfoField( Item.ItemSO.ItemName, Item.ItemSO.ItemDescription ); 
                 _bagScreenBattle.BagDisplay.OnButtonSelected?.Invoke( this );
             break;
 
             case BagScreenContext.Pause:
+                if( _isExitButton ){
+                    _bagScreenPause.BagDisplay.SetSelectedItemInfoField( "Exit", "Exit Bag Menu." ); 
+                    _bagScreenPause.BagDisplay.OnButtonSelected?.Invoke( this );
+                    break;
+                }
                 _bagScreenPause.BagDisplay.SetSelectedItemInfoField( Item.ItemSO.ItemName, Item.ItemSO.ItemDescription ); 
                 _bagScreenPause.BagDisplay.OnButtonSelected?.Invoke( this );
             break;
@@ -118,6 +138,5 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
                 _bagScreenPause.PauseMenuStateMachine.PopState();
             break;
         }
-        
     }
 }

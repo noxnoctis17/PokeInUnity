@@ -49,7 +49,7 @@ public class HPItemSO : ItemSO
 
     public override string UseText( Pokemon pokemon ){
         int healedBy = pokemon.CurrentHP - _previousHP;
-        return $"You used a {ItemName}! {pokemon.PokeSO.pName} recovered {healedBy} HP!";
+        return $"You used a {ItemName}! {pokemon.PokeSO.Name} recovered {healedBy} HP!";
     }
 
 }

@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Meomber
+  m_EditorClassIdentifier: 
+  _species: 9
+  _name: Meomber
+  _wildType: 1
+  _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _description: 
+  _maxHP: 60
+  _attack: 95
+  _defense: 55
+  _spAttack: 50
+  _spDefense: 50
+  _speed: 95
+  _catchRate: 255
+  _expYield: 142
+  _growthRate: 0
+  _effortPointsYield: 0
+  _idleUpSprites:
+  - {fileID: -832952027, guid: 848cabebf77906344a741bbd35d34e2a, type: 3}
+  _idleDownSprites:
+  - {fileID: 1079222723, guid: 53b592a13b8db9b4b9f9e72ea61e0c9d, type: 3}
+  _walkUpSprites:
+  - {fileID: -832952027, guid: 848cabebf77906344a741bbd35d34e2a, type: 3}
+  _walkDownSprites:
+  - {fileID: 1079222723, guid: 53b592a13b8db9b4b9f9e72ea61e0c9d, type: 3}
+  _cardPortrait: {fileID: 1079222723, guid: 53b592a13b8db9b4b9f9e72ea61e0c9d, type: 3}
+  _type1: 2
+  _type2: 17
+  _evolutions:
+  - _evolution: {fileID: 11400000, guid: 5b7746c85c300df4cb44d1db90eb5d8d, type: 2}
+    _evolutionLevel: 36
+  _learnableMoves:
+  - _moveSO: {fileID: 11400000, guid: 5d553f5d14160a84abfc235ff20f078f, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
+    _levelLearned: 3
+  - _moveSO: {fileID: 11400000, guid: 447507f70d65b32489bced1ea8e59884, type: 2}
+    _levelLearned: 6
+  - _moveSO: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+    _levelLearned: 9
+  - _moveSO: {fileID: 11400000, guid: c2b24e02eb1d207418bdfa5afb1a057e, type: 2}
+    _levelLearned: 12
+  - _moveSO: {fileID: 11400000, guid: 96507582872733441811a436aa883f27, type: 2}
+    _levelLearned: 15
+  _teachableMoves: []

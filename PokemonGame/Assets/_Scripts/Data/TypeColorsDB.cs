@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class TypeColorsDB
 {
-    public static Dictionary<PokemonType, TypeCardColors> TypeColors { get; set; }
+    public static Dictionary<PokemonType, ( Color PrimaryColor, Color SecondaryColor )> TypeColors { get; set; }
 
     public static void Init(){
         SetDictionary();
@@ -25,7 +25,7 @@ public class TypeColorsDB
              //--Electric
 
              //--Grass
-             { PokemonType.Grass, new TypeCardColors( new Color32( 135, 185, 80, 255 ), new Color32( 233, 232, 101, 255 ) ) },
+             { PokemonType.Grass, ( new Color32( 135, 185, 80, 255 ), new Color32( 233, 232, 101, 255 ) ) },
 
              //--Ice
 
@@ -52,7 +52,7 @@ public class TypeColorsDB
              //--Steel
 
              //--Fairy
-             { PokemonType.Fairy, new TypeCardColors( new Color32( 252, 131, 216, 255 ), new Color32( 221, 155, 178, 255 ) ) }
+             { PokemonType.Fairy, ( new Color32( 252, 131, 216, 255 ), new Color32( 221, 155, 178, 255 ) ) }
          };
     }
 }

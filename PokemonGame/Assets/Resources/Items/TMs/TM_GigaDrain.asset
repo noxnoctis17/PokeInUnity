@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 001256d3b3e01484baae6784e83d414d, type: 3}
+  m_Name: TM_GigaDrain
+  m_EditorClassIdentifier: 
+  _itemCategory: 2
+  _itemName: 'TM: Giga Drain'
+  _itemDescription: Teaches the move Giga Drain to a Pokemon
+  _icon: {fileID: 21300000, guid: dafabc9e47bc4144aaa79c5288685549, type: 3}
+  _moveSO: {fileID: 11400000, guid: 462480866f3cbd3419a9f2b0cc76eca8, type: 2}

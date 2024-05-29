@@ -2,9 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
-using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 public class PokemonAnimator : MonoBehaviour
 {
@@ -14,6 +12,7 @@ public class PokemonAnimator : MonoBehaviour
     public SpriteAnimator Animator => _spriteAnimator;
     private Transform _camera;
     [SerializeField] private Transform _pokemonTransform; //--Main Parent Transform
+    private Vector3 _defaultScale;
     private BattleSystem _battleSystem;
     public BattleSystem BattleSys => _battleSystem;
 
@@ -86,6 +85,7 @@ public class PokemonAnimator : MonoBehaviour
         _spriteRenderer = GetComponent<SpriteRenderer>();
         _spriteAnimator = new SpriteAnimator( _spriteRenderer, 0.08f );
         _camera = PlayerReferences.MainCameraTransform;
+        _defaultScale = transform.localScale;
     }
 
     private void OnDisable(){
@@ -237,6 +237,34 @@ public class PokemonAnimator : MonoBehaviour
     //==================================[ ANIMATIONS ]==============================================
     //==============================================================================================
 
+    public void SetStatusColor( Color color ){
+        _spriteRenderer.color = color;
+    }
+
+    public IEnumerator PlayBeginEvolutionAnimation(){
+        float timePassed = 0f;
+        float duration = 2f;
+        
+        while( timePassed < duration ){
+            float t = timePassed / duration;
+            _spriteRenderer.color = Color.Lerp( Color.white, Color.black, t );
+        }
+
+        yield return transform.DOScale( Vector3.zero, 1f );
+    }
+
+    public IEnumerator PlayFinishedEvolutionAnimation(){
+        float timePassed = 0f;
+        float duration = 2f;
+        
+        while( timePassed < duration ){
+            float t = timePassed / duration;
+            _spriteRenderer.color = Color.Lerp( Color.black, Color.white, t );
+        }
+
+        yield return transform.DOScale( _defaultScale, 1f );
+    }
+
     public IEnumerator PlayCaptureAnimation( Transform ballTransform ){
         var sequence = DOTween.Sequence();
         sequence.Append( _spriteRenderer.DOFade( 0, 0.5f ) );
@@ -323,6 +351,7 @@ public class PokemonAnimator : MonoBehaviour
 
     public void ResetAnimations(){
         transform.localPosition = Vector3.zero;
+        _spriteRenderer.color = Color.white;
         _spriteRenderer.DOFade( 1, 0f );
         transform.DOScale( Vector3.one, 0f );
     }

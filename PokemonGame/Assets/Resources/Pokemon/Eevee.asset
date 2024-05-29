@@ -1,0 +1,102 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Eevee
+  m_EditorClassIdentifier: 
+  _species: 4
+  _name: Eevee
+  _wildType: 1
+  _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _description: 
+  _maxHP: 55
+  _attack: 55
+  _defense: 50
+  _spAttack: 45
+  _spDefense: 65
+  _speed: 55
+  _catchRate: 45
+  _expYield: 650
+  _growthRate: 0
+  _effortPointsYield: 1
+  _idleUpSprites:
+  - {fileID: 1706753175, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -1948991715, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -86031607, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -1222269976, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -120659859, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1265845128, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -1647289724, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -1163222064, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1946696701, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 977338429, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 563766462, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1820710712, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 334514186, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -70319090, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 997117384, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1890054919, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -1564652027, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -1471434611, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 529899575, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -1042508839, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1432212915, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1236830558, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 145793881, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 253743487, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1429544386, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1163529271, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -167528816, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 1550461964, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 2137954733, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: -580737739, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  - {fileID: 283082913, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
+  _idleDownSprites:
+  - {fileID: 794628100, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -16152051, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 265090963, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -37824317, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 544923835, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -775569825, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -760060057, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -774592986, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -1552924293, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 1084168258, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -1482867971, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 217237959, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 386910731, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 601833133, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -1472557583, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -1109650061, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -32229366, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -683880416, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -1018279367, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -619110333, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -1257442759, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -390577907, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 54199858, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: 613468722, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -1054943925, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  - {fileID: -62299033, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  _walkUpSprites: []
+  _walkDownSprites: []
+  _cardPortrait: {fileID: 0}
+  _type1: 1
+  _type2: 0
+  _evolutions: []
+  _learnableMoves:
+  - _moveSO: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: 1ffcbaa41b1b27142a554f7f8dc62e64, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+    _levelLearned: 10
+  _teachableMoves: []

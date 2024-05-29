@@ -14,10 +14,10 @@ public class GiveDamage : MonoBehaviour, IInteractable
 
         foreach( var move in thirdMon.ActiveMoves ){
             move.PP -= 10;
-            Debug.Log( $"{thirdMon.PokeSO.pName}'s {move.MoveSO.MoveName} had its PP reduced to {move.PP}" );
+            Debug.Log( $"{thirdMon.PokeSO.Name}'s {move.MoveSO.Name} had its PP reduced to {move.PP}" );
         }
 
-        Debug.Log( $"{firstMon.PokeSO.pName}'s hp reduced to: {firstMon.CurrentHP}! Its status condition is: {firstMon.SevereStatus.ID}" );
-        Debug.Log( $"{secondMon.PokeSO.pName}'s hp reduced to: {secondMon.CurrentHP}! Its status condition is: {secondMon.SevereStatus?.ID}" );
+        Debug.Log( $"{firstMon.PokeSO.Name}'s hp reduced to: {firstMon.CurrentHP}! Its status condition is: {firstMon.SevereStatus.ID}" );
+        Debug.Log( $"{secondMon.PokeSO.Name}'s hp reduced to: {secondMon.CurrentHP}! Its status condition is: {secondMon.SevereStatus?.ID}" );
     }
 }

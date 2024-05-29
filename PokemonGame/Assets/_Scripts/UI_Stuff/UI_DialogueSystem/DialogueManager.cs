@@ -18,14 +18,14 @@ public class DialogueManager : MonoBehaviour
     private void OnEnable( ){
         Instance = this;
         OnDialogueEvent             += PlayDialogue;
-        OnStringDialogueEvent       += PlayDialogue;
+        // OnStringDialogueEvent       += PlayDialogue;
         OnResponseChosen            += ContinueDialogue;
         OnHasResponseEvents         += AddResponseEvents;
     }
 
     private void OnDisable( ){
         OnDialogueEvent             -= PlayDialogue;
-        OnStringDialogueEvent       -= PlayDialogue;
+        // OnStringDialogueEvent       -= PlayDialogue;
         OnResponseChosen            -= ContinueDialogue;
         OnHasResponseEvents         -= AddResponseEvents;
     }
@@ -41,7 +41,7 @@ public class DialogueManager : MonoBehaviour
         _dialogueUI.StartDialogue( dialogueSO );
     }
 
-    public void PlayDialogue( string dialogue ){
+    public void PlaySystemMessage( string dialogue ){
         Debug.Log( "PlayDialogue()" );
 
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){

@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICancelHandler, ISubmitHandler
 {
-    [SerializeField] private GameObject _selectedOutline;
     [SerializeField] private PokemonButton_Battle _battleContext;
     [SerializeField] private PokemonButton_PauseScreen _pauseContext;
     [SerializeField] private PokemonButton_UseItemFromPause _useItemPauseContext;
@@ -46,12 +45,10 @@ public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, IC
     }
 
     public void OnSelect( BaseEventData eventData ){
-        _selectedOutline.SetActive( true );
         _buttonContext.ContextSelected();
     }
 
     public void OnDeselect( BaseEventData eventData ){
-        _selectedOutline.SetActive( false );
         _buttonContext.ContextDeSelected();
     }
 

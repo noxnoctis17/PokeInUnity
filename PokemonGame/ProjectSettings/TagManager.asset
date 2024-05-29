@@ -56,3 +56,6 @@ TagManager:
   - name: DamagePopupText
     uniqueID: 3405590665
     locked: 0
+  - name: WorldSpace_UI
+    uniqueID: 59394171
+    locked: 0

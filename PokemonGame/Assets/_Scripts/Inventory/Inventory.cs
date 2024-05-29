@@ -1,13 +1,59 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.UI;
+using System.Linq;
+using TMPro;
 using UnityEngine;
 
-public class Inventory : MonoBehaviour
+public class Inventory : MonoBehaviour, ISavable
 {
+    [SerializeField] private GameObject _itemGetContainer;
+    [SerializeField] private Image _itemIcon;
+    [SerializeField] private TextMeshProUGUI _itemGetText;
     [SerializeField] private List<Item> _itemList; //--?? instead of inventory?
     public List<Item> ItemList => _itemList;
     public event Action OnInventoryUpdated;
     public event Action<Item> OnItemRemoved;
+    public Action<ItemSO, int> OnItemGet;
+
+    private void Start(){
+        OnItemGet += StartItemGet;
+    }
+
+    private void OnDisable(){
+        OnItemGet -= StartItemGet;
+    }
+
+    //--Add Item
+    public void AddItem( ItemSO item, int count = 1 ){
+        var itemSlot = _itemList.FirstOrDefault( slot => slot.ItemSO == item );
+
+        if( itemSlot != null ){
+            itemSlot.IncreaseItemCount( count );
+        }
+        else{
+            var newItem = new Item( item, count );
+            _itemList.Add( newItem );
+        }
+
+        OnInventoryUpdated?.Invoke();
+    }
+
+    private void StartItemGet( ItemSO item, int count = 1 ){
+        StartCoroutine( ShowItemGet( item, count ) );
+    }
+
+    private IEnumerator ShowItemGet( ItemSO item, int count = 1 ){
+        _itemGetText.text = $"Found X {count} {item.ItemName}!";
+        _itemIcon.sprite = item.Icon;
+
+        yield return new WaitForEndOfFrame();
+        _itemGetContainer.SetActive( true );
+
+        yield return new WaitForSeconds( 2.5f );
+        _itemGetContainer.SetActive( false );
+    }
 
     //--Use Item
     public ItemSO UseItem( Item item, Pokemon pokemon ){
@@ -55,6 +101,23 @@ public class Inventory : MonoBehaviour
         OnInventoryUpdated?.Invoke();
     }
 
+    public object CaptureState(){
+        var saveData = new InventorySaveData()
+        {
+            Inventory = _itemList.Select( i => i.CreateSaveData() ).ToList(),
+        };
+
+        return saveData;
+    }
+
+    public void RestoreState( object state ){
+        var saveData = (InventorySaveData)state;
+
+        _itemList = saveData.Inventory.Select( item => new Item( item ) ).ToList();
+
+        OnInventoryUpdated?.Invoke();
+    }
+
 }
 
 [Serializable]
@@ -65,6 +128,16 @@ public class Item
 
     public ItemSO ItemSO => _itemSO;
     public int ItemCount => _itemCount;
+
+    public Item( ItemSO item, int count ){
+        _itemSO = item;
+        _itemCount = count;
+    }
+
+    public Item( ItemSaveData saveData ){
+        _itemSO = ItemsDB.GetItemByName( saveData.ItemName );
+        _itemCount = saveData.Count;
+    }
 
     public void IncreaseItemCount(){
         _itemCount++;
@@ -90,4 +163,27 @@ public class Item
         _itemCount -= amount;
     }
 
+    public ItemSaveData CreateSaveData(){
+        var saveData = new ItemSaveData()
+        {
+            ItemName = _itemSO.ItemName,
+            Count = _itemCount,
+        };
+
+        return saveData;
+    }
+
+}
+
+[Serializable]
+public class ItemSaveData
+{
+    public string ItemName;
+    public int Count;
+}
+
+[Serializable]
+public class InventorySaveData
+{
+    public List<ItemSaveData> Inventory;
 }

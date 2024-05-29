@@ -14,7 +14,7 @@ public class PPItemSO : ItemSO
 
         int fullPPmoves = 0;
         foreach( var move in pokemon.ActiveMoves ){
-            Debug.Log( $"{move.MoveSO.MoveName} PP: {move.PP}/{move.MoveSO.PP}" );
+            Debug.Log( $"{move.MoveSO.Name} PP: {move.PP}/{move.MoveSO.PP}" );
             if( move.PP == move.MoveSO.PP ){
                 Debug.Log( $"moves with full PP: {fullPPmoves}" );
                 fullPPmoves++;
@@ -55,7 +55,7 @@ public class PPItemSO : ItemSO
     }
 
     public override string UseText( Pokemon pokemon ){
-        return $"You used a {ItemName}! All of {pokemon.PokeSO.pName}'s moves recovered {_ppHealAmnt} PP!";
+        return $"You used a {ItemName}! All of {pokemon.PokeSO.Name}'s moves recovered {_ppHealAmnt} PP!";
     }
 
 }
