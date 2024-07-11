@@ -88,15 +88,6 @@ public class BagScreen_Pause : State<UI_PauseMenuStateMachine>, IBagScreen, IPar
         PauseMenuStateMachine.StateMachine.Push( _useItemFromBagState );
     }
 
-    public void UseTM( Item item ){
-        //--Code to display whether a pokemon can learn
-        //--or whether it already knows the selected TM
-        //--on the party screen. and by code i probably mean an event
-        //--that raises it for PokemonButton_UseItemFromPause
-
-        UseItem( item );
-    }
-
     private void SetNewPocketInitialButton(){
         PlayerReferences.Instance.PlayerController.EventSystem.SetSelectedGameObject( null );
         LastButton = _bagDisplay.InitialButton;

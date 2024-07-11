@@ -6,12 +6,10 @@ using System;
 [CreateAssetMenu(menuName = "Pokemon/New Pokemon")]
 public class PokemonSO : ScriptableObject
 {
-    [SerializeField] private PokemonSpecies _species;
-    [SerializeField] string _name;
+    [SerializeField] string _species;
     [SerializeField] private WildType _wildType;
     [SerializeField] private Sprite _defaultBall;
-    public PokemonSpecies Species => _species;
-    public string Name => _name;
+    public string Species => _species;
     public WildType WildType => _wildType;
     public Sprite DefaultBall => _defaultBall;
 
@@ -31,8 +29,8 @@ public class PokemonSO : ScriptableObject
     [SerializeField] int _speed;
     [SerializeField] int _catchRate = 255;
     [SerializeField] int _expYield;
-    [SerializeField] GrowthRate _growthRate;
     [SerializeField] int _effortPointsYield;
+    [SerializeField] GrowthRate _growthRate;
 
     //--Properties
     public int MaxHP                => _maxHP;
@@ -43,8 +41,8 @@ public class PokemonSO : ScriptableObject
     public int Speed                => _speed;
     public int CatchRate            => _catchRate;
     public int ExpYield             => _expYield;
-    public GrowthRate GrowthRate    => _growthRate;
     public int EffortYield          => _effortPointsYield;
+    public GrowthRate GrowthRate    => _growthRate;
 
 #endregion
 
@@ -106,14 +104,63 @@ public class PokemonSO : ScriptableObject
     public static int MAX_ACTIVE_MOVES { get; set; } = 4;
 
     public int GetExpForLevel( int level ){
+
+        //--Fast
         if( _growthRate == GrowthRate.Fast ){
             return Mathf.FloorToInt( 4 * Mathf.Pow( level, 3 ) / 5 );
         }
+
+        //--Medium Fast
         else if( _growthRate == GrowthRate.MediumFast ){
             return Mathf.FloorToInt( Mathf.Pow( level, 3 ) );
         }
 
+        //--Medium Slow
+        else if( _growthRate == GrowthRate.MediumSlow ){
+            if( level == 1 )
+                return 0;
+            else
+                return Mathf.FloorToInt( 6 * Mathf.Pow( level, 3 ) / 5 - 15 * ( level * level ) + 100 * level - 140 );
+        }
+
+        //--Slow
+        else if( _growthRate == GrowthRate.Slow ){
+            return Mathf.FloorToInt( 5 * Mathf.Pow( level, 3 ) / 4 );
+        }
+
+        //--Fluctuating
+        else if( _growthRate == GrowthRate.Fluctuating ){
+            return GetFluctuating( level );
+        }
+
+        //--Erratic
+        else if ( _growthRate == GrowthRate.Erratic ){
+            if ( level < 50 )
+                return Mathf.FloorToInt( Mathf.Pow( level, 3f ) * ( 100f - level )  / 50f );
+                
+            else if (level >= 50 && level < 68)
+                return Mathf.FloorToInt( Mathf.Pow( level, 3f ) * ( 150f - level )  / 100f );
+                
+            else if (level >= 68 && level < 98)
+                return Mathf.FloorToInt( Mathf.Pow( level, 3f ) * ( ( 1911f - ( 10f * level ) ) / 3f )  / 500f );
+                
+            else
+                return Mathf.FloorToInt( Mathf.Pow( level, 3f ) * ( 160f - level )  / 100f );
+        }
+
         return -1;
+    }
+
+    public int GetFluctuating( int level ){
+        if ( level < 15 ){
+            return Mathf.FloorToInt( Mathf.Pow( level, 3 ) * ( ( Mathf.Floor( ( level + 1 ) / 3 ) + 24 ) / 50 ) );
+        }
+        else if ( level >= 15 && level < 36 ){
+            return Mathf.FloorToInt( Mathf.Pow( level, 3 ) * ( ( level + 14 ) / 50 ) );
+        }
+        else{
+            return Mathf.FloorToInt( Mathf.Pow( level, 3 ) * ( ( Mathf.Floor( level / 2 ) + 32 ) / 50 ) );
+        }
     }
 
 }
@@ -133,8 +180,10 @@ public class Evolutions
 {
     [SerializeField] private PokemonSO _evolution;
     [SerializeField] private int _evolutionLevel;
+    [SerializeField] private EvolutionItemsSO _evolutionItem;
     public PokemonSO Evolution => _evolution;
     public int EvolutionLevel => _evolutionLevel;
+    public EvolutionItemsSO EvolutionItem => _evolutionItem;
 }
 
 public enum PokemonType
@@ -172,6 +221,7 @@ public enum WildType
 
 public enum Stat
 {
+    HP,
     Attack,
     Defense,
     SpAttack,
@@ -186,6 +236,10 @@ public enum GrowthRate
 {
     Fast,
     MediumFast,
+    MediumSlow,
+    Slow,
+    Fluctuating,
+    Erratic,
 
 }
 
@@ -227,19 +281,4 @@ public class TypeChart
 
         return chart[row][col];
     }
-}
-
-public enum PokemonSpecies
-{
-    Snasee,
-    Rebellinum,
-    Knighinum,
-    Vulpix,
-    Eevee,
-    Wingull,
-    Roserade,
-    Lilligant,
-    Meouchie,
-    Meomber,
-    Meormor,
 }

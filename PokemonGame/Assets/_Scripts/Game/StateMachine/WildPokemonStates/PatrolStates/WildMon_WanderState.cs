@@ -12,7 +12,7 @@ public class WildMon_WanderState : State<WildPokemon>
         // Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
         _pokeSO = _wildPokemon.Pokemon.PokeSO;
-        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Walking );
+        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokeAnimationState.Walking );
         _wander = true;
         
         //--Initialize Wandering by clearing any potentially odd/old destination or path, and then setting one

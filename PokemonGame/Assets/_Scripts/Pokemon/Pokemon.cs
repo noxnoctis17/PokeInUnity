@@ -8,8 +8,10 @@ public class Pokemon
 {
     [SerializeField] private PokemonSO _pokeSO;
     [SerializeField] private int _level;
+    [SerializeField] private string _nickName;
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
+    public string NickName => _nickName;
     public int Exp { get; private set; }
     public bool CanEvolveByLevelUp { get; private set; }
     public bool IsPlayerUnit { get; private set; }
@@ -20,6 +22,7 @@ public class Pokemon
     public List<Move> ActiveMoves { get; set; }
     public List<Move> LearnedMoves { get; set; }
     public Dictionary<Stat, int> Stats { get; private set; }
+    public Dictionary<Stat, int> StatEVs { get; private set; } //--Consider moving EV variables to a dictionary instead!
     public Dictionary<Stat, int> StatBoost { get; private set; }
     public Dictionary<Stat, List<float>> DirectStatChange { get; private set; }
     public Condition SevereStatus { get; private set; }
@@ -37,7 +40,7 @@ public class Pokemon
 //--------------------------------------------------------------------------------------------
 
     //--Stats
-    public int MaxHP { get; private set; }
+    public int MaxHP =>     GetStat( Stat.HP );
     public int Attack =>    GetStat( Stat.Attack );
     public int Defense =>   GetStat( Stat.Defense );
     public int SpAttack =>  GetStat( Stat.SpAttack );
@@ -73,7 +76,9 @@ public class Pokemon
 
     public Pokemon( PokemonSaveData saveData ){
         _pokeSO                 = PokemonDB.GetPokemonBySpecies( saveData.Species );
+        _nickName               = saveData.NickName;
         _level                  = saveData.Level;
+        CanEvolveByLevelUp      = saveData.CanEvolveByLevelUp;
         CurrentHP               = saveData.CurrentHP;
         Exp                     = saveData.Exp;
         GainedEffortPoints      = saveData.GainedEffortPoints;
@@ -110,7 +115,9 @@ public class Pokemon
 //--------------------------------------------------------------------------------------------
     
     public void Init(){
-        // Debug.Log( PokeSO.Name + ": called Init()" );
+        //--Set Name
+        _nickName = PokeSO.Species;
+
         //--------GENERATE MOVES-----------
         ActiveMoves = new List<Move>();
         LearnedMoves = new List<Move>();
@@ -125,33 +132,32 @@ public class Pokemon
                 LearnedMoves.Add( new Move( move.MoveSO ) );
         }
 
-        // Debug.Log( "Exp Before setting in PokemonClass.Init(): " + Exp );
+        //--Exp
         if( Exp == 0 )
             Exp = PokeSO.GetExpForLevel( Level );
-        // Debug.Log( "Exp After setting in PokemonClass.Init(): " + Exp );
 
-
+        //--Stats and Status
         CalculateStats();
-        CurrentHP = MaxHP;
-
         ResetStatChanges();
+        CurrentHP = MaxHP;
         SevereStatus = null;
         VolatileStatus = null;
 
         StatusChanges = new Queue<string>();
 
-        CurrentBallType = PokeBallType.PokeBall;
+        if( CurrentBallType == PokeBallType.None )
+            CurrentBallType = PokeBallType.PokeBall;
         
-
         //--Events
-        BattleSystem.OnBattleEnded += ResetStatChanges;
-        BattleSystem.OnBattleEnded += CureVolatileStatus;
+        BattleSystem.OnBattleEnded += OnBattleEnded;
     }
 
     public PokemonSaveData CreateSaveData(){
         var saveData = new PokemonSaveData(){
             Species = _pokeSO.Species,
+            NickName = _nickName,
             Level = _level,
+            CanEvolveByLevelUp = CanEvolveByLevelUp,
             CurrentHP = CurrentHP,
             Exp = Exp,
             GainedEffortPoints = GainedEffortPoints,
@@ -168,9 +174,6 @@ public class Pokemon
             IsPlayerUnit = IsPlayerUnit,
         };
 
-        // Debug.Log( $"{PokeSO.Name} has {ActiveMoves.Count} moves" );
-        // Debug.Log( $"{PokeSO.Name}'s SaveData has {saveData.ActiveMoves.Count} moves" );
-
         return saveData;
     }
 
@@ -180,6 +183,10 @@ public class Pokemon
 
     public void SetAsEnemyUnit(){
         IsEnemyUnit = true;
+    }
+
+    public void ChangeNickName( string name ){
+        _nickName = name;
     }
 
     public void ChangeCurrentBall( PokeBallType ball ){
@@ -239,13 +246,21 @@ public class Pokemon
 
     public void SetCanEvolveByLevelUp( bool canEvolve ){
         CanEvolveByLevelUp = canEvolve;
+        OnDisplayInfoChanged?.Invoke();
     }
 
-     public Evolutions CheckForEvolution(){
-        return PokeSO.Evolutions.FirstOrDefault( e => e.EvolutionLevel >= _level );
+    public Evolutions CheckForEvolution(){
+        return PokeSO.Evolutions.FirstOrDefault( e => e.EvolutionLevel <= _level && e.EvolutionLevel != 0 );
+    }
+
+    public Evolutions CheckForEvolution( ItemSO evoItem ){
+        return PokeSO.Evolutions.FirstOrDefault( e => e.EvolutionItem == evoItem );
     }
 
     public void Evolve( Evolutions evo ){
+        if( _nickName == _pokeSO.Species )
+            _nickName = evo.Evolution.Species;
+
         int previousMaxHP = MaxHP;
         _pokeSO = evo.Evolution;
         CalculateStats();
@@ -267,13 +282,13 @@ public class Pokemon
             return false;
     }
 
-    public void TryReplaceMove_Battle(  MoveSO newMove, ILearnMoveContext moveMenu, Action<bool> learnMoveComplete, BattleSystem battleSystem ){
+    public void TryReplaceMove(  MoveSO newMove, ILearnMoveContext moveMenu, Action<bool> learnMoveComplete, BattleSystem battleSystem ){
         var moveMenuBattle = (LearnMove_Battle)moveMenu;
         moveMenuBattle.Setup( this, ActiveMoves.Select( x => x.MoveSO ).ToList(), newMove, learnMoveComplete );
         battleSystem.PlayerBattleMenu.OnPushNewState?.Invoke( battleSystem.PlayerBattleMenu.MoveLearnSelectionState );
     }
 
-    public void TryReplaceMove_Pause( MoveSO newMove, ILearnMoveContext moveMenu, Action<bool> learnMoveComplete, BagScreen_Pause bagScreen ){
+    public void TryReplaceMove( MoveSO newMove, ILearnMoveContext moveMenu, Action<bool> learnMoveComplete, BagScreen_Pause bagScreen ){
         var moveMenuPause = (LearnMove_Pause)moveMenu;
         moveMenuPause.Setup( this, ActiveMoves.Select( x => x.MoveSO ).ToList(), newMove, learnMoveComplete );
         bagScreen.PauseMenuStateMachine.PushState( bagScreen.LearnMoveMenu );
@@ -297,21 +312,45 @@ public class Pokemon
     }
 
     private void CalculateStats(){
-        Stats = new Dictionary<Stat, int>();
+        Stats = new()
+        {
+            { Stat.HP,        Mathf.FloorToInt( 2 * PokeSO.MaxHP     * ( MathF.Max( CalcEVs( HP_EVs ),    1f ) * Level ) / 100f + Level ) + 10 },
+            { Stat.Attack,    Mathf.FloorToInt( 2 * PokeSO.Attack    * ( MathF.Max( CalcEVs( ATK_EVs ),   1f ) * Level ) / 100f ) + 5 },
+            { Stat.Defense,   Mathf.FloorToInt( 2 * PokeSO.Defense   * ( MathF.Max( CalcEVs( DEF_EVs ),   1f ) * Level ) / 100f ) + 5 },
+            { Stat.SpAttack,  Mathf.FloorToInt( 2 * PokeSO.SpAttack  * ( MathF.Max( CalcEVs( SPATK_EVs ), 1f ) * Level ) / 100f ) + 5 },
+            { Stat.SpDefense, Mathf.FloorToInt( 2 * PokeSO.SpDefense * ( MathF.Max( CalcEVs( SPDEF_EVs ), 1f ) * Level ) / 100f ) + 5 },
+            { Stat.Speed,     Mathf.FloorToInt( 2 * PokeSO.Speed     * ( MathF.Max( CalcEVs( SPE_EVs ),   1f ) * Level ) / 100f ) + 5 },
+        };
+    }
 
-        Stats.Add( Stat.Attack,    Mathf.FloorToInt((( 2 * PokeSO.Attack    * ( MathF.Max( CalcEVs( ATK_EVs ),   1f ))) * Level ) / 100f ) + 5 );
-        Stats.Add( Stat.Defense,   Mathf.FloorToInt((( 2 * PokeSO.Defense   * ( MathF.Max( CalcEVs( DEF_EVs ),   1f ))) * Level ) / 100f ) + 5 );
-        Stats.Add( Stat.SpAttack,  Mathf.FloorToInt((( 2 * PokeSO.SpAttack  * ( MathF.Max( CalcEVs( SPATK_EVs ), 1f ))) * Level ) / 100f ) + 5 );
-        Stats.Add( Stat.SpDefense, Mathf.FloorToInt((( 2 * PokeSO.SpDefense * ( MathF.Max( CalcEVs( SPDEF_EVs ), 1f ))) * Level ) / 100f ) + 5 );
-        Stats.Add( Stat.Speed,     Mathf.FloorToInt((( 2 * PokeSO.Speed     * ( MathF.Max( CalcEVs( SPE_EVs ),   1f ))) * Level ) / 100f ) + 5 );
-
-        MaxHP = Mathf.FloorToInt( ( 2 * PokeSO.MaxHP * Level ) / 100 ) + Level + 10;
+    //--Not in use yet
+    private void InitializeEVs( Stat stat, int points ){
+        StatEVs = new()
+        {
+            { Stat.HP,          0 },
+            { Stat.Attack,      0 },
+            { Stat.Defense,     0 },
+            { Stat.SpAttack,    0 },
+            { Stat.SpDefense,   0 },
+            { Stat.Speed,       0 },
+        };
     }
 
     private float CalcEVs( int statEVs ){
         int value = statEVs / 4;
 
         return Mathf.FloorToInt( value );
+    }
+
+    private int GetEVs( Stat stat ){
+        return 0;
+    }
+
+    private void GiveEVs( Stat stat, int amount ){
+        if( StatEVs.ContainsKey( stat ) && StatEVs[stat] != 252 )
+            Mathf.Clamp( StatEVs[stat] += amount, 0, 252 );
+        else if( StatEVs[stat] == 252 )
+            DialogueManager.Instance.PlaySystemMessage( $"{_nickName}'s {stat} is maxed out!" );
     }
 
     //--make private, this was for quick testing
@@ -345,17 +384,17 @@ public class Pokemon
             StatBoost[stat] = Mathf.Clamp( StatBoost[stat] + change, -6, 6 );
 
             if( change == 1 )
-                StatusChanges.Enqueue( $"{PokeSO.Name}'s {stat} rose by {change} stage!" );
+                StatusChanges.Enqueue( $"{NickName}'s {stat} rose by {change} stage!" );
             if( change > 1 )
-                StatusChanges.Enqueue( $"{PokeSO.Name}'s {stat} sharply rose by {change} stages!" );
+                StatusChanges.Enqueue( $"{NickName}'s {stat} sharply rose by {change} stages!" );
             if( change == 6 )
-                StatusChanges.Enqueue( $"{PokeSO.Name}'s {stat} maxed out at stage {change}!" );
+                StatusChanges.Enqueue( $"{NickName}'s {stat} maxed out at stage {change}!" );
             if( change == -1 )
-                StatusChanges.Enqueue( $"{PokeSO.Name}'s {stat} decreased by {change} stage!" );
+                StatusChanges.Enqueue( $"{NickName}'s {stat} decreased by {change} stage!" );
             if( change < -1 )
-                StatusChanges.Enqueue( $"{PokeSO.Name}'s {stat} sharply decreased by {change} stages!" );
+                StatusChanges.Enqueue( $"{NickName}'s {stat} sharply decreased by {change} stages!" );
             if( change == -6 )
-                StatusChanges.Enqueue( $"{PokeSO.Name}'s {stat} bottomed out at stage {change}!" );
+                StatusChanges.Enqueue( $"{NickName}'s {stat} bottomed out at stage {change}!" );
         }
     }
 
@@ -381,17 +420,19 @@ public class Pokemon
     private void ResetStatChanges(){
         StatBoost = new Dictionary<Stat, int>()
         {
-            { Stat.Attack,    0 },
-            { Stat.Defense,   0 },
-            { Stat.SpAttack,  0 },
-            { Stat.SpDefense, 0 },
-            { Stat.Speed,     0 },
-            { Stat.Accuracy,  0 },
-            { Stat.Evasion,   0 },
+            { Stat.HP,          0 },
+            { Stat.Attack,      0 },
+            { Stat.Defense,     0 },
+            { Stat.SpAttack,    0 },
+            { Stat.SpDefense,   0 },
+            { Stat.Speed,       0 },
+            { Stat.Accuracy,    0 },
+            { Stat.Evasion,     0 },
         };
 
         DirectStatChange = new Dictionary<Stat, List<float>>
         {
+            { Stat.HP,          new() { 1f } },
             { Stat.Attack,      new() { 1f } },
             { Stat.Defense,     new() { 1f } },
             { Stat.SpAttack,    new() { 1f } },
@@ -403,6 +444,7 @@ public class Pokemon
 
     public void IncreaseHP( int amount ){
         CurrentHP = Mathf.Clamp( CurrentHP + amount, 0, MaxHP );
+        Debug.Log( $"{NickName}'s current hp is now: {CurrentHP}" );
         OnDisplayInfoChanged?.Invoke();
     }
 
@@ -429,10 +471,10 @@ public class Pokemon
         if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
             SevereStatus?.OnApplyStatus?.Invoke( this );
             SevereStatus?.OnStart?.Invoke( this );
-            StatusChanges.Enqueue( $"{_pokeSO.Name} {SevereStatus.StartMessage}" );
+            StatusChanges.Enqueue( $"{_pokeSO.Species} {SevereStatus.StartMessage}" );
         }
 
-        Debug.Log( $"{_pokeSO.Name} {SevereStatus.StartMessage}" );
+        Debug.Log( $"{_pokeSO.Species} {SevereStatus.StartMessage}" );
         OnStatusChanged?.Invoke();
     }
 
@@ -456,7 +498,7 @@ public class Pokemon
 
         VolatileStatus = ConditionsDB.Conditions[conditionID];
         VolatileStatus?.OnStart?.Invoke( this );
-        Debug.Log( $"{_pokeSO.Name} has been afflicted with: {ConditionsDB.Conditions[conditionID].Name}" );
+        Debug.Log( $"{_pokeSO.Species} has been afflicted with: {ConditionsDB.Conditions[conditionID].Name}" );
         // OnStatusChanged?.Invoke(); -------will add some visual effect for volatile statuses eventually
     }
 
@@ -490,6 +532,12 @@ public class Pokemon
         VolatileStatus?.OnAfterTurn?.Invoke( this );
     }
 
+    public void OnBattleEnded(){
+        VolatileStatus = null;
+        ResetStatChanges();
+        CalculateStats();
+    }
+
 }
 
 public class DirectStatChange
@@ -500,6 +548,7 @@ public class DirectStatChange
 
 public class DamageDetails
 {
+    public int DamageDealt { get; set ; }
     public bool Fainted { get; set; }
     public float Critical { get; set; }
     public float TypeEffectiveness { get; set; }
@@ -508,9 +557,10 @@ public class DamageDetails
 [Serializable]
 public class PokemonSaveData
 {
-    public PokemonSpecies Species;
-    public string Nickname;
+    public string Species;
+    public string NickName;
     public int Level;
+    public bool CanEvolveByLevelUp;
     public PokeBallType CurrentBall;
     public int CurrentHP;
     public int Exp;

@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
   m_Name: Eevee
   m_EditorClassIdentifier: 
-  _species: 4
-  _name: Eevee
+  _species: Eevee
   _wildType: 1
   _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
   _description: 
@@ -24,9 +23,9 @@ MonoBehaviour:
   _spDefense: 65
   _speed: 55
   _catchRate: 45
-  _expYield: 650
-  _growthRate: 0
+  _expYield: 65
   _effortPointsYield: 1
+  _growthRate: 0
   _idleUpSprites:
   - {fileID: 1706753175, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
   - {fileID: -1948991715, guid: 6740af898f2ebf044933ddd1af64e99c, type: 3}
@@ -88,7 +87,7 @@ MonoBehaviour:
   - {fileID: -62299033, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
   _walkUpSprites: []
   _walkDownSprites: []
-  _cardPortrait: {fileID: 0}
+  _cardPortrait: {fileID: 794628100, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
   _type1: 1
   _type2: 0
   _evolutions: []

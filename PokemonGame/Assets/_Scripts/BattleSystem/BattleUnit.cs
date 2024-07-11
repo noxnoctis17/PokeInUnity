@@ -65,17 +65,32 @@ public class BattleUnit : MonoBehaviour
     public DamageDetails TakeDamage( Move move, Pokemon attacker, Condition weather ){
         var target = Pokemon;
         float critical = 1f;
-        if( UnityEngine.Random.value * 100f <= 6.25f ) critical = 1.5f;
+
+        //--Calculate crit chance in accordance to move's crit behavior
+        if( move.MoveSO.CritBehavior != CritBehavior.NeverCrits ){
+            if( move.MoveSO.CritBehavior == CritBehavior.AlwaysCrits ){
+                critical = 1.5f;
+            }
+            else{
+                //--I barely understand this math LOL 05/29/24
+                int critChance = 0 + ( move.MoveSO.CritBehavior == CritBehavior.HighCritRatio ? 1 : 0 ); //--TODO Ability checks (sniper?), held item (scope lens?)
+                float[] chances = new float[] { 4.167f, 12.5f, 50f, 100f, };
+                if( UnityEngine.Random.value * 100f <= chances[Mathf.Clamp( critChance, 0, 3 )] )
+                    critical = 1.5f;
+            }
+        }
 
         float type =     TypeChart.GetEffectiveness( move.MoveSO.Type, target.PokeSO.Type1 )
                        * TypeChart.GetEffectiveness( move.MoveSO.Type, target.PokeSO.Type2 );
 
         float weatherModifier = weather?.OnDamageModify?.Invoke( Pokemon, attacker, move ) ?? 1f;
         
-        var damageDetails = new DamageDetails(){
+        var damageDetails = new DamageDetails()
+        {
             TypeEffectiveness = type,
             Critical = critical,
-            Fainted = false
+            Fainted = false,
+            DamageDealt = 0,
         };
 
         float attack = 0;
@@ -93,12 +108,25 @@ public class BattleUnit : MonoBehaviour
 
         float modifiers = random * type * critical * weatherModifier;
         float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attack / defense / 50 + 2 ) * modifiers;
-        int damage = (int)Mathf.Max( damageCalc, 1f );
+        int rawDamage = (int)Mathf.Max( damageCalc, 1f );
+        int damage = Mathf.Clamp( rawDamage, 1, Pokemon.CurrentHP );
+
+        Debug.Log( $"Raw Damage done: {rawDamage}" );
+        Debug.Log( $"Clamped Damage done: {damage}" );
 
         target.DecreaseHP( damage );
+        damageDetails.DamageDealt = damage;
         ShowDamageTaken( damage, transform.position );
 
         return damageDetails;
+    }
+
+    public void TakeRecoilDamage( int damage ){
+        if( damage < 1 )
+            damage = 1;
+
+        Pokemon.DecreaseHP( damage );
+        Pokemon.StatusChanges.Enqueue( $"{Pokemon.NickName} is damaged by recoil!" );
     }
     
     private void ShowDamageTaken( int damage, Vector3 position ){

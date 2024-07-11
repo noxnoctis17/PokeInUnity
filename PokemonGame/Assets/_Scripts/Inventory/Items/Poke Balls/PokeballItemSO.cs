@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-public enum PokeBallType { PokeBall, GreatBall, UltraBall, }
+public enum PokeBallType { None, PokeBall, GreatBall, UltraBall, }
 
 [CreateAssetMenu( menuName = "Items/Pokeball Item" )]
 public class PokeballItemSO : ItemSO
@@ -43,6 +43,6 @@ public class PokeballItemSO : ItemSO
     }
 
     public override string UseText( Pokemon pokemon ){
-        return $"{pokemon.PokeSO.Name} was placed inside your extra {ItemName}!";
+        return $"{pokemon.NickName} was placed inside your extra {ItemName}!";
     }
 }

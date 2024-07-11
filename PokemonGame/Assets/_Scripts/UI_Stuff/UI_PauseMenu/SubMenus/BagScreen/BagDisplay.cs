@@ -9,52 +9,6 @@ using UnityEngine.InputSystem;
 
 public enum BagScreenContext { Battle, Pause, GiveShortcut, }
 
-[Serializable]
-public class BagPocket
-{
-    [SerializeField] private ItemCategory _itemCategory;
-    [SerializeField] private GameObject _itemPocket;
-    [SerializeField] private RectTransform _currentPocketRect;
-    public RectTransform CurrentPocketRect => _currentPocketRect;
-    public ItemCategory ItemCategory => _itemCategory;
-    public GameObject ItemPocket => _itemPocket;
-    public Image PocketIcon { get; private set; }
-    public List<ItemButton_PauseScreen> ItemButtons { get; private set; }
-    public Action OnCurrentPocket;
-    public Action OnPreviousPocket;
-
-    public void Init(){
-        OnCurrentPocket += SetIconActive;
-        OnPreviousPocket += SetIconInactive;
-
-        SetButtons();
-    }
-
-    private void SetButtons(){
-        // Debug.Log( "BagPocket SetButtons()" );
-        var itemButtonArray = _itemPocket.GetComponentsInChildren<ItemButton_PauseScreen>();
-        ItemButtons = itemButtonArray.ToList();
-    }
-
-    public void SetIcon( Image icon ){
-        PocketIcon = icon;
-        PocketIcon.sprite = BagPocketIconAtlas.PocketIcons[_itemCategory];
-        PocketIcon.color = Color.white;
-    }
-
-    private void SetIconActive(){
-        if( PocketIcon != null )
-            PocketIcon.color = Color.yellow;
-    }
-
-    private void SetIconInactive(){
-        if( PocketIcon != null )
-            PocketIcon.color = Color.white;
-    }
-
-}
-
-
 public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
 {
     [SerializeField] private BagScreenContext _bagScreenContext;
@@ -62,14 +16,14 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
     [SerializeField] private Transform _itemPoolContainer;
     [Space( 20 )]
     [SerializeField] private GameObject _pocketIconContainer;
-    [SerializeField] private BagPocket _medicinePocket;
-    [SerializeField] private BagPocket _pokeballPocket;
-    [SerializeField] private BagPocket _tmPocket;
+    // [SerializeField] private BagPocket _medicinePocket;
+    // [SerializeField] private BagPocket _pokeballPocket;
+    // [SerializeField] private BagPocket _tmPocket;
     [Space( 20 )]
     [SerializeField] private TextMeshProUGUI _itemName;
     [SerializeField] private TextMeshProUGUI _itemDescription;
     [SerializeField] private PartyDisplay _partyDisplay;
-    private BagPocket[] _availablePockets;
+    [SerializeField] private BagPocket[] _availablePockets;
     private BagPocket _currentPocket;
     private IBagScreen _parentMenu;
     private bool _canChangePockets;
@@ -162,7 +116,7 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
         PlayerInventory.OnInventoryUpdated  += UpdateItemList;
 
         //--Add Available Pockets
-        SetAvailablePockets();
+        // SetAvailablePockets();
         CurrentPocket = _availablePockets[0];
 
         //--Open Menu
@@ -185,22 +139,22 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
     }
 
     private void SetAvailablePockets(){
-        switch( _bagScreenContext )
-        {
-            case BagScreenContext.Battle:
-                _availablePockets = new BagPocket[] { _medicinePocket, _pokeballPocket, };
-            break;
+        // switch( _bagScreenContext )
+        // {
+        //     case BagScreenContext.Battle:
+        //         _availablePockets = new BagPocket[] { _medicinePocket, _pokeballPocket, };
+        //     break;
 
-            case BagScreenContext.Pause:
-                _availablePockets = new BagPocket[] { _medicinePocket, _pokeballPocket, _tmPocket };
-            break;
+        //     case BagScreenContext.Pause:
+        //         _availablePockets = new BagPocket[] { _medicinePocket, _pokeballPocket, _tmPocket };
+        //     break;
 
-            case BagScreenContext.GiveShortcut:
-                //--When you select a pokemon and choose "Give", this will be that context
-                //--I don't think it will be any different from pause, though. pause will likely have
-                //--a Give() that can just be directly called or something from the item button under this context
-            break;
-        }
+        //     case BagScreenContext.GiveShortcut:
+        //         //--When you select a pokemon and choose "Give", this will be that context
+        //         //--I don't think it will be any different from pause, though. pause will likely have
+        //         //--a Give() that can just be directly called or something from the item button under this context
+        //     break;
+        // }
 
         // Debug.Log( $"Available Pockets Count: {_availablePockets.Length}" );
     }
@@ -337,35 +291,57 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
         ItemCategory itemCategory = itemButton.Item.ItemSO.ItemCategory;
         int childCount;
 
-        switch( itemCategory )
-        {
-            case ItemCategory.Medicine:
-                itemButton.gameObject.transform.SetParent( _medicinePocket.ItemPocket.transform );
-                childCount = _medicinePocket.ItemPocket.transform.childCount;
-                Debug.Log( $"Medicine Pocket child count is: {childCount}" );
-                itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
-            break;
+        foreach( var pocket in _availablePockets ){
+            switch( itemCategory )
+            {
+                case ItemCategory.Medicine:
+                    if( pocket.ItemCategory == ItemCategory.Medicine ){
+                        itemButton.gameObject.transform.SetParent( pocket.ItemPocket.transform );
+                        childCount = pocket.ItemPocket.transform.childCount;
+                        // Debug.Log( $"Medicine Pocket child count is: {childCount}" );
+                        itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
+                    }
+                break;
 
-            case ItemCategory.PokeBall:
-                itemButton.gameObject.transform.SetParent( _pokeballPocket.ItemPocket.transform );
-                childCount = _pokeballPocket.ItemPocket.transform.childCount;
-                Debug.Log( $"PokeBall Pocket child count is: {childCount}" );
-                itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
-            break;
+                case ItemCategory.PokeBall:
+                    if( pocket.ItemCategory == ItemCategory.PokeBall ){
+                        itemButton.gameObject.transform.SetParent( pocket.ItemPocket.transform );
+                        childCount = pocket.ItemPocket.transform.childCount;
+                        // Debug.Log( $"PokeBall Pocket child count is: {childCount}" );
+                        itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
+                    }
+                break;
 
-            case ItemCategory.TM:
-                if( _bagScreenContext == BagScreenContext.Pause ){ //--TODO figure out better sorting and context management...
-                    itemButton.gameObject.transform.SetParent( _tmPocket.ItemPocket.transform );
-                    childCount = _tmPocket.ItemPocket.transform.childCount;
-                    Debug.Log( $"TM Pocket child count is: {childCount}" );
-                    itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
-                }
-                else{
-                    itemButton.gameObject.transform.SetParent( _itemPoolContainer.transform );
-                    itemButton.gameObject.SetActive( false );
-                }
+                case ItemCategory.TM:
+                    if( _bagScreenContext == BagScreenContext.Pause ){
+                        if( pocket.ItemCategory == ItemCategory.TM ){
+                            itemButton.gameObject.transform.SetParent( pocket.ItemPocket.transform );
+                            childCount = pocket.ItemPocket.transform.childCount;
+                            // Debug.Log( $"TM Pocket child count is: {childCount}" );
+                            itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
+                        }
+                    }
+                    else{
+                        itemButton.gameObject.transform.SetParent( _itemPoolContainer.transform );
+                        itemButton.gameObject.SetActive( false );
+                    }
+                break;
 
-            break;
+                case ItemCategory.Training:
+                    if( _bagScreenContext == BagScreenContext.Pause ){
+                        if( pocket.ItemCategory == ItemCategory.Training ){
+                            itemButton.gameObject.transform.SetParent( pocket.ItemPocket.transform );
+                            childCount = pocket.ItemPocket.transform.childCount;
+                            Debug.Log( $"Training Pocket child count is: {childCount}" );
+                            itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
+                        }
+                    }
+                    else{
+                        itemButton.gameObject.transform.SetParent( _itemPoolContainer.transform );
+                        itemButton.gameObject.SetActive( false );
+                    }
+                break;
+            }
         }
     }
 
@@ -398,7 +374,8 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
             }
 
             //--Setup New Item Buttons
-            PopulatePockets();                          //--Assign all new buttons to their respective pocket's item button list
+            //--Assign all new buttons to their respective pocket's item button list
+            PopulatePockets();
         }   
         else{
             //--Update Existing Item Info in all pockets
@@ -446,6 +423,51 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
         foreach( ItemButton_PauseScreen button in CurrentPocket.ItemButtons ){
                 button.ThisButton.interactable = isInteractable;
         }
+    }
+
+}
+
+[Serializable]
+public class BagPocket
+{
+    [SerializeField] private ItemCategory _itemCategory;
+    [SerializeField] private GameObject _itemPocket;
+    [SerializeField] private RectTransform _currentPocketRect;
+    public RectTransform CurrentPocketRect => _currentPocketRect;
+    public ItemCategory ItemCategory => _itemCategory;
+    public GameObject ItemPocket => _itemPocket;
+    public Image PocketIcon { get; private set; }
+    public List<ItemButton_PauseScreen> ItemButtons { get; private set; }
+    public Action OnCurrentPocket;
+    public Action OnPreviousPocket;
+
+    public void Init(){
+        OnCurrentPocket += SetIconActive;
+        OnPreviousPocket += SetIconInactive;
+
+        SetButtons();
+    }
+
+    private void SetButtons(){
+        // Debug.Log( "BagPocket SetButtons()" );
+        var itemButtonArray = _itemPocket.GetComponentsInChildren<ItemButton_PauseScreen>();
+        ItemButtons = itemButtonArray.ToList();
+    }
+
+    public void SetIcon( Image icon ){
+        PocketIcon = icon;
+        PocketIcon.sprite = BagPocketIconAtlas.PocketIcons[_itemCategory];
+        PocketIcon.color = Color.white;
+    }
+
+    private void SetIconActive(){
+        if( PocketIcon != null )
+            PocketIcon.color = Color.yellow;
+    }
+
+    private void SetIconInactive(){
+        if( PocketIcon != null )
+            PocketIcon.color = Color.white;
     }
 
 }

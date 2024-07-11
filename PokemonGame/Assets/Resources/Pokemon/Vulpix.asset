@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
   m_Name: Vulpix
   m_EditorClassIdentifier: 
-  _species: 3
-  _name: Vulpix
+  _species: Vulpix
   _wildType: 1
   _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
   _description: 
@@ -24,9 +23,9 @@ MonoBehaviour:
   _spDefense: 65
   _speed: 65
   _catchRate: 190
-  _expYield: 600
-  _growthRate: 0
+  _expYield: 60
   _effortPointsYield: 1
+  _growthRate: 0
   _idleUpSprites:
   - {fileID: -269381785, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
   - {fileID: 1566927057, guid: 79f06b4a6aa87e543b623c4af2145355, type: 3}
@@ -63,7 +62,7 @@ MonoBehaviour:
   - {fileID: 2067603412, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
   _walkUpSprites: []
   _walkDownSprites: []
-  _cardPortrait: {fileID: 0}
+  _cardPortrait: {fileID: -1848336895, guid: 29d002aee4f7dc247945ce00a1539bb5, type: 3}
   _type1: 2
   _type2: 0
   _evolutions: []

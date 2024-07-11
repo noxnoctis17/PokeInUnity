@@ -4,7 +4,7 @@ using UnityEngine.PlayerLoop;
 
 public class PokemonDB
 {
-    private static Dictionary<PokemonSpecies, PokemonSO> _pokemonSpeciesDB;
+    private static Dictionary<string, PokemonSO> _pokemonSpeciesDB;
 
     public static void Init(){
         _pokemonSpeciesDB = new();
@@ -21,7 +21,7 @@ public class PokemonDB
         }
     }
 
-    public static PokemonSO GetPokemonBySpecies( PokemonSpecies species ){
+    public static PokemonSO GetPokemonBySpecies( string species ){
         if( !_pokemonSpeciesDB.ContainsKey( species ) ){
             Debug.LogError( "Pokemon not found in Pokemon Database!" );
             return null;
@@ -29,10 +29,6 @@ public class PokemonDB
         
         return _pokemonSpeciesDB[species];
     }
-
-    // public static PokemonSO GetPokemonByName(){
-
-    // }
 
     // public static PokemonSO GetPokemonByType(){
 

@@ -90,10 +90,7 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
             //--when we push the useitemfrombag state to allow the user to select a pokemon
             //--from the party field. so we use TMs with a different function call
             case BagScreenContext.Pause:
-                if( Item.ItemSO.ItemCategory == ItemCategory.TM )
-                        _bagScreenPause.UseTM( Item );
-                else
-                    _bagScreenPause.UseItem( Item );
+                _bagScreenPause.UseItem( Item );
             break;
         }
     }

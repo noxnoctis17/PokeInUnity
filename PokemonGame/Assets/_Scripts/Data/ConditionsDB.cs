@@ -41,7 +41,7 @@ public class ConditionsDB
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.DecreaseHP( pokemon.MaxHP / 8 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by poison!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} is hurt by poison!" );
                     }}
             },
                     
@@ -54,7 +54,7 @@ public class ConditionsDB
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
                         pokemon.DecreaseHP( pokemon.MaxHP / 8 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by its horrible poisoning!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} is hurt by its horrible poisoning!" );
                     }}
             },
 
@@ -68,9 +68,9 @@ public class ConditionsDB
                     //--Immediate necessary changes that don't return a bool
                     OnApplyStatus = ( Pokemon pokemon ) =>
                     {
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s Attack Stat is: {pokemon.Attack}" );
+                        Debug.Log( $"{pokemon.NickName}'s Attack Stat is: {pokemon.Attack}" );
                         pokemon.ApplyDirectStatChange( Stat.Attack, 0.5f );
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s Attack Stat is: {pokemon.Attack}" );
+                        Debug.Log( $"{pokemon.NickName}'s Attack Stat is: {pokemon.Attack}" );
                     },
 
                     //--Effects that run after a turn is completed.
@@ -78,7 +78,7 @@ public class ConditionsDB
                     {
                         // Debug.Log( pokemon.CurrentHP );
                         pokemon.DecreaseHP( pokemon.MaxHP / 16 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by its burn!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} is hurt by its burn!" );
                         // Debug.Log( pokemon.CurrentHP );
                     }}
             },
@@ -93,9 +93,9 @@ public class ConditionsDB
                     //--Immediate necessary changes that don't return a bool
                     OnApplyStatus = ( Pokemon pokemon ) =>
                     {
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s Speed Stat is: {pokemon.Speed}" );
+                        Debug.Log( $"{pokemon.NickName}'s Speed Stat is: {pokemon.Speed}" );
                         pokemon.ApplyDirectStatChange( Stat.Speed, 0.25f );
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s Speed Stat is: {pokemon.Speed}" );
+                        Debug.Log( $"{pokemon.NickName}'s Speed Stat is: {pokemon.Speed}" );
                     },
 
                     OnBeforeTurn = ( Pokemon pokemon ) =>
@@ -132,11 +132,11 @@ public class ConditionsDB
                         if( pokemon.SevereStatusTime == 0 )
                         {
                             pokemon.CureSevereStatus();
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} woke up!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} woke up!" );
                             return true;
                         }
 
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is fast asleep!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} is fast asleep!" );
                         pokemon.SevereStatusTime--;
                         return false;
                     }}
@@ -152,15 +152,15 @@ public class ConditionsDB
                     //--Immediate necessary changes that don't return a bool
                     OnApplyStatus = ( Pokemon pokemon ) =>
                     {
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s Sp.Atk Stat is: {pokemon.SpAttack}" );
+                        Debug.Log( $"{pokemon.NickName}'s Sp.Atk Stat is: {pokemon.SpAttack}" );
                         pokemon.ApplyDirectStatChange( Stat.SpAttack, 0.5f );
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s Sp.Atk Stat is: {pokemon.SpAttack}" );
+                        Debug.Log( $"{pokemon.NickName}'s Sp.Atk Stat is: {pokemon.SpAttack}" );
                     },
 
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.DecreaseHP( pokemon.MaxHP / 16 );
-                        pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is hurt by its frostbite!" );
+                        pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} is hurt by its frostbite!" );
                     }}
             },
 
@@ -197,7 +197,7 @@ public class ConditionsDB
                         if( pokemon.VolatileStatusTime == 0 )
                         {
                             pokemon.CureVolatileStatus();
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} snapped out of confusion!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} snapped out of confusion!" );
                             return true;
                         }
 
@@ -206,9 +206,9 @@ public class ConditionsDB
                         //--33% Chance to Hurt Itself
                         if( Random.Range( 1,4 ) == 1 )
                         {
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is confused!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} is confused!" );
                             pokemon.DecreaseHP( pokemon.MaxHP / 16 );
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} hurt itself in confusion!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} hurt itself in confusion!" );
                             return false;
                         }
 
@@ -275,11 +275,11 @@ public class ConditionsDB
                     //--Weather Condition is currently active. Really only for Sandstorm and Snow, but who knows
                     OnEnterWeather = ( Pokemon pokemon ) =>
                     {
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
                         if( pokemon.CheckTypes( PokemonType.Rock ) )
                             pokemon.ApplyDirectStatChange( Stat.SpDefense, 1.5f );
 
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
                         
                     },
 
@@ -291,18 +291,18 @@ public class ConditionsDB
                         else{
                             var damage = Mathf.RoundToInt( pokemon.MaxHP / 16f );
                             pokemon.DecreaseHP( damage );
-                            pokemon.StatusChanges.Enqueue( $"{pokemon.PokeSO.Name} is buffeted by the sandstorm!" );
+                            pokemon.StatusChanges.Enqueue( $"{pokemon.NickName} is buffeted by the sandstorm!" );
                         }
                     },
 
                     OnExitWeather = ( Pokemon pokemon ) =>
                     {
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
                         //--check snow, but because we add a 1.5f modifier, we have to remove the same value from the list of modifiers for this stat
                         if( pokemon.CheckTypes( PokemonType.Rock ) )
                             pokemon.RemoveDirectStatChange( Stat.SpDefense, 1.5f );
                             
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
                     }
                 }
 
@@ -320,12 +320,12 @@ public class ConditionsDB
                     //--Weather Condition is currently active. Really only for Sandstorm and Snow, but who knows
                     OnEnterWeather = ( Pokemon pokemon ) =>
                     {
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                        Debug.Log( $"{pokemon.NickName}'s DEF Stat is: {pokemon.Defense}" );
                         //--Ice type pokemon gain a 50% defense boost in snow
                         if( pokemon.CheckTypes( PokemonType.Ice ) )
                             pokemon.ApplyDirectStatChange( Stat.Defense, 1.5f );
 
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                        Debug.Log( $"{pokemon.NickName}'s DEF Stat is: {pokemon.Defense}" );
                         
                     },
 
@@ -336,11 +336,11 @@ public class ConditionsDB
                         //--When we remove direct stat changes, we actually need to remove the value that was
                         //--added to the list of modifiers for that stat, because those modifiers are
                         //--multipled together to get the total modifier that gets multiplied to the stat (before stat stages)
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                        Debug.Log( $"{pokemon.NickName}'s DEF Stat is: {pokemon.Defense}" );
                         if( pokemon.CheckTypes( PokemonType.Ice ) )
                             pokemon.RemoveDirectStatChange( Stat.Defense, 1.5f );
 
-                        Debug.Log( $"{pokemon.PokeSO.Name}'s DEF Stat is: {pokemon.Defense}" );
+                        Debug.Log( $"{pokemon.NickName}'s DEF Stat is: {pokemon.Defense}" );
                     }
                 }
 

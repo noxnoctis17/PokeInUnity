@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor.Rendering;
 using UnityEngine;
 
 public class PokemonParty : MonoBehaviour
@@ -34,7 +33,6 @@ public class PokemonParty : MonoBehaviour
     //--updating the direct reference value. like in this case, where we not only update the party list, we also need to fire
     //--the event so that observers can be notified of the change to the property they're using.
     private void PartySetter( List<Pokemon> party ){
-        // Debug.Log( "PartySetter();" );
         _partyPokemon = party;
         OnPartyUpdated?.Invoke();
     }
@@ -45,6 +43,8 @@ public class PokemonParty : MonoBehaviour
 
     public void AddPokemon( Pokemon pokemon ){
         Pokemon copyPokemon = new ( pokemon.PokeSO, pokemon.Level );
+        copyPokemon.CurrentHP = pokemon.CurrentHP;
+        copyPokemon.SetSevereStatus( pokemon.SevereStatus.ID );
 
         if( _partyPokemon.Count < 6 ){
             PartyPokemon.Add( copyPokemon );
@@ -52,6 +52,7 @@ public class PokemonParty : MonoBehaviour
             OnPartyUpdated?.Invoke();
         }
         else{
+            Debug.Log( "Your Party is Full" );
             //--Add to PC
         }
     }

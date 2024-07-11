@@ -8,21 +8,19 @@ public class BattleHUD : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI _nameText;
     [SerializeField] private TextMeshProUGUI _levelText;
+    [SerializeField] private TextMeshProUGUI _currentHPText;
     [SerializeField] private Image _battlePortrait;
     [SerializeField] private Image _type1Color, _type2Color;
+    [SerializeField] private Image _severeStatusIcon;
     [SerializeField] private HPBar _hpBar;
     [SerializeField] private GameObject _expBar;
-    [SerializeField] private TextMeshProUGUI _currentHPText;
-    [SerializeField] private Image _severeStatusIcon;
     private Pokemon _pokemon;
     private BattleUnit _battleUnit;
-    private int _currentHPTracker;
-    public int CurrentHPTracker => _currentHPTracker;
 
     private void Update(){
         //--Update HP
-        if( _currentHPTracker != _hpBar.hpBar.value )
-            _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+        if( _hpBar.IsUpdating )
+            _currentHPText.text = $"{_hpBar.HPSlider.value}/{_hpBar.HPSlider.maxValue}";
 
         if( _pokemon != null && _pokemon == BattleSystem.Instance.WildPokemon )
             UpdateWildHUDPosition();
@@ -37,7 +35,7 @@ public class BattleHUD : MonoBehaviour
         _pokemon = pokemon;
         _battleUnit = battleUnit;
 
-        _nameText.text = pokemon.PokeSO.Name;
+        _nameText.text = pokemon.NickName;
         _levelText.text = "" + pokemon.Level;
 
         if( _pokemon.IsPlayerUnit )
@@ -51,8 +49,7 @@ public class BattleHUD : MonoBehaviour
         _hpBar.SetHP( pokemon.CurrentHP, pokemon.MaxHP );
         SetExp();
 
-        _currentHPTracker = pokemon.CurrentHP;
-        _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+        _currentHPText.text = $"{_hpBar.HPSlider.value}/{_hpBar.HPSlider.maxValue}";
 
         SetSevereStatus();
         _pokemon.OnStatusChanged        += SetSevereStatus;
@@ -115,7 +112,7 @@ public class BattleHUD : MonoBehaviour
     public void RefreshHUD(){
         _levelText.text = "" + _pokemon.Level;
         _hpBar.SetHP( _pokemon.CurrentHP, _pokemon.MaxHP );
-        _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+        _currentHPText.text = $"{_hpBar.HPSlider.value}/{_hpBar.HPSlider.maxValue}";
     }
 
     private void ClearData(){

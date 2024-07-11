@@ -10,22 +10,31 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b7600c31e1ae6d4bb41f45a6fd300d3, type: 3}
-  m_Name: FurySwipes
+  m_Name: Metal Claw
   m_EditorClassIdentifier: 
-  _moveName: Fury Swipes
-  _description: Hard, pointed, sharp claws rake the target to inflict damage.
+  _moveName: Metal Claw
+  _description: The target is raked with steel claws. This may also raise the user's
+    Attack stat.
   _moveCategory: 0
   _moveTarget: 0
-  _moveType: 1
+  _moveType: 17
   _moveEffects:
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _weather: 0
-  _secondaryMoveEffects: []
+  _secondaryMoveEffects:
+  - _statChangeList:
+    - Stat: 0
+      Change: 1
+    _severeStatus: 0
+    _volatileStatus: 0
+    _weather: 0
+    _chance: 10
+    _target: 1
   _movePriority: 0
-  _hitRange: {x: 2, y: 5}
-  _power: 20
+  _hitRange: {x: 0, y: 0}
+  _power: 50
   _accuracy: 95
   _alwaysHits: 0
-  _pp: 15
+  _pp: 35

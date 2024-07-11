@@ -341,7 +341,7 @@ public class BattleSystem : BattleStateMachine
 
             //--Check for Level up
             while( pokemon.CheckForLevelUpBattle() ){
-                yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.Name} grew to level {pokemon.Level}!" );
+                yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} grew to level {pokemon.Level}!" );
 
                 //--Try Learn Moves
                 if( pokemon.GetNextLearnableMove() != null ){
@@ -360,33 +360,33 @@ public class BattleSystem : BattleStateMachine
                             learnedNewMove = pokemonLearnedNewMove;
                         };
 
-                        yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.Name} is trying to learn {newMove.MoveSO.Name}," );
+                        yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} is trying to learn {newMove.MoveSO.Name}," );
                         yield return _dialogueBox.TypeDialogue( $"But it can't use more than four moves during battle." );
                         yield return _dialogueBox.TypeDialogue( $"Which move will you set aside?" );
 
-                        pokemon.TryReplaceMove_Battle( newMove.MoveSO, _learnMoveMenu, onMoveLearnComplete, this );
+                        pokemon.TryReplaceMove( newMove.MoveSO, _learnMoveMenu, onMoveLearnComplete, this );
                         yield return new WaitUntil( () => moveLearnOver );
 
                         if( learnedNewMove ){
-                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.Name} learned {newMove.MoveSO.Name}!" );
+                            yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} learned {newMove.MoveSO.Name}!" );
                             yield return _dialogueBox.TypeDialogue( $"It added {newMove.MoveSO.Name} to its Current Moves!" );
                         }
                         else{
-                            yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.Name} learned {newMove.MoveSO.Name}!" );
+                            yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} learned {newMove.MoveSO.Name}!" );
                             yield return _dialogueBox.TypeDialogue( $"It added {newMove.MoveSO.Name} to its Learned Moves!" );
                         }
                         
                     }
                     else{
-                        yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.Name} learned {newMove.MoveSO.Name}!" );
+                        yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} learned {newMove.MoveSO.Name}!" );
                     }
                 }
 
                 //--Check for level up-based Evolution
                 var evolution = pokemon.CheckForEvolution();
-                if( evolution != null ){
+                if( evolution != null && !pokemon.CanEvolveByLevelUp ){
                     pokemon.SetCanEvolveByLevelUp( true );
-                    yield return _dialogueBox.TypeDialogue( $"{pokemon.PokeSO.Name} can now evolve!" );
+                    yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} can now evolve!" );
                 }
 
                 //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
@@ -449,8 +449,6 @@ public class BattleSystem : BattleStateMachine
 
         if( !canAttack ){
             yield return ShowStatusChanges( attacker.Pokemon );
-            //--if it cannot attack we...update its hp? i wonder why lol. i will need to go back
-            //--o this might be like exclusively added for confusion lol wtf
             yield return attacker.BattleHUD.WaitForHPUpdate();
             yield break;
         }
@@ -458,15 +456,18 @@ public class BattleSystem : BattleStateMachine
         yield return ShowStatusChanges( attacker.Pokemon );
 
         move.PP--; //--Reduces the move's PP by 1
-        yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.Name} used {move.MoveSO.Name}!" );
+        yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.NickName} used {move.MoveSO.Name}!" );
 
         //--Check if move is a multi-hit, and return the amount of hits rolled
         int hitAmount = move.MoveSO.GetHitAmount();
         int hits = 1;
         float typeEffectiveness = 1f;
+        var checkMoveAccuracy = CheckMoveAccuracy( move, attacker, target );
+        var damageDetails = new DamageDetails();
 
-        if( CheckMoveAccuracy( move, attacker, target ) ){
+        if( checkMoveAccuracy ){
             Debug.Log( $"Move's amount of hits: {hitAmount}" );
+
             for( int i = 1; i <= hitAmount; i++ ){
                 if( move.MoveSO.MoveCategory == MoveCategory.Status ){
                     yield return attacker.PokeAnimator.PlayStatusAttackAnimation();
@@ -479,7 +480,7 @@ public class BattleSystem : BattleStateMachine
                     if( move.MoveSO.MoveCategory == MoveCategory.Special )
                         yield return attacker.PokeAnimator.PlaySpecialAttackAnimation();
                     
-                    var damageDetails = target.TakeDamage( move, attacker.Pokemon, Field.Weather );
+                    damageDetails = target.TakeDamage( move, attacker.Pokemon, Field.Weather );
                     yield return target.BattleHUD.WaitForHPUpdate();
                     yield return ShowDamageDetails( damageDetails );
                     typeEffectiveness = damageDetails.TypeEffectiveness;
@@ -500,13 +501,16 @@ public class BattleSystem : BattleStateMachine
             }
         }
         else{
-            yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.PokeSO.Name}'s attack missed!" );
+            damageDetails = null;
+            yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.NickName}'s attack missed!" );
         }
 
         yield return ShowTypeEffectiveness( typeEffectiveness );
 
-        if( hitAmount > 1 )
+        if( hitAmount > 1 && checkMoveAccuracy )
             yield return _dialogueBox.TypeDialogue( $"The Pokemon was hit {hits} times!" );
+
+        yield return RunAfterMove( damageDetails, move.MoveSO, attacker, target );
 
         //--Check for faint after a move is used on the target.
         //--I need to simplify this to take in a target, and then inside compare whether it was the
@@ -514,6 +518,59 @@ public class BattleSystem : BattleStateMachine
         //--quickly check a unit? IsPlayerUnit sounds like it should be the case, because you want to always be able to know
         //--whether a pokemon belongs to the player or not in and out of battle i think
         yield return CheckForFaint( target );
+    }
+
+    private IEnumerator RunAfterMove( DamageDetails details, MoveSO move, BattleUnit attacker, BattleUnit target ){
+        Debug.Log( "RunAfterMove()" );
+        if( details == null )
+            yield break;
+
+        if( move.DrainPercentage != 0 ){
+            Debug.Log( "Move was a Draining Move" );
+            int healedHP = Mathf.Clamp( Mathf.CeilToInt( details.DamageDealt / 100f * move.DrainPercentage ), 1, attacker.Pokemon.MaxHP );
+            Debug.Log( $"Amount of HP healed: {healedHP}" );
+            attacker.Pokemon.IncreaseHP( healedHP );
+
+            yield return attacker.BattleHUD.WaitForHPUpdate();
+            Debug.Log( "HP Update Complete" );
+
+            if( target.Pokemon == WildPokemon )
+                yield return _dialogueBox.TypeDialogue( $"The wild {target.Pokemon.NickName} had its energy drained!" );
+            else
+                yield return _dialogueBox.TypeDialogue( $"The enemy {target.Pokemon.NickName} had its energy drained!" );
+        }
+
+        if( move.Recoil.RecoilType != RecoilType.none ){
+            Debug.Log( "Move did Recoil Damage" );
+            int damage = 0;
+
+            switch( move.Recoil.RecoilType )
+            {
+                case RecoilType.RecoilByMaxHP:
+                    int maxHP = attacker.Pokemon.MaxHP;
+                    damage = Mathf.FloorToInt( maxHP * ( move.Recoil.RecoilDamage / 100f ) );
+                    attacker.TakeRecoilDamage( damage );
+                break;
+
+                case RecoilType.RecoilByDamage:
+                    damage = Mathf.FloorToInt( details.DamageDealt * ( move.Recoil.RecoilDamage / 100f ) );
+                    attacker.TakeRecoilDamage( damage );
+                break;
+
+                case RecoilType.RecoilByCurrentHP:
+                    int currentHP = attacker.Pokemon.CurrentHP;
+                    damage = Mathf.FloorToInt( currentHP * ( move.Recoil.RecoilDamage / 100f ) );
+                    attacker.TakeRecoilDamage( damage );
+                break;
+
+                default:
+                    Debug.LogError( "Unknown Recoil Effect!!" );
+                break;
+            }
+        }
+
+        yield return ShowStatusChanges( attacker.Pokemon );
+        yield return ShowStatusChanges( target.Pokemon );
     }
 
     //--Will eventually be adjusted, and expanded to include item, weather, field effect, and other necessary post-turn ticks
@@ -542,7 +599,7 @@ public class BattleSystem : BattleStateMachine
         afterTurnList = afterTurnList.OrderByDescending( unit => unit.Pokemon.Speed ).ToList();
 
         foreach( BattleUnit unit in afterTurnList ){
-            Debug.Log( $"After Turn: {unit.PokeSO.Name}" );
+            Debug.Log( $"After Turn: {unit.Pokemon.NickName}" );
             if( unit.Pokemon.CurrentHP > 0 ){
                 unit.Pokemon.OnAfterTurn();
                 Field.Weather?.OnWeather?.Invoke( unit.Pokemon );
@@ -593,7 +650,7 @@ public class BattleSystem : BattleStateMachine
         //--Apply Severe Status Effects
         if( effects.SevereStatus != ConditionID.NONE ){
             if( effects.SevereStatus == ConditionID.BRN && target.CheckTypes( PokemonType.Fire ) )
-                yield return _dialogueBox.TypeDialogue( $"It doesn't effect {target.PokeSO.Name}!" );
+                yield return _dialogueBox.TypeDialogue( $"It doesn't effect {target.NickName}!" );
             else
                 target.SetSevereStatus( effects.SevereStatus ); //--Severe status like BRN, FRZ, PSN
         }
@@ -661,7 +718,7 @@ public class BattleSystem : BattleStateMachine
     //--or in the case of a move's recoil, or things like life orb, rough skin, other abilities, etc
     //--and then once after game board update in the case of statuses like BRN, FRST, PSN, TOX
     public IEnumerator CheckForFaint( BattleUnit checkUnit ){
-
+        Debug.Log( $"CheckForFaint() on {checkUnit.Pokemon.NickName}" );
         if( checkUnit.Pokemon.CurrentHP > 0 )
             yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet
 
@@ -672,16 +729,16 @@ public class BattleSystem : BattleStateMachine
         yield return checkUnit.PokeAnimator.PlayFaintAnimation(); //--fainted animation placeholder
 
         if( checkUnit.Pokemon.IsPlayerUnit == true ){
-            yield return _dialogueBox.TypeDialogue( $"Your {_playerUnit.Pokemon.PokeSO.Name} fainted!" );
+            yield return _dialogueBox.TypeDialogue( $"Your {_playerUnit.Pokemon.NickName} fainted!" );
             yield return HandleFaintedPokemon();
         }
         else if( checkUnit.Pokemon.IsEnemyUnit == true || checkUnit.Pokemon == _enemyUnit.Pokemon ){
             if( checkUnit.Pokemon == _wildPokemon ){
-                yield return _dialogueBox.TypeDialogue( $"The wild {_enemyUnit.Pokemon.PokeSO.Name} fainted!" );
+                yield return _dialogueBox.TypeDialogue( $"The wild {_enemyUnit.Pokemon.NickName} fainted!" );
                 yield return HandleFaintedPokemon();
             }
             else if( _isSinglesTrainerBattle ){
-                yield return _dialogueBox.TypeDialogue( $"The Enemy {_enemyUnit.Pokemon.PokeSO.Name} fainted!" );
+                yield return _dialogueBox.TypeDialogue( $"The Enemy {_enemyUnit.Pokemon.NickName} fainted!" );
                 yield return HandleFaintedPokemon();
             }
         }
@@ -754,7 +811,7 @@ public class BattleSystem : BattleStateMachine
 
         _enemyUnit.Setup( pokemon, _enemyTrainerHUD, this ); //--Assign and setup the new pokemon
 
-        yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.Name}!" );
+        yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.NickName}!" );
         yield return _enemyUnit.PokeAnimator.PlayEnterBattleAnimation( _enemyUnit.transform, Trainer1Center.transform );
 
         //--If the new Pokemon enters during a Weather Condition, raise OnEnterWeather (for sandstorm and snow spdef and def)
@@ -771,7 +828,7 @@ public class BattleSystem : BattleStateMachine
         _playerUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon. Will need to set a previous pokemon soon
 
         if( !_isFaintedSwitch )
-            yield return _dialogueBox.TypeDialogue( $"{_playerUnit.Pokemon.PokeSO.Name}, come back!" );
+            yield return _dialogueBox.TypeDialogue( $"{_playerUnit.Pokemon.NickName}, come back!" );
 
         yield return _playerUnit.PokeAnimator.PlayExitBattleAnimation( PlayerReferences.Instance.PlayerCenter );
         // _playerUnit.PokeAnimator.ResetAnimations(); //--Clear's the animator which resets the animations before initialization of the incoming mon
@@ -782,7 +839,7 @@ public class BattleSystem : BattleStateMachine
         _playerUnit.Setup( pokemon, _playerHUD, this );
         // _fightMenu.SetUpMoves( pokemon.Moves );
 
-        yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.PokeSO.Name}!" );
+        yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.NickName}!" );
         yield return _playerUnit.PokeAnimator.PlayEnterBattleAnimation( _playerUnit.transform, PlayerReferences.Instance.PlayerCenter );
         yield return new WaitForSeconds( 0.25f );
         // BattleUIActions.OnCommandAnimationsCompleted?.Invoke();
@@ -855,7 +912,7 @@ public class BattleSystem : BattleStateMachine
         }
         if( shakeCount == 4 ){
             //--Pokemon is Caught
-            yield return _dialogueBox.TypeDialogue( $"{_enemyUnit.Pokemon.PokeSO.Name} was caught!" );
+            yield return _dialogueBox.TypeDialogue( $"{_enemyUnit.Pokemon.NickName} was caught!" );
             yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 1.5f, true );
             
             _singleTargetCamera.gameObject.SetActive( false );

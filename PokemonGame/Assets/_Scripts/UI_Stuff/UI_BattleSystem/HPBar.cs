@@ -1,41 +1,41 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class HPBar : MonoBehaviour
 {
-    [SerializeField] private Slider _hpBar;
-    public Slider hpBar => _hpBar;
-    private int _newHP;
+    [SerializeField] private Slider _hpSlider;
+    public Slider HPSlider => _hpSlider;
     public bool IsUpdating { get; private set; }
 
     public void SetMaxHP( int hp ){
-        _hpBar.maxValue = hp;
+        _hpSlider.maxValue = hp;
     }
 
-    public void SetHP( int hp, int mHP ){
-        SetMaxHP( mHP );
-        _hpBar.value = hp;
+    public void SetHP( int hp, int maxHP ){
+        SetMaxHP( maxHP );
+        _hpSlider.value = hp;
     }
 
-    public void UpdateCurrentHP( int hp )
-    {
-        _newHP = hp;
-    }
-
-    public IEnumerator AnimateHP( int hp ){
+    public IEnumerator AnimateHP( int newHP ){
         IsUpdating = true;
-        UpdateCurrentHP( hp );
+        Debug.Log( $"HPBar is updating hp to {newHP}" );
 
-        float previousHP = _hpBar.value;
-        float changeAmount = previousHP - _newHP;
+        float currentHP = _hpSlider.value;
+        bool isDamaging = currentHP - newHP > 0;
+        float changeAmount = currentHP - newHP;
 
-        while( previousHP > _newHP ){
-            _hpBar.value = previousHP -= changeAmount * Time.deltaTime * 1.5f;
+        while( isDamaging ? ( currentHP > newHP ) : ( currentHP < newHP ) ){
+            _hpSlider.value = currentHP -= changeAmount * Time.deltaTime * 2;
+
             yield return null;
         }
 
-        _hpBar.value = _newHP;
+        Debug.Log( $"HPBar is finished updating, new hp is: {newHP}" );
+        _hpSlider.value = newHP;
+        Debug.Log( $"HPBar is finished updating, new hp slider value is: {_hpSlider.value}" );
+        yield return new WaitForEndOfFrame();
         IsUpdating = false;
     }
 }

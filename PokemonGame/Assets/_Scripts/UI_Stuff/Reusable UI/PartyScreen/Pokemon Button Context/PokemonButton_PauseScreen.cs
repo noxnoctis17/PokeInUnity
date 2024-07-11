@@ -17,11 +17,11 @@ public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
     }
     
     public void ContextSubmit(){
-        Debug.Log( _pokemon );
-        Debug.Log( _pokemon.PokeSO );
-        Debug.Log( _pokemon.PokeSO.Name );
-        Debug.Log( $"{_pokemon.PokeSO.Name} can evolve: {_pokemon.CanEvolveByLevelUp}" );
-        if( _pokemon.CanEvolveByLevelUp )
+        // Debug.Log( _pokemon );
+        // Debug.Log( _pokemon.PokeSO );
+        // Debug.Log( _pokemon.PokeSO.Name );
+        // Debug.Log( $"{_pokemon.PokeSO.Name} can evolve: {_pokemon.CanEvolveByLevelUp}" );
+        if( _pokemon.CanEvolveByLevelUp && _pokemon.CheckForEvolution() != null )
             StartCoroutine( TriggerEvolution() );
     }
 
@@ -47,6 +47,7 @@ public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
         GameStateController.Instance.PushGameState( EvolutionManager.Instance );
         yield return EvolutionManager.Instance.Evolve( _pokemon, evolution );
         _partyDisplay.SetPartyButtons_Interactable( true );
+        _pokemonScreen.LastButton.Select();
     }
 
 }

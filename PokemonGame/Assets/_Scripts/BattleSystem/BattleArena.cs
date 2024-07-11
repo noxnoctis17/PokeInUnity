@@ -173,7 +173,7 @@ public class BattleArena : MonoBehaviour
         yield return null;
 
         //--Eventually make this get added to the message queue that prints messages on the smaller "alert box" you have planned
-        StartCoroutine( _battleSystem.DialogueBox.TypeDialogue( $"A wild {_battleSystem.EnemyUnit.Pokemon.PokeSO.Name} appeared!" ) );
+        StartCoroutine( _battleSystem.DialogueBox.TypeDialogue( $"A wild {_battleSystem.EnemyUnit.Pokemon.NickName} appeared!" ) );
 
         //--Attempt! to set the pivot of the arena to the wild encounter
         var targetPosition = GrabWildEncounter().transform.position;

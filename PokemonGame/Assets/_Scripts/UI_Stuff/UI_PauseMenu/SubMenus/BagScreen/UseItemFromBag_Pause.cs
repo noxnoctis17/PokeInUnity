@@ -21,15 +21,24 @@ public class UseItemFromBag_Pause : State<UI_PauseMenuStateMachine>
         _playerInventory = _bagDisplay.PlayerInventory;
 
         //--Events
-        _bagDisplay.PartyDisplay.OnSubmittedButton += SetMemoryButton;
-        GameStateController.Instance.OnDialogueStateEntered += PauseState;
-        GameStateController.Instance.OnDialogueStateExited += ReturnToState;
+        _bagDisplay.PartyDisplay.OnSubmittedButton              += SetMemoryButton;
+        GameStateController.Instance.OnDialogueStateEntered     += PauseState;
+        GameStateController.Instance.OnDialogueStateExited      += ReturnToState;
+        EvolutionManager.Instance.OnEvolutionStateEntered       += PauseState;
+        EvolutionManager.Instance.OnEvolutionStateExited        += ReturnToState;
 
         //--Button Array
         _pkmnButtons = new PokemonButton[]{};
         _pkmnButtons = _bagDisplay.PartyDisplay.PKMNButtons;
 
-        if( _bagDisplay.ItemSelected.ItemSO.ItemCategory == ItemCategory.TM )
+        var itemCategory = _bagDisplay.ItemSelected.ItemSO.ItemCategory;
+
+        if( itemCategory == ItemCategory.Training ){
+            if( _bagDisplay.ItemSelected.ItemSO is EvolutionItemsSO )
+                _bagDisplay.PartyDisplay.OnEvolutionItemSelected?.Invoke( _bagDisplay.ItemSelected, true );
+        }
+
+        if( itemCategory == ItemCategory.TM )
             _bagDisplay.PartyDisplay.OnTMSelected?.Invoke( _bagDisplay.ItemSelected, true );
 
         //--Select Initial Button;
@@ -53,12 +62,27 @@ public class UseItemFromBag_Pause : State<UI_PauseMenuStateMachine>
     public override void ExitState(){
         Debug.Log( $"{this} ExitState()" );
         //--Events
-        _bagDisplay.PartyDisplay.OnSubmittedButton -= SetMemoryButton;
-        GameStateController.Instance.OnDialogueStateEntered -= PauseState;
-        GameStateController.Instance.OnDialogueStateExited -= ReturnToState;
+        _bagDisplay.PartyDisplay.OnSubmittedButton              -= SetMemoryButton;
+        GameStateController.Instance.OnDialogueStateEntered     -= PauseState;
+        GameStateController.Instance.OnDialogueStateExited      -= ReturnToState;
+        EvolutionManager.Instance.OnEvolutionStateEntered       -= PauseState;
+        EvolutionManager.Instance.OnEvolutionStateExited        -= ReturnToState;
 
-        if( _bagDisplay.ItemSelected != null && _bagDisplay.ItemSelected.ItemSO.ItemCategory == ItemCategory.TM )
-            _bagDisplay.PartyDisplay.OnTMSelected?.Invoke( _bagDisplay.ItemSelected, false );
+        if( _bagDisplay.ItemSelected != null ){
+            var itemCategory = _bagDisplay.ItemSelected.ItemSO.ItemCategory;
+
+            if( itemCategory == ItemCategory.Training ){
+                if( _bagDisplay.ItemSelected.ItemSO is EvolutionItemsSO )
+                    _bagDisplay.PartyDisplay.OnEvolutionItemSelected?.Invoke( _bagDisplay.ItemSelected, false );
+            }
+
+            if( itemCategory == ItemCategory.TM )
+                _bagDisplay.PartyDisplay.OnTMSelected?.Invoke( _bagDisplay.ItemSelected, false );
+        }
+        else if( _bagDisplay.ItemSelected == null ){
+            _bagDisplay.PartyDisplay.OnEvolutionItemSelected?.Invoke( null, false );
+            _bagDisplay.PartyDisplay.OnTMSelected?.Invoke( null, false );
+        }
 
         _bagDisplay.PartyDisplay.SetPartyButtons_Interactable( false );
     }

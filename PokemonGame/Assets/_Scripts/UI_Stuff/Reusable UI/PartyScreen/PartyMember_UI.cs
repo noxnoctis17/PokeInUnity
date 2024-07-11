@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -26,21 +27,21 @@ public class PartyMember_UI : MonoBehaviour
         _pokemon = pokemon;
         UpdateData();
 
-        _pokemon.OnDisplayInfoChanged += UpdateData;
-        _pokemon.OnStatusChanged += UpdateStatusCondition;
+        _pokemon.OnDisplayInfoChanged   += UpdateData;
+        _pokemon.OnStatusChanged        += UpdateStatusCondition;
     }
 
     private void Update(){
-        if( _currentHPTracker != _hpBar.hpBar.value )
-            _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+        if( _currentHPTracker != _hpBar.HPSlider.value )
+            _currentHPText.text = $"{_hpBar.HPSlider.value}/{_hpBar.HPSlider.maxValue}";
     }
 
     private void UpdateData(){
-        _nameText.text = _pokemon.PokeSO.Name;
+        _nameText.text = _pokemon.NickName;
         _levelText.text = "" + _pokemon.Level;
         _hpBar.SetHP( _pokemon.CurrentHP, _pokemon.MaxHP );
         _currentHPTracker = _pokemon.CurrentHP;
-        _currentHPText.text = $"{_hpBar.hpBar.value}/{_hpBar.hpBar.maxValue}";
+        _currentHPText.text = $"{_hpBar.HPSlider.value}/{_hpBar.HPSlider.maxValue}";
         _statusText.text = "";
 
         if( _pokemon.PokeSO.IdleDownSprites != null ) //--TODO: Remove, all mons should have sprites lol
@@ -52,6 +53,26 @@ public class PartyMember_UI : MonoBehaviour
             _canEvolveText.SetActive( true );
         else if( !_pokemon.CanEvolveByLevelUp && _canEvolveText != null )
             _canEvolveText.SetActive( false );
+    }
+
+    public void UpdateStatusText_EvoItem( Item item, bool showStatus = false ){
+        if( _pokemon == null )
+            return;
+
+        if( item != null ){
+            var evoItem = (EvolutionItemsSO)item.ItemSO;
+
+            if( _pokemon.CheckForEvolution( evoItem ) != null ){
+                _statusBackground.color = Color.green;
+                _statusText.text = "Compatible!";
+            }
+            else{
+                _statusBackground.color = Color.red;
+                _statusText.text = "Incompatible!";
+            }
+        }
+
+        _statusContainer.SetActive( showStatus );
     }
 
     public void UpdateStatusText_TM( Item item, bool showStatus = false ){

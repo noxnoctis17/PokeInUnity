@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
   m_Name: Wingull
   m_EditorClassIdentifier: 
-  _species: 5
-  _name: Wingull
+  _species: Wingull
   _wildType: 0
   _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
   _description: 
@@ -24,9 +23,9 @@ MonoBehaviour:
   _spDefense: 30
   _speed: 85
   _catchRate: 190
-  _expYield: 540
-  _growthRate: 0
+  _expYield: 54
   _effortPointsYield: 1
+  _growthRate: 0
   _idleUpSprites:
   - {fileID: 2114655036, guid: 6b074c3b30e9fc646a4e8608806c14fb, type: 3}
   - {fileID: 755291934, guid: 6b074c3b30e9fc646a4e8608806c14fb, type: 3}
@@ -92,7 +91,7 @@ MonoBehaviour:
   - {fileID: 94122098, guid: 34763af611635d147bbe3758d97a73c2, type: 3}
   _walkDownSprites:
   - {fileID: 113689417, guid: 051791e1f6c038241b790cde2ccaacc3, type: 3}
-  _cardPortrait: {fileID: 0}
+  _cardPortrait: {fileID: -1924088897, guid: e606d8f8f8ef2804c947934119f79909, type: 3}
   _type1: 3
   _type2: 10
   _evolutions: []

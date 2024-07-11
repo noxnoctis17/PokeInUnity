@@ -9,7 +9,7 @@ public class WildMon_CuriousState : State<WildPokemon>
     public override void EnterState( WildPokemon owner ){
         // Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
-        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Walking );
+        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokeAnimationState.Walking );
         _wildPokemon.AgentMon.SetPath( null );
         _wildPokemon.AgentMon.endReachedDistance = 5f;
         _wildPokemon.AgentMon.destination = PlayerReferences.Instance.PlayerTransform.position;

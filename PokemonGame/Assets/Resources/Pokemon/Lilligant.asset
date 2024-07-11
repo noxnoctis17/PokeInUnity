@@ -12,11 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
   m_Name: Lilligant
   m_EditorClassIdentifier: 
-  _species: 7
-  _name: Lilligant
+  _species: Lilligant
   _wildType: 1
   _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
   _description: 
+  _maxHP: 70
+  _attack: 60
+  _defense: 75
+  _spAttack: 110
+  _spDefense: 75
+  _speed: 90
+  _catchRate: 75
+  _expYield: 168
+  _growthRate: 0
+  _effortPointsYield: 3
   _idleUpSprites:
   - {fileID: 5974074593144911951, guid: 61916ad6d6be76e40812e368debfeb31, type: 3}
   - {fileID: 3253953498375641298, guid: 61916ad6d6be76e40812e368debfeb31, type: 3}
@@ -257,19 +266,10 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 958f8302a72854b4cac2787159ecf1f2, type: 3}
   _walkDownSprites:
   - {fileID: 21300000, guid: 958f8302a72854b4cac2787159ecf1f2, type: 3}
-  _battlePortrait: {fileID: 2178025034381545353, guid: 61916ad6d6be76e40812e368debfeb31, type: 3}
+  _cardPortrait: {fileID: 0}
   _type1: 5
   _type2: 0
-  _maxHP: 70
-  _attack: 60
-  _defense: 75
-  _spAttack: 110
-  _spDefense: 75
-  _speed: 90
-  _catchRate: 75
-  _expYield: 168
-  _growthRate: 0
-  _effortPointsYield: 3
+  _evolutions: []
   _learnableMoves: []
   _teachableMoves:
   - {fileID: 11400000, guid: 462480866f3cbd3419a9f2b0cc76eca8, type: 2}

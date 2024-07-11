@@ -4,6 +4,11 @@ using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
 
+    //==[STATES]==
+public enum PokeAnimationState{
+    Idle, Walking, Attack, Evolving,
+}
+
 public class PokemonAnimator : MonoBehaviour
 {
     //==[REFERENCES]==
@@ -12,12 +17,13 @@ public class PokemonAnimator : MonoBehaviour
     public SpriteAnimator Animator => _spriteAnimator;
     private Transform _camera;
     [SerializeField] private Transform _pokemonTransform; //--Main Parent Transform
-    private Vector3 _defaultScale;
+    [SerializeField] private bool _disableBillboarding;
     private BattleSystem _battleSystem;
     public BattleSystem BattleSys => _battleSystem;
+    public SpriteRenderer SpriteRenderer => _spriteRenderer;
 
     //==[ACTIONS]==
-    public Action<AnimationState> OnAnimationStateChange;
+    public Action<PokeAnimationState> OnAnimationStateChange;
 
     //==[SPRITES]==
     //--Current Sheet
@@ -72,12 +78,7 @@ public class PokemonAnimator : MonoBehaviour
     private FacingDirection _facingDirection;
     public FacingDirection FacingDir => _facingDirection;
 
-    //==[STATES]==
-    public enum AnimationState{
-        Idle, Walking, Attack,
-    }
-
-    private AnimationState _animState;
+    private PokeAnimationState _animState;
 
     private void OnEnable(){
         OnAnimationStateChange += ChangeAnimationState;
@@ -85,7 +86,6 @@ public class PokemonAnimator : MonoBehaviour
         _spriteRenderer = GetComponent<SpriteRenderer>();
         _spriteAnimator = new SpriteAnimator( _spriteRenderer, 0.08f );
         _camera = PlayerReferences.MainCameraTransform;
-        _defaultScale = transform.localScale;
     }
 
     private void OnDisable(){
@@ -93,12 +93,12 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     public void Initialize( PokemonSO pokeSO ){
+        SetAllSpriteSheets( pokeSO );
+
         //--Default/Initial Animation
         _defaultAnimSheet = _idleDownSprites;
         _currentAnimSheet = _defaultAnimSheet;
 
-        SetAllSpriteSheets( pokeSO );
-        // ResetAnimations();
         _initialized = true;
     }
 
@@ -121,32 +121,35 @@ public class PokemonAnimator : MonoBehaviour
             _prevAnimSheet = _currentAnimSheet;
             _spriteAnimator.HandleUpdate();
         }
-    }
 
-    private void LateUpdate(){
-        if( _initialized )
-            if( !_isAnimating )
-                Billboard();
+        if( !_disableBillboarding )
+            if( _initialized )
+                if( !_isAnimating )
+                    Billboard();
     }
 
     private void Billboard(){
         transform.forward = _camera.forward;
     }
 
-    private void ChangeAnimationState( AnimationState state ){
+    public void ChangeAnimationState( PokeAnimationState state ){
         _animState = state;
     }
 
     private void PlayAnimations(){
         switch( _animState ){
-            case AnimationState.Idle:
+            case PokeAnimationState.Idle:
                 SetIdleSprites();
 
             break;
 
-            case AnimationState.Walking:
+            case PokeAnimationState.Walking:
                 SetIdleSprites(); //--Change to Walking eventually
 
+            break;
+
+            case PokeAnimationState.Evolving:
+                AssignAnimations( _currentAnimSheet );
             break;
 
             default:
@@ -219,7 +222,6 @@ public class PokemonAnimator : MonoBehaviour
 
             default:
                 _currentAnimSheet = _defaultAnimSheet;
-
             break;
         }
 
@@ -241,28 +243,30 @@ public class PokemonAnimator : MonoBehaviour
         _spriteRenderer.color = color;
     }
 
-    public IEnumerator PlayBeginEvolutionAnimation(){
-        float timePassed = 0f;
-        float duration = 2f;
-        
-        while( timePassed < duration ){
-            float t = timePassed / duration;
-            _spriteRenderer.color = Color.Lerp( Color.white, Color.black, t );
+    public IEnumerator PlayEvolutionAnimation( PokemonSO pokemon, PokemonSO evolution ){
+        yield return null;
+        int cycles = 10;
+        float speed = 0.25f;
+
+        var sequence = DOTween.Sequence();
+        sequence.Append( _spriteRenderer.DOColor( Color.black, 0.5f ) );
+
+        for( int i = 1; i < cycles + 1; i++ ){
+            sequence.Append( transform.DOScale( 1f, speed / i ) );
+
+            if( i % 2 == 1 )
+                sequence.AppendCallback( () => _currentAnimSheet = evolution.IdleDownSprites );
+            else
+                sequence.AppendCallback( () => _currentAnimSheet = pokemon.IdleDownSprites );
+            
+            sequence.Append( transform.DOScale( 1f, speed / i ) );
         }
 
-        yield return transform.DOScale( Vector3.zero, 1f );
-    }
+        sequence.AppendCallback( () => _currentAnimSheet = evolution.IdleDownSprites );
+        sequence.Join( _spriteRenderer.DOColor( Color.white, 0.5f ) );
 
-    public IEnumerator PlayFinishedEvolutionAnimation(){
-        float timePassed = 0f;
-        float duration = 2f;
-        
-        while( timePassed < duration ){
-            float t = timePassed / duration;
-            _spriteRenderer.color = Color.Lerp( Color.black, Color.white, t );
-        }
+        yield return sequence.WaitForCompletion();
 
-        yield return transform.DOScale( _defaultScale, 1f );
     }
 
     public IEnumerator PlayCaptureAnimation( Transform ballTransform ){

@@ -10,31 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4b7600c31e1ae6d4bb41f45a6fd300d3, type: 3}
-  m_Name: MetalClaw
+  m_Name: Surging Strikes
   m_EditorClassIdentifier: 
-  _moveName: Metal Claw
-  _description: The target is raked with steel claws. This may also raise the user's
-    Attack stat.
+  _moveName: Surging Strikes
+  _description: 
   _moveCategory: 0
   _moveTarget: 0
-  _moveType: 17
+  _moveType: 3
+  _critBehavior: 2
   _moveEffects:
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _weather: 0
-  _secondaryMoveEffects:
-  - _statChangeList:
-    - Stat: 0
-      Change: 1
-    _severeStatus: 0
-    _volatileStatus: 0
-    _weather: 0
-    _chance: 10
-    _target: 1
+  _secondaryMoveEffects: []
   _movePriority: 0
-  _hitRange: {x: 0, y: 0}
-  _power: 50
-  _accuracy: 95
+  _hitRange: {x: 3, y: 0}
+  _power: 25
+  _accuracy: 100
   _alwaysHits: 0
-  _pp: 35
+  _pp: 5

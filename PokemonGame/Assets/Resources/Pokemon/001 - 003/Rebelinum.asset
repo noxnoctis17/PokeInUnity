@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
   m_Name: Rebelinum
   m_EditorClassIdentifier: 
-  _species: 1
-  _name: Rebellinum
+  _species: Rebelinum
   _wildType: 0
   _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
   _description: 

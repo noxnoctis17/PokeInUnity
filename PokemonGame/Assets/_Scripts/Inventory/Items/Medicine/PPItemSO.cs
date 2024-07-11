@@ -55,7 +55,7 @@ public class PPItemSO : ItemSO
     }
 
     public override string UseText( Pokemon pokemon ){
-        return $"You used a {ItemName}! All of {pokemon.PokeSO.Name}'s moves recovered {_ppHealAmnt} PP!";
+        return $"You used a {ItemName}! All of {pokemon.NickName}'s moves recovered {_ppHealAmnt} PP!";
     }
 
 }

@@ -16,19 +16,22 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
     public PokemonButton[] PKMNButtons => _pkmnButtons;
     public Action<Button> OnSubmittedButton;
     public Action<bool> OnHPPocketEntered;
+    public Action<Item, bool> OnEvolutionItemSelected;
     public Action<Item, bool> OnTMSelected;
 
     private void OnEnable(){
         if( _partyScreenContext == PartyScreenContext.UseItemPaused ){
-            OnHPPocketEntered += SetHPBarActive;
-            OnTMSelected += SetStatusText_TM;
+            OnHPPocketEntered           += SetHPBarActive;
+            OnEvolutionItemSelected     += SetStatusText_EvoItem;
+            OnTMSelected                += SetStatusText_TM;
         }
     }
 
     private void OnDisable(){
         if( _partyScreenContext == PartyScreenContext.UseItemPaused ){
-            OnHPPocketEntered -= SetHPBarActive;
-            OnTMSelected -= SetStatusText_TM;
+            OnHPPocketEntered           -= SetHPBarActive;
+            OnEvolutionItemSelected     -= SetStatusText_EvoItem;
+            OnTMSelected                -= SetStatusText_TM;
         }
     }
 
@@ -89,6 +92,13 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
         Debug.Log( "SetHPBarActive" );
         foreach( PartyMember_UI icon in _memberSlots ){
             icon.ShowHPBar( show );
+        }
+    }
+
+    private void SetStatusText_EvoItem( Item item, bool show = false ){
+        Debug.Log( "SetStatusText_TM" );
+        foreach( PartyMember_UI icon in _memberSlots ){
+            icon.UpdateStatusText_EvoItem( item, show );
         }
     }
 

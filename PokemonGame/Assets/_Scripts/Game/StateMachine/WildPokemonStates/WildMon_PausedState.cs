@@ -8,7 +8,7 @@ public class WildMon_PausedState : State<WildPokemon>
     public override void EnterState( WildPokemon owner ){
         Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
-        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Idle );
+        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokeAnimationState.Idle );
 
         if( _wildPokemon.AgentMon.hasPath ){
             _wildPokemon.AgentMon.isStopped = true;

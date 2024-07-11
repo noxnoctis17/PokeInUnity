@@ -17,7 +17,7 @@ public class PokemonButton_UseItemInBattle : MonoBehaviour, IPokemonButtonContex
     }
 
     public void ContextSubmit(){
-        Debug.Log( $"Use {_bagScreen.BagDisplay.ItemSelected.ItemSO.ItemName}, Count: {_bagScreen.BagDisplay.ItemSelected.ItemCount}, on {_pokemon.PokeSO.Name}" );
+        Debug.Log( $"Use {_bagScreen.BagDisplay.ItemSelected.ItemSO.ItemName}, Count: {_bagScreen.BagDisplay.ItemSelected.ItemCount}, on {_pokemon.NickName}" );
         StartCoroutine( UseItem() );
     }
 

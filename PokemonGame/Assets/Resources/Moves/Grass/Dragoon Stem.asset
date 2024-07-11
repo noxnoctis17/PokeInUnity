@@ -13,21 +13,35 @@ MonoBehaviour:
   m_Name: Dragoon Stem
   m_EditorClassIdentifier: 
   _moveName: Dragoon Stem
-  _description: The user dashes forward quicky while handling a spear-like stem.
-    The user's HP is restored by half the damage taken by the target. Lowers the
-    target's defense.
+  _description: The user dashes forward quicky with a pointed stem. The user's HP
+    is restored by half the damage taken by the target. May lower the target's defense.
   _moveCategory: 0
   _moveTarget: 0
   _moveType: 5
+  _power: 95
+  _accuracy: 95
+  _alwaysHits: 0
+  _pp: 10
+  _movePriority: 0
+  _critBehavior: 0
+  _recoil:
+    RecoilType: 0
+    RecoilDamage: 0
+  _drainPercentage: 50
+  _hitRange: {x: 0, y: 0}
   _moveEffects:
     _statChangeList:
     - Stat: 1
       Change: -1
     _severeStatus: 0
     _volatileStatus: 0
-  _secondaryMoveEffects: []
-  _movePriority: 0
-  _power: 95
-  _accuracy: 100
-  _alwaysHits: 0
-  _pp: 10
+    _weather: 0
+  _secondaryMoveEffects:
+  - _statChangeList:
+    - Stat: 1
+      Change: -1
+    _severeStatus: 0
+    _volatileStatus: 0
+    _weather: 0
+    _chance: 10
+    _target: 0

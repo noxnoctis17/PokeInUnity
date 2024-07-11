@@ -12,7 +12,7 @@ public class WildMon_IdleState : State<WildPokemon>
         // Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
         _wildPokemon.AgentMon.SetPath( null );
-        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokemonAnimator.AnimationState.Idle );
+        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokeAnimationState.Idle );
         _pokeAnimator = _wildPokemon.PokeAnimator;
         _spriteAnimator = _pokeAnimator.Animator;
         StartCoroutine( WanderIdle() );

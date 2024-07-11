@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
   m_Name: Meomber
   m_EditorClassIdentifier: 
-  _species: 9
-  _name: Meomber
+  _species: Meomber
   _wildType: 1
   _defaultBall: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
   _description: 
@@ -50,8 +49,12 @@ MonoBehaviour:
     _levelLearned: 6
   - _moveSO: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
     _levelLearned: 9
-  - _moveSO: {fileID: 11400000, guid: c2b24e02eb1d207418bdfa5afb1a057e, type: 2}
+  - _moveSO: {fileID: 11400000, guid: 4f48c2795de53b7428a40fbf2dd526e7, type: 2}
     _levelLearned: 12
   - _moveSO: {fileID: 11400000, guid: 96507582872733441811a436aa883f27, type: 2}
     _levelLearned: 15
+  - _moveSO: {fileID: 11400000, guid: 515914ffed551a049b0d54446055012a, type: 2}
+    _levelLearned: 16
+  - _moveSO: {fileID: 11400000, guid: 9085ba98c395f8b4c88792c5f440be2a, type: 2}
+    _levelLearned: 17
   _teachableMoves: []
