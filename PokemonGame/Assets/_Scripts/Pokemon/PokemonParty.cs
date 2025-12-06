@@ -37,19 +37,32 @@ public class PokemonParty : MonoBehaviour
         OnPartyUpdated?.Invoke();
     }
 
-    public Pokemon GetHealthyPokemon(){
-        return _partyPokemon.Where( x => x.CurrentHP > 0 ).FirstOrDefault();
+    public Pokemon GetHealthyPokemon( List<Pokemon> dontInclude = null ){
+        var healthyPokemon = _partyPokemon.Where( x => x.CurrentHP > 0 ).ToList();
+        
+        if( dontInclude != null )
+            healthyPokemon = healthyPokemon.Where( p => !dontInclude.Contains( p ) ).ToList();
+
+        return healthyPokemon.FirstOrDefault();
     }
 
-    public void AddPokemon( Pokemon pokemon ){
+    public List<Pokemon> GetHealthyPokemon( int unitCount ){
+        return _partyPokemon.Where( x => x.CurrentHP > 0 ).Take( unitCount ).ToList();
+    }
+
+    public void AddPokemon( Pokemon pokemon, PokeBallType ball ){
         Pokemon copyPokemon = new ( pokemon.PokeSO, pokemon.Level );
+        copyPokemon.Init();
         copyPokemon.CurrentHP = pokemon.CurrentHP;
-        copyPokemon.SetSevereStatus( pokemon.SevereStatus.ID );
+        copyPokemon.ChangeCurrentBall( ball );
 
         if( _partyPokemon.Count < 6 ){
             PartyPokemon.Add( copyPokemon );
             copyPokemon.SetAsPlayerUnit();
             OnPartyUpdated?.Invoke();
+
+            if( pokemon.SevereStatus != null )
+                copyPokemon.SetSevereStatus( pokemon.SevereStatus.ID );
         }
         else{
             Debug.Log( "Your Party is Full" );

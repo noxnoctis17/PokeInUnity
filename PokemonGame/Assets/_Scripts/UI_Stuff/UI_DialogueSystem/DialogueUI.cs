@@ -25,13 +25,13 @@ public class DialogueUI : MonoBehaviour
     }
     
     public void StartDialogue( DialogueSO dialogueSO ){
-        Debug.Log( "StartDialogue" );
+        // Debug.Log( "StartDialogue" );
         ActiveDialogueCoroutine = StepThroughDialogue( dialogueSO );
         StartCoroutine( ActiveDialogueCoroutine );
     }
 
     public IEnumerator StartSystemMessage( string dialogue ){
-        Debug.Log( "StartDialogue" );
+        // Debug.Log( "StartDialogue" );
         ActiveDialogueCoroutine = StepThroughSystemMessage( dialogue );
         yield return ActiveDialogueCoroutine;
     }
@@ -150,11 +150,12 @@ public class DialogueUI : MonoBehaviour
 
         yield return RunTypingEffect( dialogue, currentSpeakerText );
 
-        // currentSpeakerText.text = dialogue;
-        // yield return null;
         PlayerReferences.Instance.PlayerController.EnableUI();
         yield return new WaitForEndOfFrame();
-        yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
+        
+        if( !BattleSystem.BattleIsActive )
+            yield return new WaitUntil( _playerInput.UI.Submit.WasReleasedThisFrame );
+
         CloseDialogueBox();
     }
 
@@ -170,7 +171,7 @@ public class DialogueUI : MonoBehaviour
     }
     
     public void CloseDialogueBox(){
-        Debug.Log( "CloseDialogueBox()" );
+        // Debug.Log( "CloseDialogueBox()" );
         GameStateController.Instance.GameStateMachine.Pop();
         StopAllCoroutines();
         

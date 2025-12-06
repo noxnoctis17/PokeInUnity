@@ -22,7 +22,7 @@ public class MoveSO : ScriptableObject
     [SerializeField] private int _power;
     [SerializeField] private int _accuracy;
     [SerializeField] private bool _alwaysHits;
-    [SerializeField] private int _pp;
+    [SerializeField] private int _pp = 10;
     [SerializeField] private MovePriority _movePriority;
     [SerializeField] private CritBehavior _critBehavior;
     [SerializeField] private RecoilMoveEffect _recoil = new();
@@ -69,17 +69,25 @@ public enum MoveCategory { Physical, Special, Status, Other };
 public class MoveEffects
 {
     //--Stat Modifiers
-    [SerializeField] private List<StatBoost> _statChangeList;
-    public List<StatBoost> StatChangeList => _statChangeList;
+    [SerializeField] private List<StatStage> _statChangeList;
+    public List<StatStage> StatChangeList => _statChangeList;
 
     //--Severe Status Conditions (PSN, BRN, PAR, SLP, FRZ)
-    [SerializeField] private ConditionID _severeStatus;
-    [SerializeField] private ConditionID _volatileStatus;
-    [SerializeField] private ConditionID _weather;
+    [SerializeField] private StatusConditionID _severeStatus;
+    //--Volatile Status Conditions (Confusion, Affection, etc. )
+    [SerializeField] private StatusConditionID _volatileStatus;
+    //--Transient Status Conditions (Flinch, Protect, Endure)
+    [SerializeField] private StatusConditionID _transientStatus;
+    //-Weather Conditions (Harsh Sunlight, Rainfall, Sandstorm, Snowfall)
+    [SerializeField] private WeatherConditionID _weather;
+    //--Court Conditions (Tailwind, Entry Hazards, Screens, etc.)
+    [SerializeField] private CourtConditionID _courtCondition;
 
-    public ConditionID SevereStatus => _severeStatus;
-    public ConditionID VolatileStatus => _volatileStatus;
-    public ConditionID Weather => _weather;
+    public StatusConditionID SevereStatus => _severeStatus;
+    public StatusConditionID VolatileStatus => _volatileStatus;
+    public StatusConditionID TransientStatus => _transientStatus;
+    public WeatherConditionID Weather => _weather;
+    public CourtConditionID CourtCondition => _courtCondition;
 
 }
 
@@ -93,7 +101,7 @@ public class SecondaryMoveEffects : MoveEffects
 }
 
 [Serializable]
-public class StatBoost
+public class StatStage
 {
     public Stat Stat;
     [Range(-6, 6)]

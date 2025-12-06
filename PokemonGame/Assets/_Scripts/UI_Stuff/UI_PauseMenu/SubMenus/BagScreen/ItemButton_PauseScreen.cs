@@ -67,6 +67,7 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
             ExecuteEvents.Execute( gameObject, eventData, ExecuteEvents.cancelHandler );
             return;
         }
+
         //--just a reminder, if you want to get the actual class of the items
         //--You make a new variable of System.Type itemType = _itemSlot.GetType()
         //--and then use typeof( class ) to compare in an if statement
@@ -118,6 +119,8 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
                 _bagScreenPause.BagDisplay.OnButtonSelected?.Invoke( this );
             break;
         }
+
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
     public void OnDeselect( BaseEventData eventData ){

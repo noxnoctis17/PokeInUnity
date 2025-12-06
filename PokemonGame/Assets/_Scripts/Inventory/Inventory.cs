@@ -45,7 +45,7 @@ public class Inventory : MonoBehaviour, ISavable
     }
 
     private IEnumerator ShowItemGet( ItemSO item, int count = 1 ){
-        _itemGetText.text = $"Found X {count} {item.ItemName}!";
+        _itemGetText.text = $"Found X {count} {item.ItemName}";
         _itemIcon.sprite = item.Icon;
 
         yield return new WaitForEndOfFrame();

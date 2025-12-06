@@ -91,9 +91,10 @@ MonoBehaviour:
   - {fileID: 94122098, guid: 34763af611635d147bbe3758d97a73c2, type: 3}
   _walkDownSprites:
   - {fileID: 113689417, guid: 051791e1f6c038241b790cde2ccaacc3, type: 3}
-  _cardPortrait: {fileID: -1924088897, guid: e606d8f8f8ef2804c947934119f79909, type: 3}
+  _cardPortrait: {fileID: 21300000, guid: 8da5f383cbf543547a06c8b58f1e0869, type: 3}
   _type1: 3
   _type2: 10
+  _abilities: 15000000
   _evolutions: []
   _learnableMoves:
   - _moveSO: {fileID: 11400000, guid: 52369ddd7b32a3d4f9add7d7a12a894b, type: 2}
@@ -102,6 +103,8 @@ MonoBehaviour:
     _levelLearned: 1
   - _moveSO: {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
     _levelLearned: 5
+  - _moveSO: {fileID: 11400000, guid: a682f8d1433b83f4eb13e17d7ccdad65, type: 2}
+    _levelLearned: 8
   - _moveSO: {fileID: 11400000, guid: 4e2558dbbc070a142a74714b86955fe8, type: 2}
     _levelLearned: 16
   _teachableMoves: []

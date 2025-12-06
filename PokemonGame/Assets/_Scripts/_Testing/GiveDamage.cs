@@ -8,7 +8,7 @@ public class GiveDamage : MonoBehaviour, IInteractable
         var secondMon = PlayerReferences.Instance.PlayerParty.PartyPokemon[1];
         var thirdMon = PlayerReferences.Instance.PlayerParty.PartyPokemon[2];
         firstMon.DecreaseHP( firstMon.MaxHP );
-        firstMon.SetSevereStatus( ConditionID.FNT );
+        firstMon.SetSevereStatus( StatusConditionID.FNT );
 
         secondMon.DecreaseHP( secondMon.MaxHP/2 );
 

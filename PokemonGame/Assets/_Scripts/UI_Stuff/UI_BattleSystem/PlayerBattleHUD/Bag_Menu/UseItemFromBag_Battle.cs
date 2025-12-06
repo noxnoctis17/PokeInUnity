@@ -48,7 +48,7 @@ public class UseItemFromBag_Battle : State<PlayerBattleMenu>
     }
 
     public override void ExitState(){
-        Debug.Log( $"{this} ExitState()" );
+        // Debug.Log( $"{this} ExitState()" );
         //--Events
         _bagDisplay.PartyDisplay.OnSubmittedButton -= SetMemoryButton;
         GameStateController.Instance.OnDialogueStateEntered -= PauseState;

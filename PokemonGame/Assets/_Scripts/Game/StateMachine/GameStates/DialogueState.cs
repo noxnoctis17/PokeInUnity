@@ -17,13 +17,13 @@ public class DialogueState : State<GameStateController>
         PlayerReferences.Instance.PlayerController.EnableUI();
         _gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.DialogueState );
         _gameStateController.OnDialogueStateEntered?.Invoke();
-        Debug.Log( "Dialogue State Enter()" );
+        // Debug.Log( "Dialogue State Enter()" );
     }
 
     public override void ExitState(){
         _gameStateController.OnDialogueStateExited?.Invoke();
         PlayerReferences.Instance.PlayerController.DisableUI();
-        Debug.Log( "Dialogue State Exit()" );
+        // Debug.Log( "Dialogue State Exit()" );
     }
 
 }

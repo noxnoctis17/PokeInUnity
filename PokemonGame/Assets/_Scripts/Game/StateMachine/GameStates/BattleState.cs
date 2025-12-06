@@ -29,6 +29,7 @@ public class BattleState : State<GameStateController>
     }
 
     public override void ReturnToState(){
+        gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.BattleState );
         PlayerReferences.Instance.PlayerController.EnableBattleControls();
     }
 

@@ -7,7 +7,7 @@ public class TrainerSO : ScriptableObject
     [SerializeField] private TrainerClassEnum _trainerClassEnum;
     
     public TrainerClassEnum TrainerClassEnum => _trainerClassEnum;
-    public string TrainerName;
+    public string TrainerName => _name;
 }
 
 public enum TrainerClassEnum{
@@ -17,5 +17,6 @@ public enum TrainerClassEnum{
     Youngster,
     Swimmer,
     BugCatcher,
+    GymLeader,
 
 }

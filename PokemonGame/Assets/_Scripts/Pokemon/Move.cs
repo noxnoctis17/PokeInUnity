@@ -4,7 +4,8 @@ using UnityEngine;
 [Serializable]
 public class Move
 {
-    public MoveSO MoveSO { get; set; }
+    [SerializeField] private MoveSO _moveSO;
+    public MoveSO MoveSO { get => _moveSO; set => _moveSO = value; }
     public int PP { get; set; }
 
     public Move( MoveSO mBase ){

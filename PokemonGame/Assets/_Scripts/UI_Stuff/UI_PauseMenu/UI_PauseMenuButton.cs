@@ -18,6 +18,7 @@ public class UI_PauseMenuButton : MonoBehaviour, ISelectHandler, IDeselectHandle
 
     public void OnSelect( BaseEventData eventData ){
         _buttonEvents.OnButtonSelected?.Invoke( _thisButton );
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
         // Debug.Log( "selected: " + gameObject );
     }
 

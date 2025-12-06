@@ -89,6 +89,12 @@ public class PokemonSO : ScriptableObject
 
     //-----------------------------------
 
+    [Header( "Abilities" )]
+    [SerializeField] private List<AbilityID> _abilities;
+    public List<AbilityID> Abilities => _abilities;
+
+    //-----------------------------------
+
     [Header( "Evolutions" )]
     [SerializeField] private List<Evolutions> _evolutions;
     public List<Evolutions> Evolutions => _evolutions;

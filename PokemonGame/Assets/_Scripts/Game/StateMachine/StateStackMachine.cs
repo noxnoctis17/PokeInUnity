@@ -14,7 +14,7 @@ public class StateStackMachine<T>
     }
 
     public void Push( State<T> newState ){
-        Debug.Log( $"S{_owner} Push(): {newState}" );
+        // Debug.Log( $"S{_owner} Push(): {newState}" );
         StateStack.Push( newState );
 
         if( CurrentState != null )
@@ -25,7 +25,7 @@ public class StateStackMachine<T>
     }
 
     public void Pop(){
-        Debug.Log( $"StateStack Machine Pop() by: {_owner}" );
+        // Debug.Log( $"StateStack Machine Pop() by: {_owner}" );
         StateStack.Pop();
         CurrentState.ExitState();
 
@@ -36,13 +36,14 @@ public class StateStackMachine<T>
     }
 
     public void ChangeState( State<T> newState ){
-        Debug.Log( $"S{_owner} ChangeState(): {newState}" );
+        // Debug.Log( $"S{_owner} ChangeState(): {newState}" );
         StateStack.Pop().ExitState();
         CurrentState = newState;
         Push( CurrentState );
     }
 
     public void Update(){
+        // Debug.Log( CurrentState );
         CurrentState.UpdateState();
     }
 

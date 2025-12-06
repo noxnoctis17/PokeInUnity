@@ -21,6 +21,7 @@ public class BattleButtonSelect : MonoBehaviour, ISelectHandler, IDeselectHandle
 
     public void OnSelect( BaseEventData eventData ){
         _battleUIActions.OnButtonSelected?.Invoke( _thisButton );
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
     public void OnDeselect( BaseEventData eventData ){

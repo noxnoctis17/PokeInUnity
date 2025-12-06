@@ -6,61 +6,76 @@ using System.Collections.Generic;
 using DG.Tweening;
 using Cinemachine;
 using UnityEngine.EventSystems;
+using NoxNoctisDev.StateMachine;
+using Unity.VisualScripting;
 
-public enum BattleStateEnum { PlayerAction, Busy, SelectingNextPokemon }
+public enum BattleStateEnum { ActionSelect, Busy, SelectingNextPokemon }
+public enum BattleFlag { SpeedChange, }
 
 public enum BattleType { WildBattle_1v1, WildBattle_2v2, TrainerSingles, TrainerDoubles, TrainerMulti_2v1, TrainerMulti_2v2, }
 
 [Serializable]
-public class BattleSystem : BattleStateMachine
+public class BattleSystem : MonoBehaviour
 {
+    public StateStackMachine<BattleSystem> StateMachine;
+    [SerializeField] private State<BattleSystem> _actionSelectState;
+    [SerializeField] private State<BattleSystem> _aiTurnState;
+    [SerializeField] private State<BattleSystem> _turnManagerState;
+    [SerializeField] private State<BattleSystem> _busyState;
+    [SerializeField] private State<BattleSystem> _forceSelectPokemonState;
+    [SerializeField] private State<BattleSystem> _roundEndPhaseState;
+
 #region Private Serialized References
     //================================[ REFERENCES ]===========================================
     //--Serialized Fields/private-----------------------------------------
     [SerializeField] private BattleArena _battleArena;
+    [SerializeField] private BattleComposer _battleComposer;
     [SerializeField] private GameObject _battleUnitPrefab;
     [SerializeField] private EventSystem _eventSystem;
-    [SerializeField] private BattleHUD _playerHUD;
-    [SerializeField] private BattleHUD _enemyTrainerHUD;
+    [SerializeField] private List<BattleHUD> _playerHUDs;
+    [SerializeField] private List<BattleHUD> _enemyTrainerHUDs;
     [SerializeField] private BattleHUD _wildPokemonHUD;
     [SerializeField] private GameObject _enemyTrainerCanvas;
     [SerializeField] private GameObject _wildPokemonCanvas;
-    [SerializeField] private BattleDialogueBox _dialogueBox;
+    [SerializeField] private AbilityCutIn _abilityCutIn;
     [SerializeField] private Transform _damageTakenPopupPrefab;
     [SerializeField] private PlayerBattleMenu _battleMenu;
     [SerializeField] private FightMenu _fightMenu;
     [SerializeField] private PartyScreen_Battle _pkmnMenu;
     [SerializeField] private PartyDisplay _partyDisplay;
     [SerializeField] private LearnMove_Battle _learnMoveMenu;
-    [SerializeField] private AudioSource _audioSource;
     [SerializeField] private GameObject _thrownPokeBall;
     [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
 #endregion
 #region Private References
     //--Private-----------------------------------------------------------
     private BattleType _battleType;
-    private BattleUnit _playerUnit;
-    private BattleUnit _enemyUnit;
+    private Dictionary<BattleFlag, bool> _battleFlags;
+    private List<BattleUnit> _playerUnits;
+    private List<BattleUnit> _enemyUnits;
+    private Queue<Func<IEnumerator>> _uiQueue;
 #endregion
 #region Public Getters and Properties
     //--public/getters/properties----------------------------------------------
     public static BattleSystem Instance;
     public static bool BattleIsActive { get; private set; }
+    public BattleComposer BattleComposer => _battleComposer;
     public EventSystem EventSystem => _eventSystem;
     public BattleType BattleType => _battleType;
     public BattleArena BattleArena => _battleArena;
     //--Units
     public GameObject Trainer1Center { get; private set; }
     public GameObject BattleUnitPrefab => _battleUnitPrefab;
-    public BattleUnit PlayerUnit => _playerUnit;
-    public BattleUnit EnemyUnit => _enemyUnit;
+    public List<BattleUnit> PlayerUnits => _playerUnits;
+    public List<BattleUnit> EnemyUnits => _enemyUnits;
+    public BattleUnit SwitchUnitToPosition;
     //--HUD
-    public BattleHUD PlayerHUD => _playerHUD;
-    public BattleHUD EnemyHUD => _enemyTrainerHUD;
+    public List<BattleHUD> PlayerHUDs => _playerHUDs;
+    public List<BattleHUD> EnemyHUDs => _enemyTrainerHUDs;
     public BattleHUD WildPokemonHUD => _wildPokemonHUD;
     //--Dialogue/Damage Text
-    public BattleDialogueBox DialogueBox => _dialogueBox;
-    public Queue<BattleDialogueBox> DialogueBoxeUpdates { get; set; }
+    public AbilityCutIn AbilityCutIn => _abilityCutIn;
+    public static Action<Func<IEnumerator>> EnqueueUICoroutine;
     public static Transform DamageTakenPopupPrefab;
     //--Menus and Screens
     public PlayerBattleMenu PlayerBattleMenu => _battleMenu;
@@ -71,8 +86,6 @@ public class BattleSystem : BattleStateMachine
     //--EXP
     public int TotalPartyExpGain { get; private set; }
     public int TotalPartyEffortGain { get; private set; }
-    //--Audio
-    public AudioSource AudioSource => _audioSource;
 #endregion
 #region State Machine
 //=============================[ STATE MACHINE ]===============================================================
@@ -85,49 +98,59 @@ public class BattleSystem : BattleStateMachine
 //================================[ EVENTS ]===================================================================
     public static event Action OnBattleStarted;
     public static event Action OnBattleEnded;
+    public static event Action OnCommandAdded;
     public static Action OnPlayerPokemonFainted;
     public static Action OnPlayerChoseNextPokemon;
 #endregion
 //----------------------------------------------------------------------------
-    private int _turnsLeft;
     private bool _isFaintedSwitch;
     private bool _isSinglesTrainerBattle;
     private bool _isDoublesTrainerBattle;
     private bool _levelUpCompleted;
+    private bool _isRunningUICoroutine;
     public bool IsSinglesTrainerBattle => _isSinglesTrainerBattle;
     public bool IsDoublesTrainerBattle => _isDoublesTrainerBattle;
 
 #region Pokemon and Pokemon Parties
 //=========================[ POKEMON AND PLAYER/TRAINER PARTIES ]================================================
     //--private
-    private TrainerClass _enemyTrainer1;
+    private Trainer _enemyTrainer1;
     private Inventory _playerInventory;
     private PokemonParty _playerParty;
     private PokemonParty _enemyTrainerParty;
-    private int _playerUnitAmount;
+    private int _unitsInBattle;
+    private int _unitInSelectionState = 0;
     private Pokemon _wildPokemon;
     private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
-    private Pokemon _caughtPokemon; //--Pokemon you caught
+
     //--public/getters/properties
     public Inventory Inventory => _playerInventory;
     public PokemonParty PlayerParty => _playerParty;
     public PokemonParty EnemyTrainerParty => _enemyTrainerParty;
-    public int PlayerUnitAmount => _playerUnitAmount;
+    public int UnitsInBattle => _unitsInBattle;
+    public BattleUnit UnitInSelectionState => _playerUnits[_unitInSelectionState];
+    public int ActivePlayerUnitsCount => _playerUnits.Count( u => u !=null && u.Pokemon != null && u.Pokemon.CurrentHP > 0 );
+    public int ActiveEnemyUnitsCount => _enemyUnits.Count( u => u !=null && u.Pokemon != null && u.Pokemon.CurrentHP > 0 );
     public Pokemon WildPokemon => _wildPokemon;
     public WildPokemon EncounteredPokemon => _encounteredPokemon;
 #endregion
 //============================================================================================================
-    public Field Field { get; private set; }
+    public Battlefield Field { get; private set; }
 
 #region Command System
 //====================================[ COMMAND SYSTEM ]=======================================================
 
     private List<IBattleCommand> _commandList;
     private Queue<IBattleCommand> _commandQueue;
+    public Queue<IBattleCommand> CommandQueue => _commandQueue;
     private UseMoveCommand _useMoveCommand;
     private UseItemCommand _useItemCommand;
     private SwitchPokemonCommand _switchPokemonCommand;
     private RunFromBattleCommand _runFromBattleCommand;
+#endregion
+
+#region Round End Phase
+    private BattleSystem_RoundEndPhaseState _roundEndPhase;
 #endregion
 //============================================================================================================
 //============================================================================================================
@@ -135,24 +158,38 @@ public class BattleSystem : BattleStateMachine
 
     private void OnEnable(){
         Instance = this;
+        StateMachine = new( this );
         DamageTakenPopupPrefab = _damageTakenPopupPrefab;
         _playerInventory = PlayerReferences.Instance.PlayerInventory;
 
         DialogueManager.Instance.OnSystemDialogueComplete += SetLevelUpCompleted;
 
+        _roundEndPhase = _roundEndPhaseState as BattleSystem_RoundEndPhaseState;
+        _roundEndPhase.Init();
+
+        _playerUnits = new();
+        _enemyUnits = new();
         _commandQueue = new Queue<IBattleCommand>();
         _commandList = new List<IBattleCommand>();
         Field = new();
-        DialogueBoxeUpdates = new Queue<BattleDialogueBox>(); //--?? was this for my passive dialogue box? --3/26/24 probably lol
+        Field.ActiveCourts = new();
+        InitializeBattleFlags();
+
+        //--UI Queue, currently encompasses dialogue/system messages & ability cut ins -- 12/01/25
+        _uiQueue = new();
+        EnqueueUICoroutine = ( cr ) => AddToUIQueue( cr );
+        StartCoroutine( UICoroutineRunner() );
+
         TotalPartyExpGain = 0;
         BattleIsActive = true;
         OnBattleStarted?.Invoke();
+        AudioController.Instance.PlayMusic( MusicTheme.BattleThemeDefault, 10f );
     }
 
     private void OnDisable(){
+        _roundEndPhase.Clear();
         Instance = null;
-
-        DialogueManager.Instance.OnSystemDialogueComplete += SetLevelUpCompleted;
+        DialogueManager.Instance.OnSystemDialogueComplete -= SetLevelUpCompleted;
     }
 
     //--Battle System State Functions. The Current BattleSystem doesn't necessarily progress through states
@@ -165,22 +202,117 @@ public class BattleSystem : BattleStateMachine
     //--we're literally ONLY managing the player's controls in each state. as long as we call the appropriate "state"
     //--function, the correct set of controls should be set at any given time.
 
+    //--11/25/25, 2:08am, we're adding a god damn state stack machine lol. even though the current states are trivial, the
+    //--turn manager existing as a state makes sense, and more importantly, for doubles we need slightly more fine-grained control
+    //--over the player's action select state. this state will then allow the battle menu to enter a target select state, depending
+    //--on if there's multiple enemy units. the action select state will persist until all player units have added an action to a temporary list
+    //--and then it will push the turn manager state to the top of the stack, with the action select state being the state machine's "base state"
+
+    public void PopState(){
+        StateMachine.Pop();
+    }
+
+    public void ChangeState( State<BattleSystem> newState ){
+        StateMachine.ChangeState( newState );
+    }
+
+    private void PushState( State<BattleSystem> newState ){
+        StateMachine.Push( newState );
+    }
+
     private void SetBusyState(){
-        Debug.Log( "SetBusyState" );
+        // Debug.Log( "SetBusyState" );
         if( PlayerBattleMenu.StateMachine.CurrentState != PlayerBattleMenu.PausedState )
             PlayerBattleMenu.OnPauseState?.Invoke();
     }
 
-    private void SetPlayerActionState(){
-        Debug.Log( "SetPlayerActionState" );
-        if( PlayerBattleMenu.StateMachine.CurrentState == PlayerBattleMenu.PausedState )
-            PlayerBattleMenu.OnUnpauseState?.Invoke();
+    public void SetStateEnum( BattleStateEnum state )
+    {
+        _battleStateEnum = state;
+    }
+
+    private void InitializeBattleFlags()
+    {
+        _battleFlags = new();
+
+        foreach( BattleFlag flag in Enum.GetValues( typeof( BattleFlag ) ) )
+        {
+            _battleFlags[flag] = false;
+        } 
+    }
+
+    private void ClearBattleFlags()
+    {
+        _battleFlags = null;
+    }
+
+    private void ClearCourts()
+    {
+        foreach( var court in Field.ActiveCourts )
+        {
+            foreach( var condition in court.Value.Conditions.Values )
+            {
+                condition?.OnEnd?.Invoke( this, Field );
+
+                foreach( var unit in court.Value.Units )
+                {
+                    condition?.OnExitCourt?.Invoke( unit, Field );
+                }
+            }
+
+            court.Value.Conditions.Clear();
+        }
+
+        Field.ActiveCourts.Clear();
+    }
+
+    public void SetBattleFlag( BattleFlag flag, bool value )
+    {
+        if( _battleFlags.ContainsKey( flag ) )
+            _battleFlags[flag] = value;
+        else
+            Debug.LogError( "Battleflag not found!" );
     }
 
     private void SetForceSelectPokemonState(){
-        Debug.Log( "SetForceSelectPokemonState" );
+        // Debug.Log( "SetForceSelectPokemonState" );
         if( PlayerBattleMenu.StateMachine.CurrentState == PlayerBattleMenu.PausedState )
             PlayerBattleMenu.OnChangeState?.Invoke( _pkmnMenu );
+    }
+
+    private void AddToUIQueue( Func<IEnumerator> cr, [System.Runtime.CompilerServices.CallerFilePath] string file = "", [System.Runtime.CompilerServices.CallerLineNumber] int line = 0 )
+    {
+        _uiQueue.Enqueue( cr );
+        Debug.Log( $"{_uiQueue.Peek()} was Enqueued from {System.IO.Path.GetFileName( file )}:{line}" );
+    }
+
+    private IEnumerator UICoroutineRunner()
+    {
+        while( true )
+        {
+            if( _uiQueue.Count > 0 )
+            {
+                var next = _uiQueue.Dequeue();
+                // Debug.Log( $"Starting UI Coroutine: {next()}" );
+                yield return next();
+                // Debug.Log( $"Finished UI Coroutine: {next()}" );
+            }
+            else
+            {
+                yield return null;
+            }
+
+            yield return new WaitForSeconds( 0.1f );
+            // Debug.Log( $"The UI Queue's Count > 0 is: {_uiQueue.Count}" );
+        }
+    }
+
+    private IEnumerator WaitForUIQueue()
+    {
+        if( _uiQueue.Count > 0 )
+            yield return new WaitUntil( () => _uiQueue.Count == 0 );
+        else
+            yield return null;
     }
 
     //--Start setting up a battle. Anything that starts a battle needs to set the Battle Type. The Battle Type is responsible
@@ -188,14 +320,16 @@ public class BattleSystem : BattleStateMachine
     //--SOMEHOW, we will then assign all necessary Battle Unit objects from the Stage to their correct references here
     //--in the Battle System
     public void InitializeWildBattle( BattleType battleType ){
+        _unitsInBattle = 1;
         _battleType = battleType;
         _playerParty = PlayerReferences.Instance.PlayerParty;
         _wildPokemonCanvas.SetActive( true );
 
-        SetState( new BattleState_Setup( this ) );
+        StartCoroutine( BattleSetup() );
     }
 
-    public void InitializeTrainerSingles( TrainerClass trainer ){
+    public void InitializeTrainerSingles( Trainer trainer ){
+        _unitsInBattle = 1;
         _isSinglesTrainerBattle = true;
         _enemyTrainer1 = trainer;
         _enemyTrainerCanvas.SetActive( true );
@@ -207,17 +341,52 @@ public class BattleSystem : BattleStateMachine
         _playerParty = PlayerReferences.Instance.PlayerParty;
         _enemyTrainerParty = trainer.TrainerParty;
 
-        SetState( new BattleState_Setup( this ) );
+        StartCoroutine( BattleSetup() );
     }
 
-    public void InitializeTrainerDoubles( TrainerClass trainer ){
+    public void InitializeTrainerDoubles( Trainer trainer ){
+        _unitsInBattle = 2;
         _isDoublesTrainerBattle = true;
         _enemyTrainer1 = trainer;
+        _enemyTrainerCanvas.SetActive( true );
+
+        for( int i = 0; i < _enemyTrainerHUDs.Count; i++ )
+            _enemyTrainerHUDs[i].gameObject.SetActive( true );
+
+        for( int i = 0; i < _playerHUDs.Count; i++ )
+            _playerHUDs[i].gameObject.SetActive( true );
+
+        Trainer1Center = trainer.TrainerCenter;
+        _battleType = trainer.BattleType;
+        _playerParty = PlayerReferences.Instance.PlayerParty;
+        _enemyTrainerParty = trainer.TrainerParty;
+
+        StartCoroutine( BattleSetup() );
+    }
+
+    private IEnumerator BattleSetup()
+    {
+        _unitInSelectionState = 0;
+        BattleUIActions.OnBattleSystemBusy?.Invoke();
+        PushState( _busyState );
+        yield return null;
+        yield return BattleArena.PrepareArena( this );
+        yield return BeginBattle();
     }
 
     public void AssignUnits_1v1( BattleUnit playerUnit, BattleUnit enemyUnit ){
-        _playerUnit = playerUnit;
-        _enemyUnit = enemyUnit;
+        _playerUnits.Add( playerUnit );
+        _enemyUnits.Add( enemyUnit );
+        Field.AddCourts( CourtLocation.TopCourt, _enemyUnits );
+        Field.AddCourts( CourtLocation.BottomCourt, _playerUnits );
+    }
+
+    public void AssignUnits_2v2( List<BattleUnit> playerUnits, List<BattleUnit> enemyUnits )
+    {
+        _playerUnits = playerUnits;
+        _enemyUnits = enemyUnits;
+        Field.AddCourts( CourtLocation.TopCourt, _enemyUnits );
+        Field.AddCourts( CourtLocation.BottomCourt, _playerUnits );
     }
 
     //--When a Wild Battle is triggered by WildPokemonEvents.OnPlayerEncounter (a player runs into a wild mon),
@@ -231,43 +400,136 @@ public class BattleSystem : BattleStateMachine
     }
 
     //--Need to make a round start phase!
-    public IEnumerator BeginBattle(){
-        // Field.SetWeather( ConditionID.SANDSTORM, 5 ); //--For Testing
+    public IEnumerator BeginBattle()
+    {
+        Field.SetWeather( WeatherController.Instance.CurrentWeather );
 
+        List<BattleUnit> activePokemon = new();
+        activePokemon = GetActivePokemon();
+
+        yield return new WaitUntil( () => !_battleArena.CMBrain.IsBlending );
+
+        WeatherConditionID currentWeather = WeatherConditionID.NONE;
         if( Field.Weather != null )
-            yield return _dialogueBox.TypeDialogue( Field.Weather.StartMessage );
+        {
+            if( Field.Weather?.StartMessage != null )
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( Field.Weather?.StartMessage ) );
 
-        Field.Weather?.OnEnterWeather?.Invoke( _playerUnit.Pokemon );
-        Field.Weather?.OnEnterWeather?.Invoke( _enemyUnit.Pokemon );
+            yield return null;
+            yield return WaitForUIQueue();
+            currentWeather = Field.Weather.ID;
+        }
 
-        PlayerAction();
+        yield return null;
+        //--Check for weather-setting abilites, and execute OnEnterWeather on every active pokemon per weather ability check.
+        //--I can probably put the second loop inside the if check, but let's see if this works first --11/30/25
+
+        foreach( var unit in activePokemon )
+        {
+            if( unit.Pokemon.IsPlayerUnit )
+                unit.Pokemon.Ability?.OnAbilityEnter?.Invoke( unit.Pokemon, _enemyUnits, Field );
+            else
+                unit.Pokemon.Ability?.OnAbilityEnter?.Invoke( unit.Pokemon, _playerUnits, Field );
+
+            yield return null;
+
+            foreach( var unitCheckStatusChange in activePokemon )
+            {
+                yield return ShowStatusChanges( unitCheckStatusChange );
+                yield return null;
+            }
+            
+            yield return WaitForUIQueue();
+
+            if( Field.Weather != null && currentWeather != Field.Weather?.ID )
+            {
+                if( Field.Weather?.StartByMoveMessage != null )
+                    AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( Field.Weather?.StartByMoveMessage ) );
+
+                yield return null;
+                yield return WaitForUIQueue();
+                currentWeather = Field.Weather.ID;
+                foreach( var unitAffectedByWeather in activePokemon )
+                {
+                    Field.Weather?.OnEnterWeather?.Invoke( unitAffectedByWeather.Pokemon );
+                    yield return WaitForUIQueue();
+                }
+            }
+
+            //--Turns taken in battle is defaulted to -1 so that we can simply increment a newly switched in pokemon at the very end of a round
+            //--along side every other pokemon on the field. this would make a newly swapped in pokemon have taken 0 turns in battle
+            //--for the first turn you can actually choose a command for them, which is correct.
+            unit.ResetTurnsTakenInBattle(); //--Sets turns taken to -1
+            unit.IncreaseTurnsTakenInBattle(); //--Since this is the beginning of a battle, the end of a round hasn't happened yet, so we increment here in its place, setting each turn taken to 0
+            yield return new WaitForSeconds( 0.25f );
+        }
+
+        yield return new WaitForSeconds( 0.25f );
+        PushState( _actionSelectState );
     }
 
-    public void PlayerAction(){
-        Debug.Log( "PlayerAction" );
-        _battleStateEnum = BattleStateEnum.PlayerAction;
-        SetPlayerActionState();
+    public void TriggerAbilityCutIn( Pokemon pokemon )
+    {
+        AddToUIQueue( () => _abilityCutIn.CutIn( pokemon.Ability?.Name, pokemon.NickName ) );
     }
 
-    private void FaintedSwitchPartyMenu(){
+    private void FaintedSwitchPartyMenu( BattleUnit unitPosition ){
         _isFaintedSwitch = true;
+        SwitchUnitToPosition = unitPosition;
         SetForceSelectPokemonState();
         OnPlayerPokemonFainted?.Invoke();
         BattleUIActions.OnSubMenuOpened?.Invoke();
         BattleUIActions.OnPkmnMenuOpened?.Invoke();
     }
     
-    public void SetFaintedSwitchMon( Pokemon switchedMon ){
+    public void SetFaintedSwitchMon( Pokemon switchedMon, BattleUnit unitPosition ){
         //--The pkmn menu pops its own state before this function is called, therefore we need to
         //--Set ourselves back to the busy state.
-        SetBusyState();
-        StartCoroutine( PerformSwitchPokemonCommand( switchedMon ) );
+        StartCoroutine( PerformSwitchPokemonCommand( switchedMon, unitPosition ) );
     }
 
-    private IEnumerator SetForcedSwitchMon( Pokemon switchedMon ){
+    private IEnumerator SetForcedSwitchMon( Pokemon switchedMon, BattleUnit unitPosition ){
         //--for when something like u-turn or roar happens and we need
         //--to include it as part of the battle phase coroutine chain
-        yield return PerformSwitchPokemonCommand( switchedMon );
+        yield return PerformSwitchPokemonCommand( switchedMon, unitPosition );
+    }
+
+    public bool IsPokemonSelectedToShift( Pokemon pokemon )
+    {
+        Debug.Log( "Checking if Pokemon is already selected" );
+        //--We need to use the _commandList instead of the _commandQueue, because the queue doesn't get filled until all commands are added to the list
+        //--The list then sorts itself appropriately, and feeds everything into the queue for the queue to run or dequeue accordingly.
+        foreach( IBattleCommand command in _commandList )
+        {
+            Debug.Log( command.GetType() );
+            if( command is SwitchPokemonCommand )
+            {
+                var switchCommand = command as SwitchPokemonCommand;
+                Debug.Log( $"Command is a SwitchPokemonCommand to switch in: {switchCommand.GetPokemon().NickName}" );
+                Debug.Log( $"The Selected Pokemon to shift is: {pokemon.NickName}" );
+                if( switchCommand.GetPokemon() == pokemon )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private List<BattleUnit> GetActivePokemon()
+    {
+        List<BattleUnit> activePokemon = new();
+
+        for( int i = 0; i < _playerUnits.Count; i++ )
+            activePokemon.Add( _playerUnits[i] );
+
+        for( int i = 0; i < _enemyUnits.Count; i++ )
+            activePokemon.Add( _enemyUnits[i] );
+
+        activePokemon = activePokemon.OrderBy( u => u.Pokemon.Speed ).ToList();
+
+        return activePokemon;
     }
 
     //--Will call this where necessary in HandleFaintedPokemon()
@@ -297,10 +559,10 @@ public class BattleSystem : BattleStateMachine
 
     public void SetLevelUpCompleted( bool isComplete ){
         _levelUpCompleted = isComplete;
-        Debug.Log( "is level up completed: " + _levelUpCompleted );
+        // Debug.Log( "is level up completed: " + _levelUpCompleted );
     }
 
-    private IEnumerator PostBattleScreen( Pokemon caughtPokemon = null ){
+    private IEnumerator PostBattleScreen( Pokemon caughtPokemon = null, PokeBallType ball = PokeBallType.PokeBall ){
         _battleStateEnum = BattleStateEnum.Busy;
         SetBusyState();
         WaitForSeconds wait = new( 1f );
@@ -312,7 +574,7 @@ public class BattleSystem : BattleStateMachine
 
         //--Add Caught Pokemon to Party here AFTER exp calculations, so it doesn't gain EXP from itself being caught LOL
         if( caughtPokemon != null){
-            _playerParty.AddPokemon( caughtPokemon );
+            _playerParty.AddPokemon( caughtPokemon, ball );
         }
 
         //--Post Trainer Battle
@@ -326,8 +588,11 @@ public class BattleSystem : BattleStateMachine
 
     private IEnumerator GivePartyExp( WaitForSeconds wait ){
         //--Gain Exp Dialogue
-        yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyExpGain} Exp!" );
-        yield return _dialogueBox.TypeDialogue( $"All Pokemon received {TotalPartyEffortGain} Effort Points!" );
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"All Pokemon received {TotalPartyExpGain} Exp!" ) );
+        yield return WaitForUIQueue();
+
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"All Pokemon received {TotalPartyEffortGain} Effort Points!" ) );
+        yield return WaitForUIQueue();
 
         //--Give Exp to each Pokemon in player's party directly
         foreach( Pokemon pokemon in PlayerReferences.Instance.PlayerParty.PartyPokemon ){
@@ -336,57 +601,68 @@ public class BattleSystem : BattleStateMachine
             pokemon.GainExp( TotalPartyExpGain, TotalPartyEffortGain );
 
             //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
-            if( pokemon == _playerUnit.Pokemon )
-                yield return _playerHUD.SetExpSmooth();
+            for( int i = 0; i < _playerUnits.Count; i++ )
+            {
+                if( pokemon == _playerUnits[i].Pokemon )
+                    yield return _playerHUDs[i].SetExpSmooth();
+            }
 
             //--Check for Level up
             while( pokemon.CheckForLevelUpBattle() ){
-                yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} grew to level {pokemon.Level}!" );
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} grew to level {pokemon.Level}!" ) );
+                yield return WaitForUIQueue();
 
-                //--Try Learn Moves
+                //--Try Learn Moves //--i gotta get rid of this shit and move the post battle exp gain shit out of battle and remove the stoppage of play, like in time stranger, a game that did it after i wanted to.
                 if( pokemon.GetNextLearnableMove() != null ){
                     var newMove = pokemon.GetNextLearnableMove();
-                    
-                    if( !pokemon.TryLearnMove( newMove.MoveSO ) ){
-                        bool moveLearnOver = false;
-                        bool learnedNewMove = false;
+                    if( !pokemon.CheckHasMove( newMove.MoveSO ) )
+                    {
+                        if( !pokemon.TryLearnMove( newMove.MoveSO ) ){
+                            bool moveLearnOver = false;
+                            bool learnedNewMove = false;
 
-                        Action<bool> onMoveLearnComplete = ( bool pokemonLearnedNewMove ) =>
-                        {
-                            //--This callback is retrieving two things:
-                            //--It's telling us that the move learn state is over, for the coroutine to continue
-                            //--and the bool it takes is receiving whether or not the move was actually learned
-                            moveLearnOver = true;
-                            learnedNewMove = pokemonLearnedNewMove;
-                        };
+                            Action<bool> onMoveLearnComplete = ( bool pokemonLearnedNewMove ) =>
+                            {
+                                //--This callback is retrieving two things:
+                                //--It's telling us that the move learn state is over, for the coroutine to continue
+                                //--and the bool it takes is receiving whether or not the move was actually learned
+                                moveLearnOver = true;
+                                learnedNewMove = pokemonLearnedNewMove;
+                            };
 
-                        yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} is trying to learn {newMove.MoveSO.Name}," );
-                        yield return _dialogueBox.TypeDialogue( $"But it can't use more than four moves during battle." );
-                        yield return _dialogueBox.TypeDialogue( $"Which move will you set aside?" );
+                            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} has learned {newMove.MoveSO.Name}," ) );
+                            yield return WaitForUIQueue();
 
-                        pokemon.TryReplaceMove( newMove.MoveSO, _learnMoveMenu, onMoveLearnComplete, this );
-                        yield return new WaitUntil( () => moveLearnOver );
+                            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"But it can't use more than four moves during battle. Will you swap it with an active move?" ) );
+                            yield return WaitForUIQueue();
 
-                        if( learnedNewMove ){
-                            yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} learned {newMove.MoveSO.Name}!" );
-                            yield return _dialogueBox.TypeDialogue( $"It added {newMove.MoveSO.Name} to its Current Moves!" );
+                            pokemon.TryReplaceMove( newMove.MoveSO, _learnMoveMenu, onMoveLearnComplete, this );
+                            yield return new WaitUntil( () => moveLearnOver );
+
+                            if( learnedNewMove ){
+                                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} added {newMove.MoveSO.Name} to its Current Moves!" ) );
+                                yield return WaitForUIQueue();
+                            }
+                            else{
+                                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} added {newMove.MoveSO.Name} to its available moves!" ) );
+                                yield return WaitForUIQueue();
+                            }
+                            
                         }
                         else{
-                            yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} learned {newMove.MoveSO.Name}!" );
-                            yield return _dialogueBox.TypeDialogue( $"It added {newMove.MoveSO.Name} to its Learned Moves!" );
+                            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} learned {newMove.MoveSO.Name}!" ) );
+                            yield return WaitForUIQueue();
                         }
-                        
-                    }
-                    else{
-                        yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} learned {newMove.MoveSO.Name}!" );
+
                     }
                 }
 
-                //--Check for level up-based Evolution
+                //--Check for level up-based Evolution, eventually move out of battle system as levels will not be gained during battle
                 var evolution = pokemon.CheckForEvolution();
                 if( evolution != null && !pokemon.CanEvolveByLevelUp ){
                     pokemon.SetCanEvolveByLevelUp( true );
-                    yield return _dialogueBox.TypeDialogue( $"{pokemon.NickName} can now evolve!" );
+                    AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} can now evolve!" ) );
+                    yield return WaitForUIQueue();
                 }
 
                 //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
@@ -400,42 +676,60 @@ public class BattleSystem : BattleStateMachine
 
     //--If the current Pokemon is the Active Pokemon, refresh the BattleHUD
     private IEnumerator RefreshHUD( Pokemon pokemon ){
-        if( pokemon == _playerUnit.Pokemon ){
-            _playerUnit.BattleHUD.RefreshHUD();
-            yield return _playerHUD.SetExpSmooth( true );
+        for( int i = 0; i <_playerUnits.Count; i++ )
+        {
+            if( pokemon == _playerUnits[i].Pokemon ){
+                _playerUnits[i].BattleHUD.RefreshHUD();
+                yield return _playerHUDs[i].SetExpSmooth( true );
+            }
         }
     }
 
     private void EndBattle(){
-        Debug.Log( "BattleSystem EndBattle()" );
+        StopCoroutine( WaitForUIQueue() );
+        StopCoroutine( UICoroutineRunner() );
+        _uiQueue.Clear();
+        _uiQueue = null;
 
-        if( !_isSinglesTrainerBattle ){
+        ClearCourts();
+
+        if( BattleType == BattleType.WildBattle_1v1 ){
             _encounteredPokemon.Despawn();
             _encounteredPokemon = null;
         }
 
-        if( _isSinglesTrainerBattle || _isDoublesTrainerBattle )
+        if( BattleType == BattleType.TrainerSingles || BattleType == BattleType.TrainerDoubles )
             _enemyTrainerParty = null;
 
         _playerParty = null;
 
+        _playerUnits = null;
+        _enemyUnits = null;
+
         _isSinglesTrainerBattle = false;
+        _isDoublesTrainerBattle = false;
 
         _commandQueue.Clear();
         _commandList = null;
+        ClearBattleFlags();
 
         _battleArena.AfterBattleCleanup();
+        _playerHUDs[1].gameObject.SetActive( false );
+        _enemyTrainerHUDs[1].gameObject.SetActive( false );
         _wildPokemonCanvas.SetActive( false );
         _enemyTrainerCanvas.SetActive( false );
 
         TotalPartyExpGain = 0;
         TotalPartyEffortGain = 0;
+
+        Field.SetWeather( WeatherConditionID.NONE );
         
         BattleUIActions.OnAttackPhaseCompleted?.Invoke();
         OnBattleEnded?.Invoke();
 
         BattleIsActive = false;
         GameStateController.Instance.GameStateMachine.Pop();
+        AudioController.Instance.PlayMusic( AudioController.Instance.LastOverworldTheme, 5f );
     }
 
 //-------------------------------------------------------------------------------------------------------
@@ -444,19 +738,27 @@ public class BattleSystem : BattleStateMachine
 
     //--Perform any Move
     public IEnumerator PerformMoveCommand( Move move, BattleUnit attacker, BattleUnit target ){
-        bool canAttack = attacker.Pokemon.OnBeforeTurn(); //--Checks if there's something impeding the pokemon from using a move this turn
-        // Debug.Log( this + " canAttack is: " + canAttack ); //--canAttack log
+        if( move.MoveSO.Name != "Protect" )
+            attacker.ResetSuccessiveProtectUses();
 
+        Debug.Log( $"{attacker.Pokemon.NickName} has used Protect: {attacker.SuccessiveProtectUses} times!" );
+
+        //--Checks if there's a status impeding the pokemon from using a move this turn, such as sleep, flinch, first turn para, confusion, etc.
+        bool canAttack = attacker.Pokemon.OnBeforeTurn();
         if( !canAttack ){
-            yield return ShowStatusChanges( attacker.Pokemon );
+            yield return ShowStatusChanges( attacker );
+            yield return WaitForUIQueue();
             yield return attacker.BattleHUD.WaitForHPUpdate();
             yield break;
         }
 
-        yield return ShowStatusChanges( attacker.Pokemon );
+        yield return ShowStatusChanges( attacker );
+        yield return WaitForUIQueue();
 
         move.PP--; //--Reduces the move's PP by 1
-        yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.NickName} used {move.MoveSO.Name}!" );
+
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName} used {move.MoveSO.Name}!" ) );
+        yield return WaitForUIQueue();
 
         //--Check if move is a multi-hit, and return the amount of hits rolled
         int hitAmount = move.MoveSO.GetHitAmount();
@@ -465,83 +767,205 @@ public class BattleSystem : BattleStateMachine
         var checkMoveAccuracy = CheckMoveAccuracy( move, attacker, target );
         var damageDetails = new DamageDetails();
 
-        if( checkMoveAccuracy ){
-            Debug.Log( $"Move's amount of hits: {hitAmount}" );
-
-            for( int i = 1; i <= hitAmount; i++ ){
-                if( move.MoveSO.MoveCategory == MoveCategory.Status ){
-                    yield return attacker.PokeAnimator.PlayStatusAttackAnimation();
-                    yield return RunMoveEffects( move.MoveSO.MoveEffects, move.MoveSO.MoveTarget, attacker.Pokemon, target.Pokemon );
-                }
-                else{
-                    if( move.MoveSO.MoveCategory == MoveCategory.Physical )
-                        yield return attacker.PokeAnimator.PlayPhysicalAttackAnimation( attacker.transform, target.transform );
-
-                    if( move.MoveSO.MoveCategory == MoveCategory.Special )
-                        yield return attacker.PokeAnimator.PlaySpecialAttackAnimation();
-                    
-                    damageDetails = target.TakeDamage( move, attacker.Pokemon, Field.Weather );
-                    yield return target.BattleHUD.WaitForHPUpdate();
-                    yield return ShowDamageDetails( damageDetails );
-                    typeEffectiveness = damageDetails.TypeEffectiveness;
-                }
-
-                if( move.MoveSO.SecondaryMoveEffects != null && move.MoveSO.SecondaryMoveEffects.Count > 0 && target.Pokemon.CurrentHP > 0 ){
-                    foreach( var secondary in move.MoveSO.SecondaryMoveEffects ){
-                        var rand = UnityEngine.Random.Range( 1, 101 );
-                        if( rand <= secondary.Chance )
-                            yield return RunMoveEffects( secondary, secondary.Target, attacker.Pokemon, target.Pokemon );
+        if( MoveSuccess( attacker, target, move ) )
+        {
+            if( checkMoveAccuracy )
+            {
+                for( int i = 1; i <= hitAmount; i++ )
+                {
+                    if( move.MoveSO.MoveCategory == MoveCategory.Status ){
+                        yield return _battleComposer.RunStatusAttackScene( move, attacker, target );
+                        yield return RunMoveEffects( move.MoveSO.MoveEffects, move.MoveSO.MoveTarget, attacker, target );
                     }
+                    else{
+                        if( move.MoveSO.MoveCategory == MoveCategory.Physical )
+                            yield return _battleComposer.RunPhysicalAttackScene( move, attacker, target );
+
+                        if( move.MoveSO.MoveCategory == MoveCategory.Special )
+                            yield return _battleComposer.RunSpecialAttackScene( move, attacker, target );
+                        
+                        damageDetails = target.TakeDamage( move, attacker.Pokemon, Field.Weather );
+                        typeEffectiveness = damageDetails.TypeEffectiveness;
+                        yield return _battleComposer.RunTakeDamagePhase( typeEffectiveness, target );
+
+                        yield return target.BattleHUD.WaitForHPUpdate();
+                        yield return ShowDamageDetails( damageDetails );
+                    }
+
+                    if( move.MoveSO.SecondaryMoveEffects != null && move.MoveSO.SecondaryMoveEffects.Count > 0 && target.Pokemon.CurrentHP > 0 ){
+                        foreach( var secondary in move.MoveSO.SecondaryMoveEffects ){
+                            var rand = UnityEngine.Random.Range( 1, 101 );
+                            if( rand <= secondary.Chance )
+                                yield return RunMoveEffects( secondary, secondary.Target, attacker, target );
+                        }
+                    }
+
+                    hits = i;
+                    if( target.Pokemon.CurrentHP <= 0 )
+                        break;
                 }
-                
-                hits = i;
-                Debug.Log( $"the target's current hp is: {target.Pokemon.CurrentHP}" );
-                if( target.Pokemon.CurrentHP <= 0 )
-                    break;
+
+                yield return ShowTypeEffectiveness( typeEffectiveness );
+
+                if( hitAmount > 1 )
+                    AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The Pokemon was hit {hits} times!" ) );
+                    yield return WaitForUIQueue();
+            }
+            else{
+                damageDetails = null;
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName}'s attack missed!" ) );
+                yield return WaitForUIQueue();
             }
         }
-        else{
-            damageDetails = null;
-            yield return _dialogueBox.TypeDialogue( $"{attacker.Pokemon.NickName}'s attack missed!" );
+        else
+        {
+            yield return WaitForUIQueue();
         }
-
-        yield return ShowTypeEffectiveness( typeEffectiveness );
-
-        if( hitAmount > 1 && checkMoveAccuracy )
-            yield return _dialogueBox.TypeDialogue( $"The Pokemon was hit {hits} times!" );
 
         yield return RunAfterMove( damageDetails, move.MoveSO, attacker, target );
 
-        //--Check for faint after a move is used on the target.
-        //--I need to simplify this to take in a target, and then inside compare whether it was the
-        //--player's unit or enemy unit. Add in "IsPlayerUnit" and "IsEnemyUnit" bools to the PokemonClass so that you can always
-        //--quickly check a unit? IsPlayerUnit sounds like it should be the case, because you want to always be able to know
-        //--whether a pokemon belongs to the player or not in and out of battle i think
+        //--Check for faint after a move is used on the target
         yield return CheckForFaint( target );
     }
 
+    private bool MoveSuccess( BattleUnit attacker, BattleUnit target, Move move )
+    {
+        if( move.MoveSO.Name == "Fake Out" )
+        {
+            if( attacker.TurnsTakenInBattle > 0 )
+            {
+                return ReturnMoveFailed();
+            }
+                
+        }
+
+        if( move.MoveSO.Name == "Sunny Day" )
+        {
+            if( Field.Weather?.ID == WeatherConditionID.SUNNY )
+            {
+                return ReturnMoveFailed();
+            }
+        }
+
+        if( move.MoveSO.Name == "Rain Dance" )
+        {
+            if( Field.Weather?.ID == WeatherConditionID.RAIN )
+            {
+                return ReturnMoveFailed();
+            }
+        }
+
+        if( move.MoveSO.Name == "Sandstorm" )
+        {
+            if( Field.Weather?.ID == WeatherConditionID.SANDSTORM )
+            {
+                return ReturnMoveFailed();
+            }
+        }
+
+        if( move.MoveSO.Name == "Snowscape" )
+        {
+            if( Field.Weather?.ID == WeatherConditionID.SNOW )
+            {
+                return ReturnMoveFailed();
+            }
+        }
+
+        if( move.MoveSO.Name == "Tailwind" )
+        {
+            var court = Field.GetUnitCourt( attacker );
+            if( court.Conditions.ContainsKey( CourtConditionID.Tailwind ) )
+            {
+                return ReturnMoveFailed();
+            }
+        }
+
+        if( move.MoveSO.Name == "Reflect" )
+        {
+            var court = Field.GetUnitCourt( attacker );
+            if( court.Conditions.ContainsKey( CourtConditionID.Reflect ) )
+            {
+                return ReturnMoveFailed();
+            }
+        }
+
+        if( move.MoveSO.Name == "Light Screen" )
+        {
+            var court = Field.GetUnitCourt( attacker );
+            if( court.Conditions.ContainsKey( CourtConditionID.LightScreen ) )
+            {
+                return ReturnMoveFailed();
+            }
+        }
+
+        //--This checks if the target of a move is currently protecting itself.
+        if( target.Pokemon.TransientStatusActive && target.Pokemon.TransientStatus != null )
+        {
+            if( target.Pokemon.TransientStatus.ID == StatusConditionID.Protect )
+            {
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{target.Pokemon.NickName} protects itself!" ) );
+                return false;
+            }
+        }
+        
+        //--This checks if the user fails or succeeds at USING Protect, based on Protect's successive use failure rate.
+        if( move.MoveSO.Name == "Protect" )
+        {
+            int uses = attacker.SuccessiveProtectUses;
+            float successChance = Mathf.Pow( 1f / 3f, uses );
+            bool success;
+            Debug.Log( $"{attacker.Pokemon.NickName}'s Protect success chance is: {successChance}" );
+            if( uses == 0 )
+            {
+                attacker.AddSuccessiveProtectUses();
+                return true;
+            }
+            else if( uses > 0 )
+            {
+                success = UnityEngine.Random.value <= successChance;
+
+                if( success )
+                {
+                    AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName} protects itself!" ) );
+                    attacker.AddSuccessiveProtectUses();
+                    return true;
+                }
+                else
+                {
+                    attacker.ResetSuccessiveProtectUses();
+                    return ReturnMoveFailed();
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private bool ReturnMoveFailed()
+    {
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"But the move failed!" ) );
+        return false;
+    }
+
     private IEnumerator RunAfterMove( DamageDetails details, MoveSO move, BattleUnit attacker, BattleUnit target ){
-        Debug.Log( "RunAfterMove()" );
         if( details == null )
             yield break;
 
         if( move.DrainPercentage != 0 ){
-            Debug.Log( "Move was a Draining Move" );
             int healedHP = Mathf.Clamp( Mathf.CeilToInt( details.DamageDealt / 100f * move.DrainPercentage ), 1, attacker.Pokemon.MaxHP );
-            Debug.Log( $"Amount of HP healed: {healedHP}" );
             attacker.Pokemon.IncreaseHP( healedHP );
 
             yield return attacker.BattleHUD.WaitForHPUpdate();
-            Debug.Log( "HP Update Complete" );
 
             if( target.Pokemon == WildPokemon )
-                yield return _dialogueBox.TypeDialogue( $"The wild {target.Pokemon.NickName} had its energy drained!" );
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The wild {target.Pokemon.NickName} had its energy drained!" ) );
             else
-                yield return _dialogueBox.TypeDialogue( $"The enemy {target.Pokemon.NickName} had its energy drained!" );
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The enemy {target.Pokemon.NickName} had its energy drained!" ) );
+
+            yield return WaitForUIQueue();
         }
 
         if( move.Recoil.RecoilType != RecoilType.none ){
-            Debug.Log( "Move did Recoil Damage" );
             int damage = 0;
 
             switch( move.Recoil.RecoilType )
@@ -569,44 +993,183 @@ public class BattleSystem : BattleStateMachine
             }
         }
 
-        yield return ShowStatusChanges( attacker.Pokemon );
-        yield return ShowStatusChanges( target.Pokemon );
+        yield return ShowStatusChanges( attacker );
+        yield return WaitForUIQueue();
+
+        yield return null;
+
+        yield return ShowStatusChanges( target );
+        yield return WaitForUIQueue();
     }
 
     //--Will eventually be adjusted, and expanded to include item, weather, field effect, and other necessary post-turn ticks
     //--MAKE A TURN MANAGER INSTEAD HE HE !
-    private IEnumerator AfterTurnUpdate(){
-        if( Field.Weather != null ){
-            yield return _dialogueBox.TypeDialogue( Field.Weather.EffectMessage );
-            Field.WeatherDuration--;
-            
-            if( Field.WeatherDuration == 0 ){
-                yield return _dialogueBox.TypeDialogue( Field.Weather.EndMessage );
-                Field.Weather = null;
-                Field.WeatherDuration = null;
+    private IEnumerator RoundEndUpdate(){
+        //--Add all available units to the "After Turn List" so that it can perform all after turn functions such as weather damage, status damage, etc. in the appropriate speed order.
+        List<BattleUnit> afterTurnList = new();
+        var availPlayerUnits = _playerUnits.Select( u => u ).Where( u => u.Pokemon != null ).ToList();
+        var availEnemyUnits = _enemyUnits.Select( u => u ).Where( u => u.Pokemon != null ).ToList();
+
+        for( int i = 0; i < availPlayerUnits.Count; i++)
+            afterTurnList.Add( availPlayerUnits[i] );
+
+        for( int i = 0; i < availEnemyUnits.Count; i++)
+            afterTurnList.Add( availEnemyUnits[i] );
+
+        //--Sort all units by speed
+        afterTurnList = afterTurnList.OrderByDescending( unit => unit.Pokemon.Speed ).ToList();
+
+        //--Weather Prompts, will maybe move
+        if( Field.Weather != null )
+        {
+            if( Field.WeatherDuration > 0 )
+            {
+                if( Field.Weather?.EffectMessage != null )
+                {
+                    string message = Field.Weather?.EffectMessage;
+                    AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( message ) );
+                }
+
+                Field.WeatherDuration--;
+            }
+            else if( Field.WeatherDuration == 0 )
+            {
+                if( Field.Weather?.EndMessage != null )
+                {
+                    string message = Field.Weather?.EndMessage;
+                    AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( message ) );
+                    yield return WaitForUIQueue();
+                }
+
+                foreach( var unit in afterTurnList )
+                {
+                    Field.Weather?.OnExitWeather?.Invoke( unit.Pokemon );
+                    yield return WaitForUIQueue();
+                }
+
+                //--If the route has a default weather (or eventually an active weather as part of a global weather system or something)
+                //--we set the battlefield's weather to the default weather, without a duration since it should just continue until another
+                //--weather overrides it (or the route's weather ends if that's a thing)
+                //--else we set the weather to None, which the weather controller handles as well, and clear the id and duration.
+                if( WeatherController.Instance.DefaultAreaWeather != WeatherConditionID.NONE )
+                {
+                    Field.SetWeather( WeatherController.Instance.DefaultAreaWeather );
+                    Field.WeatherDuration = null;
+                    foreach( var unit in afterTurnList )
+                    {
+                        Field.Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
+                        yield return WaitForUIQueue();
+                    }
+                }
+                else
+                {
+                    Field.SetWeather( WeatherConditionID.NONE );
+                    Field.Weather = null;
+                    Field.WeatherDuration = null;
+                }
+            }
+
+            yield return WaitForUIQueue();
+        }
+
+        //--Theoretically there should always be courts active, they just might not have any conditions in their dictionaries
+        if( Field.ActiveCourts.Count > 0 )
+        {
+            List<( CourtLocation location, CourtConditionID conditionID )> courtConditionsToRemove = new();
+            foreach( var activeCourt in Field.ActiveCourts )
+            {
+                var court = activeCourt.Value;
+
+                if( court.Conditions.Count > 0 )
+                {
+                    foreach( var courtCondition in court.Conditions )
+                    {
+                        var condition = courtCondition.Value;
+
+                        if( condition.TimeLeft > 0 )
+                        {
+                            Debug.Log( $"Reducing {court}'s {condition.ID}'s Time Left from {condition.TimeLeft} to {( condition.TimeLeft - 1 )}" );
+                            condition.TimeLeft--;
+                        }
+                        else if( condition.TimeLeft == 0 )
+                        {
+                            if( condition.EndMessage != null )
+                            {
+                                condition?.OnEnd?.Invoke( this, Field );
+                                string message = condition.EndMessage;
+                                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( message ) );
+                                yield return WaitForUIQueue();
+                            }
+
+                            foreach( var unit in court.Units )
+                            {
+                                condition?.OnExitCourt?.Invoke( unit, Field );
+                                yield return WaitForUIQueue();
+                            }
+
+                            courtConditionsToRemove.Add( ( activeCourt.Key, courtCondition.Key ) );
+                        }
+                    }
+                }
+
+            }
+
+            if( courtConditionsToRemove.Count > 0 )
+            {
+                foreach( var (location, conditionID) in courtConditionsToRemove )
+                {
+                    Field.ActiveCourts[location].RemoveCondition( conditionID );
+                }
             }
         }
 
-        //--changing this to add all active units to a temporary list that sorts them and then runs the necessary code
-        //--when GDE implements doubles, he changes our units to be a list of units, so i'll have to simply add those
-        //--from those lists to the temporary list
-
-        List<BattleUnit> afterTurnList = new()
+        //--Go through each phase in the phase list, executing that phase on all pokemon in speed order
+        foreach( RoundEndPhaseSO phaseSO in _roundEndPhase.RoundEndPhases )
         {
-            _playerUnit, _enemyUnit
-        };
+            var phase = _roundEndPhase.RoundEndPhaseDictionary[phaseSO.Type];
 
-        afterTurnList = afterTurnList.OrderByDescending( unit => unit.Pokemon.Speed ).ToList();
+            foreach( var unit in afterTurnList )
+            {
+                if( unit.Pokemon.CurrentHP > 0 )
+                {
+                    phase.Apply( this, unit.Pokemon );
+                    yield return ShowStatusChanges( unit );
+                    yield return WaitForUIQueue();
+                    yield return new WaitForSeconds( 0.25f );
+                }
 
-        foreach( BattleUnit unit in afterTurnList ){
-            Debug.Log( $"After Turn: {unit.Pokemon.NickName}" );
-            if( unit.Pokemon.CurrentHP > 0 ){
-                unit.Pokemon.OnAfterTurn();
-                Field.Weather?.OnWeather?.Invoke( unit.Pokemon );
-                yield return ShowStatusChanges( unit.Pokemon );
-                yield return unit.BattleHUD.WaitForHPUpdate();
                 yield return CheckForFaint( unit );
+
+                if( unit.Pokemon.CurrentHP == 0 )
+                {
+                    if( _playerParty.PartyPokemon.Contains( unit.Pokemon ) )
+                    {
+                        var activePokemon = _playerUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+                        var nextPokemon = _playerParty.GetHealthyPokemon( dontInclude: activePokemon );
+
+                        if( CheckForBattleOver( activePokemon, nextPokemon ) )
+                            break;
+                    }
+
+                    if( _enemyTrainerParty != null && _enemyTrainerParty.PartyPokemon.Contains( unit.Pokemon ) )
+                    {
+                        var activeEnemyPokemon = _enemyUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+                        var nextEnemyPokemon = _enemyTrainerParty.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
+
+                        if( CheckForBattleOver( activeEnemyPokemon, nextEnemyPokemon ) )
+                            break;
+                    }
+                }
             }
+        }
+
+        //--Handle fainted Pokemon after all other phases are complete
+        foreach( var unit in afterTurnList )
+        {
+            unit.Pokemon.CureTransientStatus();
+            unit.IncreaseTurnsTakenInBattle();
+            if( unit.Pokemon.CurrentHP == 0 || unit.Pokemon.SevereStatus?.ID == StatusConditionID.FNT )
+                yield return HandleFaintedPokemon( unit );
         }
 
         yield return null;
@@ -619,10 +1182,12 @@ public class BattleSystem : BattleStateMachine
 
         float moveAccuracy = move.MoveSO.Accuracy;
 
-        int accuracy = attacker.Pokemon.StatBoost[ Stat.Accuracy ];
-        int evasion = target.Pokemon.StatBoost[ Stat.Evasion ];
+        int accuracy = attacker.Pokemon.StatStage[ Stat.Accuracy ];
+        int evasion = target.Pokemon.StatStage[ Stat.Evasion ];
 
         var modifierValue = new float[] { 1f, 4f / 3f, 5f / 3f, 2f, 7f / 3f, 8f / 3f, 3f };
+
+        // evasion = Mathf.FloorToInt( target.Pokemon.Modify_EVA( evasion, attacker.Pokemon, move ) );
 
         if( accuracy > 0 )
             moveAccuracy *= modifierValue[accuracy];
@@ -634,72 +1199,174 @@ public class BattleSystem : BattleStateMachine
         else
             moveAccuracy *= modifierValue[-evasion];
 
+        moveAccuracy = Mathf.FloorToInt( attacker.Pokemon.Modify_ACC( moveAccuracy, target.Pokemon, move ) );
+
         return UnityEngine.Random.Range( 1, 101 ) <= moveAccuracy;
     }
 
     //--If a Move has secondary effects, apply them appropriately
-    private IEnumerator RunMoveEffects( MoveEffects effects, MoveTarget moveTarget, Pokemon attacker, Pokemon target ){
+    private IEnumerator RunMoveEffects( MoveEffects effects, MoveTarget moveTarget, BattleUnit attacker, BattleUnit target ){
         //--Modify Stats
         if( effects.StatChangeList != null ){
             if( moveTarget == MoveTarget.self )
-                attacker.ApplyStatChange( effects.StatChangeList ); //--Apply stat change to self, like in ddance or swords dance
+                attacker.Pokemon.ApplyStatStageChange( effects.StatChangeList, attacker.Pokemon ); //--Apply stat change to self, like ddance or swords dance
             else
-                target.ApplyStatChange( effects.StatChangeList );
+                target.Pokemon.ApplyStatStageChange( effects.StatChangeList, attacker.Pokemon ); //--Apply stat change to target, like growl or tail whip
         }
 
         //--Apply Severe Status Effects
-        if( effects.SevereStatus != ConditionID.NONE ){
-            if( effects.SevereStatus == ConditionID.BRN && target.CheckTypes( PokemonType.Fire ) )
-                yield return _dialogueBox.TypeDialogue( $"It doesn't effect {target.NickName}!" );
+        if( effects.SevereStatus != StatusConditionID.NONE ){
+            if( effects.SevereStatus == StatusConditionID.BRN && target.Pokemon.CheckTypes( PokemonType.Fire ) )
+            {
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{target.Pokemon.NickName} cannot be burned!" ) );
+                yield return WaitForUIQueue();
+            }
             else
-                target.SetSevereStatus( effects.SevereStatus ); //--Severe status like BRN, FRZ, PSN
+                target.Pokemon.SetSevereStatus( effects.SevereStatus ); //--Severe status like BRN, FRZ, PSN
         }
 
         //--Apply Volatile Status Effects
-        if( effects.VolatileStatus != ConditionID.NONE ){
-            target.SetVolatileStatus( effects.VolatileStatus ); //--Volatile status like CONFUSION
+        if( effects.VolatileStatus != StatusConditionID.NONE ){
+            target.Pokemon.SetVolatileStatus( effects.VolatileStatus ); //--Volatile status like CONFUSION
+        }
+
+        //--Apply Transient Status Effects
+        if( effects.TransientStatus != StatusConditionID.NONE )
+        {
+            target.Pokemon.SetTransientStatus( effects.TransientStatus );
         }
 
         //--Start Weather Effects
-        if( effects.Weather != ConditionID.NONE ){
-            Field.SetWeather( effects.Weather );
-            Field.WeatherDuration = 5;
-            yield return _dialogueBox.TypeDialogue( Field.Weather.StartMessage );
+        if( effects.Weather != WeatherConditionID.NONE ){
+            var activePokemon = GetActivePokemon();
+
+            //--First we call OnExitWeather while the previous weather was active, if there was one, so they can exit that weather (and lose their speed boosts, fuckers!)
+            foreach( var unit in activePokemon )
+            {
+                Field.Weather?.OnExitWeather?.Invoke( unit.Pokemon );
+                yield return null;
+            }
+
+            //--Wait for UI Queue just in case exiting a weather causes some UI event. I don't think it ever does? guess we'll see. --12/03/25
+            yield return WaitForUIQueue();
+
+            //--Then we set the new weather due to the move changing the weather
+            Field.SetWeather( effects.Weather, 5 );
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( Field.Weather?.StartByMoveMessage ?? Field.Weather?.StartMessage ) );
+
+            //--THEN we call OnEnterWeather on every pokemon so they can enter the new weather
+            foreach( var unit in activePokemon )
+            {
+                Field.Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
+                yield return null;
+            }
+
+            yield return WaitForUIQueue();
+        }
+
+        if( effects.CourtCondition != CourtConditionID.NONE )
+        {
+            CourtLocation location;
+
+            Debug.Log( $"Running effect: {effects.CourtCondition}!" );
+
+            if( _playerUnits.Contains( attacker ) )
+                location = CourtLocation.BottomCourt;
+            else
+                location = CourtLocation.TopCourt;
+
+            Field.ActiveCourts[location]?.AddCondition( effects.CourtCondition );
+
+            if( Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage != null )
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage ) );
+
+            Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.OnStart?.Invoke( this, Field, location, attacker );
+
+            foreach( var unit in Field.ActiveCourts[location].Units )
+            {
+                Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.OnEnterCourt?.Invoke( unit, Field );
+            }
+
+            yield return WaitForUIQueue();
         }
 
         yield return ShowStatusChanges( attacker );
+        yield return null;
         yield return ShowStatusChanges( target );
+        yield return WaitForUIQueue();
     }
 
     //--Display text update based on damage done
     private IEnumerator ShowDamageDetails( DamageDetails damageDetails ){
         //--critical hit dialogue
         if( damageDetails.Critical > 1 )
-            yield return _dialogueBox.TypeDialogue( "It was a critical hit!" );
+        {
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It was a critical hit!" ) );
+            yield return WaitForUIQueue();
+        }
+    }
+    private IEnumerator ShowTypeEffectiveness( float typeEffectiveness )
+    {
+        //--Super Effective dialogue
+        if ( typeEffectiveness == 2f )
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It's super effective!" ) );
 
-        
+        if ( typeEffectiveness == 4f )
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It's extremely effective! " ) );
+
+        //--Not Very Effective dialogue
+        if ( typeEffectiveness == 0.5f )
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It wasn't very effective." ) );
+        if ( typeEffectiveness == 0.25f )
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It had almost no effect!" ) );
+
+        //--No Effect dialogue
+        else if ( typeEffectiveness == 0 )
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It had no effect at all!" ) );
+
+        yield return WaitForUIQueue();
     }
 
-    private IEnumerator ShowTypeEffectiveness( float typeEffectiveness ){
-        //--super effective dialogue
-        if( typeEffectiveness > 1 )
-            yield return _dialogueBox.TypeDialogue( "It's super effective!" );
+    private IEnumerator ShowStatusChanges( BattleUnit unit ){
+        var pokemon = unit.Pokemon;
 
-        //--not very effective dialogue
-        else if ( typeEffectiveness < 1 )
-            yield return _dialogueBox.TypeDialogue( "It wasn't very effective..." );
-    }
-
-    public void AfterTurnDialogue( string afterTurnDialogue ){
-        StartCoroutine( _dialogueBox.TypeDialogue( afterTurnDialogue ) );
-    }
-
-    private IEnumerator ShowStatusChanges( Pokemon pokemon ){
-        // Debug.Log( pokemon );
-        // Debug.Log( pokemon.StatusChanges );
         while( pokemon.StatusChanges.Count > 0 ){
-            var message = pokemon.StatusChanges.Dequeue();
-            yield return _dialogueBox.TypeDialogue( message );
+            var statusEvent = pokemon.StatusChanges.Dequeue();
+
+            if( statusEvent.Type == StatusEventType.Damage )
+            {
+                AudioController.Instance.PlaySFX( SoundEffect.DamageEffective );
+                yield return unit.PokeAnimator.PlayTakeDamageAnimation();
+                yield return unit.BattleHUD.UpdateHPCoroutine();
+            }
+
+            if( statusEvent.Type == StatusEventType.SevereStatusDamage )
+            {
+                if( pokemon.SevereStatus != null && StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX != null )
+                {
+                    var vfxObj = Instantiate( StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX );
+                    vfxObj.transform.SetPositionAndRotation( unit.PokeTransform.position, unit.PokeTransform.rotation );
+                    Destroy( vfxObj, 2f );
+                }
+
+                AudioController.Instance.PlaySFX( SoundEffect.DamageEffective );
+                yield return unit.PokeAnimator.PlayTakeDamageAnimation();
+                yield return unit.BattleHUD.UpdateHPCoroutine();
+            }
+
+            if( statusEvent.Type == StatusEventType.SevereStatusPassive )
+            {
+                if( pokemon.SevereStatus != null && StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX != null )
+                {
+                    var vfxObj = Instantiate( StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX );
+                    vfxObj.transform.SetPositionAndRotation( unit.PokeTransform.position, unit.PokeTransform.rotation );
+                    Destroy( vfxObj, 2f );
+                }
+            }
+
+            Debug.Log( $"statusEvent.Message: {statusEvent.Message}" );
+            if( statusEvent.Message != null || statusEvent.Message != string.Empty )
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( statusEvent.Message ) );
         }
     }
 
@@ -718,74 +1385,100 @@ public class BattleSystem : BattleStateMachine
     //--or in the case of a move's recoil, or things like life orb, rough skin, other abilities, etc
     //--and then once after game board update in the case of statuses like BRN, FRST, PSN, TOX
     public IEnumerator CheckForFaint( BattleUnit checkUnit ){
-        Debug.Log( $"CheckForFaint() on {checkUnit.Pokemon.NickName}" );
-        if( checkUnit.Pokemon.CurrentHP > 0 )
-            yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet
+        // Debug.Log( $"CheckForFaint() on {checkUnit.Pokemon.NickName}" );
+        if( checkUnit.Pokemon.CurrentHP > 0 || checkUnit.Pokemon.SevereStatus?.ID == StatusConditionID.FNT )
+            yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet. If the pokemon has already fainted from an earlier phase check, we also leave
 
         checkUnit.Pokemon.CureSevereStatus(); //--Clear any potential Severe Status, which would prevent FNT from being assigned
         checkUnit.Pokemon.CureVolatileStatus(); //--This also happens on faint, so it should be taken care of. Reminder to do so on switch too
+        checkUnit.Pokemon.CureTransientStatus();
+        checkUnit.ResetTurnsTakenInBattle();
 
-        checkUnit.Pokemon.SetSevereStatus( ConditionID.FNT ); //--Set fainted status condition
+        checkUnit.Pokemon.SetSevereStatus( StatusConditionID.FNT ); //--Set fainted status condition
         yield return checkUnit.PokeAnimator.PlayFaintAnimation(); //--fainted animation placeholder
 
         if( checkUnit.Pokemon.IsPlayerUnit == true ){
-            yield return _dialogueBox.TypeDialogue( $"Your {_playerUnit.Pokemon.NickName} fainted!" );
-            yield return HandleFaintedPokemon();
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Your {checkUnit.Pokemon.NickName} fainted!" ) );
+            yield return WaitForUIQueue();
         }
-        else if( checkUnit.Pokemon.IsEnemyUnit == true || checkUnit.Pokemon == _enemyUnit.Pokemon ){
+        else if( checkUnit.Pokemon.IsEnemyUnit == true || checkUnit.Pokemon == checkUnit.Pokemon ){
             if( checkUnit.Pokemon == _wildPokemon ){
-                yield return _dialogueBox.TypeDialogue( $"The wild {_enemyUnit.Pokemon.NickName} fainted!" );
-                yield return HandleFaintedPokemon();
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The wild {checkUnit.Pokemon.NickName} fainted!" ) );
+                yield return WaitForUIQueue();
             }
             else if( _isSinglesTrainerBattle ){
-                yield return _dialogueBox.TypeDialogue( $"The Enemy {_enemyUnit.Pokemon.NickName} fainted!" );
-                yield return HandleFaintedPokemon();
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The Enemy {checkUnit.Pokemon.NickName} fainted!" ) );
+                yield return WaitForUIQueue();
             }
         }
 
         yield return null;
     }
 
-    private IEnumerator HandleFaintedPokemon(){
+    private bool CheckForBattleOver( List<Pokemon> activePokemon, Pokemon nextPokemon )
+    {
 
-        //--If Player's unit has fainted
-        if( _playerUnit.Pokemon.SevereStatus?.ID == ConditionID.FNT ){
-            // Debug.Log( "HandleFaintedPokemon() Player Unit has fainted" );
+        if( nextPokemon == null && activePokemon.Count == 0 )
+            return true;
+        else
+            return false;
+    }
+
+    private IEnumerator HandleFaintedPokemon( BattleUnit faintedUnit ){
+        //--If Player Unit has fainted
+        if( _playerUnits.Contains( faintedUnit ) )
+        {
+
             //--For singles BattleTypes, we immediately clear the queue and let the player change pokemon
             //--if they have any more remaining in their party. if not, the battle ends, the player should be
             //--brought back to the last visited poke center
-            if( BattleType == BattleType.WildBattle_1v1 || BattleType == BattleType.TrainerSingles ){
-                var nextPokemon = _playerParty.GetHealthyPokemon();
+            var activePokemon = _playerUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+            var nextPokemon = _playerParty.GetHealthyPokemon( dontInclude: activePokemon );
 
-                if( nextPokemon != null ){
-                    _commandQueue.Clear();
-                    FaintedSwitchPartyMenu();
-                }
-                else{
-                    yield return PostBattleScreen();
-                }
-            }
-        }
-
-        //--If Enemy Unit has fainted
-        if( _enemyUnit.Pokemon.SevereStatus?.ID == ConditionID.FNT ){
-            // Debug.Log( "HandleFaintedPokemon() Enemy Unit has fainted" );
-            //--For singles BattleTypes, we immediately clear the queue. In the case of an enemy trainer,
-            //--we send out their next available pokemon, and if not, the battle is ended because the player won
-            if( _enemyUnit.Pokemon == _wildPokemon ){
-                yield return HandleExpGain( _enemyUnit );
+            if( CheckForBattleOver( activePokemon, nextPokemon ) )
+            {
                 yield return PostBattleScreen();
             }
-            else if( _isSinglesTrainerBattle ){
-                yield return HandleExpGain( _enemyUnit );
-                var nextEnemyPokemon = _enemyTrainerParty.GetHealthyPokemon();
+            else if( nextPokemon == null && activePokemon.Count > 0 )
+            {
+                //--Continue the battle using the active pokemon. this is for double battles, where you lose an active mon and have no more left in your party to send out.
+                // _playerUnits.Remove( faintedUnit );
+                //--Create a function to set the fainted unit's hud to a nice fat pokeball X like in SV
+                
+            }
+            else if( nextPokemon != null )
+            {
+                FaintedSwitchPartyMenu( faintedUnit );
+            }
+        }
+        else //--If Enemy Unit has fainted
+        {
+            //--For singles BattleTypes, we immediately clear the queue. In the case of an enemy trainer,
+            //--we send out their next available pokemon, and if not, the battle is ended because the player won
+            if( faintedUnit.Pokemon == _wildPokemon ){
+                yield return HandleExpGain( faintedUnit );
+                yield return PostBattleScreen();
+            }
+            else
+            {
+                //--Add exp gained from the fainted enemy mon to the exp gained pool. then we can go ahead and handle force-switching/ending the battle
+                yield return HandleExpGain( faintedUnit );
+                var activeEnemyPokemon = _enemyUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+                var nextEnemyPokemon = _enemyTrainerParty.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
 
-                if( nextEnemyPokemon != null ){
-                    _commandQueue.Clear();
-                    StartCoroutine( PerformSwitchEnemyTrainerPokemonCommand( nextEnemyPokemon ) );
-                }
-                else{
+                if( CheckForBattleOver( activeEnemyPokemon, nextEnemyPokemon ) )
+                {
                     yield return PostBattleScreen();
+                }
+                else if( nextEnemyPokemon == null && activeEnemyPokemon.Count > 0 )
+                {
+                    //--Continue the battle using the active pokemon. this is for double battles, where you lose an active mon and have no more left in your party to send out.
+                    // _enemyUnits.Remove( faintedUnit );
+                    //--Create a function to set the fainted unit's hud to a nice fat pokeball X like in SV
+                }
+                else if( nextEnemyPokemon != null )
+                {
+                    yield return PerformSwitchEnemyTrainerPokemonCommand( nextEnemyPokemon, faintedUnit );
                 }
             }
         }
@@ -793,7 +1486,7 @@ public class BattleSystem : BattleStateMachine
         yield return null;
     }
 
-    public IEnumerator PerformSwitchEnemyTrainerPokemonCommand( Pokemon pokemon ){
+    public IEnumerator PerformSwitchEnemyTrainerPokemonCommand( Pokemon pokemon, BattleUnit battleUnit ){
         //--This is currently only happening when the enemy trainer's pokemon faints and they have
         //--more left in their party. AI is eventually going to be expanded on to choose smarter
         //--pokemon instead of just the next one in their party, especially in the case of doubles.
@@ -802,73 +1495,163 @@ public class BattleSystem : BattleStateMachine
         //--executed, but i can save that for another time, for now.
         _battleStateEnum = BattleStateEnum.Busy;
         SetBusyState();
+        var courtLocation = CourtLocation.TopCourt;
 
-        yield return _enemyUnit.PokeAnimator.PlayExitBattleAnimation( Trainer1Center.transform );
-        _enemyUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon
+        yield return battleUnit.PokeAnimator.PlayExitBattleAnimation( Trainer1Center.transform );
+        battleUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon
+        battleUnit.ResetTurnsTakenInBattle();
+        battleUnit.ResetSuccessiveProtectUses();
 
-        //--If the previous Pokemon exits during a Weather Condition, raise OnEnterWeather (for sandstorm and snow spdef and def)
-        Field.Weather?.OnExitWeather?.Invoke( _enemyUnit.Pokemon );
+        //--If the previous Pokemon exits during a Weather Condition, raise OnExitWeather
+        Field.Weather?.OnExitWeather?.Invoke( battleUnit.Pokemon );
 
-        _enemyUnit.Setup( pokemon, _enemyTrainerHUD, this ); //--Assign and setup the new pokemon
+        //--If the previous Pokemon exits while any court conditions are active on its side (Enemy = Top, Player = Bottom), raise OnExitCourt
+        if( Field.ActiveCourts[courtLocation].Conditions.Count > 0 )
+        {
+            foreach( var condition in Field.ActiveCourts[courtLocation].Conditions )
+            {
+                condition.Value?.OnExitCourt?.Invoke( battleUnit, Field );
+                yield return WaitForUIQueue();
+            }
+        }
+        
+        //--Grab the appropriate unit position and assign the incoming pokemon to it
+        for( int i = 0; i < _enemyUnits.Count; i++)
+        {
+            if( _enemyUnits[i].Pokemon == battleUnit.Pokemon )
+            {
+                battleUnit.Setup( pokemon, _enemyTrainerHUDs[i], this ); //--Assign and setup the new pokemon
+                battleUnit.ResetTurnsTakenInBattle(); //--Sets turns taken to -1, so they may be incremented to 0 during RoundEndUpdate()
+                battleUnit.ResetSuccessiveProtectUses(); //--Just in case. I am a deeply mistrusting person.
+            }
+        }
 
-        yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.NickName}!" );
-        yield return _enemyUnit.PokeAnimator.PlayEnterBattleAnimation( _enemyUnit.transform, Trainer1Center.transform );
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Go, {pokemon.NickName}!" ) );
+        yield return WaitForUIQueue();
+        AudioController.Instance.PlaySFX( SoundEffect.BattleBallThrow );
+        yield return battleUnit.PokeAnimator.PlayEnterBattleAnimation( battleUnit.transform, Trainer1Center.transform );
 
-        //--If the new Pokemon enters during a Weather Condition, raise OnEnterWeather (for sandstorm and snow spdef and def)
-        Field.Weather?.OnEnterWeather?.Invoke( _enemyUnit.Pokemon );
+        //--Call OnEnterCourt from all existing court conditions on the incoming pokemon
+        if( Field.ActiveCourts[courtLocation].Conditions.Count > 0 )
+        {
+            foreach( var condition in Field.ActiveCourts[courtLocation].Conditions )
+            {
+                condition.Value?.OnEnterCourt?.Invoke( battleUnit, Field );
+                yield return WaitForUIQueue();
+            }
+        }
 
-        PlayerAction();
+        var activePokemon = GetActivePokemon();
+        var currentWeather = Field.Weather?.ID;
+        //--Check if the Pokemon has a weather ability, and set it if so.
+        //--Then we check if any active pokemon receive effects of the possible new weather, so we raise OnEnterWeather on all active units
+        pokemon.Ability?.OnAbilityEnter?.Invoke( pokemon, _playerUnits, Field );
+        yield return null;
+        yield return WaitForUIQueue();
+
+        foreach( var unit in activePokemon )
+        {
+            Field.Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
+            yield return WaitForUIQueue();
+            yield return new WaitForSeconds( 0.1f );
+        }
+
     }
 
     //--When the player's pokemon faints, this is called explicitly, rather than as a command added to the command queue
-    public IEnumerator PerformSwitchPokemonCommand( Pokemon pokemon ){
+    public IEnumerator PerformSwitchPokemonCommand( Pokemon pokemon, BattleUnit battleUnit ){
         //--for the future if i want to target the previous pokemon with a move (pursuit), specificy the previous pokemon in this class? //--yes 4/12/2023
-        // _battleStateEnum = BattleStateEnum.Busy;
-        // SetBusyState();
-        _playerUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon. Will need to set a previous pokemon soon
+        battleUnit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon. Will need to set a previous pokemon soon
+        battleUnit.ResetTurnsTakenInBattle();
+        battleUnit.ResetSuccessiveProtectUses();
+        var courtLocation = CourtLocation.BottomCourt;
 
         if( !_isFaintedSwitch )
-            yield return _dialogueBox.TypeDialogue( $"{_playerUnit.Pokemon.NickName}, come back!" );
+        {
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{battleUnit.Pokemon.NickName}, come back!" ) );
+            yield return WaitForUIQueue();
+        }
 
-        yield return _playerUnit.PokeAnimator.PlayExitBattleAnimation( PlayerReferences.Instance.PlayerCenter );
-        // _playerUnit.PokeAnimator.ResetAnimations(); //--Clear's the animator which resets the animations before initialization of the incoming mon
+        yield return battleUnit.PokeAnimator.PlayExitBattleAnimation( PlayerReferences.Instance.PlayerCenter );
+        // _playerUnit.PokeAnimator.ResetAnimations(); //--Clears the animator which resets the animations before initialization of the incoming mon
 
-        //--If the previous Pokemon exits during a Weather Condition, raise OnEnterWeather (for sandstorm and snow spdef and def)
-        Field.Weather?.OnExitWeather?.Invoke( _playerUnit.Pokemon );
+        //--If the previous Pokemon exits during a Weather Condition, raise OnExitWeather
+        Field.Weather?.OnExitWeather?.Invoke( battleUnit.Pokemon );
+
+        //--If the previous Pokemon exits while any court conditions are active on its side (Enemy = Top, Player = Bottom), raise OnExitCourt
+        if( Field.ActiveCourts[courtLocation].Conditions.Count > 0 )
+        {
+            foreach( var condition in Field.ActiveCourts[courtLocation].Conditions )
+            {
+                condition.Value?.OnExitCourt?.Invoke( battleUnit, Field );
+                yield return WaitForUIQueue();
+            }
+        }
         
-        _playerUnit.Setup( pokemon, _playerHUD, this );
-        // _fightMenu.SetUpMoves( pokemon.Moves );
+        //--Grab the appropriate unit position and assign the incoming pokemon to it
+        for( int i = 0; i < _playerUnits.Count; i++)
+        {
+            if( _playerUnits[i].Pokemon == battleUnit.Pokemon )
+            {
+                battleUnit.Setup( pokemon, _playerHUDs[i], this ); //--Assign and setup the new pokemon
+                battleUnit.ResetTurnsTakenInBattle(); //--Sets turns taken to -1, so they may be incremented to 0 during RoundEndUpdate()
+                battleUnit.ResetSuccessiveProtectUses();
+            }
+        }
 
-        yield return _dialogueBox.TypeDialogue( $"Go, {pokemon.NickName}!" );
-        yield return _playerUnit.PokeAnimator.PlayEnterBattleAnimation( _playerUnit.transform, PlayerReferences.Instance.PlayerCenter );
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Go, {pokemon.NickName}!" ) );
+        yield return WaitForUIQueue();
+        AudioController.Instance.PlaySFX( SoundEffect.BattleBallThrow );
+        yield return battleUnit.PokeAnimator.PlayEnterBattleAnimation( battleUnit.transform, PlayerReferences.Instance.PlayerCenter );
         yield return new WaitForSeconds( 0.25f );
-        // BattleUIActions.OnCommandAnimationsCompleted?.Invoke();
 
-        //--If the new Pokemon enters during a Weather Condition, raise OnEnterWeather (for sandstorm and snow spdef and def)
-        Field.Weather?.OnEnterWeather?.Invoke( _playerUnit.Pokemon );
+        //--Call OnEnterCourt from all existing court conditions on the incoming pokemon
+        if( Field.ActiveCourts[courtLocation].Conditions.Count > 0 )
+        {
+            foreach( var condition in Field.ActiveCourts[courtLocation].Conditions )
+            {
+                condition.Value?.OnEnterCourt?.Invoke( battleUnit, Field );
+                yield return WaitForUIQueue();
+            }
+        }
+
+        var activePokemon = GetActivePokemon();
+        var currentWeather = Field.Weather?.ID;
+        //--Check if the Pokemon has a weather ability, and set it if so.
+        //--Then we check if any active pokemon receive effects of the possible new weather, so we raise OnEnterWeather on all active units
+        pokemon.Ability?.OnAbilityEnter?.Invoke( pokemon, _enemyUnits, Field );
+        yield return null;
+        yield return WaitForUIQueue();
+
+        foreach( var unit in activePokemon )
+        {
+            Field.Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
+            yield return WaitForUIQueue();
+            yield return new WaitForSeconds( 0.25f );
+        }
 
         if( _isFaintedSwitch ){
             //--During a fainted switch, the menu gets paused, but because fainted
             //--switch happens after the command queue, there's never an opportunity for
             //--the menu to become unpaused, therefore it needs to happen here in this
             //--fainted switch conditional area
-            PlayerAction();
             _isFaintedSwitch = false;
         }
 
-        yield return new WaitForSeconds( 0.5f );
+        yield return new WaitForSeconds( 0.1f );
     }
 
     public IEnumerator PerformUseItemCommand( Pokemon pokemon, Item item ){
         var itemUsed = _playerInventory.UseItem( item, pokemon );
 
         if( itemUsed != null ){
-            yield return _dialogueBox.TypeDialogue( itemUsed.UseText( pokemon ), true );
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( itemUsed.UseText( pokemon ) ) );
         }
         else{
-            yield return _dialogueBox.TypeDialogue( "It didn't have any effect!", true );
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It didn't have any effect!" ) );
         }
 
+        yield return WaitForUIQueue();
         yield return null;
     }
 
@@ -882,68 +1665,81 @@ public class BattleSystem : BattleStateMachine
         var playerBallPosition = PlayerReferences.Instance.PlayerCenter.position;
         _playerInventory.UsePokeball( ball );
 
-        yield return _dialogueBox.TypeDialogue( $"Catch threw a {ball.ItemSO.ItemName}!" );
+        PokeballItemSO ballItem = (PokeballItemSO)ball.ItemSO;
+        PokeBallType ballType = ballItem.BallType;
+
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"You threw a {ball.ItemSO.ItemName}!" ) );
+        yield return WaitForUIQueue();
 
         var thrownBall = Instantiate( _thrownPokeBall, playerBallPosition, Quaternion.identity );
-        var originalPos = _enemyUnit.transform;
-        Vector3 originalScale = _enemyUnit.transform.localScale;
-        Vector3 ballBouncePos = new ( 0.5f, 0.5f, 3f );
+        var originalPos = _enemyUnits[0].transform;
+        Vector3 originalScale = _enemyUnits[0].transform.localScale;
+        Vector3 ballBouncePos = new ( 0f, 0.5f, 0f );
 
         thrownBall.GetComponentInChildren<PokeballAnimator>().SetBallSprite( ball.ItemSO.Icon );
 
+        AudioController.Instance.PlaySFX( SoundEffect.BattleBallThrow );
         var sequence = DOTween.Sequence();
-        sequence.Append( thrownBall.transform.DOJump( _enemyUnit.transform.position, 3f, 1, 0.75f ) );
-        sequence.Append( thrownBall.transform.DOJump( _enemyUnit.transform.position + ballBouncePos, 1f, 1, 0.75f ) );
+        sequence.Append( thrownBall.transform.DOJump( _enemyUnits[0].transform.position, 3f, 1, 0.75f ) );
+        sequence.Append( thrownBall.transform.DOJump( _enemyUnits[0].transform.position + ballBouncePos, 1f, 1, 0.75f ) );
 
         yield return sequence.WaitForCompletion();
-        yield return _enemyUnit.PokeAnimator.PlayCaptureAnimation( thrownBall.transform );
+        yield return _enemyUnits[0].PokeAnimator.PlayCaptureAnimation( thrownBall.transform );
+        AudioController.Instance.PlaySFX( SoundEffect.BattleBallDrop );
         yield return thrownBall.transform.DOMoveY( originalPos.position.y, 0.5f ).WaitForCompletion();
 
         _singleTargetCamera.LookAt = thrownBall.transform;
         _singleTargetCamera.gameObject.SetActive( true );
 
-        int shakeCount = TryToCatchPokemon( _enemyUnit.Pokemon, (PokeballItemSO)ball.ItemSO );
+        int shakeCount = TryToCatchPokemon( _enemyUnits[0].Pokemon, (PokeballItemSO)ball.ItemSO );
         // Debug.Log( _enemyUnit.PokeSO.CatchRate );
         Debug.Log( $"Shake Count: {shakeCount}" );
 
         for( int i = 0; i < Mathf.Min( shakeCount, 3 ); i++ ){
             yield return new WaitForSeconds( 0.5f );
+            AudioController.Instance.PlaySFX( SoundEffect.BattleBallShake );
             yield return thrownBall.GetComponentInChildren<PokeballAnimator>().TryCaptureShake();
         }
         if( shakeCount == 4 ){
             //--Pokemon is Caught
-            yield return _dialogueBox.TypeDialogue( $"{_enemyUnit.Pokemon.NickName} was caught!" );
+            AudioController.Instance.PlaySFX( SoundEffect.BattleBallClick );
+            yield return new WaitUntil( () => !AudioController.Instance.IsPlayingSFX );
+            AudioController.Instance.PlaySFX( SoundEffect.CatchSuccess );
+            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{_enemyUnits[0].Pokemon.NickName} was caught!" ) );
+            yield return WaitForUIQueue();
             yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 1.5f, true );
             
             _singleTargetCamera.gameObject.SetActive( false );
             Destroy( thrownBall );
-            yield return HandleExpGain( _enemyUnit );
+            yield return HandleExpGain( _enemyUnits[0] );
             //--Pokemon is added to party post battle, so it doesn't gain exp from itself
-            yield return PostBattleScreen( _enemyUnit.Pokemon );
+            yield return PostBattleScreen( _enemyUnits[0].Pokemon, ballType );
         }
         else{
             //--Pokemon eats your ass
             yield return new WaitForSeconds( 1f );
             yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 0.25f, false );
-            yield return _enemyUnit.PokeAnimator.PlayBreakoutAnimation( originalPos );
+            yield return _enemyUnits[0].PokeAnimator.PlayBreakoutAnimation( originalPos );
             _singleTargetCamera.gameObject.SetActive( false );
 
             Destroy( thrownBall );
 
             if( shakeCount == 0 )
-                yield return _dialogueBox.TypeDialogue( $"It broke free!" );
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It broke free!" ) );
             if( shakeCount == 1 )
-                yield return _dialogueBox.TypeDialogue( $"Argh, almost caught!" );
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Argh, almost caught!" ) );
             if( shakeCount == 2 )
-                yield return _dialogueBox.TypeDialogue( $"Shoot, it was so close!" );
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Shoot, it was so close!" ) );
             if( shakeCount == 3 )
-                yield return _dialogueBox.TypeDialogue( $"FUCK     !" );
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"F U C K     ! ! !" ) );
+
+            yield return WaitForUIQueue();
         }
     }
 
     private int TryToCatchPokemon( Pokemon pokemon, PokeballItemSO pokeball ){
         Debug.Log( $"Ball Catchrate: {pokeball.CatchRate}" );
-        float a = ( 3 * pokemon.MaxHP - 2 * pokemon.CurrentHP ) * pokemon.PokeSO.CatchRate * pokeball.CatchRate * ConditionsDB.GetStatusBonus( pokemon.SevereStatus ) / ( 3 * pokemon.MaxHP );
+        float a = ( 3 * pokemon.MaxHP - 2 * pokemon.CurrentHP ) * pokemon.PokeSO.CatchRate * pokeball.CatchRate * StatusConditionsDB.GetStatusBonus( pokemon.SevereStatus ) / ( 3 * pokemon.MaxHP );
 
         if( a >= 255 )
             return 4;
@@ -965,12 +1761,40 @@ public class BattleSystem : BattleStateMachine
 //--------------------------------------------------------------------------------------------------------
 //-------------------------------------[ COMMAND SYSTEM METHODS ]-----------------------------------------
 //--------------------------------------------------------------------------------------------------------
+    private IEnumerator NextUnitInSelection()
+    {
+        PlayerBattleMenu.OnPauseState?.Invoke();
+        //--Eventually we'll delay for things like animations and trigger other visual setups, like potentially showing the chosen action above the previous unit
+        //--these things might as well be coroutines since there'll be tweening involved, so the delay can be built into the general duration of them
+        yield return new WaitForSeconds( 0.5f );
+
+        if( ActivePlayerUnitsCount == _playerUnits.Count )
+        {
+            _unitInSelectionState++;
+
+            if( _unitInSelectionState > ActivePlayerUnitsCount - 1 )
+                _unitInSelectionState = Mathf.Clamp( _unitInSelectionState, 0, ActivePlayerUnitsCount - 1 );
+            else
+                PlayerBattleMenu.OnUnpauseState?.Invoke();
+        }
+
+        yield return null;
+    }
+
+    public void BeginAIActionSelect()
+    {
+        if( StateMachine.CurrentState == _actionSelectState )
+        {
+            PopState();
+            PushState( _aiTurnState );
+        }
+    }
 
     public void DetermineCommandOrder(){
-        SetBusyState();
-        // Debug.Log( "DetermineCommandOrder()" );
+        if( StateMachine.CurrentState == _aiTurnState )
+            PopState();
 
-        _commandList = _commandList.OrderBy( prio => prio.CommandPriority ).ThenBy( prio => prio.AttackPriority).ThenBy( prio => prio.UnitAgility ).ToList();
+        _commandList = _commandList.OrderBy( prio => prio.CommandPriority ).ThenBy( prio => prio.AttackPriority ).ThenBy( prio => prio.UnitAgility ).ToList();
 
         for( int i = _commandList.Count - 1; i >= 0; i-- ){
             AddCommand( _commandList[i] );
@@ -980,69 +1804,132 @@ public class BattleSystem : BattleStateMachine
         StartCoroutine( ExecuteCommandQueue() );
     }
 
-    public void SetPlayerMoveCommand( BattleUnit attacker, Move move ){
-        _useMoveCommand = new UseMoveCommand( move, attacker, _enemyUnit, this );
+    public void SetPlayerMoveCommand( BattleUnit attacker, BattleUnit target, Move move ){
+        _useMoveCommand = new UseMoveCommand( move, attacker, target, this );
         _commandList.Add( _useMoveCommand );
-        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
+        OnCommandAdded?.Invoke();
+        StartCoroutine( NextUnitInSelection() );
     }
 
     //--Currently all player options lead to this, where the ai simply chooses a random move
     //--which then gets added to the command list, and then the priority sorting -> queue execution happens
-    public void SetEnemyMoveCommand( BattleUnit attacker, Move move ){
-        _useMoveCommand = new UseMoveCommand( move, attacker, _playerUnit, this );
+    public void SetEnemyMoveCommand( BattleUnit attacker, BattleUnit target, Move move ){
+        _useMoveCommand = new UseMoveCommand( move, attacker, target, this );
         _commandList.Add( _useMoveCommand );
-        DetermineCommandOrder();
     }
 
-    public void SetUseItemCommand( Pokemon pokemon, Item item ){
-        _useItemCommand = new UseItemCommand( this, pokemon, item );
+    public void SetUseItemCommand( BattleUnit user, Pokemon pokemon, Item item ){
+        _useItemCommand = new UseItemCommand( this, user, pokemon, item );
         _commandList.Add( _useItemCommand );
-        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
+        OnCommandAdded?.Invoke();
+        StartCoroutine( NextUnitInSelection() );
     }
 
-    public void SetSwitchPokemonCommand( Pokemon pokemon ){
-        _switchPokemonCommand = new SwitchPokemonCommand( pokemon, this );
+    public void SetSwitchPokemonCommand( Pokemon pokemon, BattleUnit unitPosition ){
+        _switchPokemonCommand = new SwitchPokemonCommand( pokemon, this, unitPosition );
         _commandList.Add( _switchPokemonCommand );
-        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
+        OnCommandAdded?.Invoke();
+        StartCoroutine( NextUnitInSelection() );
     }
 
-    public void SetRunFromBattleCommand(){
-        _runFromBattleCommand = new RunFromBattleCommand( this );
+    public void SetRunFromBattleCommand( BattleUnit user ){
+        _runFromBattleCommand = new RunFromBattleCommand( this, user );
         _commandList.Add( _runFromBattleCommand );
-        _enemyUnit.BattleAI.OnPlayerCommandSelect?.Invoke();
+        OnCommandAdded?.Invoke();
+        StartCoroutine( NextUnitInSelection() );
     }
 
     public void AddCommand( IBattleCommand command ){
         _commandQueue.Enqueue( command );
     }
 
-    public IEnumerator ExecuteCommandQueue(){
+    public IEnumerator ExecuteCommandQueue()
+    {
         yield return new WaitForEndOfFrame();
+        yield return new WaitForSeconds( 0.25f );
 
-        while( _commandQueue.Count > 0 ){
-            yield return _commandQueue.Dequeue().ExecuteBattleCommand();
-            _turnsLeft = _commandQueue.Count; //--i have no idea what i was going to use this for
+        while( _commandQueue.Count > 0 )
+        {
+            var user = _commandQueue.Peek().User;
 
-            // //--In Singles, Faints are handled immediately
-            // if( _isSinglesTrainerBattle ){
-            //     yield return HandleFaintedPokemon();
-            // }
+            if( user.Pokemon.CurrentHP == 0 || user.Pokemon.SevereStatus?.ID == StatusConditionID.FNT )
+                yield return _commandQueue.Dequeue();
+
+            if( _commandQueue.Count == 0 )
+                break;
+            
+            if( _commandQueue.Peek() is UseMoveCommand && BattleType == BattleType.TrainerDoubles )
+            {
+                var moveCommand = _commandQueue.Peek() as UseMoveCommand;
+                if( moveCommand.Target.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.Target.Pokemon == null )
+                {
+                    //--change target if current target is fainted. if the new target has also fainted, we remove the command from the queue.
+                    if( moveCommand.Target == _enemyUnits[0] )
+                    {
+                        moveCommand.ChangeTarget( _enemyUnits[1] );
+                        if( moveCommand.Target.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.Target.Pokemon == null || moveCommand.Target.Pokemon.CurrentHP == 0 )
+                            _commandQueue.Dequeue();
+                    }
+                    else if( moveCommand.Target == _enemyUnits[1] )
+                    {
+                        moveCommand.ChangeTarget( _enemyUnits[0] );
+                        if( moveCommand.Target.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.Target.Pokemon == null || moveCommand.Target.Pokemon.CurrentHP == 0 )
+                            _commandQueue.Dequeue();
+                    }
+                    else if( moveCommand.Target == _playerUnits[0] )
+                    {
+                        moveCommand.ChangeTarget( _playerUnits[1] );
+                        if( moveCommand.Target.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.Target.Pokemon == null || moveCommand.Target.Pokemon.CurrentHP == 0 )
+                            _commandQueue.Dequeue();
+                    }
+                }
+            }
+
+            if( _commandQueue.Count > 0 )
+                yield return _commandQueue.Dequeue().ExecuteBattleCommand();
+
+            yield return new WaitUntil( () => !_battleComposer.CMBrain.IsBlending );
+            yield return ShowStatusChanges( user );
+            yield return null;
+            yield return WaitForUIQueue();
+            yield return new WaitForSeconds( 0.5f );
         }
 
+        _commandQueue.Clear();
         yield return new WaitForSeconds( 0.25f );
+
         //--This should handle all board state updates like leftovers, status, weather, and field effects
         //--It gets called after all turns are completed and the command queue is empty
-        yield return AfterTurnUpdate();
-
-        //--In Doubles, the fainted pokemon are handled after all possible turns are completed.
-        if( _isDoublesTrainerBattle ){
-            yield return HandleFaintedPokemon();
-        }
+        yield return RoundEndUpdate();
         
         BattleUIActions.OnAttackPhaseCompleted?.Invoke();
-        yield return new WaitForSeconds( 0.25f );
-        PlayerAction();
+
         yield return null;
+        _unitInSelectionState = 0;
+
+        yield return new WaitForSeconds( 0.1f );
+        PushState( _actionSelectState );
     }
+
+    #if UNITY_EDITOR
+    private void OnGUI(){
+        if( !StateMachineDisplays.Show_BattleSystemStateStack )
+            return; 
+
+        var style = new GUIStyle();
+        style.font = Resources.Load<Font>( "Fonts/Gotham Bold Outlined" );
+        style.fontSize = 30;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = Color.white;
+        style.richText = true;
+
+        GUILayout.BeginArea( new Rect( 0, 500, 600, 500 ) );
+        GUILayout.Label( "STATE STACK", style );
+        foreach( var state in StateMachine.StateStack ){
+            GUILayout.Label( state.GetType().ToString(), style );
+        }
+        GUILayout.EndArea();
+    }
+#endif
 
 }

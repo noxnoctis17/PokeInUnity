@@ -46,6 +46,7 @@ public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, IC
 
     public void OnSelect( BaseEventData eventData ){
         _buttonContext.ContextSelected();
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
     public void OnDeselect( BaseEventData eventData ){

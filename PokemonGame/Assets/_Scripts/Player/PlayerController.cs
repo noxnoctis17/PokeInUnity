@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -13,6 +14,7 @@ public class PlayerController : MonoBehaviour
     private PlayerInput _playerInput;
     private PlayerMovement _playerMovement;
     private Vector3[] _interactRayOffsets;
+    private bool _isBumping;
     public EventSystem EventSystem => _eventSystem;
     public static event Action OnPause;
 
@@ -61,6 +63,28 @@ public class PlayerController : MonoBehaviour
                 break;
             }
         }
+    }
+
+    private void OnControllerColliderHit( ControllerColliderHit hit ){
+        if( hit.collider is TerrainCollider )
+            return;
+
+        if( _isBumping )
+            return;
+
+        if( hit.collider.CompareTag( "JumpCollider" ) || hit.collider.CompareTag( "LedgeCollider" ) && hit.collider.transform.forward == -transform.forward )
+            return;
+
+        _isBumping = true;
+        StartCoroutine( PlayBump() );
+    }
+
+    private IEnumerator PlayBump(){
+        float playbackSpeed = _playerMovement.PlayerSpeed * Time.deltaTime;
+        playbackSpeed *= 4;
+        AudioController.Instance.PlaySFX( SoundEffect.Bump );
+        yield return new WaitForSeconds( playbackSpeed );
+        _isBumping = false;
     }
 
     private void OnPausePressed( InputAction.CallbackContext context ){

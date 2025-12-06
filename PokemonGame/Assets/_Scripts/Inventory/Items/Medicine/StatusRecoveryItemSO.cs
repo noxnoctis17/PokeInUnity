@@ -4,7 +4,7 @@ using UnityEngine;
 public class StatusRecoveryItemSO : ItemSO
 {
     [Header( "Status" )]
-    [SerializeField] private ConditionID _status;
+    [SerializeField] private StatusConditionID _status;
 
     [TextArea(3, 10)]
     [SerializeField] private string _recoverText;
@@ -14,7 +14,7 @@ public class StatusRecoveryItemSO : ItemSO
 
     public override bool Use( Pokemon pokemon ){
         //--Revive
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT ){
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT ){
             if( _revive ){
                 pokemon.CureSevereStatus();
                 pokemon.IncreaseHP( pokemon.MaxHP/2 );
@@ -31,7 +31,7 @@ public class StatusRecoveryItemSO : ItemSO
         }
 
         //--Status Item
-        if( _restoreAllStatus || _status != ConditionID.NONE ){
+        if( _restoreAllStatus || _status != StatusConditionID.NONE ){
             if( pokemon.SevereStatus == null && pokemon.VolatileStatus != null )
                 return false;
 
@@ -58,7 +58,7 @@ public class StatusRecoveryItemSO : ItemSO
             return false;
 
         //--Revive Item
-        if( _revive && pokemon.SevereStatus.ID == ConditionID.FNT || _maxRevive && pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( _revive && pokemon.SevereStatus.ID == StatusConditionID.FNT || _maxRevive && pokemon.SevereStatus.ID == StatusConditionID.FNT )
             return true;
 
         //--Status Item

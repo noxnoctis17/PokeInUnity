@@ -25,8 +25,8 @@ MonoBehaviour:
   _speed: 45
   _catchRate: 255
   _expYield: 64
-  _growthRate: 0
   _effortPointsYield: 1
+  _growthRate: 0
   _idleUpSprites:
   - {fileID: -2105536150, guid: 9484ef5d0fb9f34418a5c5bb81f23313, type: 3}
   _idleDownSprites:
@@ -42,14 +42,21 @@ MonoBehaviour:
   _cardPortrait: {fileID: 0}
   _type1: 5
   _type2: 0
+  _abilities: 030000000500000010000000
   _evolutions: []
   _learnableMoves:
   - _moveSO: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}
     _levelLearned: 1
   - _moveSO: {fileID: 11400000, guid: a510aab79c4c3dd49a6e316693d61bea, type: 2}
     _levelLearned: 6
+  - _moveSO: {fileID: 11400000, guid: cd860d2f9b510ff4dbd97b4f3842a188, type: 2}
+    _levelLearned: 8
+  - _moveSO: {fileID: 11400000, guid: 3d6337c650246f948a7f71d2e7e7eab3, type: 2}
+    _levelLearned: 9
   - _moveSO: {fileID: 11400000, guid: 41ebdf6a5bc4ec84d85132981314bec8, type: 2}
     _levelLearned: 10
+  - _moveSO: {fileID: 11400000, guid: 37dfce9a2dfd7724baee2dca9add0698, type: 2}
+    _levelLearned: 13
   - _moveSO: {fileID: 11400000, guid: 3734655eb285f174e98adc63992ac9da, type: 2}
     _levelLearned: 16
   - _moveSO: {fileID: 11400000, guid: 7eeabd8921196b441b74022de78201a2, type: 2}

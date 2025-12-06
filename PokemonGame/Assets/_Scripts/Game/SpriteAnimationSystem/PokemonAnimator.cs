@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
     //==[STATES]==
@@ -21,6 +22,7 @@ public class PokemonAnimator : MonoBehaviour
     private BattleSystem _battleSystem;
     public BattleSystem BattleSys => _battleSystem;
     public SpriteRenderer SpriteRenderer => _spriteRenderer;
+    public Transform PokemonTransform => _pokemonTransform;
 
     //==[ACTIONS]==
     public Action<PokeAnimationState> OnAnimationStateChange;
@@ -98,6 +100,7 @@ public class PokemonAnimator : MonoBehaviour
         //--Default/Initial Animation
         _defaultAnimSheet = _idleDownSprites;
         _currentAnimSheet = _defaultAnimSheet;
+        _camera = PlayerReferences.MainCameraTransform;
 
         _initialized = true;
     }
@@ -287,40 +290,53 @@ public class PokemonAnimator : MonoBehaviour
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlayPhysicalAttackAnimation( Transform originalPos, Transform targetPos ){
-        Vector3 direction = targetPos.position - transform.position;
+    public IEnumerator PlayPhysicalAttackAnimation( Transform originalPos, Transform targetPos, TweenCallback cameraCallback = null ){
+        Vector3 direction = targetPos.position - _pokemonTransform.position;
         direction.Normalize();
         Vector3 readyPos = targetPos.position - direction;
         Vector3 attackPos = targetPos.position - new Vector3( 0.01f, 0, 0.01f );
 
         var sequence = DOTween.Sequence();
-        sequence.Append( transform.DOMove( readyPos, 0.4f ) ); //--Move to close range Attack position
-        sequence.AppendInterval( 0.25f );
-        sequence.Append( transform.DOMove( attackPos, 0.15f ) ); //--Move into target's position
-        sequence.Append( transform.DOMove( readyPos, 0.15f) ); //--Move back to close range Attack position
-        sequence.AppendInterval( 0.1f );
-        sequence.Append( transform.DOMove( originalPos.position, 0.25f ) ); //--Move back to default position
+        sequence.Append( _pokemonTransform.DOMove( readyPos, 0.75f ) );             //--Move to close range Attack position
+        sequence.AppendInterval( 0.25f );                                           //--Wait
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.15f ) );            //--"Hit" target
+
+        if( cameraCallback != null )
+            sequence.AppendCallback( cameraCallback );                              //--If camera stuff isn't null, trigger the callback to change cameras in the BattleComposer
+
+        sequence.Append( _pokemonTransform.DOMove( readyPos, 0.15f) );              //--Move back to close range Attack position
+        sequence.AppendInterval( 0.1f );                                            //--Wait
+        sequence.Append( _pokemonTransform.DOMove( originalPos.position, 0.25f ) ); //--Move back to default position
 
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlaySpecialAttackAnimation(){
-        yield return transform.DOShakePosition( 0.5f, 1f, 1 ).WaitForCompletion();
+    public IEnumerator PlaySpecialAttackAnimation( Transform targetPos ){
+        Vector3 originalPos = _pokemonTransform.position;
+        Vector3 direction = _pokemonTransform.position - targetPos.position;
+        direction.Normalize();
+        Vector3 attackPos = _pokemonTransform.position - direction;
+
+        var sequence = DOTween.Sequence();
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.75f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOShakePosition( 0.5f, 0.25f, 8 ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.1f );
+        sequence.Append( _pokemonTransform.DOMove( originalPos, 0.25f ) ).WaitForCompletion();
+        yield return sequence.WaitForCompletion();
     }
 
     public IEnumerator PlayStatusAttackAnimation(){
-        Transform parent = GetComponentInParent<Transform>();
-        Vector3 rotate180 = new Vector3( 0f, 180f, 0f );
+        Vector3 front = _pokemonTransform.position + _pokemonTransform.forward * 1f;
+        Vector3 behind = _pokemonTransform.position - _pokemonTransform.forward * 1f;
 
-        // _isAnimating = true;
         var sequence = DOTween.Sequence();
-        sequence.Append( parent.DOJump( parent.position, 1, 1, 0.25f) );
-        sequence.Join( parent.DORotate( rotate180, 0.5f ) );
-        sequence.Append( parent.DOJump( parent.position, 1, 1, 0.25f) );
-        sequence.Join( parent.DORotate( -rotate180, 0.5f ) );
+        sequence.Append( _pokemonTransform.DOJump( _pokemonTransform.position, 1, 1, 0.5f ) );
+        sequence.Join( _pokemonTransform.DODynamicLookAt( behind, 0.5f ) );
+        sequence.Append( _pokemonTransform.DOJump( _pokemonTransform.position, 1, 1, 0.5f ) );
+        sequence.Join( _pokemonTransform.DODynamicLookAt( front, 0.5f ) );
 
         yield return sequence.WaitForCompletion();
-        // _isAnimating = false;
     }
 
     public IEnumerator PlayEnterBattleAnimation( Transform originalPos, Transform player ){
@@ -333,7 +349,7 @@ public class PokemonAnimator : MonoBehaviour
         sequence.Join( transform.DOMove( originalPos.position, 0.5f ) );
         sequence.Join( transform.DOScale( Vector3.one, 0.5f ) );
 
-        yield return sequence.WaitForCompletion();;
+        yield return sequence.WaitForCompletion();
     }
 
     public IEnumerator PlayExitBattleAnimation( Transform player ){
@@ -342,7 +358,22 @@ public class PokemonAnimator : MonoBehaviour
         sequence.Join( transform.DOMove( player.position, 0.5f ) );
         sequence.Join( transform.DOScale( Vector3.zero, 0.5f ) );
 
-        yield return sequence.WaitForCompletion();;
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayTakeDamageAnimation()
+    {
+        WaitForSeconds flicker = new( 0.1f );
+        _spriteRenderer.enabled = false;
+        yield return flicker;
+        _spriteRenderer.enabled = true;
+        yield return flicker;
+        _spriteRenderer.enabled = false;
+        yield return flicker;
+        _spriteRenderer.enabled = true;
+        yield return flicker;
+
+        yield return new WaitForSeconds( 0.25f );
     }
 
     public IEnumerator PlayFaintAnimation(){

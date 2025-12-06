@@ -25,7 +25,7 @@ public class BattleController : MonoBehaviour
         _battleSystem.InitializeWildBattle( battleType );
     }
 
-    public void InitTrainerBattle( TrainerClass trainer ){
+    public void InitTrainerBattle( Trainer trainer ){
         //--Push Game State
         GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
 

@@ -4,7 +4,6 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using NoxNoctisDev.StateMachine;
-using UnityEngine.EventSystems;
 
 public class FightMenu : State<PlayerBattleMenu>
 {
@@ -18,13 +17,13 @@ public class FightMenu : State<PlayerBattleMenu>
     public BattleUnit ActiveUnit => _activeUnit;
     [SerializeField] private List<MoveButton> _moveButtons;
     [SerializeField] private List<TextMeshProUGUI> _moveNameText, _ppText;
-    // [SerializeField] private Image _pokemonType_Image1, _pokemonType_Image2;
 
     public override void EnterState( PlayerBattleMenu owner ){
         gameObject.SetActive( true );
         Debug.Log( "EnterState: " + this );
         _battleMenu = owner;
-        _activeUnit = _battleSystem.PlayerUnit;
+        //--THIS SHOULD BE THE CURRENT UNIT YOU ARE SELECTING A MOVE FOR
+        _activeUnit = _battleSystem.UnitInSelectionState;
 
         SetUpMoves( _activeUnit.Pokemon.ActiveMoves );
 
@@ -32,12 +31,18 @@ public class FightMenu : State<PlayerBattleMenu>
 
         StartCoroutine( SetInitialButton() );
 
-        BattleUIActions.OnFightMenuOpened?.Invoke();
+        // BattleUIActions.OnFightMenuOpened?.Invoke(); //--These were probably for animations or whatever
+    }
+
+    public override void ReturnToState()
+    {
+        SelectMemoryButton();
     }
 
     public override void ExitState(){
-        BattleUIActions.OnSubMenuClosed?.Invoke();
-        BattleUIActions.OnFightMenuClosed?.Invoke();
+        Debug.Log( "ExitState: " + this );
+        // BattleUIActions.OnSubMenuClosed?.Invoke(); //--These were probably for animations or whatever
+        // BattleUIActions.OnFightMenuClosed?.Invoke(); //--These were probably for animations or whatever
         gameObject.SetActive( false );
     }
 

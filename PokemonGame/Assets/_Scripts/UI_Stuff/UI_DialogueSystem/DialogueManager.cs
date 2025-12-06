@@ -18,23 +18,21 @@ public class DialogueManager : MonoBehaviour
     private void OnEnable( ){
         Instance = this;
         OnDialogueEvent             += PlayDialogue;
-        // OnStringDialogueEvent       += PlayDialogue;
         OnResponseChosen            += ContinueDialogue;
         OnHasResponseEvents         += AddResponseEvents;
     }
 
     private void OnDisable( ){
         OnDialogueEvent             -= PlayDialogue;
-        // OnStringDialogueEvent       -= PlayDialogue;
         OnResponseChosen            -= ContinueDialogue;
         OnHasResponseEvents         -= AddResponseEvents;
     }
 
     private void PlayDialogue( DialogueSO dialogueSO ){
-        Debug.Log( "PlayDialogue()" );
+        // Debug.Log( "PlayDialogue()" );
 
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
-            Debug.Log( "pushed dialogue state ");
+            // Debug.Log( "pushed dialogue state ");
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
         Debug.Log( dialogueSO );
@@ -42,10 +40,10 @@ public class DialogueManager : MonoBehaviour
     }
 
     public void PlaySystemMessage( string dialogue ){
-        Debug.Log( "PlayDialogue()" );
+        // Debug.Log( "PlayDialogue()" );
 
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
-            Debug.Log( "pushed dialogue state ");
+            // Debug.Log( "pushed dialogue state ");
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
 
@@ -53,17 +51,15 @@ public class DialogueManager : MonoBehaviour
     }
 
     public IEnumerator PlaySystemMessageCoroutine( string dialogue ){
-        Debug.Log( "PlayDialogue()" );
-
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
-            Debug.Log( "pushed dialogue state ");
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
+        
         yield return _dialogueUI.StartSystemMessage( dialogue );
     }
 
     private void ContinueDialogue( DialogueSO dialogueSO ){
-        Debug.Log( "ContinueDialogue()" );
+        // Debug.Log( "ContinueDialogue()" );
         _dialogueUI.StartDialogue( dialogueSO );
     }
 

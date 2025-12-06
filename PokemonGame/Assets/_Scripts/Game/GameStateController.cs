@@ -32,6 +32,8 @@ public class GameStateController : MonoBehaviour
     public Action OnGameStateChanged;
     public Action OnDialogueStateEntered;
     public Action OnDialogueStateExited;
+    public static Action OnGamePaused;
+    public static Action OnGameUNPaused;
 
 //=======================================================================================
 
@@ -43,7 +45,8 @@ public class GameStateController : MonoBehaviour
     private void Awake(){
         //--Initialize Databases
         TypeColorsDB.Init();
-        ConditionsDB.Init();
+        StatusConditionsDB.Init();
+        WeatherConditionsDB.Init();
         PokemonDB.Init();
         ItemsDB.Init();
         MoveDB.Init();

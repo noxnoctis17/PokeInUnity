@@ -26,7 +26,7 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
         OnItemCommand += SetItemCommand;
         _bagDisplay.OnPocketChanged += SetNewInitialButton;
         GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
-        GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited  += _bagDisplay.ExitDialogueWrapper;
 
         //--Request Itemlist
         UpdateItemList();
@@ -51,7 +51,7 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
 
         //--Events
         GameStateController.Instance.OnDialogueStateEntered += _bagDisplay.EnterDialogueWrapper;
-        GameStateController.Instance.OnDialogueStateExited += _bagDisplay.ExitDialogueWrapper;
+        GameStateController.Instance.OnDialogueStateExited  += _bagDisplay.ExitDialogueWrapper;
 
         //--Select Appropriate Button
         StartCoroutine( SetInitialButton() );
@@ -91,6 +91,7 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
     }
 
     public void UsePokeball( Item item ){
+        Debug.Log( "We made it to UsePokeBall()" );
         _bagDisplay.SetSelectedItem( item );
         SetItemCommand( null, item );
     }
@@ -135,6 +136,8 @@ public class BagScreen_Battle : State<PlayerBattleMenu>, IBagScreen, IPartyScree
         else if( BattleMenu.StateMachine.CurrentState == this )
             BattleMenu.PopState();
 
-        BattleMenu.BattleSystem.SetUseItemCommand( pokemon, item );
+        var user = _battleSystem.UnitInSelectionState;
+        BattleMenu.BattleSystem.SetUseItemCommand( user, pokemon, item );
     }
+    
 }

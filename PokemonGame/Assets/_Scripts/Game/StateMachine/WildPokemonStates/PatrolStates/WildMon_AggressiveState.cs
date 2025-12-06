@@ -11,9 +11,9 @@ public class WildMon_AggressiveState : State<WildPokemon>
         Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
         _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokeAnimationState.Walking );
-        _wildPokemon.AgentMon.maxSpeed = 10f;
-        _wildPokemon.AgentMon.maxAcceleration = 10f;
-        _previousPosition = _wildPokemon.AgentMon.position;
+        _wildPokemon.AgentMon.speed = 10f;
+        _wildPokemon.AgentMon.acceleration = 10f;
+        _previousPosition = _wildPokemon.AgentMon.nextPosition;
         _wildPokemon.AgentMon.destination = PlayerReferences.Instance.PlayerTransform.position;
     }
 
@@ -27,14 +27,14 @@ public class WildMon_AggressiveState : State<WildPokemon>
             }
 
             if( Vector3.Distance( transform.position, _previousPosition ) < 0.5f ){
-                _wildPokemon.AgentMon.maxSpeed = 3;
-                _wildPokemon.AgentMon.maxAcceleration = 3f;
+                _wildPokemon.AgentMon.speed = 3;
+                _wildPokemon.AgentMon.acceleration = 3f;
                 _wildPokemon.OnPlayerTooFar?.Invoke( _wildPokemon.WanderState );
             }
         }
     }
 
     public override void ExitState(){
-        _wildPokemon.AgentMon.SetPath( null );
+        _wildPokemon.AgentMon.ResetPath();
     }
 }

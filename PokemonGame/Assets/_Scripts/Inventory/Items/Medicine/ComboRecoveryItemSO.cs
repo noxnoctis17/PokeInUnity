@@ -8,13 +8,13 @@ public class ComboRecoveryItemSO : ItemSO
     [SerializeField] private bool _restoreMaxHP;
 
     [Header( "Status" )]
-    [SerializeField] private ConditionID _status;
+    [SerializeField] private StatusConditionID _status;
     [SerializeField] private bool _restoreAllStatus; //--Excluding FNT
     [SerializeField] private bool _revive; //--Cure FNT status + heal max hp
     [SerializeField] private bool _maxRevive; //--Cure FNT status + heal max hp
 
     public override bool Use( Pokemon pokemon ){
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
             return false;
         
         //--Potion Item
@@ -38,10 +38,10 @@ public class ComboRecoveryItemSO : ItemSO
     public override bool CheckIfUsable( Pokemon pokemon ){
         //--Revive Item
         if( _revive || _maxRevive )
-            if( pokemon.SevereStatus.ID != ConditionID.FNT )
+            if( pokemon.SevereStatus.ID != StatusConditionID.FNT )
                 return false;
         
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
             return false;
 
         //--Potion Item
@@ -53,7 +53,7 @@ public class ComboRecoveryItemSO : ItemSO
         }
 
         //--Status Item
-        if( _restoreAllStatus || _status != ConditionID.NONE )
+        if( _restoreAllStatus || _status != StatusConditionID.NONE )
             if( pokemon.SevereStatus == null && pokemon.VolatileStatus == null )
                 return false;  
         

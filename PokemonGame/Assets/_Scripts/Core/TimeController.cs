@@ -8,16 +8,16 @@ public class TimeController : MonoBehaviour
 {
     [SerializeField] private Light _sun;
     [SerializeField] private Light _moon;
-    [SerializeField] private float _maxSunLightIntensity;
-    [SerializeField] private float _maxMoonLightIntensity;
+    // [SerializeField] private float _maxSunLightIntensity;
+    // [SerializeField] private float _maxMoonLightIntensity;
     [SerializeField] private float _timeMultiplier;
     [SerializeField] private float _startHour;
     [SerializeField] private float _sunRiseHour;
     [SerializeField] private float _sunSetHour;
     [SerializeField] private TextMeshProUGUI _timeText;
-    [SerializeField] private Color _dayAmbientLight;
-    [SerializeField] private Color _nightAmbientLight;
-    [SerializeField] private AnimationCurve _lightChangeCurve;
+    // [SerializeField] private Color _dayAmbientLight;
+    // [SerializeField] private Color _nightAmbientLight;
+    // [SerializeField] private AnimationCurve _lightChangeCurve;
     private DateTime _currentTime;
     private TimeSpan _sunRiseTime;
     private TimeSpan _sunSetTime;
@@ -29,21 +29,19 @@ public class TimeController : MonoBehaviour
 
         _sun = LightReferences.Instance.SunTransform.GetComponent<Light>();
         _moon = LightReferences.Instance.MoonTransform.GetComponent<Light>();
-        _timeText = UI_OverworldManager.Instance.TimeText;
+        //_timeText = UI_OverworldManager.Instance.TimeText;
     }
 
     private void Update(){
         UpdateTimeOfDay();
         RotateSun();
-        UpdateLightSettings();
+        // UpdateLightSettings();
     }
 
     private void UpdateTimeOfDay(){
         _currentTime = _currentTime.AddSeconds( Time.deltaTime * _timeMultiplier );
-
-        if( _timeText != null ){
-            _timeText.text = _currentTime.ToString( "hh:mm" );
-        }
+        // Debug.Log( $"Current Time: {_currentTime}" );
+        _timeText.text = _currentTime.ToString( "hh:mm" );
     }
 
     private TimeSpan CalculateTimeDifference( TimeSpan fromTime, TimeSpan toTime ){
@@ -76,10 +74,10 @@ public class TimeController : MonoBehaviour
         _sun.transform.rotation = Quaternion.AngleAxis( sunRotation, new Vector3( 1f, 0.25f, 0 ) );
     }
     
-    private void UpdateLightSettings(){
-        float dotProduct = Vector3.Dot( _sun.transform.forward, Vector3.down );
-        _sun.intensity = Mathf.Lerp( 0, _maxSunLightIntensity, _lightChangeCurve.Evaluate( dotProduct ) );
-        _moon.intensity = Mathf.Lerp( _maxMoonLightIntensity, 0, _lightChangeCurve.Evaluate( dotProduct ) );
-        RenderSettings.ambientLight = Color.Lerp( _nightAmbientLight, _dayAmbientLight, _lightChangeCurve.Evaluate( dotProduct ) );
-    }
+    // private void UpdateLightSettings(){
+    //     float dotProduct = Vector3.Dot( _sun.transform.forward, Vector3.down );
+    //     _sun.intensity = Mathf.Lerp( 0, _maxSunLightIntensity, _lightChangeCurve.Evaluate( dotProduct ) );
+    //     _moon.intensity = Mathf.Lerp( _maxMoonLightIntensity, 0, _lightChangeCurve.Evaluate( dotProduct ) );
+    //     RenderSettings.ambientLight = Color.Lerp( _nightAmbientLight, _dayAmbientLight, _lightChangeCurve.Evaluate( dotProduct ) );
+    // }
 }

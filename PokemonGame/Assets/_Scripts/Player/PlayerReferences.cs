@@ -8,6 +8,7 @@ public class PlayerReferences : MonoBehaviour
 
 //====================[PLAYER OBJECT]===========================
    [SerializeField] private Transform _playerCenter;
+   [SerializeField] private FollowerPokemon _followerPokemon;
    public PlayerSaving PlayerSaving { get; private set; }
    public Transform PlayerSpriteTransform { get; private set; }
    public PlayerMovement PlayerMovement { get; private set; }
@@ -17,6 +18,7 @@ public class PlayerReferences : MonoBehaviour
    public Transform PlayerTransform { get; private set; }
    public Transform PlayerCenter { get; private set; }
    public PlayerInput PlayerInput { get; private set; }
+   public FollowerPokemon FollowerPokemon => _followerPokemon;
 
 //========================[CAMERA]==============================
    [SerializeField] private Transform _mainCameraTransform;
@@ -47,5 +49,13 @@ public class PlayerReferences : MonoBehaviour
       MainCameraTransform = _mainCameraTransform;
       
    }
+
+#if UNITY_EDITOR
+    
+    public void OnDrawGizmos(){
+        Debug.DrawRay( transform.position, transform.forward * 5f, Color.cyan );
+    }
+
+#endif
 
 }

@@ -20,6 +20,7 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
     }
 
     public override void EnterState( UI_PauseMenuStateMachine owner ){
+        GameStateController.OnGamePaused?.Invoke();
         StateMachine = owner;
 
         //--Components
@@ -82,6 +83,7 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         ButtonEvents.OnButtonSubmitted -= SetMemoryButton;
         
         CloseMenu();
+        GameStateController.OnGameUNPaused?.Invoke();
     }
 
     private void ScaleIn(){

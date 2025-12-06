@@ -9,7 +9,7 @@ public class ItemButton_Battle : MonoBehaviour, ISelectHandler, IDeselectHandler
 
 
     public void OnSelect( BaseEventData eventData ){
-        
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
     public void OnDeselect( BaseEventData eventData ){
@@ -25,7 +25,8 @@ public class ItemButton_Battle : MonoBehaviour, ISelectHandler, IDeselectHandler
         _bagMenu.BattleMenu.StateMachine.Pop();
         
         if( _battleSystem.IsSinglesTrainerBattle || _battleSystem.IsDoublesTrainerBattle ){
-            StartCoroutine ( _battleSystem.DialogueBox.TypeDialogue( $"You can't steal another trainer's Pokemon!" ) );
+            // StartCoroutine ( _battleSystem.AbilityCutIn.CutIn( $"You can't steal another trainer's Pokemon!" ) );
+            DialogueManager.Instance.PlaySystemMessage( "You can't steal another trainer's Pokemon!" );
             return;
         }
         

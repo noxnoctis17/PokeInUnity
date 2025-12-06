@@ -1,16 +1,23 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
+using NoxNoctisDev.StateMachine;
 using UnityEngine;
+
+public enum FacingDirection { Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight, }
+public enum SpritePerspective { Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight, }
 
 public class CharacterAnimator : MonoBehaviour
 {
     //==[REFERENCES]==
     private SpriteRenderer _spriteRenderer;
-    private SpriteAnimator _spriteAnimator;
+    public SpriteAnimator SpriteAnimator { get; private set; }
     private Transform _camera;
     [SerializeField] private Transform _parentTransform;
 
+    //==[STATE MACHINE]==
+    public StateStackMachine<CharacterAnimator> StateMachine;
 
     //==[SPRITES]==
     //--Current Sheet
@@ -38,91 +45,46 @@ public class CharacterAnimator : MonoBehaviour
     public List<Sprite> IdleDownLeftSprites => _idleDownLeftSprites;
     public List<Sprite> IdleDownRightSprites => _idleDownRightSprites;
 
-    //--Walking
-    [SerializeField] private List<Sprite> _walkDownSprites;
-    [SerializeField] private List<Sprite> _walkUpSprites;
-    [SerializeField] private List<Sprite> _walkLeftSprites;
-    [SerializeField] private List<Sprite> _walkRightSprites;
-    [SerializeField] private List<Sprite> _walkUpLeftSprites;
-    [SerializeField] private List<Sprite> _walkUpRightSprites;
-    [SerializeField] private List<Sprite> _walkDownLeftSprites;
-    [SerializeField] private List<Sprite> _walkDownRightSprites;
-
-    //--Running
-    // [SerializeField] private List<Sprite> _runDownSprites;
-    // [SerializeField] private List<Sprite> _runUpSprites;
-    // [SerializeField] private List<Sprite> _runLeftSprites;
-    // [SerializeField] private List<Sprite> _runRightSprites;
-    // [SerializeField] private List<Sprite> _runDownLeftSprites;
-    // [SerializeField] private List<Sprite> _runDownRightSprites;
-    // [SerializeField] private List<Sprite> _runUpLeftSprites;
-    // [SerializeField] private List<Sprite> _runUpRightSprites;
-
-
     //==[PARAMETERS]==
     public float MoveX { get; set; }
     public float MoveY { get; set; }
     public bool IsWalking { get; set; }
     public bool IsRunning { get; set; } //--Implement running lol
-    private bool _wasWalking;
 
     //==[ROTATION STEP CONSTANT]==
     private const float _rotationStep = 22.5f;
 
-    public enum SpritePerspective {
-        Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight,
-    }
+    public SpritePerspective SpritePerspective { get; private set; }
+    public Action<SpritePerspective> OnSpritePerspectiveChanged;
 
-    private SpritePerspective _spritePerspective;
-
-    public enum FacingDirection {
-        Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight,
-    }
-
-    private FacingDirection _facingDirection;
+    public FacingDirection FacingDirection { get; private set; }
+    public Action<FacingDirection> OnFacingDirectionChanged;
 
 
     //==[STATES]==
-    /*
-    I think I should be able to further iterate on this by adding proper States (via behavior tree)
-    that further automates the sheet that gets passed to the SpriteAnimator instance, making this much
-    more "modular" and more easily expandable
-    */
+    [SerializeField] private State<CharacterAnimator> _idleState;
+    [SerializeField] private State<CharacterAnimator> _walkingState;
+    [SerializeField] private State<CharacterAnimator> _runningState;
+    [SerializeField] private State<CharacterAnimator> _ledgeHopState;
 
 
     private void Start(){
         _spriteRenderer = GetComponent<SpriteRenderer>();
-        _spriteAnimator = new SpriteAnimator( _spriteRenderer );
+        SpriteAnimator = new SpriteAnimator( _spriteRenderer );
         _camera = PlayerReferences.MainCameraTransform;
-        // _parentTransform = GetComponentInParent<Transform>();
-        // _parentTransform = PlayerReferences.Instance.PlayerTransform;
 
-        //--Default/Initial Animation
+        StateMachine = new( this );
+        StateMachine.Push( _idleState );
+
         _defaultAnimSheet = _idleDownSprites;
-        _currentAnimSheet = _defaultAnimSheet;
-
-        AssignAnimations( _currentAnimSheet );
     }
 
     private void Update(){
-        Billboard();
-        var previousAnimSheet = _currentAnimSheet;
+        DetectWalking();
+        StateMachine.Update();
+        SpriteAnimator.HandleUpdate();
         SetSpritePerspective();
-        SetWalkingSprites();
-
-        if( _currentAnimSheet != previousAnimSheet || IsWalking != _wasWalking )
-            _spriteAnimator.Start();
-
-        if( IsWalking ){
-            _spriteAnimator.HandleUpdate();
-        }else{
-            SetIdleSprites();
-            AssignAnimations( _currentAnimSheet );
-            _spriteAnimator.Start();
-            _spriteAnimator.HandleUpdate();
-        }
-
-        _wasWalking = IsWalking;
+        Billboard();
     }
 
     private void Billboard(){
@@ -131,9 +93,9 @@ public class CharacterAnimator : MonoBehaviour
 
     private void AssignAnimations( List<Sprite> animation ){
         if( animation.Count > 0 )
-            _spriteAnimator.AnimationFrames = animation;
+            SpriteAnimator.AnimationFrames = animation;
         else
-            _spriteAnimator.AnimationFrames = _defaultAnimSheet;
+            SpriteAnimator.AnimationFrames = _defaultAnimSheet;
     }
 
     //--Somehow this Just Worked™
@@ -144,15 +106,17 @@ public class CharacterAnimator : MonoBehaviour
         var absAngle = Mathf.Abs( angle );
 
         if( absAngle <= _rotationStep )
-            _spritePerspective = SpritePerspective.Up;
+            SpritePerspective = SpritePerspective.Up;
         else if( absAngle <= _rotationStep * 3 )
-            _spritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.UpLeft     : _spritePerspective = SpritePerspective.UpRight;
+            SpritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.UpLeft     : SpritePerspective = SpritePerspective.UpRight;
         else if( absAngle <= _rotationStep * 5 )
-            _spritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.Left       : _spritePerspective = SpritePerspective.Right;
+            SpritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.Left       : SpritePerspective = SpritePerspective.Right;
         else if( absAngle <= _rotationStep * 7 )
-            _spritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.DownLeft   : _spritePerspective = SpritePerspective.DownRight;
+            SpritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.DownLeft   : SpritePerspective = SpritePerspective.DownRight;
         else
-            _spritePerspective = SpritePerspective.Down;
+            SpritePerspective = SpritePerspective.Down;
+
+        OnSpritePerspectiveChanged?.Invoke( SpritePerspective );
     }
 
     //--This is to set the shadow facing direction based on the character's forward angle. i don't know math tho lol
@@ -160,91 +124,25 @@ public class CharacterAnimator : MonoBehaviour
         var absAngle = Mathf.Abs( _parentTransform.forward.y );
 
         if( absAngle > _rotationStep )
-            _facingDirection = FacingDirection.Up;
+            FacingDirection = FacingDirection.Up;
         else if( absAngle <= _rotationStep * 3 )
-            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.UpLeft      : _facingDirection = FacingDirection.UpRight;
+            FacingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.UpLeft      : FacingDirection = FacingDirection.UpRight;
         else if( absAngle <= _rotationStep * 5 )
-            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.Left        : _facingDirection = FacingDirection.Right;
+            FacingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.Left        : FacingDirection = FacingDirection.Right;
         else if( absAngle <= _rotationStep * 7 )
-            _facingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.DownLeft    : _facingDirection = FacingDirection.DownRight;
+            FacingDirection = Mathf.Sign( absAngle ) < 0 ? FacingDirection.DownLeft    : FacingDirection = FacingDirection.DownRight;
     }
 
-    private void SetIdleSprites(){
-        //--Assigns idle sprites based on facing direction/transform forward
-        switch( _spritePerspective ){
-            case SpritePerspective.Up:
-                _currentAnimSheet = _idleUpSprites;
+    private void DetectWalking(){
+        if( StateMachine.CurrentState == _walkingState )
+            return;
 
-            break;
-
-            case SpritePerspective.Down:
-                _currentAnimSheet = _idleDownSprites;
-
-            break;
-
-            case SpritePerspective.Left:
-                _currentAnimSheet = _idleLeftSprites;
-
-            break;
-
-            case SpritePerspective.Right:
-                _currentAnimSheet = _idleRightSprites;
-
-            break;
-
-            case SpritePerspective.UpLeft:
-                _currentAnimSheet = _idleUpLeftSprites;
-
-            break;
-
-            case SpritePerspective.UpRight:
-                _currentAnimSheet = _idleUpRightSprites;
-
-            break;
-
-            case SpritePerspective.DownLeft:
-                _currentAnimSheet = _idleDownLeftSprites;
-
-            break;
-
-            case SpritePerspective.DownRight:
-                _currentAnimSheet = _idleDownRightSprites;
-
-            break;
-
-        }
+        if( MoveY != 0 || MoveX != 0 )
+            StateMachine.Push( _walkingState );
     }
 
-    private void SetWalkingSprites(){
-        //--Vertical--
-        //--Up
-        if( MoveY > 0f && MoveX == 0f )
-            _currentAnimSheet = _walkUpSprites;
-        //--Down
-        else if( MoveY < 0f && MoveX == 0f )
-            _currentAnimSheet = _walkDownSprites;
-        
-        //--Horizontal--
-        //--Left
-        if( MoveX < 0f && MoveY == 0f )
-            _currentAnimSheet = _walkLeftSprites;
-        //--Right
-        else if ( MoveX > 0f && MoveY == 0f )
-            _currentAnimSheet = _walkRightSprites;
-
-        //--Diagonals--
-        //--Up Left
-        if( MoveY >= 0.05f && MoveX <= -0.05f )
-            _currentAnimSheet = _walkUpLeftSprites;
-        //--Up Right
-        else if( MoveY >= 0.05f && MoveX >= 0.05f )
-            _currentAnimSheet = _walkUpRightSprites;
-        //--Down Left
-        else if( MoveY <= -0.05f && MoveX <= -0.05f )
-            _currentAnimSheet = _walkDownLeftSprites;
-        //--Down Right
-        else if( MoveY <= -0.05f && MoveX >= 0.05f )
-            _currentAnimSheet = _walkDownRightSprites;
+    public void SetSpriteSheet( List<Sprite> sprites ){
+        _currentAnimSheet = sprites;
 
         AssignAnimations( _currentAnimSheet );
     }
@@ -256,4 +154,42 @@ public class CharacterAnimator : MonoBehaviour
     public IEnumerator JumpToBattlePosition( Transform player, Transform battlePosition ){
         yield return player.DOJump( battlePosition.position, 1, 1, 0.5f ).WaitForCompletion();
     }
+
+    public IEnumerator JumpFromLedge( Transform player, Vector3 destination ){
+        StateMachine.Push( _ledgeHopState );
+
+        yield return SpriteAnimator.PauseAtFrameUntil( 2, 0.05f );
+        AudioController.Instance.PlaySFX( SoundEffect.LedgeHop );
+
+        yield return SpriteAnimator.PauseAtFrame( 3 );
+        yield return player.DOJump( destination, 0.75f, 1, 0.35f ).WaitForCompletion();
+
+        SpriteAnimator.UnpauseAnimator();
+        yield return SpriteAnimator.PauseAtFrameUntil( 4, 0.05f );
+
+        SpriteAnimator.UnpauseAnimator();
+        StateMachine.Pop();
+    }
+
+    #if UNITY_EDITOR
+    private void OnGUI(){
+        if( !StateMachineDisplays.Show_PlayerAnimatorStack )
+            return; 
+
+        var style = new GUIStyle();
+        style.font = Resources.Load<Font>( "Fonts/Gotham Bold Outlined" );
+        style.fontSize = 30;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = Color.white;
+        style.richText = true;
+
+        GUILayout.BeginArea( new Rect( 0, 0, 600, 500 ) );
+        GUILayout.Label( "CHARACTER ANIMATOR STATE", style );
+        foreach( var state in StateMachine.StateStack ){
+            GUILayout.Label( state.GetType().ToString(), style );
+        }
+        GUILayout.EndArea();
+    }
+#endif
+
 }

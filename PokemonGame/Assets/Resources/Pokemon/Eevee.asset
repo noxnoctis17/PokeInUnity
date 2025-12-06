@@ -87,9 +87,10 @@ MonoBehaviour:
   - {fileID: -62299033, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
   _walkUpSprites: []
   _walkDownSprites: []
-  _cardPortrait: {fileID: 794628100, guid: 7411353217f6a414cb2273a446ef75cb, type: 3}
+  _cardPortrait: {fileID: 21300000, guid: 2422ca3bcc83d4d489bdca040e7c70be, type: 3}
   _type1: 1
   _type2: 0
+  _abilities: 0c000000
   _evolutions: []
   _learnableMoves:
   - _moveSO: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}

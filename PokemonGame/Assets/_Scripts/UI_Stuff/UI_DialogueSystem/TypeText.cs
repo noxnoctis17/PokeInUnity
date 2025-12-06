@@ -6,6 +6,7 @@ using System.Collections.Generic;
 public class TypeText : MonoBehaviour
 {
     [SerializeField] private float _typeSpeed;
+    private TMP_Text _dialogueText;
     public bool IsRunning { get; private set; }
     private Coroutine typingCoroutine;
 
@@ -16,22 +17,39 @@ public class TypeText : MonoBehaviour
     };
     
     public void RunDialogue( string textToType, TMP_Text dialogueText ){
+        IsRunning = true;
         typingCoroutine = StartCoroutine( TypeDialogue( textToType, dialogueText) );
     }
 
     public void StopDialogue(){
         StopCoroutine( typingCoroutine );
+        _dialogueText.alpha = 255;
         IsRunning = false;
     }
     
-    private IEnumerator TypeDialogue( string textToType, TMP_Text dialogueText ){
-        IsRunning = true;
-        dialogueText.text = string.Empty;
-        
+    private IEnumerator TypeDialogue( string textToType, TMP_Text dialogueText )
+    {
+        _dialogueText = dialogueText;
+        dialogueText.alpha = 0;
+        dialogueText.text = textToType;
+        dialogueText.ForceMeshUpdate();
+        var textInfo = dialogueText.textInfo;
+
+        for( int i = 0; i < textInfo.characterCount; i++)
+        {
+            var charInfo = textInfo.characterInfo[i];
+            SetTextCharacterAlpha( textInfo, charInfo, 0 );
+        }
+
+        textInfo = dialogueText.textInfo;
+
+
         float t = 0;
         int charIndex = 0;
         
-        while( charIndex < textToType.Length ){
+        Debug.Log( $"textToType: {textToType}" );
+        while( charIndex < textToType.Length )
+        {
             int lastCharIndex = charIndex;
 
             t += Time.deltaTime * _typeSpeed;
@@ -39,20 +57,32 @@ public class TypeText : MonoBehaviour
             charIndex = Mathf.FloorToInt( t );
             charIndex = Mathf.Clamp( charIndex, 0, textToType.Length );
 
-            for( int i = lastCharIndex; i < charIndex; i++ ){
-                bool isLast = i >= textToType.Length - 1;
+            for( int i = lastCharIndex; i < charIndex; i++ )
+            {
+                var charInfo = textInfo.characterInfo[i];
+                SetTextCharacterAlpha( textInfo, charInfo, 255 );
+                dialogueText.UpdateVertexData( TMP_VertexDataUpdateFlags.Colors32 );
 
-                dialogueText.text = textToType.Substring( 0, i + 1 );
-
-                if( IsPunctuation( textToType[i], out float waitTime ) && !isLast && !IsPunctuation( textToType[ i + 1 ], out _ ) ){
+                if( IsPunctuation( textToType[i], out float waitTime ) )
                     yield return new WaitForSeconds( waitTime );
-                }
             }
 
             yield return null;
         }
 
         IsRunning = false;
+    }
+
+    private void SetTextCharacterAlpha( TMP_TextInfo textInfo, TMP_CharacterInfo charInfo, byte alpha )
+    {
+        int meshIndex = charInfo.materialReferenceIndex;
+        int vertIndex = charInfo.vertexIndex;
+        var colors = textInfo.meshInfo[meshIndex].colors32;
+
+        colors[vertIndex + 0].a = alpha;
+        colors[vertIndex + 1].a = alpha;
+        colors[vertIndex + 2].a = alpha;
+        colors[vertIndex + 3].a = alpha;
     }
 
     private bool IsPunctuation( char character, out float waittime ){

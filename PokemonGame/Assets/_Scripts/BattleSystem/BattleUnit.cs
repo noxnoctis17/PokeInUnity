@@ -12,10 +12,19 @@ public class BattleUnit : MonoBehaviour
     public BattleAI BattleAI => _battleAI;
     public int Level => _level;
     public BattleHUD BattleHUD { get; set; }
-    public PokemonSO PokeSO { get; private set; } //--why the fuck is this public //--03/26/24 still don't know why this is public lol //--04/08/24 made it into a property finally
+    public PokemonSO PokeSO { get; private set; } //--why the fuck is this public //--03/26/24 still don't know why this is public lol //--04/08/24 decided to just make it into a property finally lol //--11/25/25 pretty sure we actually use it now
     public Pokemon Pokemon { get; set; }
+    public bool IsAI => _isAI;
     public PokemonAnimator PokeAnimator { get; private set; }
+    public Transform PokeTransform { get; private set; } //--quick ref for battle tweens. tweens need to target the gameobject named "Pokemon" that holds the animator and shadow animator objects for a mon in battle.
     public Action OnIsAI;
+    public int TurnsTakenInBattle { get; private set; }
+    public int SuccessiveProtectUses { get; private set; }
+    private const float SCREENS_MODIFIER = 0.66796875f;
+    private const float AURORA_VEIL_MODIFIER = 0.6669921875f;
+    public bool ReflectActive { get; private set; }
+    public bool LightScreenActive { get; private set; }
+    public bool AuroraVeilActive { get; private set; }
 
     private void OnEnable(){
         OnIsAI += EnableAI;
@@ -39,16 +48,21 @@ public class BattleUnit : MonoBehaviour
         }
         
         PokeAnimator.SetBattleSystem( battleSystem );
+        PokeTransform = PokeAnimator.PokemonTransform;
 
         BattleHUD = battleHUD;
         BattleHUD.SetData( Pokemon, this );
 
-        if( _isAI ){
+        ResetSuccessiveProtectUses();
+
+        if( _isAI )
+        {
             _battleAI.enabled = true;
-            Debug.Log( _battleAI + " " + name );
+            // Debug.Log( _battleAI + " " + name );
             SetupAI();
         }
-        else{
+        else
+        {
             _battleAI.enabled = false;
         }
     }
@@ -58,12 +72,52 @@ public class BattleUnit : MonoBehaviour
     }
 
     private void SetupAI(){
-        Debug.Log( "setup ai" );
         GetComponent<BattleAI>().SetupAI( _battleSystem, this );
     }
 
-    public DamageDetails TakeDamage( Move move, Pokemon attacker, Condition weather ){
+    public void IncreaseTurnsTakenInBattle()
+    {
+        Debug.Log( $"{Pokemon.NickName}'s taken {TurnsTakenInBattle} turns in battle!" );
+        TurnsTakenInBattle++;
+        Debug.Log( $"{Pokemon.NickName}'s taken {TurnsTakenInBattle} turns in battle!" );
+    }
+
+    public void ResetTurnsTakenInBattle()
+    {
+        TurnsTakenInBattle = -1;
+    }
+
+    public void AddSuccessiveProtectUses()
+    {
+        SuccessiveProtectUses++;;
+    }
+
+    public void ResetSuccessiveProtectUses()
+    {
+        SuccessiveProtectUses = 0;
+    }
+
+    public void SetReflect( bool value )
+    {
+        ReflectActive = value;
+        Debug.Log( $"ReflectActive: {ReflectActive}" );
+    }
+
+    public void SetLightScreen( bool value )
+    {
+        LightScreenActive = value;
+        Debug.Log( $"LightScreenActive: {LightScreenActive}" );
+    }
+
+    public void SetAuroraVeil( bool value )
+    {
+        AuroraVeilActive = value;
+        Debug.Log( $"AuroraVeilActive: {AuroraVeilActive}" );
+    }
+
+    public DamageDetails TakeDamage( Move move, Pokemon attacker, WeatherCondition weather ){
         var target = Pokemon;
+        var category = move.MoveSO.MoveCategory;
         float critical = 1f;
 
         //--Calculate crit chance in accordance to move's crit behavior
@@ -84,6 +138,25 @@ public class BattleUnit : MonoBehaviour
                        * TypeChart.GetEffectiveness( move.MoveSO.Type, target.PokeSO.Type2 );
 
         float weatherModifier = weather?.OnDamageModify?.Invoke( Pokemon, attacker, move ) ?? 1f;
+        float reflectModifier = 1f;
+        float lightScreenModifier = 1f;
+        float auroraVeilModifier = 1f;
+
+        Debug.Log( $"Move Category is: {category}" );
+
+        if( ReflectActive && move.MoveSO.MoveCategory == MoveCategory.Physical )
+        {
+            reflectModifier = SCREENS_MODIFIER;
+            Debug.Log( "Reflect Modifier = Screens_Modifier" );
+        }
+
+        if( LightScreenActive && move.MoveSO.MoveCategory == MoveCategory.Special )
+            lightScreenModifier = SCREENS_MODIFIER;
+
+        if( AuroraVeilActive )
+            auroraVeilModifier = AURORA_VEIL_MODIFIER;
+
+        Debug.Log( $"Screen modifiers are: R: {reflectModifier}, LS: {lightScreenModifier}, AV: {auroraVeilModifier}" );
         
         var damageDetails = new DamageDetails()
         {
@@ -93,30 +166,34 @@ public class BattleUnit : MonoBehaviour
             DamageDealt = 0,
         };
 
-        float attack = 0;
-        float defense = 0;
+        float attackStat = 0;
+        float defenseStat = 0;
         if( move.MoveSO.MoveCategory == MoveCategory.Physical ){
-                attack = attacker.Attack;
-                defense = target.Defense;
+                attackStat = attacker.Attack;
+                defenseStat = target.Defense;
+
+                //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow. Will need to encapsulate this stuff eventually...
+                attackStat = attacker.Modify_ATK( attackStat, target, move );
+                defenseStat = target.Modify_DEF( defenseStat, attacker, move );
         }
         else if( move.MoveSO.MoveCategory == MoveCategory.Special ){
-                attack = attacker.SpAttack;
-                defense = target.SpDefense;
+                attackStat = attacker.SpAttack;
+                defenseStat = target.SpDefense;
+
+                //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow. Will need to encapsulate this stuff eventually...
+                attackStat = attacker.Modify_SpATK( attackStat, target, move );
+                defenseStat = target.Modify_SpDEF( defenseStat, attacker, move );
         }
         
         float random = UnityEngine.Random.Range( 0.85f, 1f );
 
-        float modifiers = random * type * critical * weatherModifier;
-        float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attack / defense / 50 + 2 ) * modifiers;
+        float modifiers = random * type * critical * weatherModifier * reflectModifier * lightScreenModifier * auroraVeilModifier;
+        float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attackStat / defenseStat / 50 + 2 ) * modifiers;
         int rawDamage = (int)Mathf.Max( damageCalc, 1f );
         int damage = Mathf.Clamp( rawDamage, 1, Pokemon.CurrentHP );
 
-        Debug.Log( $"Raw Damage done: {rawDamage}" );
-        Debug.Log( $"Clamped Damage done: {damage}" );
-
         target.DecreaseHP( damage );
         damageDetails.DamageDealt = damage;
-        ShowDamageTaken( damage, transform.position );
 
         return damageDetails;
     }
@@ -126,11 +203,6 @@ public class BattleUnit : MonoBehaviour
             damage = 1;
 
         Pokemon.DecreaseHP( damage );
-        Pokemon.StatusChanges.Enqueue( $"{Pokemon.NickName} is damaged by recoil!" );
+        Pokemon.AddStatusEvent( StatusEventType.Damage, $"{Pokemon.NickName} is damaged by recoil!" );
     }
-    
-    private void ShowDamageTaken( int damage, Vector3 position ){
-        DamageTakenPopup.Create( BattleSystem.DamageTakenPopupPrefab.transform, damage, position );
-    }
-
 }

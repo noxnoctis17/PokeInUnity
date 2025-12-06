@@ -67,7 +67,7 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
         OnItemListRequest -= UpdateItemList;
         //--We're not unsubbing from Release and Update because we want all bag displays
         //--to properly update when an item is added or removed outside of a Bag Screen
-        //--For example, if we pick up an item in the overworld, or a key item is consumed, the itemlist should be updated
+        //--For example, if we pick up an item in the overworld, or a key item is consumed, the itemlist should be updated in all bagdisplays
         // PlayerInventory.OnItemRemoved -= ReleaseExpendedItemToPool;
         // PlayerInventory.OnInventoryUpdated -= UpdateItemList
         GameStateController.Instance.OnDialogueStateEntered -= EnterDialogueWrapper;
@@ -77,6 +77,8 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
 
     private ItemButton_PauseScreen ItemPoolCreate(){
         var itemButton = Instantiate( _itemButtonPrefab, _itemPoolContainer );
+        var fixScale = Vector3.one;
+        itemButton.transform.localScale = fixScale;
         return itemButton;
     }
 
@@ -309,6 +311,7 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
                         childCount = pocket.ItemPocket.transform.childCount;
                         // Debug.Log( $"PokeBall Pocket child count is: {childCount}" );
                         itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
+                        
                     }
                 break;
 
@@ -332,7 +335,7 @@ public class BagDisplay : MonoBehaviour, IInitializeMeDaddy
                         if( pocket.ItemCategory == ItemCategory.Training ){
                             itemButton.gameObject.transform.SetParent( pocket.ItemPocket.transform );
                             childCount = pocket.ItemPocket.transform.childCount;
-                            Debug.Log( $"Training Pocket child count is: {childCount}" );
+                            // Debug.Log( $"Training Pocket child count is: {childCount}" );
                             itemButton.gameObject.transform.SetSiblingIndex( Mathf.Max( childCount - 2, 0 ) );
                         }
                     }

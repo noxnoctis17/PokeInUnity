@@ -28,7 +28,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: chip_wood_a
-    second: {fileID: 2100000, guid: 9c3bf50263b398d4ca45fdf86ae65c19, type: 2}
+    second: {fileID: 2100000, guid: fd8c1dd08d36e8240bdd536e4b9b7464, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -38,7 +38,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: chip_wood_b
-    second: {fileID: 2100000, guid: 155de5296d872ae4ba7859d77298a540, type: 2}
+    second: {fileID: 2100000, guid: fd8c1dd08d36e8240bdd536e4b9b7464, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

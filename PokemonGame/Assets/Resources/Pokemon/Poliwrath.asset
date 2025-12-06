@@ -24,8 +24,8 @@ MonoBehaviour:
   _speed: 70
   _catchRate: 45
   _expYield: 255
-  _growthRate: 0
   _effortPointsYield: 3
+  _growthRate: 0
   _idleUpSprites:
   - {fileID: 589244782, guid: c6c926e2465cb384d952db57e1e8a0ea, type: 3}
   - {fileID: -2068234958, guid: c6c926e2465cb384d952db57e1e8a0ea, type: 3}
@@ -54,9 +54,10 @@ MonoBehaviour:
   - {fileID: -192512862, guid: f47eb837e4aeb8048aac8139041f5794, type: 3}
   - {fileID: 1993017917, guid: f47eb837e4aeb8048aac8139041f5794, type: 3}
   - {fileID: 380997769, guid: f47eb837e4aeb8048aac8139041f5794, type: 3}
-  _cardPortrait: {fileID: 623660852, guid: f47eb837e4aeb8048aac8139041f5794, type: 3}
+  _cardPortrait: {fileID: 21300000, guid: ae36b40daf0c6484ba2946daa383fbf7, type: 3}
   _type1: 3
   _type2: 7
+  _abilities: 11000000
   _evolutions: []
   _learnableMoves:
   - _moveSO: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}

@@ -3,21 +3,42 @@ using UnityEngine;
 
 public class StatusIconAtlas : MonoBehaviour
 {
+    [Header( "Poison" )]
     [SerializeField] private Sprite _psn;
-    [SerializeField] private Sprite _tox;
-    [SerializeField] private Sprite _brn;
-    [SerializeField] private Sprite _par;
-    [SerializeField] private Sprite _slp;
-    [SerializeField] private Sprite _fbt;
-    [SerializeField] private Sprite _fnt;
     [SerializeField] private Color _psnColor;
+    [SerializeField] private GameObject _psnVFX;
+
+    [Header( "Toxic" )]
+    [SerializeField] private Sprite _tox;
     [SerializeField] private Color _toxColor;
+    [SerializeField] private GameObject _toxVFX;
+
+    [Header( "Burn" )]
+    [SerializeField] private Sprite _brn;
     [SerializeField] private Color _brnColor;
-    [SerializeField] private Color _parColor;
-    [SerializeField] private Color _slpColor;
+    [SerializeField] private GameObject _brnVFX;
+
+     [Header( "Frostbite" )]
+    [SerializeField] private Sprite _fbt;
     [SerializeField] private Color _fbtColor;
+    [SerializeField] private GameObject _fbtVFX;   
+
+    [Header( "Paralysis" )]
+    [SerializeField] private Sprite _par;
+    [SerializeField] private Color _parColor;
+    [SerializeField] private GameObject _parVFX;
+
+    [Header( "Sleep" )]
+    [SerializeField] private Sprite _slp;
+    [SerializeField] private Color _slpColor;
+    [SerializeField] private GameObject _slpVFX;
+
+    [Header( "Faint" )]
+    [SerializeField] private Sprite _fnt;
     [SerializeField] private Color _fntColor;
-    public static Dictionary<ConditionID, ( Sprite icon, Color color )> StatusIcons;
+    [SerializeField] private GameObject _fntVFX;
+
+    public static Dictionary<StatusConditionID, StatusObject> StatusIcons;
 
     private void OnEnable(){
         InitializeDictionary();
@@ -26,14 +47,28 @@ public class StatusIconAtlas : MonoBehaviour
     private void InitializeDictionary(){
         StatusIcons = new()
         {
-            { ConditionID.PSN, ( _psn, _psnColor ) },
-            { ConditionID.TOX, ( _tox, _toxColor ) },
-            { ConditionID.BRN, ( _brn, _brnColor ) },
-            { ConditionID.PAR, ( _par, _parColor ) },
-            { ConditionID.SLP, ( _slp, _slpColor ) },
-            { ConditionID.FBT, ( _fbt, _fbtColor ) },
-            { ConditionID.FNT, ( _fnt, _fntColor ) },
+            { StatusConditionID.PSN, new( _psn, _psnColor, _psnVFX ) },
+            { StatusConditionID.TOX, new( _tox, _toxColor, _toxVFX ) },
+            { StatusConditionID.BRN, new( _brn, _brnColor, _brnVFX ) },
+            { StatusConditionID.FBT, new( _fbt, _fbtColor, _fbtVFX ) },
+            { StatusConditionID.PAR, new( _par, _parColor, _parVFX ) },
+            { StatusConditionID.SLP, new( _slp, _slpColor, _slpVFX ) },
+            { StatusConditionID.FNT, new( _fnt, _fntColor, _fntVFX ) },
 
         };
+    }
+}
+
+public class StatusObject
+{
+    public Sprite Icon { get; private set; }
+    public Color Color { get; private set; }
+    public GameObject VFX { get; private set; }
+
+    public StatusObject( Sprite icon, Color color, GameObject vfx )
+    {
+        Icon = icon;
+        Color = color;
+        VFX = vfx;
     }
 }

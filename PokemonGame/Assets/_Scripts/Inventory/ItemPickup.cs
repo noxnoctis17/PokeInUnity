@@ -15,7 +15,7 @@ public class ItemPickup : MonoBehaviour, IInteractable, ISavable
     }
 
     public void Interact(){
-        Debug.Log( "You interacted with an item!" );
+        // Debug.Log( "You interacted with an item!" );
         //--If we've picked this up, or if this is incorrectly set and somehow the object is still enabled, return and don't add, throw error
         if( _pickedUp ){
             Debug.LogError( "You've already picked up this item!" );
@@ -25,6 +25,9 @@ public class ItemPickup : MonoBehaviour, IInteractable, ISavable
 
         //--Create temp var for player inventory
         var inventory = PlayerReferences.Instance.PlayerInventory;
+
+        //--Play SFX
+        AudioController.Instance.PlaySFX( SoundEffect.ItemGet );
 
         //--Add Item to Player Inventory
         inventory.AddItem( _item );

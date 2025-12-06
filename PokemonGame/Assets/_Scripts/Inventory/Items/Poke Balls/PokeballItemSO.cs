@@ -9,6 +9,7 @@ public class PokeballItemSO : ItemSO
     [SerializeField] private PokeBallType _ballType;
     [SerializeField] private float _catchRate;
     public float CatchRate => _catchRate;
+    public PokeBallType BallType => _ballType;
 
     public override bool Use( Pokemon pokemon ){
         //--Battle Use, to catch a wild pokemon
@@ -21,7 +22,7 @@ public class PokeballItemSO : ItemSO
         }
 
         //--Overworld Use to change Pokemon's current Ball
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == ConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
             return false;
         
         if( pokemon.CurrentBallType == _ballType )
@@ -34,9 +35,10 @@ public class PokeballItemSO : ItemSO
     public override bool CheckIfUsable( Pokemon pokemon ){
         //--Battle Use, to catch a wild pokemon
         if( BattleSystem.Instance != null ){
-            if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState )
+            if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
                 if( BattleSystem.Instance.BattleType != BattleType.TrainerSingles || BattleSystem.Instance.BattleType != BattleType.TrainerDoubles )
                     return true;
+            }
         }
 
         return false;

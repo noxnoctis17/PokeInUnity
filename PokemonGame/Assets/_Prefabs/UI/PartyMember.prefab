@@ -820,7 +820,7 @@ RectTransform:
   m_Father: {fileID: 3886925542071489182}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -1125,7 +1125,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &3886925542071489182
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1210,7 +1210,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b2dc2f2c4764244882b0e17f99daff6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _hpSlider: {fileID: 3886925542071489180}
+  _redHPSlider: {fileID: 3886925542071489180}
+  _instantHPSlider: {fileID: 3886925542071489180}
 --- !u!1 &3886925542538836260
 GameObject:
   m_ObjectHideFlags: 0
@@ -1435,6 +1436,7 @@ GameObject:
   - component: {fileID: 7653986992109060496}
   - component: {fileID: 5555172708479710203}
   - component: {fileID: 373860211941810267}
+  - component: {fileID: -7311244659011500092}
   m_Layer: 0
   m_Name: PartyMember
   m_TagString: Untagged
@@ -1510,6 +1512,7 @@ MonoBehaviour:
   Pokemon:
     _pokeSO: {fileID: 0}
     _level: 0
+    _nickName: 
     CurrentBallType: 0
 --- !u!222 &510614402703467314
 CanvasRenderer:
@@ -1606,6 +1609,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_ShowMaskGraphic: 1
+--- !u!114 &-7311244659011500092
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3886925542897449935}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f80c7f6aaf7b87844a5de819c847153a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _scale: {x: 1, y: 1, z: 1}
 --- !u!1 &5600050615183188720
 GameObject:
   m_ObjectHideFlags: 0
@@ -1742,6 +1758,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6fc98b6ab43faf74580194fc59a52558, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _follower: {fileID: 0}
 --- !u!1 &5788779948201921078
 GameObject:
   m_ObjectHideFlags: 0

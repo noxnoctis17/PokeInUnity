@@ -32,8 +32,8 @@ public class PartyMember_UI : MonoBehaviour
     }
 
     private void Update(){
-        if( _currentHPTracker != _hpBar.HPSlider.value )
-            _currentHPText.text = $"{_hpBar.HPSlider.value}/{_hpBar.HPSlider.maxValue}";
+        if( _currentHPTracker != _hpBar.RedHPSlider.value )
+            _currentHPText.text = $"{_hpBar.RedHPSlider.value}/{_hpBar.RedHPSlider.maxValue}";
     }
 
     private void UpdateData(){
@@ -41,7 +41,7 @@ public class PartyMember_UI : MonoBehaviour
         _levelText.text = "" + _pokemon.Level;
         _hpBar.SetHP( _pokemon.CurrentHP, _pokemon.MaxHP );
         _currentHPTracker = _pokemon.CurrentHP;
-        _currentHPText.text = $"{_hpBar.HPSlider.value}/{_hpBar.HPSlider.maxValue}";
+        _currentHPText.text = $"{_hpBar.RedHPSlider.value}/{_hpBar.RedHPSlider.maxValue}";
         _statusText.text = "";
 
         if( _pokemon.PokeSO.IdleDownSprites != null ) //--TODO: Remove, all mons should have sprites lol
@@ -104,10 +104,10 @@ public class PartyMember_UI : MonoBehaviour
     }
 
     private void UpdateStatusCondition(){
-        Debug.Log( "PartyMember_UI: UpdateStatus()" );
+        // Debug.Log( "PartyMember_UI: UpdateStatus()" );
         if( _pokemon.SevereStatus != null ){
             var status = _pokemon.SevereStatus.ID;
-            _severeStatusIcon.sprite = ConditionsDB.Conditions[status].StatusIcon;
+            _severeStatusIcon.sprite = StatusConditionsDB.Conditions[status].StatusIcon;
             _severeStatusIcon.gameObject.SetActive( true );
         }
         else

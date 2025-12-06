@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Good Battle
   m_EditorClassIdentifier: 
   _dialogueItem:
-  - _speakerName: Carlene
+  - _speakerName: Kitsu
     _dialogueSpeaker: 2
     _leftPortrait_1: {fileID: 21300000, guid: 54a8c040590f5db4c88b5dd32e611670, type: 3}
     _leftPortrait_2: {fileID: 0}

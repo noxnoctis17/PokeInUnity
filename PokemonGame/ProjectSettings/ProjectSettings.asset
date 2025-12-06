@@ -624,7 +624,7 @@ PlayerSettings:
     PS5: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
     QNX: DOTWEEN
     Stadia: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
-    Standalone: UNITY_POST_PROCESSING_STACK_V2;__MICROSPLAT__;DOTWEEN
+    Standalone: UNITY_POST_PROCESSING_STACK_V2;__MICROSPLAT__;DOTWEEN;__MICROSPLAT_TRIPLANAR__;__MICROSPLAT_PROCTEX__
     VisionOS: DOTWEEN
     WebGL: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
     Windows Store Apps: UNITY_POST_PROCESSING_STACK_V2;DOTWEEN
@@ -721,7 +721,7 @@ PlayerSettings:
   hmiLogStartupTiming: 0
   hmiCpuConfiguration: 
   apiCompatibilityLevel: 3
-  activeInputHandler: 1
+  activeInputHandler: 2
   windowsGamepadBackendHint: 0
   cloudProjectId: 
   framebufferDepthMemorylessMode: 0

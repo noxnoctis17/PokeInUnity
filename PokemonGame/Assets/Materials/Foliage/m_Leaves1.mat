@@ -43,9 +43,9 @@ Material:
     m_Floats:
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Smoothness: 0.25
+    - _Smoothness: 0.155
     m_Colors:
-    - _LeafColor: {r: 0.3818908, g: 0.5849056, b: 0.23451404, a: 0}
+    - _LeafColor: {r: 0.12468202, g: 0.6037736, b: 0.116767526, a: 0}
   m_BuildTextureStacks: []
 --- !u!114 &9081475477651631968
 MonoBehaviour:

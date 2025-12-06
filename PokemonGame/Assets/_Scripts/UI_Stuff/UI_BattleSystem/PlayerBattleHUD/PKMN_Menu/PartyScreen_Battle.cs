@@ -27,6 +27,11 @@ public class PartyScreen_Battle : State<PlayerBattleMenu>, IPartyScreen
         StartCoroutine( SetInitialButton() );
     }
 
+    public override void ReturnToState()
+    {
+        StartCoroutine( SetInitialButton() );
+    }
+
     public override void ExitState(){
         gameObject.SetActive( false );
     }

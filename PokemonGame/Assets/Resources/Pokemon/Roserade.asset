@@ -24,8 +24,8 @@ MonoBehaviour:
   _speed: 90
   _catchRate: 75
   _expYield: 258
-  _growthRate: 0
   _effortPointsYield: 3
+  _growthRate: 0
   _idleUpSprites: []
   _idleDownSprites: []
   _walkUpSprites: []
@@ -33,6 +33,7 @@ MonoBehaviour:
   _cardPortrait: {fileID: 0}
   _type1: 5
   _type2: 8
+  _abilities: 10000000
   _evolutions: []
   _learnableMoves: []
   _teachableMoves:

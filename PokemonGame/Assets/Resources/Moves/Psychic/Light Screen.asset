@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b7600c31e1ae6d4bb41f45a6fd300d3, type: 3}
+  m_Name: Light Screen
+  m_EditorClassIdentifier: 
+  _moveName: Light Screen
+  _description: 'A wondrous wall of light is put up to reduce damage from special
+    moves for five turns. '
+  _moveCategory: 2
+  _moveTarget: 1
+  _moveType: 11
+  _power: 0
+  _accuracy: 0
+  _alwaysHits: 1
+  _pp: 20
+  _movePriority: 0
+  _critBehavior: 0
+  _recoil:
+    RecoilType: 0
+    RecoilDamage: 0
+  _drainPercentage: 0
+  _hitRange: {x: 0, y: 0}
+  _moveEffects:
+    _statChangeList: []
+    _severeStatus: 0
+    _volatileStatus: 0
+    _transientStatus: 0
+    _weather: 0
+    _courtCondition: 4
+  _secondaryMoveEffects: []

@@ -14,7 +14,7 @@ public class WildMon_PausedState : State<WildPokemon>
             _wildPokemon.AgentMon.isStopped = true;
         }
         else{
-            _wildPokemon.AgentMon.SetPath( null );
+            _wildPokemon.AgentMon.ResetPath();
         }
     }
 

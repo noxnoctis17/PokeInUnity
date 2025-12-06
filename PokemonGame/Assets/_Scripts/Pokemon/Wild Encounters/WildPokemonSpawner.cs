@@ -7,7 +7,6 @@ using UnityEngine.Pool;
 
 public class WildPokemonSpawner : MonoBehaviour
 {
-    // [SerializeField] private List<PokemonClass> _encounter;
     [SerializeField] private List<WildEncounter> _encounter;
     [SerializeField] private WildPokemon _wildPokemonPrefab;
     public WildPokemon WildPokemonPrefab => _wildPokemonPrefab;
@@ -18,7 +17,6 @@ public class WildPokemonSpawner : MonoBehaviour
 
     public Action<State<WildPokemonSpawner>> OnStateChanged;
     public Action<WildEncounter> OnAddPokemonToSpawn;
-    // public Action<PokemonClass> OnAddPokemonToSpawn;
     public Action OnSpawnerCanceled;
     public Action OnDespawnCall;
 
@@ -41,10 +39,11 @@ public class WildPokemonSpawner : MonoBehaviour
     [SerializeField] private List<Transform> _spawnLocations; //--list of empty game objects to use as the transform.position as spawn points
     private Transform _prevSpawnPoint; //--assign randomly chosen spawnlocation to this for instantiate
     private ObjectPool<GameObject> _spawnPool;
+    private Vector3 _spawnPoint;
+    private int _currentSpawnIndex;
     public int NumberToSpawn => _numberToSpawn;
     public int SpawnedPokemonAmnt => _spawnedPokemonAmnt;
     public List<Transform> SpawnLocations => _spawnLocations;
-    // public List<PokemonClass> SpeciesToSpawnList { get; private set; }
     public List<WildEncounter> SpeciesToSpawnList { get; private set; }
     public ObjectPool<GameObject> SpawnPool => _spawnPool;
 
@@ -92,7 +91,13 @@ public class WildPokemonSpawner : MonoBehaviour
     }
 
     private void Start(){
-        AstarPath.active.Scan();
+
+        //--Initialize State Machine
+        SpawnerStateMachine = new StateMachine<WildPokemonSpawner>( this, _pausedState );
+        SpawnerStateMachine.Initialize();
+        Debug.Log( $"Spawner State Machine is: {SpawnerStateMachine}" );
+
+        // AstarPath.active.Scan();
 
         //--Initialize a new ObjectPool per Spawner Instance
         SpeciesToSpawnList = new();
@@ -102,10 +107,6 @@ public class WildPokemonSpawner : MonoBehaviour
         spawn => { /*Destroy( spawn );*/ },
         //--Handle Dupes, Starting Amount, Max Amount
         false, _numberToSpawn, _numberToSpawn );
-
-        //--Initialize State Machine
-        SpawnerStateMachine = new StateMachine<WildPokemonSpawner>( this, _pausedState );
-        SpawnerStateMachine.Initialize();
     }
 
     private GameObject SpawnPoolCreate(){
@@ -141,14 +142,12 @@ public class WildPokemonSpawner : MonoBehaviour
     private void OnTriggerEnter( Collider collider ){
         if( collider.transform == PlayerReferences.Instance.PlayerTransform ){
             ChangeState( _spawnState );
-            // Debug.Log( collider );
         }
     }
 
     private void OnTriggerExit( Collider collider ){
         if( collider.transform == PlayerReferences.Instance.PlayerTransform ){
             ChangeState( _canceledState );
-            // Debug.Log( collider );
         }
     }
 
@@ -181,27 +180,27 @@ public class WildPokemonSpawner : MonoBehaviour
     }
 
     public Vector3 SpawnLocation(){
-        int rngLocation;
-        Vector3 spawnPoint = Vector3.zero;
+        // int rngLocation;
+        if( _spawnPoint == null )
+            _spawnPoint = Vector3.zero;
 
-        for( int amountOfLocations = 0; amountOfLocations < _spawnLocations.Count; amountOfLocations++ ){
-            rngLocation = UnityEngine.Random.Range( 0, amountOfLocations + 1 );
-            spawnPoint = _spawnLocations[ rngLocation ].position;
-
-            if( _prevSpawnPoint != null && _prevSpawnPoint.position != spawnPoint  ){
-                rngLocation = UnityEngine.Random.Range( 0, amountOfLocations + 1 );
-                spawnPoint = _spawnLocations[ rngLocation ].position;
-            }
-
-            _prevSpawnPoint = _spawnLocations[ rngLocation ];
+        if( _currentSpawnIndex < _spawnLocations.Count ){
+            _spawnPoint = _spawnLocations[_currentSpawnIndex].position;
+            _currentSpawnIndex++;
+        }
+        else if( _currentSpawnIndex == _spawnLocations.Count  ){
+            _currentSpawnIndex = 0;
+            _spawnPoint = _spawnLocations[_currentSpawnIndex].position;
         }
 
-        return spawnPoint;
+        // Debug.Log( $"Current Spawn Point is: {_spawnPoint}" );
+        return _spawnPoint;
     }
+
+
 
     public WildEncounter RandomPokemon(){
         WildEncounter pokemon = null;
-        // Debug.Log( _randomNumber );
         int prevRand = _randomNumber;
         _totalWeight = 0;
 
@@ -213,8 +212,6 @@ public class WildPokemonSpawner : MonoBehaviour
         _randomNumber = UnityEngine.Random.Range( 0, _totalWeight ) + 1;
         if( _randomNumber == prevRand )
             _randomNumber = UnityEngine.Random.Range( 0, _totalWeight ) + 1;
-
-        // Debug.Log( _randomNumber );
 
         for( int i = 0; i < _table.Length; i++ ){
             if( _randomNumber <= _table[i] ){
@@ -229,6 +226,23 @@ public class WildPokemonSpawner : MonoBehaviour
 
         // Debug.Log( pokemon.PokeSO.pName + " was generated" );
         return pokemon;
+    }
+
+    private void OnGUI(){
+        if( !StateMachineDisplays.Show_WildPokemonStateStack )
+            return; 
+
+        var style = new GUIStyle();
+        style.fontSize = 30;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = Color.white;
+
+        GUILayout.BeginArea( new Rect( 1400, 0, 600, 500 ) );
+        GUILayout.Label( "SPAWNER STATE STACK", style );
+        foreach( var state in SpawnerStateMachine.StateStack ){
+            GUILayout.Label( state.GetType().ToString(), style );
+        }
+        GUILayout.EndArea();
     }
 
 }

@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2628932228352870224}
   - component: {fileID: 3802370246532983286}
   - component: {fileID: 6057398435085943937}
+  - component: {fileID: -1876354782213672496}
   m_Layer: 5
   m_Name: ItemButton
   m_TagString: Untagged
@@ -30,7 +31,7 @@ RectTransform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 3898684153458807250}
   - {fileID: 5206716988387857926}
@@ -66,6 +67,7 @@ MonoBehaviour:
   _itemName: {fileID: 2012651591197365032}
   _itemCountText: {fileID: 3236527888241215836}
   _itemIcon: {fileID: 8147681706213075814}
+  _isExitButton: 0
 --- !u!114 &3802370246532983286
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -140,6 +142,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &-1876354782213672496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 146084643517427570}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f80c7f6aaf7b87844a5de819c847153a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _scale: {x: 1, y: 1, z: 1}
 --- !u!1 &202360562415810865
 GameObject:
   m_ObjectHideFlags: 0

@@ -8,7 +8,6 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
 {
     [SerializeField] private BattleSystem _battleSystem;
     [SerializeField] private FightMenu _fightMenu;
-    [SerializeField] private BattleDialogueBox _dialogueBox;
     [SerializeField] private TextMeshProUGUI _moveDescription;
     public Move AssignedMove { get; set; }
     private Button _thisButton;
@@ -27,6 +26,7 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
         #pragma warning restore CS8321
         gameObject.GetComponent<Outline>().enabled = true;
         _moveDescription.text = AssignedMove.MoveSO.Description;
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
     public void OnDeselect( BaseEventData baseEventData ){
@@ -35,15 +35,20 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
 
     public void OnSubmit( BaseEventData baseEventData ){
         if( AssignedMove.PP > 0){
-            BattleUIActions.OnSubMenuClosed?.Invoke();
+            // BattleUIActions.OnSubMenuClosed?.Invoke(); //--These were likely for animations
             _fightMenu.SetMemoryButton( _thisButton );
-            BattleUIActions.OnCommandUsed?.Invoke();
+            // BattleUIActions.OnCommandUsed?.Invoke(); //--These were likely for animations
             Debug.Log( "MoveButton OnSubmit, Popping Menu State" );
             _fightMenu.BattleMenu.StateMachine.Pop();
-            _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, AssignedMove );
+            //--If the battle is a double battle, we handle target selection. if not, we simply push the command to the queue, as there is only one target. May need to alter this to include other multi-target fights.
+            if( _battleSystem.BattleType == BattleType.TrainerDoubles )
+                _fightMenu.BattleMenu.HandleMoveTargetSelection( _fightMenu.ActiveUnit, AssignedMove );
+            else
+                _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, _battleSystem.EnemyUnits[0], AssignedMove );
         }
         else{
-            StartCoroutine( _battleSystem.DialogueBox.TypeDialogue( "There's no PP left!" ) );
+            DialogueManager.Instance.PlaySystemMessage( "There's no PP left!" );
+            return;
         }
     }
 
@@ -58,9 +63,5 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
         yield return new WaitForSeconds( 0.1f );
         gameObject.GetComponent<Outline>().enabled = false;
         _fightMenu.BattleMenu.StateMachine.Pop();
-    }
-
-    private IEnumerator WaitForMoveDialogue(){
-        yield return new WaitForSeconds( 2f );
     }
 }

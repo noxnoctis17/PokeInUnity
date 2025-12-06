@@ -11,7 +11,10 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private CharacterAnimator _animator;
     [SerializeField] private float _speed;
     [SerializeField] private float _runMultiplier;
+    [SerializeField] private float _rotationPerFrame = 5f;
     public PlayerInput PlayerInput { get; private set; }
+    public float PlayerSpeed => _speed;
+    public SpritePerspective FacingDirection { get; private set; }
     private Transform _playerTransform;
     private Vector2 _currentMovementInput;
     private Vector3 _currentMovement;
@@ -19,7 +22,6 @@ public class PlayerMovement : MonoBehaviour
     private bool _isMovementPressed;
     private bool _isRunPressed;
     public bool AllowMovement { get; set; }
-    private float _rotationPerFrame = 1.0f;
 
     private void OnEnable(){
         _playerTransform = transform;
@@ -29,41 +31,30 @@ public class PlayerMovement : MonoBehaviour
         GetComponent<PlayerController>().SetPlayerMovement( this );
 
         PlayerInput.CharacterControls.Enable();
-        PlayerInput.CharacterControls.Walk.started += OnMovementInput;
-        PlayerInput.CharacterControls.Walk.canceled += OnMovementInput;
-        PlayerInput.CharacterControls.Walk.performed += OnMovementInput;
-        PlayerInput.CharacterControls.Run.started += OnRunInput;
-        PlayerInput.CharacterControls.Run.canceled += OnRunInput;
-        PlayerInput.CharacterControls.Run.performed += OnRunInput;
+        PlayerInput.CharacterControls.Walk.started      += OnMovementInput;
+        PlayerInput.CharacterControls.Walk.canceled     += OnMovementInput;
+        PlayerInput.CharacterControls.Walk.performed    += OnMovementInput;
+        PlayerInput.CharacterControls.Run.started       += OnRunInput;
+        PlayerInput.CharacterControls.Run.canceled      += OnRunInput;
+        PlayerInput.CharacterControls.Run.performed     += OnRunInput;
+
+        _animator.OnSpritePerspectiveChanged            += OnPerspectiveChanged;
     }
 
     private void OnDisable(){
         PlayerInput.CharacterControls.Disable();
-        PlayerInput.CharacterControls.Walk.started -= OnMovementInput;
-        PlayerInput.CharacterControls.Walk.canceled -= OnMovementInput;
-        PlayerInput.CharacterControls.Walk.performed -= OnMovementInput;
-        PlayerInput.CharacterControls.Run.started -= OnRunInput;
-        PlayerInput.CharacterControls.Run.canceled -= OnRunInput;
-        PlayerInput.CharacterControls.Run.performed -= OnRunInput;
+        PlayerInput.CharacterControls.Walk.started      -= OnMovementInput;
+        PlayerInput.CharacterControls.Walk.canceled     -= OnMovementInput;
+        PlayerInput.CharacterControls.Walk.performed    -= OnMovementInput;
+        PlayerInput.CharacterControls.Run.started       -= OnRunInput;
+        PlayerInput.CharacterControls.Run.canceled      -= OnRunInput;
+        PlayerInput.CharacterControls.Run.performed     -= OnRunInput;
+
+        _animator.OnSpritePerspectiveChanged            -= OnPerspectiveChanged;
     }
 
     private void Update(){
-        HandleAnimation();
-        // HandleRotation();
-        // HandleGravity();
-
-        // if( AllowMovement ){
-        //     if( _isRunPressed ){
-        //         _characterController.Move( _currentRunMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
-        //     } else {
-        //         _characterController.Move( _currentMovement.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) * ( Time.deltaTime * _speed ) );
-        //     }
-        // }
-    }
-
-    private void FixedUpdate(){
-        HandleRotation();
-        HandleGravity();
+        TrackMovement();
 
         if( AllowMovement ){
             if( _isRunPressed ){
@@ -73,30 +64,22 @@ public class PlayerMovement : MonoBehaviour
             }
         }
     }
+
+    private void FixedUpdate(){
+        HandleRotation();
+        HandleGravity();
+    }
     
-    private void HandleAnimation(){
-        bool isWalking = _animator.IsWalking;
-        bool isRunning = _animator.IsRunning; //--Implement running animations lol
-        
-        if( _isMovementPressed && !isWalking ){
-            _animator.IsWalking = true;
-            _animator.MoveX = _currentMovementInput.x;
-            _animator.MoveY = _currentMovementInput.y;
-        }
-        else if( !_isMovementPressed && isWalking ){
-            _animator.IsWalking = false;
-        }
-        else if( _isMovementPressed && isWalking ){
-            _animator.MoveX = _currentMovementInput.x;
-            _animator.MoveY = _currentMovementInput.y;
-        }
+    private void TrackMovement(){
+        _animator.MoveX = _currentMovementInput.x;
+        _animator.MoveY = _currentMovementInput.y;
     }
 
     private void HandleRotation(){
         //--Position update
         Vector3 nextMoveDirection;
         nextMoveDirection.x = _currentMovement.x;
-        nextMoveDirection.y = 0.0f;
+        nextMoveDirection.y = 0f;
         nextMoveDirection.z = _currentMovement.z;
 
         //--Current rotation
@@ -136,6 +119,13 @@ public class PlayerMovement : MonoBehaviour
         _isRunPressed = context.ReadValueAsButton();
     }
 
+    private void OnPerspectiveChanged( SpritePerspective perspective ){
+        FacingDirection = perspective;
+    }
+
+    //--For some reason this particular jump/forced player movement works despite not turning the character controller off.
+    //--It's possible it's being turned off somewhere, or that something else getting turned off has the same effect.
+    //--However, as of 11/07/25, I have no idea what the fuck it could be lol
     public IEnumerator MovePlayerIntoBattlePosition( Transform battlePosition ){
         PlayerInput.CharacterControls.Disable();
         yield return new WaitUntil( () => !PlayerInput.CharacterControls.enabled );
@@ -149,13 +139,22 @@ public class PlayerMovement : MonoBehaviour
         PlayerInput.CharacterControls.Enable();
     }
 
+    public IEnumerator MakePlayerLedgeHop( Vector3 destination ){
+        AllowMovement = false;
+        PlayerInput.CharacterControls.Disable();
+        _characterController.enabled = false; //--Disable the character controller because of below --vvv
+        yield return new WaitUntil( () => !PlayerInput.CharacterControls.enabled );
+        yield return _animator.JumpFromLedge( transform, destination );
+        _characterController.enabled = true; //--Disable the character controller because of below --vvv
+        PlayerInput.CharacterControls.Enable();
+        AllowMovement = true;
+    }
+
     //--We disable and enable the character controller because it forces a position update after we move the player
     //--The position it forces is the last position the player was at before we manually update it here
     //--Waiting for FixedUpdate nor end of frame helped the situation. I'm sure there's a better way, but for now, this is fine.
     //--That is, of course, until it isn't. --04/27/24
     public IEnumerator MovePlayerPosition( Vector3 position ){
-        // Debug.Log( "PlayerMovement.MovePlayerPosition()" );
-        // Debug.Log( transform.position );
         yield return new WaitForFixedUpdate();
         AllowMovement = false; //--This will prevent movement calls from being made in FixedUpdate after the controller has been disabled
         _characterController.enabled = false; //--Disable and Enable Character Controller component because of above --04/27/24
@@ -163,6 +162,5 @@ public class PlayerMovement : MonoBehaviour
         yield return new WaitForEndOfFrame();
         _characterController.enabled = true; //--Disable and Enable Character Controller component because of above --04/27/24
         AllowMovement = true; //--And then we re-allow movement after enabling the controller
-        // Debug.Log( transform.position );
     }
 }

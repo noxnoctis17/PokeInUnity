@@ -19,6 +19,7 @@ public class LearnMoveButton_Pause : MonoBehaviour, ISelectHandler, IDeselectHan
 
     public void OnSelect( BaseEventData eventData ){
         Debug.Log( "selected: " + gameObject.GetComponent<Button>().name );
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
     public void OnDeselect( BaseEventData eventData ){

@@ -3,6 +3,7 @@ using System.Collections;
 using NoxNoctisDev.StateMachine;
 using System;
 using Pathfinding;
+using UnityEngine.AI;
 
 public class WildPokemon : MonoBehaviour
 {
@@ -23,7 +24,8 @@ public class WildPokemon : MonoBehaviour
 
     public static Vector3 WildPokemonLocation;
     public BoxCollider BoxCollider { get; private set; }
-    public AIPath AgentMon { get; private set; }
+    // public AIPath AgentMon { get; private set; }
+    public NavMeshAgent AgentMon { get; private set; }
 
     //------------------------[ ACTIONS ]---------------------------
     private WildPokemonEvents _wildPokemonEvents;
@@ -47,6 +49,9 @@ public class WildPokemon : MonoBehaviour
     public State<WildPokemon> BattleState => _battleState;
     public State<WildPokemon> PausedState => _pausedState;
     private bool _initialized;
+    private Coroutine _despawnTimer;
+    private bool _isBattling;
+    private float _remainingTime;
 
     private void OnDisable(){
         if( _initialized )
@@ -65,10 +70,10 @@ public class WildPokemon : MonoBehaviour
         
         //--Set State Machine & Initial State
         WildPokemonStateMachine = new StateMachine<WildPokemon>( this, _wanderState );
-        // GameStateController.Instance.WildmonStateDisplayTest.Push( WildPokemonStateMachine );
+        GameStateController.Instance.WildmonStateDisplayTest.Push( WildPokemonStateMachine );
 
-        //--Set A* Wander AI
-        AgentMon = GetComponent<AIPath>();
+        //--Set Navmesh, which should be disabled by default on prefab
+        AgentMon = GetComponent<NavMeshAgent>();
         AgentMon.enabled = true;
 
         //--Set Visual Components
@@ -81,16 +86,21 @@ public class WildPokemon : MonoBehaviour
         _wildPokemonEvents = GetComponent<WildPokemonEvents>();
 
         //--Actions
-        OnPlayerTooFar += ChangeState;
-        BattleSystem.OnBattleStarted += DisableCanStartBattle;
-        BattleSystem.OnBattleEnded += EnableCanStartBattle;
-        _wildPokemonSpawner.OnDespawnCall += Despawn;
+        OnPlayerTooFar                          += ChangeState;
+        BattleSystem.OnBattleStarted            += DisableCanStartBattle;
+        BattleSystem.OnBattleEnded              += EnableCanStartBattle;
+        _wildPokemonSpawner.OnDespawnCall       += Despawn;
+        GameStateController.OnGamePaused        += PauseDespawnTimer;
+        GameStateController.OnGameUNPaused      += ResumeDespawnTimer;
+        GameStateController.OnGamePaused        += DisableCanStartBattle;
+        GameStateController.OnGameUNPaused      += EnableCanStartBattle;
 
         //--Manage Colliders
         BoxCollider = GetComponent<BoxCollider>();
         BoxCollider.enabled = false;
+
         StartCoroutine( CollisionDelay() );
-        StartCoroutine( DespawnTimer() );
+        _despawnTimer = StartCoroutine( DespawnTimer() );
 
         //--Finally Initialize State Machine
         WildPokemonStateMachine.Initialize();
@@ -128,7 +138,7 @@ public class WildPokemon : MonoBehaviour
         _pokeAnimator = null;
 
         //--Set AI's path to null
-        AgentMon.SetPath( null );
+        // AgentMon.SetPath()
         AgentMon = null;
 
         //--Clear Pokemon Data
@@ -136,10 +146,14 @@ public class WildPokemon : MonoBehaviour
         _pokeSO = null;
 
         //--Unsubscribe from Events
-        OnPlayerTooFar -= ChangeState;
-        BattleSystem.OnBattleStarted -= DisableCanStartBattle;
-        BattleSystem.OnBattleEnded -= EnableCanStartBattle;
-        _wildPokemonSpawner.OnDespawnCall -= Despawn;
+        OnPlayerTooFar                          -= ChangeState;
+        BattleSystem.OnBattleStarted            -= DisableCanStartBattle;
+        BattleSystem.OnBattleEnded              -= EnableCanStartBattle;
+        _wildPokemonSpawner.OnDespawnCall       -= Despawn;
+        GameStateController.OnGamePaused        -= PauseDespawnTimer;
+        GameStateController.OnGameUNPaused      -= ResumeDespawnTimer;
+        GameStateController.OnGamePaused        -= DisableCanStartBattle;
+        GameStateController.OnGameUNPaused      -= EnableCanStartBattle;
 
         //--Despawned event raise
         WildPokemonEvents.OnPokeDespawned?.Invoke(); //--All this does is lower the spawnedAmnt in the spawner
@@ -160,12 +174,12 @@ public class WildPokemon : MonoBehaviour
 
     //--If the wild pokemon can start a battle on collision or not-----
     private void EnableCanStartBattle(){
-        // Debug.Log( "Battle Has Ended, enabled colliders" );
+        Debug.Log( "Battle Has Ended, enabled colliders" );
         StartCoroutine( CollisionDelay() );
     }
 
     private void DisableCanStartBattle(){
-        // Debug.Log( "Battle Has Started, disabled colliders" );
+        Debug.Log( "Battle Has Started, disabled colliders" );
         BoxCollider.enabled = false;
     }
     //-----------------------------------------------------------------
@@ -179,12 +193,14 @@ public class WildPokemon : MonoBehaviour
 
     private void OnTriggerEnter( Collider col ){
         if( col.CompareTag( "Player" ) && !BattleSystem.BattleIsActive ){
+            StopCoroutine( _despawnTimer );
             StopAllCoroutines();
             StartCoroutine( StartBattle() ) ;
         }
     }
 
     private IEnumerator StartBattle(){
+        _isBattling = true;
         BoxCollider.enabled = false;
         WildPokemonStateMachine.OnQueueNextState?.Invoke( BattleState );
         yield return new WaitUntil( () => !AgentMon.enabled );
@@ -193,27 +209,25 @@ public class WildPokemon : MonoBehaviour
         WildPokemonEvents.OnPlayerEncounter?.Invoke( this );
         WildPokemonLocation = transform.position;
     }
-    
-    // public void Despawn(){
-    //     StopAllCoroutines();
-    //     WildPokemonStateMachine.ClearActions();
-        
-    //     //--Despawn event call
-    //     WildPokemonEvents.OnPokeDespawned?.Invoke( this );
 
-    //     if( _wildPokemonSpawner.SpawnerPokemonList != null && _wildPokemonSpawner.SpawnerPokemonList.Contains( gameObject ) && gameObject != null ){
-    //         _wildPokemonSpawner.SpawnerPokemonList.Remove( gameObject );
-    //     }
-
-    //     //--Died
-    //     // Debug.Log( "Pokemon has been died" );
-    //     if( gameObject != null )
-    //         Destroy( gameObject );
-    // }
 
     public IEnumerator DespawnTimer(){
         yield return new WaitForSeconds( 240 );
-        Despawn();
+        if( _isBattling ){
+            Debug.Log( $"{gameObject.name} has finished its DespawnTimer and will now Despawn()!" );
+            _isBattling = false;
+            Despawn();
+        }
+    }
+
+    private void PauseDespawnTimer(){
+        // Debug.Log( "Despawn Timer Paused" );
+        StopCoroutine( _despawnTimer );
+    }
+
+    private void ResumeDespawnTimer(){
+        // Debug.Log( "Despawn Timer Resumed" );
+        _despawnTimer = StartCoroutine( DespawnTimer() );
     }
 
 //     #if UNITY_EDITOR

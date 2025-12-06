@@ -1,6 +1,7 @@
 using UnityEngine;
 using NoxNoctisDev.StateMachine;
 using System.Collections;
+using UnityEngine.AI;
 
 public class Spawner_SpawnState : State<WildPokemonSpawner>
 { 
@@ -44,7 +45,9 @@ public class Spawner_SpawnState : State<WildPokemonSpawner>
             
             yield return null;
 
-            poolObj.transform.position = position;
+            if( NavMesh.SamplePosition( position, out NavMeshHit hit, 2f, NavMesh.AllAreas ) )
+                poolObj.transform.position = hit.position;
+
             poolObj.SetActive( true );
             poolObj.GetComponent<WildPokemon>().Init( _spawner, pokemon.PokeSO, pokemon.Level );
         

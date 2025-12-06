@@ -4,6 +4,7 @@
 //----------------------------------------------------------------------
 using System;
 using System.Collections;
+using UnityEngine;
 
 public class UseMoveCommand : IBattleCommand
 {
@@ -13,6 +14,8 @@ public class UseMoveCommand : IBattleCommand
     private int _commandPriority;
     private int _attackPriority;
     private int _unitAgility;
+    public BattleUnit Target => _target;
+    public BattleUnit User => _attacker;
     public int CommandPriority => _commandPriority;
     public int AttackPriority => _attackPriority;
     public int UnitAgility => _unitAgility;
@@ -25,19 +28,16 @@ public class UseMoveCommand : IBattleCommand
         _commandPriority = (int)CommandPriorityEnum.Attack;
         _attackPriority = (int)_move.MoveSO.MovePriority;
         _unitAgility = attacker.Pokemon.Speed;
-        // DeterminePriority();
+        _unitAgility = Mathf.FloorToInt( attacker.Pokemon.Modify_SPD( _unitAgility, target.Pokemon, move ) );
     }
 
     public IEnumerator ExecuteBattleCommand(){
         yield return _battleSystem.PerformMoveCommand( _move, _attacker, _target );
     }
 
-    private void DeterminePriority(){
-        if( _move.MoveSO.MovePriority == MovePriority.one )
-            _attackPriority = 1;
-        else if( _move.MoveSO.MovePriority == MovePriority.two )
-            _attackPriority = 2;
-        
+    public void ChangeTarget( BattleUnit target )
+    {
+        _target = target;
     }
 
 }
