@@ -21,7 +21,7 @@ MonoBehaviour:
   _accuracy: 100
   _alwaysHits: 0
   _pp: 10
-  _movePriority: 0
+  _movePriority: 7
   _critBehavior: 0
   _recoil:
     RecoilType: 0
@@ -34,4 +34,5 @@ MonoBehaviour:
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 3
+    _courtCondition: 0
   _secondaryMoveEffects: []

@@ -10,11 +10,15 @@ public class ItemSO : ScriptableObject
     [TextArea(3, 10)]
     [SerializeField] private string _itemDescription;
     [SerializeField] private Sprite _icon;
+    [SerializeField] private bool _hasBattleEffect;
+    [SerializeField] private BattleItemEffectID _battleEffectID;
     
     public ItemCategory ItemCategory => _itemCategory;
     public string ItemName => _itemName;
     public string ItemDescription => _itemDescription;
     public Sprite Icon => _icon;
+    public bool HasBattleEffect => _hasBattleEffect;
+    public BattleItemEffectID BattleEffectID => _battleEffectID;
 
     public virtual bool Use( Pokemon pokemon ){
         return false;

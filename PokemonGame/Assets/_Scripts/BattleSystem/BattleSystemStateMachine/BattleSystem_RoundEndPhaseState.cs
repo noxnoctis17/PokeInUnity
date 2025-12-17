@@ -21,6 +21,8 @@ public class BattleSystem_RoundEndPhaseState : State<BattleSystem>
         {
             { RoundEndPhaseType.WeatherDamage, new RoundEndPhase_WeatherDamage()    },
             { RoundEndPhaseType.StatusDamage, new RoundEndPhase_StatusDamage()      },
+            { RoundEndPhaseType.ItemRoundEnd, new RoundEndPhase_ItemRoundEnd()      },
+            { RoundEndPhaseType.CourtEffect, new RoundEndPhase_CourtEffect()        },
         };
     }
 

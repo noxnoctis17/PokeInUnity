@@ -11,6 +11,7 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
     //--Private
     [SerializeField] private TrainerSO _trainerSO;
     [SerializeField] private string _trainerName;
+    [SerializeField] private int _trainerSkillLevel;
     [SerializeField] private PokemonParty _trainerParty;
     [SerializeField] private BattleType _battleType;
     [SerializeField] private DialogueSO _dialogueSO;
@@ -23,6 +24,7 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
     //--Public
     public TrainerSO TrainerSO => _trainerSO;
     public string TrainerName => _trainerName;
+    public int TrainerSkillLevel => _trainerSkillLevel;
     public PokemonParty TrainerParty => _trainerParty;
     public BattleType BattleType => _battleType;
     public DialogueSO DialogueSO => _dialogueSO;

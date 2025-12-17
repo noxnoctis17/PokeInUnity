@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using JetBrains.Annotations;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "Pokemon/Moves/MoveBaseSO")]
+[CreateAssetMenu(menuName = "Pokemon/New Move")]
 public class MoveSO : ScriptableObject
 {
     [SerializeField] private string _moveName;
@@ -23,11 +22,12 @@ public class MoveSO : ScriptableObject
     [SerializeField] private int _accuracy;
     [SerializeField] private bool _alwaysHits;
     [SerializeField] private int _pp = 10;
-    [SerializeField] private MovePriority _movePriority;
+    [SerializeField] private MovePriority _movePriority = MovePriority.Zero;
     [SerializeField] private CritBehavior _critBehavior;
     [SerializeField] private RecoilMoveEffect _recoil = new();
     [SerializeField] private int _drainPercentage;
     [SerializeField] private Vector2Int _hitRange;
+    [SerializeField] private List<MoveFlags> _flags;
     [SerializeField] private MoveEffects _moveEffects;
     [SerializeField] private List<SecondaryMoveEffects> _secondaryMoveEffects;
 
@@ -43,6 +43,7 @@ public class MoveSO : ScriptableObject
     public RecoilMoveEffect Recoil => _recoil;
     public int DrainPercentage => _drainPercentage;
     public Vector2Int HitRange => _hitRange;
+    public List<MoveFlags> Flags => _flags;
     public MoveEffects MoveEffects => _moveEffects;
     public List<SecondaryMoveEffects> SecondaryMoveEffects => _secondaryMoveEffects;
 
@@ -60,10 +61,16 @@ public class MoveSO : ScriptableObject
         return hitCount;
     }
 
+    public bool HasFlag( MoveFlags flag )
+    {
+        return _flags.Contains( flag );
+    }
+
 }
 
 [Serializable]
 public enum MoveCategory { Physical, Special, Status, Other };
+public enum EffectSource { Move, Ability, Item, }
 
 [Serializable]
 public class MoveEffects
@@ -115,10 +122,29 @@ public class RecoilMoveEffect
     public int RecoilDamage = 0;
 }
 
-public enum MoveTarget { enemy, self }
+public enum MoveTarget { Enemy, Self, OpposingSide, AllAdjacent, Ally, }
 
 public enum CritBehavior { none, HighCritRatio, AlwaysCrits, NeverCrits, }
 
 public enum RecoilType { none, RecoilByMaxHP, RecoilByCurrentHP, RecoilByDamage, }
 
-public enum MovePriority { zero, one, two, three, four, five, six, seven, eight, nine, ten }
+public enum MovePriority { Neg_7, Neg_6, Neg_5, Neg_4, Neg_3, Neg_2, Neg_1, Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine }
+
+public enum MoveFlags
+{
+    Authentic, //--Ignore's Substitute
+    Charge, //--User is unable to move between turns
+    Contact, //--Makes contact
+    Dance, //--Can be copied by Dancer
+    Defrost, //--Thaws a frozen user if it doesn't fail. May never use since i use Frostbite instead of freeze
+    Gravity, //--Gravity being on the field prevents its use
+    Heal, //--Prevented from taking effect during Heal Block
+    Jaw, //--For abilities like Strong Jaw and Biting moves
+    Mirror, //--Can be copied by Mirror Move. I probably won't implement this nor MM
+    Protect, //--Official marks moves blocked by protect with protect. May save myself the time and reverse this so that moves with this flag ignore protect instead. --12/14/25
+    Punch, //--For abilities like Iron Fist or items like the Punching Glove
+    Recharge, //--User must recharge during their next turn on move success. Hyper Beam
+    Reflectable, //--Can be reflected back by Magic Coat or Magic Bounce
+    Sound, //--Sound proof
+
+}

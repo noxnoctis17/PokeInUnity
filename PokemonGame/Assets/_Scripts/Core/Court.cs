@@ -32,6 +32,11 @@ public class Court
             Conditions.Remove( condition );
     }
 
+    public int GetUnitIndex( BattleUnit unit )
+    {
+        return Units.FindIndex( u => u == unit );
+    }
+
     //--The purpose of this class is to eventually house tailwind, screens, aurora veil, entry hazards, etc.
     //--Each "side" (player vs cpu, cpu vs cpu, player & cpu vs cpu & cpu, etc. ) will get their own court
     //--For now, i don't exactly need to track this just yet, but it will definitely be VERY soon lol --12/04/25

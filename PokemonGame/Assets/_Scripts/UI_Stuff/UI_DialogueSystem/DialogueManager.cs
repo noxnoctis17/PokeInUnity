@@ -8,8 +8,6 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private DialogueUI _dialogueUI;
     public DialogueUI DialogueUI => _dialogueUI;
     public Action<DialogueSO> OnDialogueEvent;
-    public Action<string> OnStringDialogueEvent;
-    public Action<string, bool> OnBattleDialogueEvent;
     public Action<bool> OnSystemDialogueComplete;
     public Action<DialogueSO> OnResponseChosen;
     public Action<DialogueResponseEvents> OnHasResponseEvents;
@@ -29,10 +27,7 @@ public class DialogueManager : MonoBehaviour
     }
 
     private void PlayDialogue( DialogueSO dialogueSO ){
-        // Debug.Log( "PlayDialogue()" );
-
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
-            // Debug.Log( "pushed dialogue state ");
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
         Debug.Log( dialogueSO );
@@ -40,10 +35,7 @@ public class DialogueManager : MonoBehaviour
     }
 
     public void PlaySystemMessage( string dialogue ){
-        // Debug.Log( "PlayDialogue()" );
-
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
-            // Debug.Log( "pushed dialogue state ");
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
         }
 
@@ -59,7 +51,6 @@ public class DialogueManager : MonoBehaviour
     }
 
     private void ContinueDialogue( DialogueSO dialogueSO ){
-        // Debug.Log( "ContinueDialogue()" );
         _dialogueUI.StartDialogue( dialogueSO );
     }
 

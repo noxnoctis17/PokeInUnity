@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.Events;
+using System;
 
-[System.Serializable]
+[Serializable]
 public class ResponseEvent
 {
     [HideInInspector] public string name;

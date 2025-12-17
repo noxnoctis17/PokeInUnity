@@ -8,19 +8,15 @@ public class TimeController : MonoBehaviour
 {
     [SerializeField] private Light _sun;
     [SerializeField] private Light _moon;
-    // [SerializeField] private float _maxSunLightIntensity;
-    // [SerializeField] private float _maxMoonLightIntensity;
     [SerializeField] private float _timeMultiplier;
     [SerializeField] private float _startHour;
     [SerializeField] private float _sunRiseHour;
     [SerializeField] private float _sunSetHour;
     [SerializeField] private TextMeshProUGUI _timeText;
-    // [SerializeField] private Color _dayAmbientLight;
-    // [SerializeField] private Color _nightAmbientLight;
-    // [SerializeField] private AnimationCurve _lightChangeCurve;
     private DateTime _currentTime;
     private TimeSpan _sunRiseTime;
     private TimeSpan _sunSetTime;
+    private bool _battleActive;
 
     private void Start(){
         _currentTime = DateTime.Now.Date + TimeSpan.FromHours( _startHour );
@@ -29,23 +25,36 @@ public class TimeController : MonoBehaviour
 
         _sun = LightReferences.Instance.SunTransform.GetComponent<Light>();
         _moon = LightReferences.Instance.MoonTransform.GetComponent<Light>();
-        //_timeText = UI_OverworldManager.Instance.TimeText;
+
+        BattleSystem.OnBattleStarted += BattleStarted;
+        BattleSystem.OnBattleEnded += BattleEnded;
     }
 
     private void Update(){
+        if( _battleActive )
+            return;
+
         UpdateTimeOfDay();
         RotateSun();
-        // UpdateLightSettings();
+    }
+
+    private void BattleStarted()
+    {
+        _battleActive = true;
+    }
+
+    private void BattleEnded()
+    {
+        _battleActive = false;
     }
 
     private void UpdateTimeOfDay(){
         _currentTime = _currentTime.AddSeconds( Time.deltaTime * _timeMultiplier );
-        // Debug.Log( $"Current Time: {_currentTime}" );
         _timeText.text = _currentTime.ToString( "hh:mm" );
     }
 
     private TimeSpan CalculateTimeDifference( TimeSpan fromTime, TimeSpan toTime ){
-        TimeSpan difference = (toTime - fromTime);
+        TimeSpan difference = ( toTime - fromTime );
 
         if( difference.TotalSeconds < 0  )
             difference += TimeSpan.FromHours( 24 );
@@ -73,11 +82,4 @@ public class TimeController : MonoBehaviour
 
         _sun.transform.rotation = Quaternion.AngleAxis( sunRotation, new Vector3( 1f, 0.25f, 0 ) );
     }
-    
-    // private void UpdateLightSettings(){
-    //     float dotProduct = Vector3.Dot( _sun.transform.forward, Vector3.down );
-    //     _sun.intensity = Mathf.Lerp( 0, _maxSunLightIntensity, _lightChangeCurve.Evaluate( dotProduct ) );
-    //     _moon.intensity = Mathf.Lerp( _maxMoonLightIntensity, 0, _lightChangeCurve.Evaluate( dotProduct ) );
-    //     RenderSettings.ambientLight = Color.Lerp( _nightAmbientLight, _dayAmbientLight, _lightChangeCurve.Evaluate( dotProduct ) );
-    // }
 }

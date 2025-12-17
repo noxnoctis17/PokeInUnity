@@ -5,44 +5,54 @@ using DG.Tweening;
 
 public class AbilityCutIn : MonoBehaviour
 {
-    [SerializeField] RectTransform _parentTransform;
-    [SerializeField] TextMeshProUGUI _abilityName;
-    [SerializeField] TextMeshProUGUI _userName;
-    private RectTransform _rectTrans;
+    [SerializeField] private RectTransform _rightCutIn;
+    [SerializeField] private RectTransform _leftCutIn;
+    [SerializeField] private TextMeshProUGUI _abilityNameRight;
+    [SerializeField] private TextMeshProUGUI _userNameRight;
+    [SerializeField] private TextMeshProUGUI _abilityNameLeft;
+    [SerializeField] private TextMeshProUGUI _userNameLeft;
 
-    private void OnEnable(){
-        _rectTrans = GetComponent<RectTransform>();
-    }
-
-    public IEnumerator CutIn( string ability, string user ){
+    public IEnumerator CutIn( string ability, string user, CourtLocation location ){
         PlayerReferences.Instance.PlayerController.DisableBattleControls();
         yield return new WaitForEndOfFrame();
 
-        _abilityName.text = ability;
-        _userName.text = user;
-        yield return AnimateDialogueBox();
+        if( location == CourtLocation.TopCourt )
+        {
+            _abilityNameRight.text = ability;
+            _userNameRight.text = user;
+            yield return AnimateAbilityCutIn( _rightCutIn, location );
+        }
+        else
+        {
+            _abilityNameLeft.text = ability;
+            _userNameLeft.text = user;
+            yield return AnimateAbilityCutIn( _leftCutIn, location );
+        }
 
         yield return new WaitForSeconds( 0.1f );
         PlayerReferences.Instance.PlayerController.EnableBattleControls();
     }
 
-
     //---------------------------ANIMATION SWIPE IN-------------------------------
 
-    private IEnumerator AnimateDialogueBox(){
-        yield return _rectTrans.DOAnchorPosX( -740f, 0.2f ); //--We don't wait for completion so that it moves in conjunction with BounceIn()? I should just make these a sequence.
-        yield return BounceIn();
-    }
+    private IEnumerator AnimateAbilityCutIn( RectTransform rect, CourtLocation location ){
+        var sequence = DOTween.Sequence();
 
-    private IEnumerator BounceIn(){
-        yield return new WaitForSeconds( 0.2f );
-        yield return _rectTrans.DOAnchorPosX( -750f, 0.2f ).WaitForCompletion();
+        if( location == CourtLocation.TopCourt )
+        {
+            sequence.Append( rect.DOAnchorPosX( -10f, 0.2f ) ).WaitForCompletion();
+            sequence.Append( rect.DOAnchorPosX( 0f, 0.2f ) ).WaitForCompletion();
+            sequence.AppendInterval( 1f );
+            sequence.Append( rect.DOAnchorPosX( 550f, 0.2f ) ).WaitForCompletion();
+        }
+        else
+        {
+            sequence.Append( rect.DOAnchorPosX( 10f, 0.2f ) ).WaitForCompletion();
+            sequence.Append( rect.DOAnchorPosX( 0f, 0.2f ) ).WaitForCompletion();
+            sequence.AppendInterval( 1f );
+            sequence.Append( rect.DOAnchorPosX( -550f, 0.2f ) ).WaitForCompletion();
+        }
 
-        yield return HideBoxDelay();
-    }
-
-    private IEnumerator HideBoxDelay(){
-        yield return new WaitForSeconds( 1f );
-        yield return _rectTrans.DOAnchorPosX( -1600f, 0.2f );
+        yield return sequence.WaitForCompletion();
     }
 }

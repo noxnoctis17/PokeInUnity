@@ -27,7 +27,7 @@ public class CourtConditionDB
                 //--Set/Reset TimeLeft OnStart. For conditions with modifiers, we'll have to probably add the unit using the move and check for their held item or ability or w/e for modifier influence
                 court.Conditions[CourtConditionID.Tailwind].SetTimeLeft( duration );
                 Debug.Log( $"{location}'s Tailwind duration is: {duration}" );
-                bs.SetBattleFlag( BattleFlag.SpeedChange, true );
+                // bs.SetBattleFlag( BattleFlag.SpeedChange, true );
             },
 
             OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
@@ -42,6 +42,53 @@ public class CourtConditionDB
                 Debug.Log( $"{unit.Pokemon.NickName} is about to leave Tailwind! Current Speed: {unit.Pokemon.Speed}" );
                 unit.Pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.Tailwind );
                 Debug.Log( $"{unit.Pokemon.NickName} is no longer in Tailwind! Current Speed: {unit.Pokemon.Speed}" );
+            }
+          }  
+        },
+        {
+          CourtConditionID.TrickRoom, new( 5, 0 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
+          {
+            ID = CourtConditionID.TrickRoom,
+            TrickRoomStartMessage = ( BattleSystem bs, Pokemon pokemon ) =>
+            {
+                return $"{pokemon.NickName} has twisted the dimensions of speed!";
+            },
+
+            TrickRoomAlreadyActiveMessage = ( BattleSystem bs, Pokemon pokemon ) =>
+            {
+                return $"{pokemon.NickName} has returned the dimensions of speed back to normal!";
+            },
+
+            EndMessage = "The dimensions of speed have returned to normal.",
+            //--Duration = 5,
+            //--DurationModifier = 0,
+
+            OnStart = ( BattleSystem bs, Battlefield field, CourtLocation location, BattleUnit user ) =>
+            {
+                Debug.Log( "Trick Room OnStart" );
+                if( bs.BattleFlags[BattleFlag.TrickRoom] )
+                {
+                    Debug.Log( "Trick Room is already up! Reversing Trick Room!" );
+                    field.ActiveCourts[location].Conditions[CourtConditionID.TrickRoom].OnEnd?.Invoke( bs, field );
+                }
+                else
+                {
+                    Debug.Log( "Trick Room Begins Baybeeeeeeeeeeee" );
+                    var court = field.ActiveCourts[location];
+                    int duration = court.Conditions[CourtConditionID.TrickRoom].Duration;
+                    int modifier = court.Conditions[CourtConditionID.TrickRoom].DurationModifier; //--For Posterity when implementing screens + lightclay, this will be the extension lightclay adds to the default duration
+
+                    //--Set/Reset TimeLeft OnStart. For conditions with modifiers, we'll have to probably add the unit using the move and check for their held item or ability or w/e for modifier influence
+                    court.Conditions[CourtConditionID.TrickRoom].SetTimeLeft( duration );
+                    Debug.Log( $"{location}'s Trick Room's duration is: {duration}" );
+                    bs.SetBattleFlag( BattleFlag.TrickRoom, true );
+                }
+            },
+
+            OnEnd = ( BattleSystem bs, Battlefield field ) =>
+            {
+                Debug.Log( "Trick Room OnEnd" );
+                bs.SetBattleFlag( BattleFlag.TrickRoom, false );
             }
           }  
         },
@@ -70,13 +117,13 @@ public class CourtConditionDB
 
             OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
             {
-                unit.SetReflect( true );
+                unit.SetFlagActive( UnitFlags.Reflect, true );
                 Debug.Log( $"{unit.Pokemon.NickName} is now in Reflect! Incoming physical damage should theoretically be reduced by 1/3" );
             },
 
             OnExitCourt = ( BattleUnit unit, Battlefield field ) =>
             {
-                unit.SetReflect( false );
+                unit.SetFlagActive( UnitFlags.Reflect, false );
                 Debug.Log( $"{unit.Pokemon.NickName} is no longer in Reflect!" );
             }
           }  
@@ -106,15 +153,82 @@ public class CourtConditionDB
 
             OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
             {
-                unit.SetLightScreen( true );
+                unit.SetFlagActive( UnitFlags.LightScreen, true );
                 Debug.Log( $"{unit.Pokemon.NickName} is now in Light Screen! Incoming special damage should theoretically be reduced by 1/3" );
             },
 
             OnExitCourt = ( BattleUnit unit, Battlefield field ) =>
             {
-                unit.SetLightScreen( false );
+                unit.SetFlagActive( UnitFlags.LightScreen, false );
                 Debug.Log( $"{unit.Pokemon.NickName} is no longer in Light Screen!" );
             }
+          }  
+        },
+        {
+          CourtConditionID.LeechSeed, new( 0, 0 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
+          {
+            ID = CourtConditionID.LeechSeed,
+            StartMessage = "The opposing side has been seeded!",
+            EffectMessage = "Your opponents' health has been drained!",
+            EndMessage = "The seeds have been cleared from the field.",
+
+            OnStart = ( BattleSystem bs, Battlefield field, CourtLocation location, BattleUnit user ) =>
+            {
+                //--This is an entry hazard, and must be placed in the opposing court of the user!
+                var court = field.ActiveCourts[location];
+                court.Conditions[CourtConditionID.LeechSeed].IsInfinite = true;
+            },
+
+            OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
+            {
+                //--Leech seed is a round-end phase life steal. It does not activate on entry, nor on exit.
+                //--Instead, I will check to see if the entering Pokemon is a Fire type, and if so, remove the hazard
+                //--Similar to how poison types will remove toxic spikes
+            },
+
+            OnCourtEffect = ( BattleUnit target, Battlefield field, CourtLocation location ) =>
+            {
+                Debug.Log( "OnCourtEffect: Leech Seed" );
+                Pokemon user;
+                Pokemon opp;
+                int stolenHP = 0;
+                if( field.GetUnitCourt( target ).Location == CourtLocation.TopCourt )
+                {
+                    int unitIndex = field.ActiveCourts[CourtLocation.TopCourt].GetUnitIndex( target );
+                    user = field.ActiveCourts[CourtLocation.TopCourt].Units[unitIndex].Pokemon;
+                    if( unitIndex == 0 )
+                    {
+                        opp = field.ActiveCourts[CourtLocation.BottomCourt].Units[0].Pokemon;
+                        stolenHP = opp.MaxHP / 8;
+                    }
+                    else
+                    {
+                        opp = field.ActiveCourts[CourtLocation.BottomCourt].Units[1].Pokemon;
+                        stolenHP = opp.MaxHP / 8;
+                    }
+
+                }
+                else
+                {
+                    int unitIndex = field.ActiveCourts[CourtLocation.BottomCourt].GetUnitIndex( target );
+                    user = field.ActiveCourts[CourtLocation.BottomCourt].Units[unitIndex].Pokemon;
+                    if( unitIndex == 0 )
+                    {
+                        opp = field.ActiveCourts[CourtLocation.TopCourt].Units[0].Pokemon;
+                        stolenHP = opp.MaxHP / 8;
+                    }
+                    else
+                    {
+                        opp = field.ActiveCourts[CourtLocation.TopCourt].Units[1].Pokemon;
+                        stolenHP = opp.MaxHP / 8;
+                    }
+                }
+
+                  opp.DecreaseHP( stolenHP );
+                  user.IncreaseHP( stolenHP );
+                  opp.AddStatusEvent( $"{opp.NickName} had its HP stolen by leech seed!" );
+            },
+
           }  
         },
     };
@@ -126,6 +240,12 @@ public enum CourtConditionID
     Tailwind,
     TrickRoom,
     Reflect,
-    LightScreen
+    LightScreen,
+    LeechSeed,
+    StealthRock,
+    Spikes,
+    ToxicSpikes,
+    StickyWeb,
+
     
 }

@@ -22,7 +22,7 @@ MonoBehaviour:
   _accuracy: 100
   _alwaysHits: 1
   _pp: 15
-  _movePriority: 0
+  _movePriority: 7
   _critBehavior: 0
   _recoil:
     RecoilType: 0

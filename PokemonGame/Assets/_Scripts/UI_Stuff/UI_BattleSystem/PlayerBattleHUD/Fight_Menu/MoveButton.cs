@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
+using UnityEngine.Analytics;
 
 public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICancelHandler, ISubmitHandler
 {
@@ -34,17 +35,35 @@ public class MoveButton : MonoBehaviour, ISelectHandler, IDeselectHandler, ICanc
     }
 
     public void OnSubmit( BaseEventData baseEventData ){
+
+        //--Choice Item Check
+        if( _fightMenu.ActiveUnit.Flags[UnitFlags.ChoiceItem].IsActive )
+        {
+            if( _fightMenu.ActiveUnit.LastUsedMove != null && _fightMenu.ActiveUnit.LastUsedMove != AssignedMove )
+            {
+                DialogueManager.Instance.PlaySystemMessage( $"{_fightMenu.ActiveUnit.Pokemon.HeldItem.ItemName} prevents use of any move that isn't {_fightMenu.ActiveUnit.LastUsedMove.MoveSO.Name}!" );
+                return;
+            }
+        }
+
+        //--If the move has enough PP to use
         if( AssignedMove.PP > 0){
-            // BattleUIActions.OnSubMenuClosed?.Invoke(); //--These were likely for animations
+            //--Set Memory button
             _fightMenu.SetMemoryButton( _thisButton );
-            // BattleUIActions.OnCommandUsed?.Invoke(); //--These were likely for animations
-            Debug.Log( "MoveButton OnSubmit, Popping Menu State" );
+
+            //--Pop State to prevent extra inputs
             _fightMenu.BattleMenu.StateMachine.Pop();
-            //--If the battle is a double battle, we handle target selection. if not, we simply push the command to the queue, as there is only one target. May need to alter this to include other multi-target fights.
+
+            //--If the battle is a double battle, we handle target selection.
+            //--If not, we simply push the command to the queue, as there is only one target.
+            //--May need to alter this to include other multi-target fights.
             if( _battleSystem.BattleType == BattleType.TrainerDoubles )
                 _fightMenu.BattleMenu.HandleMoveTargetSelection( _fightMenu.ActiveUnit, AssignedMove );
             else
                 _battleSystem.SetPlayerMoveCommand( _fightMenu.ActiveUnit, _battleSystem.EnemyUnits[0], AssignedMove );
+
+            //--Assign this as the last-used move for the Active BattleUnit.
+            _fightMenu.ActiveUnit.SetLastUsedMove( AssignedMove );
         }
         else{
             DialogueManager.Instance.PlaySystemMessage( "There's no PP left!" );

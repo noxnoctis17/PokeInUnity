@@ -6064,7 +6064,7 @@ MonoBehaviour:
     normal: {x: 0, y: 1, z: 0}
     length: {x: 0.25, y: 0.05}
     color: {x: 0.15686275, y: 0.6862745, z: 0.32941177}
-  m_InstantiatedMaterial: {fileID: 2000143108}
+  m_InstantiatedMaterial: {fileID: 1442869272}
 --- !u!4 &615406172
 Transform:
   m_ObjectHideFlags: 0
@@ -7168,7 +7168,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: c5851f895724657459891ba829aea5d4, type: 2}
     - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _battleType
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _isDefeated
@@ -7178,6 +7178,14 @@ PrefabInstance:
       propertyPath: _trainerCenter
       value: 
       objectReference: {fileID: 884930105}
+    - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _trainerSkillLevel
+      value: 80
+      objectReference: {fileID: 0}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.size
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _partyPokemon.Array.data[0]._level
       value: 9
@@ -7191,13 +7199,41 @@ PrefabInstance:
       value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[3]._level
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[0]._pokeSO
+      value: 
+      objectReference: {fileID: 11400000, guid: 907fa4e48c5f417459b9eec223f7b8c5, type: 2}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _partyPokemon.Array.data[1]._pokeSO
       value: 
-      objectReference: {fileID: 11400000, guid: ebf27d1674e5292418a8fa692f72e5bc, type: 2}
+      objectReference: {fileID: 11400000, guid: 80f4a126d789985479c0745858a16c3a, type: 2}
     - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _partyPokemon.Array.data[2]._pokeSO
       value: 
-      objectReference: {fileID: 11400000, guid: 907fa4e48c5f417459b9eec223f7b8c5, type: 2}
+      objectReference: {fileID: 11400000, guid: ebf27d1674e5292418a8fa692f72e5bc, type: 2}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[3]._pokeSO
+      value: 
+      objectReference: {fileID: 11400000, guid: 8bd2be014fea6a94b9fffcc0e4f50fdc, type: 2}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[0]._heldItem
+      value: 
+      objectReference: {fileID: 11400000, guid: 16a2c6dadc3ee49429effd19cd0216ce, type: 2}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[1]._heldItem
+      value: 
+      objectReference: {fileID: 11400000, guid: d482ef0897599bc478295da34c80ef41, type: 2}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[2]._heldItem
+      value: 
+      objectReference: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[3]._heldItem
+      value: 
+      objectReference: {fileID: 11400000, guid: be5a454f8ba97f440b47ca775145999e, type: 2}
     - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _partyPokemon.Array.data[0].CurrentBallType
       value: 2
@@ -8895,6 +8931,50 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 128, y: 18.265137, z: 128}
   m_Center: {x: 32, y: 16.465826, z: -32}
+--- !u!21 &1442869272
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: m_GrassUnlitBasic(Clone)
+  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Blend: 0
+    - _BlendMult: 1
+    - _BlendOff: 0
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    m_Colors: []
+  m_BuildTextureStacks: []
 --- !u!1 &1467779579
 GameObject:
   m_ObjectHideFlags: 1
@@ -10536,50 +10616,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7291480519668048689, guid: 083028925ba39e44aa99069929a15481, type: 3}
   m_PrefabInstance: {fileID: 1937146207}
   m_PrefabAsset: {fileID: 0}
---- !u!21 &2000143108
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: m_GrassUnlitBasic(Clone)
-  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - unity_Lightmaps:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_LightmapsInd:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_ShadowMasks:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _Blend: 0
-    - _BlendMult: 1
-    - _BlendOff: 0
-    - _QueueControl: 0
-    - _QueueOffset: 0
-    m_Colors: []
-  m_BuildTextureStacks: []
 --- !u!1001 &2006381421
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -11340,6 +11376,10 @@ PrefabInstance:
       propertyPath: _trainerCenter
       value: 
       objectReference: {fileID: 6082356655601560714}
+    - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _trainerSkillLevel
+      value: 80
+      objectReference: {fileID: 0}
     - target: {fileID: 2495549282839026177, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: uniqueId
       value: 99ca0f50-6fed-4386-a308-e3b6356e6d73

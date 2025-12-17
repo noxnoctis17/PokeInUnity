@@ -13,5 +13,8 @@ public enum RoundEndPhaseType
 {
     WeatherDamage,
     WeatherHealing,
-    StatusDamage
+    StatusDamage,
+    ItemRoundEnd,
+    CourtEffect,
+
 }

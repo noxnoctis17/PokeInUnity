@@ -22,7 +22,7 @@ MonoBehaviour:
   _accuracy: 100
   _alwaysHits: 0
   _pp: 40
-  _movePriority: 0
+  _movePriority: 7
   _critBehavior: 0
   _recoil:
     RecoilType: 0
@@ -35,5 +35,7 @@ MonoBehaviour:
       Change: -1
     _severeStatus: 0
     _volatileStatus: 0
+    _transientStatus: 0
     _weather: 0
+    _courtCondition: 0
   _secondaryMoveEffects: []

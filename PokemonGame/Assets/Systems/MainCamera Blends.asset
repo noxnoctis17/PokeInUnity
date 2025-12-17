@@ -39,7 +39,7 @@ MonoBehaviour:
     m_To: BattleCamera_FollowAttacker
     m_Blend:
       m_Style: 2
-      m_Time: 0.75
+      m_Time: 0.25
       m_CustomCurve:
         serializedVersion: 2
         m_Curve: []
@@ -50,7 +50,7 @@ MonoBehaviour:
     m_To: BattleCamera_LookAt_Target
     m_Blend:
       m_Style: 1
-      m_Time: 0.75
+      m_Time: 0.25
       m_CustomCurve:
         serializedVersion: 2
         m_Curve: []
@@ -61,7 +61,7 @@ MonoBehaviour:
     m_To: BattleCamera_Singles_MainCamera
     m_Blend:
       m_Style: 1
-      m_Time: 1
+      m_Time: 0.75
       m_CustomCurve:
         serializedVersion: 2
         m_Curve: []

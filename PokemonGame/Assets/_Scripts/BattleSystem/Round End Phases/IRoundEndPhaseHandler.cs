@@ -4,5 +4,5 @@ using UnityEngine;
 
 public interface IRoundEndPhaseHandler
 {
-    public void Apply( BattleSystem battleSystem, Pokemon pokemon );
+    public void Apply( BattleSystem battleSystem, BattleUnit unit );
 }

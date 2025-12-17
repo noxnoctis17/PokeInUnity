@@ -9,19 +9,22 @@ using System.Resources;
 public class Pokemon
 {
     [SerializeField] private PokemonSO _pokeSO;
+    [SerializeField] private string _nickName;  
     [SerializeField] private int _level;
-    [SerializeField] private string _nickName;
     [SerializeField] private Ability _ability; //--Eventually will be a list of learned abilities?
     [SerializeField] private AbilityID _abilityID; //--For seeing current ability in inspector
     [SerializeField] private int _currentAbilityIndex = 0; //--Might change these to a singular AbilityID instead of playing around with indicies, let's see how the rest of the implementation goes...
+    [SerializeField] private ItemSO _heldItem;    
     [SerializeField] private int _gainedEffortPoints;
-    [SerializeField] private Item _heldItem;
+//==============================================================================
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
     public string NickName => _nickName;
     public Ability Ability => _ability;
     public int CurrentAbilityIndex => _currentAbilityIndex; //--Might change these to a singular AbilityID instead of playing around with indicies, let's see how the rest of the implementation goes...
+    public ItemSO HeldItem => _heldItem;
     public int Exp { get; private set; }
+    public BattleItemEffect BattleItemEffect { get; set; }
     public bool CanEvolveByLevelUp { get; private set; }
     public bool IsPlayerUnit { get; private set; }
     public bool IsEnemyUnit { get; private set; }
@@ -131,6 +134,13 @@ public class Pokemon
         //--Set Name
         _nickName = PokeSO.Species;
         GetCurrentAbility();
+        //--Hard coded items for testing. make a give function for inventory and bag screen!!
+        // if( PokeSO.Species == "Knighinum" )
+        // {
+        //     _heldItem = ItemsDB.GetItemByName( "Choice Band" );
+        //     Debug.Log( $"{NickName}'s Held Item is: {_heldItem.ItemName}" );
+        // }
+        SetupBattleItem();
 
         //--------GENERATE MOVES-----------
         _activeMoves = new List<Move>();
@@ -199,6 +209,12 @@ public class Pokemon
             _ability = AbilityDB.Abilities[PokeSO.Abilities[i]];
             _abilityID = PokeSO.Abilities[i];
         }
+    }
+
+    public void SetupBattleItem()
+    {
+        if( _heldItem != null && _heldItem.HasBattleEffect )
+            BattleItemEffect = BattleItemDB.BattleItemEffects[_heldItem.BattleEffectID];
     }
 
     public void SetAsPlayerUnit(){
@@ -308,7 +324,7 @@ public class Pokemon
             return false;
     }
 
-    public void TryReplaceMove(  MoveSO newMove, ILearnMoveContext moveMenu, Action<bool> learnMoveComplete, BattleSystem battleSystem ){
+    public void TryReplaceMove( MoveSO newMove, ILearnMoveContext moveMenu, Action<bool> learnMoveComplete, BattleSystem battleSystem ){
         var moveMenuBattle = (LearnMove_Battle)moveMenu;
         moveMenuBattle.Setup( this, ActiveMoves.Select( x => x.MoveSO ).ToList(), newMove, learnMoveComplete );
         battleSystem.PlayerBattleMenu.OnPushNewState?.Invoke( battleSystem.PlayerBattleMenu.MoveLearnSelectionState );
@@ -331,6 +347,10 @@ public class Pokemon
 
     public bool CheckHasMove( MoveSO move ){
         return ActiveMoves.Count( m => m.MoveSO == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO == move ) > 0;
+    }
+
+    public bool CheckHasMove( string move ){
+        return ActiveMoves.Count( m => m.MoveSO.Name == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO.Name == move ) > 0;
     }
 
     public bool CheckCanLearnMove( MoveSO move ){
@@ -409,7 +429,7 @@ public class Pokemon
         //--an ability-blocked stat. Abilities that utilize OnStatStageChange have their ability "activated" whenever, where ever we call ApplyStatChange() on a pokemon that has an appropriate ability.
         var stageDictionary = statStages.ToDictionary( x => x.Stat, x => x.Change );
         Ability?.OnStatStageChange?.Invoke( stageDictionary, source, this );
-        Debug.Log( $"{NickName}'s ability is: {Ability?.Name}. {source.NickName}'s ability is: {source.Ability?.Name}" );
+        // Debug.Log( $"{NickName}'s ability is: {Ability?.Name}. {source.NickName}'s ability is: {source.Ability?.Name}" );
 
         foreach( var kvp in stageDictionary )
         {
@@ -438,11 +458,6 @@ public class Pokemon
     public void ApplyDirectStatModifier( Stat stat, DirectModifierCause cause, float modifier ){
         Debug.Log( $"{NickName} received a Direct Stat Modifier {cause}: {stat} x {modifier}" );
         
-        // if( DirectStatModifiers.ContainsKey( stat ) )
-        //     if( DirectStatModifiers[stat].ContainsKey( cause ) )
-        //     DirectStatModifiers[stat].Add( change );
-        // else
-        //     Debug.LogError( "Stat not found!" );
         if( !DirectStatModifiers.TryGetValue( stat, out var statDict ) )
         {
             statDict = new();
@@ -456,10 +471,6 @@ public class Pokemon
     //--added to the list of modifiers for that stat, because those modifiers are
     //--multipled together to get the total modifier that gets multiplied to the stat (before stat stages)
     public void RemoveDirectStatModifier( Stat stat, DirectModifierCause cause ){ 
-        // if( DirectStatModifiers.ContainsKey( stat ) && DirectStatModifiers[stat].Contains( change ) )
-        //     DirectStatModifiers[stat].Remove( change );
-        // else
-        //     Debug.LogError( "Stat or Modifier not found!" );
         Debug.Log( $"{NickName} is trying to Remove a Direct Stat Modifier for: {cause}, {stat}" );
 
         if( !DirectStatModifiers.TryGetValue( stat, out var statDict ) )
@@ -557,7 +568,6 @@ public class Pokemon
         return eva;
     }
 
-
     public void IncreaseHP( int amount ){
         CurrentHP = Mathf.Clamp( CurrentHP + amount, 0, MaxHP );
         Debug.Log( $"{NickName}'s current hp is now: {CurrentHP}" );
@@ -583,11 +593,17 @@ public class Pokemon
         CurrentHP = newCurrentHP;
     }
 
-    public void SetSevereStatus( StatusConditionID conditionID ){
+    public void SetSevereStatus( StatusConditionID conditionID, EffectSource effectSource = EffectSource.Move ){
+        //--This lets Faint override a previous status, since statuses can't replace each other normally.
         if( SevereStatus != null && conditionID == StatusConditionID.FNT ){
             SevereStatus = StatusConditionsDB.Conditions[conditionID];
         }
         else if( SevereStatus != null )
+            return;
+
+        bool canApply = Ability?.OnTrySetSevereStatus?.Invoke( conditionID, this, effectSource ) ?? true;
+
+        if( !canApply )
             return;
 
         SevereStatus = StatusConditionsDB.Conditions[conditionID];
@@ -616,8 +632,13 @@ public class Pokemon
         OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
     }
 
-    public void SetVolatileStatus( StatusConditionID conditionID ){
+    public void SetVolatileStatus( StatusConditionID conditionID, EffectSource effectSource = EffectSource.Move ){
         if( VolatileStatus != null )
+            return;
+
+        bool canApply = Ability?.OnTrySetVolatileStatus?.Invoke( conditionID, this, effectSource ) ?? true;
+
+        if( !canApply )
             return;
 
         VolatileStatus = StatusConditionsDB.Conditions[conditionID];
@@ -651,18 +672,6 @@ public class Pokemon
 
         TransientStatusActive = false;
     }
-
-    // public void IncreaseTurnsTakenInBattle()
-    // {
-    //     Debug.Log( $"{NickName}'s taken {TurnsTakenInBattle} turns in battle!" );
-    //     TurnsTakenInBattle++;
-    //     Debug.Log( $"{NickName}'s taken {TurnsTakenInBattle} turns in battle!" );
-    // }
-
-    // public void ResetTurnsTakenInBattle()
-    // {
-    //     TurnsTakenInBattle = -1;
-    // }
 
     public Move GetRandomMove(){
         int r = UnityEngine.Random.Range( 0, ActiveMoves.Count );
@@ -710,6 +719,11 @@ public class Pokemon
         CurrentHP = MaxHP;
     }
 
+    public bool IsFainted()
+    {
+        return CurrentHP <= 0 || SevereStatus?.ID == StatusConditionID.FNT;
+    }
+
     public void AddStatusEvent( StatusEventType type, string message )
     {
         StatusChanges.Enqueue( new( type, message ) );
@@ -722,12 +736,14 @@ public class Pokemon
 
 }
 
-public enum DirectModifierCause { Unmodified, BRN, FBT, PAR, WeatherDEF, WeatherSpDEF, WeatherSPD, Tailwind, Reflect, LightScreen }
-
-public class DirectStatChange
+public enum DirectModifierCause
 {
-    public float Change;
-    public DirectModifierCause Cause;
+    Unmodified,
+    BRN, FBT, PAR,
+    WeatherDEF, WeatherSpDEF, WeatherSPD,
+    Tailwind, Reflect, LightScreen,
+    ChoiceBand, ChoiceSpecs, ChoiceScarf,
+
 }
 
 public class DamageDetails

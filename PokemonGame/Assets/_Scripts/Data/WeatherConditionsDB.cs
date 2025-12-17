@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.Resources;
 using UnityEngine;
 
 public class WeatherConditionsDB
@@ -51,10 +49,7 @@ public class WeatherConditionsDB
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.Chlorophyll )
                         {
-                            pokemon.Ability?.OnAbilityTriggered?.Invoke( pokemon );
-                            Debug.Log( $"{pokemon.NickName}'s Chlorophyll is active!" );
-                            pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
-                            Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
+                            pokemon.Ability?.OnAbilityEnter?.Invoke( pokemon, null, BattleSystem.Instance.Field );
                         }
                     },
 
@@ -63,9 +58,7 @@ public class WeatherConditionsDB
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.Chlorophyll )
                         {
-                            Debug.Log( $"{pokemon.NickName}'s Chlorophyll is no longer active!" );
-                            pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
-                            Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
+                            pokemon.Ability?.OnAbilityExit?.Invoke( pokemon, null, BattleSystem.Instance.Field );
                         }
                     },
 

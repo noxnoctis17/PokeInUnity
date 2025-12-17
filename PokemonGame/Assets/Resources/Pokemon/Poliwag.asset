@@ -113,7 +113,7 @@ MonoBehaviour:
   _learnableMoves:
   - _moveSO: {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}
     _levelLearned: 1
-  - _moveSO: {fileID: 11400000, guid: 52369ddd7b32a3d4f9add7d7a12a894b, type: 2}
+  - _moveSO: {fileID: 11400000, guid: e9ee2e069c067e64f89f375a9ea17473, type: 2}
     _levelLearned: 3
   - _moveSO: {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}
     _levelLearned: 5

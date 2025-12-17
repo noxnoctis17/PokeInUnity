@@ -17,13 +17,23 @@ MonoBehaviour:
   _moveCategory: 0
   _moveTarget: 0
   _moveType: 5
-  _moveEffects:
-    _statChangeList: []
-    _severeStatus: 0
-    _volatileStatus: 0
-  _secondaryMoveEffects: []
-  _movePriority: 0
   _power: 40
   _accuracy: 100
   _alwaysHits: 0
   _pp: 40
+  _movePriority: 7
+  _critBehavior: 0
+  _recoil:
+    RecoilType: 0
+    RecoilDamage: 0
+  _drainPercentage: 0
+  _hitRange: {x: 0, y: 0}
+  _flags: 02000000
+  _moveEffects:
+    _statChangeList: []
+    _severeStatus: 0
+    _volatileStatus: 0
+    _transientStatus: 0
+    _weather: 0
+    _courtCondition: 0
+  _secondaryMoveEffects: []

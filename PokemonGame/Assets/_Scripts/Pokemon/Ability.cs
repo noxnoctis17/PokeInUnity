@@ -1,7 +1,5 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 
 public class Ability
 {
@@ -20,7 +18,12 @@ public class Ability
     public Action<Dictionary<Stat, int>, Pokemon, Pokemon> OnStatStageChange { get; set; }
 //--Triggers on Entering the field--------------------------------------------------
     public Action<Pokemon, List<BattleUnit>, Battlefield> OnAbilityEnter { get; set; }
-    // public Action<Pokemon, Pokemon, BattleField> OnAbilityEnter { get; set; }
+    public Action<Pokemon, List<BattleUnit>, Battlefield> OnAbilityExit { get; set; }
     public Action<Battlefield> OnWeatherStart { get; set; }
-    public Action<List<Pokemon>> OnAbilityEnter_EffectOpposingSide { get; set; }
+    public Action<BattleUnit, Battlefield> OnWeatherChange { get; set; }
+    public Func<StatusConditionID, Pokemon, EffectSource, bool> OnTrySetSevereStatus { get; set; }
+    public Func<StatusConditionID, Pokemon, EffectSource, bool> OnTrySetVolatileStatus { get; set; }
+    public Func<StatusConditionID, Pokemon, EffectSource, bool> OnTrySetTransientStatus { get; set; }
+    public Action<BattleUnit, BattleUnit, Move> OnMoveContact { get; set; }
+    public Func<Pokemon, Move, float> OnSTABModify { get; set; }
 }

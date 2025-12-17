@@ -70,4 +70,9 @@ public static class ExtensionMethods
         return q;
     }
 
+    public static bool IsBelowHPPercent( this Pokemon pokemon, int percent )
+    {
+        return pokemon.CurrentHP * 100 <= pokemon.MaxHP * percent;
+    }
+
 }

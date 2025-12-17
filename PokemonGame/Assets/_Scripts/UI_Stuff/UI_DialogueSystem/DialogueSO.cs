@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class DialogueSO : ScriptableObject
 {
-    // [SerializeField] [TextArea(5, 5)] private string[] _dialogue;
     [SerializeField] private DialogueItem[] _dialogueItem;
     public DialogueItem[] DialogueItem => _dialogueItem;
 

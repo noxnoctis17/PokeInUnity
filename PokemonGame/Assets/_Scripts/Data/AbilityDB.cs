@@ -143,9 +143,10 @@ public class AbilityDB
                 {
                     if( attacker.SevereStatus != null )
                     {
-                        Debug.Log( "Guts is active!" );
-                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
+                        Debug.Log( $"Guts is active! Attack before: {atk}" );
+                        // BattleSystem.Instance.TriggerAbilityCutIn( attacker );
                         atk = atk * 1.5f;
+                        Debug.Log( $"Guts is active! Attack after: {atk}" );
                     }
 
                     return atk;
@@ -476,7 +477,27 @@ public class AbilityDB
                 //--therefore the effects are applied or removed in their respective WeatherConditionsDB entry
                 OnAbilityTriggered = ( Pokemon pokemon ) =>
                 {
+                    // BattleSystem.Instance.SetBattleFlag( BattleFlag.SpeedChange, true );
                     // BattleSystem.Instance.TriggerAbilityCutIn( pokemon ); //--This shit pops up every turn the weather is active, now i know why cart doesn't do this lol. i'll use it for the hud ability display if i implement that.
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    if( field.Weather?.ID == WeatherConditionID.SUNNY )
+                    {
+                        Debug.Log( $"{pokemon.NickName}'s Chlorophyll is active!" );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
+                    }
+                },
+
+                OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    Debug.Log( $"{pokemon.NickName}'s Chlorophyll is no longer active!" );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                 },
             }
         },
@@ -490,7 +511,27 @@ public class AbilityDB
                 //--therefore the effects are applied or removed in their respective WeatherConditionsDB entry
                 OnAbilityTriggered = ( Pokemon pokemon ) =>
                 {
+                    // BattleSystem.Instance.SetBattleFlag( BattleFlag.SpeedChange, true );
                     // BattleSystem.Instance.TriggerAbilityCutIn( pokemon ); //--This shit pops up every turn the weather is active, now i know why cart doesn't do this lol. i'll use it for the hud ability display if i implement that.
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    if( field.Weather?.ID == WeatherConditionID.RAIN )
+                    {
+                        Debug.Log( $"{pokemon.NickName}'s Swift Swim is active!" );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
+                    }
+                },
+
+                OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    Debug.Log( $"{pokemon.NickName}'s Swift Swim is no longer active!" );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                 },
             }
         },
@@ -504,7 +545,27 @@ public class AbilityDB
                 //--therefore the effects are applied or removed in their respective WeatherConditionsDB entry
                 OnAbilityTriggered = ( Pokemon pokemon ) =>
                 {
+                    // BattleSystem.Instance.SetBattleFlag( BattleFlag.SpeedChange, true );
                     // BattleSystem.Instance.TriggerAbilityCutIn( pokemon ); //--This shit pops up every turn the weather is active, now i know why cart doesn't do this lol. i'll use it for the hud ability display if i implement that.
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    if( field.Weather?.ID == WeatherConditionID.SANDSTORM )
+                    {
+                        Debug.Log( $"{pokemon.NickName}'s Sand Rush is active!" );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
+                    }
+                },
+
+                OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    Debug.Log( $"{pokemon.NickName}'s Sand Rush is no longer active!" );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                 },
             }
         },
@@ -518,7 +579,298 @@ public class AbilityDB
                 //--therefore the effects are applied or removed in their respective WeatherConditionsDB entry
                 OnAbilityTriggered = ( Pokemon pokemon ) =>
                 {
+                    // BattleSystem.Instance.SetBattleFlag( BattleFlag.SpeedChange, true );
                     // BattleSystem.Instance.TriggerAbilityCutIn( pokemon ); //--This shit pops up every turn the weather is active, now i know why cart doesn't do this lol. i'll use it for the hud ability display if i implement that.
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    if( field.Weather?.ID == WeatherConditionID.SNOW )
+                    {
+                        Debug.Log( $"{pokemon.NickName}'s Slush Rush is active!" );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
+                    }
+                },
+
+                OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
+                {
+                    Debug.Log( $"{pokemon.NickName}'s Slush Rush is no longer active!" );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
+                },
+            }
+        },
+        {
+            AbilityID.Insomnia, new()
+            {
+                Name = "Insomnia",
+                Description = "Prevents the Pokemon from falling asleep.",
+
+                OnTrySetSevereStatus = ( StatusConditionID id, Pokemon pokemon, EffectSource effectSource ) =>
+                {
+                    if( id == StatusConditionID.SLP )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Insomnia prevents it from falling asleep!" );
+
+                        return false;
+                    }
+                    else
+                        return true;
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> opponents, Battlefield field ) =>
+                {
+                    if( pokemon.SevereStatus?.ID == StatusConditionID.SLP )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Vital Spirit wakes it from sleep!" );
+                        pokemon.CureSevereStatus();
+                    }
+                },
+            }  
+        },
+        {
+            AbilityID.VitalSpirit, new()
+            {
+                Name = "Vital Spirit",
+                Description = "Prevents the Pokemon from falling asleep.",
+
+                OnTrySetSevereStatus = ( StatusConditionID id, Pokemon pokemon, EffectSource effectSource ) =>
+                {
+                    if( id == StatusConditionID.SLP )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Vital Spirit prevents it from falling asleep!" );
+
+                        return false;
+                    }
+                    else
+                        return true;
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> opponents, Battlefield field ) =>
+                {
+                    if( pokemon.SevereStatus?.ID == StatusConditionID.SLP )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Vital Spirit wakes it from sleep!" );
+                        pokemon.CureSevereStatus();
+                    }
+                },
+            }  
+        },
+        {
+            AbilityID.Immunity, new()
+            {
+                Name = "Immunity",
+                Description = "Prevents the Pokemon from being poisoned.",
+
+                OnTrySetSevereStatus = ( StatusConditionID id, Pokemon pokemon, EffectSource effectSource ) =>
+                {
+                    if( id == StatusConditionID.PSN )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Immunity prevents it from being poisoned!" );
+
+                        return false;
+                    }
+                    else
+                        return true;
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> opponents, Battlefield field ) =>
+                {
+                    if( pokemon.SevereStatus?.ID == StatusConditionID.PSN )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Immunity cures its poisoning!" );
+                        pokemon.CureSevereStatus();
+                    }
+                },
+            }  
+        },
+        {
+            AbilityID.Limber, new()
+            {
+                Name = "Limber",
+                Description = "Prevents the Pokemon from being paralyzed.",
+
+                OnTrySetSevereStatus = ( StatusConditionID id, Pokemon pokemon, EffectSource effectSource ) =>
+                {
+                    if( id == StatusConditionID.PAR )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Limber prevents it from being paralyzed!" );
+
+                        return false;
+                    }
+                    else
+                        return true;
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> opponents, Battlefield field ) =>
+                {
+                    if( pokemon.SevereStatus?.ID == StatusConditionID.PAR )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Limber cures its paralysis!" );
+                        pokemon.CureSevereStatus();
+                    }
+                },
+            }  
+        },
+        {
+            AbilityID.WaterVeil, new()
+            {
+                Name = "Water Veil",
+                Description = "Prevents the Pokemon from being burned.",
+
+                OnTrySetSevereStatus = ( StatusConditionID id, Pokemon pokemon, EffectSource effectSource ) =>
+                {
+                    if( id == StatusConditionID.BRN )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Water Veil prevents it from being burned!" );
+
+                        return false;
+                    }
+                    else
+                        return true;
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> opponents, Battlefield field ) =>
+                {
+                    if( pokemon.SevereStatus?.ID == StatusConditionID.BRN )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Water Veil cures its Burn!" );
+                        pokemon.CureSevereStatus();
+                    }
+                },
+            }  
+        },
+        {
+            AbilityID.OwnTempo, new()
+            {
+                Name = "Own Tempo",
+                Description = "Prevents the Pokemon from being confused.",
+
+                OnTrySetVolatileStatus = ( StatusConditionID id, Pokemon pokemon, EffectSource effectSource ) =>
+                {
+                    if( id == StatusConditionID.CONFUSION )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Own Tempo prevents it from being confused!" );
+
+                        return false;
+                    }
+                    else
+                        return true;
+                },
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> opponents, Battlefield field ) =>
+                {
+                    if( pokemon.SevereStatus?.ID == StatusConditionID.CONFUSION )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( pokemon );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s Own Tempo cures its confusion!" );
+                        pokemon.CureSevereStatus();
+                    }
+                },
+            }  
+        },
+        {
+            AbilityID.FlameBody, new()
+            {
+                Name = "Flame Body",
+                Description = "Contact with the Pokémon may burn the attacker.",
+
+                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                {
+                    if( move.MoveSO.HasFlag( MoveFlags.Contact ) && Random.Range( 1, 101 ) <= 30 )
+                    {
+                        attacker.Pokemon.SetSevereStatus( StatusConditionID.BRN, EffectSource.Ability );
+                    }
+                },
+            }
+        },
+        {
+            AbilityID.PoisonPoint, new()
+            {
+                Name = "Poison Point",
+                Description = "Contact with the Pokémon may poison the attacker.",
+
+                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                {
+                    if( move.MoveSO.HasFlag( MoveFlags.Contact ) && Random.Range( 1, 101 ) <= 30 )
+                    {
+                        attacker.Pokemon.SetSevereStatus( StatusConditionID.PSN, EffectSource.Ability );
+                    }
+                },
+            }
+        },
+        {
+            AbilityID.Static, new()
+            {
+                Name = "Static",
+                Description = "The Pokémon is charged with static electricity and may paralyze attackers that make direct contact with it.",
+
+                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                {
+                    if( move.MoveSO.HasFlag( MoveFlags.Contact ) && Random.Range( 1, 101 ) <= 30 )
+                    {
+                        attacker.Pokemon.SetSevereStatus( StatusConditionID.PAR, EffectSource.Ability );
+                    }
+                },
+            }
+        },
+        {
+            AbilityID.Adaptability, new()
+            {
+                Name = "Adaptability",
+                Description = "Powers up moves of the same type as the Pokémon.",
+
+                OnSTABModify = ( Pokemon pokemon, Move move ) =>
+                {
+                    if( pokemon.CheckTypes( move.MoveType ) )
+                        return 2f;
+                    else
+                        return 1f;
+                },
+            }
+        },
+        {
+            AbilityID.Pixilate, new()
+            {
+                Name = "Pixilate",
+                Description = "Normal-type moves become Fairy-type moves. The power of those moves is boosted by 1.2x.",
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
+                {
+                    foreach( var move in pokemon.ActiveMoves )
+                    {
+                        if( move.MoveSO.Type == PokemonType.Normal )
+                        {
+                            move.OverrideMoveType( PokemonType.Fairy );
+                            move.OverrideMovePower( Mathf.FloorToInt( move.MoveSO.Power * 1.2f ) );
+                        }
+                    }
+                },
+
+                OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
+                {
+                    foreach( var move in pokemon.ActiveMoves )
+                    {
+                        if( move.MoveSO.Type == PokemonType.Normal && move.MoveType == PokemonType.Fairy)
+                        {
+                            move.OverrideMoveType( PokemonType.Normal );
+                            move.OverrideMovePower( Mathf.FloorToInt( move.MoveSO.Power ) );
+                        }
+                    }
                 },
             }
         },
@@ -572,6 +924,30 @@ public enum AbilityID
     Drizzle,
     SnowWarning,
     Sandstream,
+
+    SheerForce,
+
+    Insomnia,
+    VitalSpirit,
+    Immunity,
+    Limber,
+    WaterVeil,
+    OwnTempo,
+
+//--Chance to cause a status on Contact
+    FlameBody,
+    PoisonPoint,
+    Static,
+
+//--Move Type Changing Abilities
+    Pixilate,
+    LiquidVoice,
+    BurnUp,
+    Electrify,
+
+//--Adaptability
+    Adaptability,
+
 
 
 }

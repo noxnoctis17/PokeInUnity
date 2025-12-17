@@ -17,29 +17,32 @@ MonoBehaviour:
     on the first turn each time the user enters battle.
   _moveCategory: 0
   _moveTarget: 0
-  _moveType: 0
+  _moveType: 1
   _power: 40
   _accuracy: 100
   _alwaysHits: 0
   _pp: 10
-  _movePriority: 3
+  _movePriority: 10
   _critBehavior: 0
   _recoil:
     RecoilType: 0
     RecoilDamage: 0
   _drainPercentage: 0
   _hitRange: {x: 0, y: 0}
+  _flags: 02000000
   _moveEffects:
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _courtCondition: 0
   _secondaryMoveEffects:
   - _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 9
     _weather: 0
+    _courtCondition: 0
     _chance: 100
     _target: 0
