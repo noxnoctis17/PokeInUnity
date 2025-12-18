@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - VirtualCamera
+  - WildPokemon
+  - SunLight
+  - MAST_Holder
+  - FxTemporaire
+  - InitializeMeDaddy
+  - JumpCollider
+  - LedgeCollider
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - Post-Processing
+  - Water
+  - UI
+  - Player
+  - Unwalkable
+  - SeeThrough
+  - BattleSystem
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: SpriteShadows
+    uniqueID: 3007664209
+    locked: 0
+  - name: Player
+    uniqueID: 677566043
+    locked: 0
+  - name: DamagePopupText
+    uniqueID: 3405590665
+    locked: 0
+  - name: WorldSpace_UI
+    uniqueID: 59394171
+    locked: 0
