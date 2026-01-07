@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b7600c31e1ae6d4bb41f45a6fd300d3, type: 3}
+  m_Name: Body Press
+  m_EditorClassIdentifier: 
+  _moveName: Body Press
+  _description: ' The user attacks by slamming its body into the target. The higher
+    the user''s Defense stat, the greater the damage this move deals.'
+  _moveCategory: 0
+  _moveTarget: 0
+  _moveType: 7
+  _animationType: 1
+  _statOverride: 1
+  _power: 80
+  _accuracy: 100
+  _alwaysHits: 0
+  _pp: 10
+  _movePriority: 7
+  _critBehavior: 0
+  _recoil:
+    RecoilType: 0
+    RecoilDamage: 0
+  _drainPercentage: 0
+  _hitRange: {x: 0, y: 0}
+  _flags: 02000000
+  _moveEffects:
+    _statChangeList: []
+    _severeStatus: 0
+    _volatileStatus: 0
+    _transientStatus: 0
+    _weather: 0
+    _courtCondition: 0
+    _switchEffect:
+      SwitchType: 0
+  _secondaryMoveEffects: []

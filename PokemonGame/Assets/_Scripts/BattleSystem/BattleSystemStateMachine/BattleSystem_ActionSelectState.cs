@@ -50,7 +50,7 @@ public class BattleSystem_ActionSelectState : State<BattleSystem>
     private void IncreaseCommandCount()
     {
 
-        if( _commands < _battleSystem.UnitsInBattle )
+        if( _commands < _battleSystem.ActivePlayerUnitsCount )
             _commands++;
 
     }

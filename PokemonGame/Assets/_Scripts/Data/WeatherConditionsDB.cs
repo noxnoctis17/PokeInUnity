@@ -51,14 +51,29 @@ public class WeatherConditionsDB
                         {
                             pokemon.Ability?.OnAbilityEnter?.Invoke( pokemon, null, BattleSystem.Instance.Field );
                         }
+
+                        //--Solar Power
+                        if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SolarPower )
+                        {
+                            Debug.Log( $"{pokemon.NickName}'s Solar Power has been activated!" );
+                            pokemon.ApplyDirectStatModifier( Stat.SpAttack, DirectModifierCause.SolarPower, 1.5f );
+                        }
                     },
 
                     OnExitWeather = ( Pokemon pokemon ) =>
                     {
+                        //--Chlorophyll
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.Chlorophyll )
                         {
                             pokemon.Ability?.OnAbilityExit?.Invoke( pokemon, null, BattleSystem.Instance.Field );
+                        }
+
+                        //--Solar Power
+                        if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SolarPower )
+                        {
+                            Debug.Log( $"{pokemon.NickName}'s Solar Power has gone out!" );
+                            pokemon.RemoveDirectStatModifier( Stat.SpAttack, DirectModifierCause.SolarPower );
                         }
                     },
 

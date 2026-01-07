@@ -10,7 +10,7 @@ public class PlayerSaving : MonoBehaviour, ISavable
 
         var saveData = new PlayerSaveData(){
             SavedPosition = new float[] { playerPosition.x, playerPosition.y, playerPosition.z },
-            PlayerParty = playerParty.PartyPokemon.Select( p => p.CreateSaveData() ).ToList(),
+            PlayerParty = playerParty.Party.Select( p => p.CreateSaveData() ).ToList(),
         };
 
         return saveData;

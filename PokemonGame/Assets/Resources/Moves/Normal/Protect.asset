@@ -18,6 +18,8 @@ MonoBehaviour:
   _moveCategory: 2
   _moveTarget: 1
   _moveType: 1
+  _animationType: 3
+  _statOverride: 0
   _power: 0
   _accuracy: 100
   _alwaysHits: 1
@@ -29,6 +31,7 @@ MonoBehaviour:
     RecoilDamage: 0
   _drainPercentage: 0
   _hitRange: {x: 0, y: 0}
+  _flags: 
   _moveEffects:
     _statChangeList: []
     _severeStatus: 0
@@ -36,6 +39,8 @@ MonoBehaviour:
     _transientStatus: 0
     _weather: 0
     _courtCondition: 0
+    _switchEffect:
+      SwitchType: 0
   _secondaryMoveEffects:
   - _statChangeList: []
     _severeStatus: 0
@@ -43,5 +48,7 @@ MonoBehaviour:
     _transientStatus: 10
     _weather: 0
     _courtCondition: 0
+    _switchEffect:
+      SwitchType: 0
     _chance: 100
     _target: 1

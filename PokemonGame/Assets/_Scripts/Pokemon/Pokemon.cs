@@ -16,6 +16,12 @@ public class Pokemon
     [SerializeField] private int _currentAbilityIndex = 0; //--Might change these to a singular AbilityID instead of playing around with indicies, let's see how the rest of the implementation goes...
     [SerializeField] private ItemSO _heldItem;    
     [SerializeField] private int _gainedEffortPoints;
+    [SerializeField] private int _hpEVs = 0;
+    [SerializeField] private int _atkEVs = 0;
+    [SerializeField] private int _defEVs = 0;
+    [SerializeField] private int _spatkEVs = 0;
+    [SerializeField] private int _spdefEVs = 0;
+    [SerializeField] private int _speEVs = 0;
 //==============================================================================
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
@@ -34,10 +40,11 @@ public class Pokemon
     public Sprite CurrentBallSprite => PokeBallIconAtlas.PokeBallIcons[CurrentBallType];
     [SerializeField] private List<Move> _activeMoves;
     [SerializeField] private List<Move> _learnedMoves;
+    [SerializeField] private List<Move> _preSelectedMoves;
     public List<Move> ActiveMoves => _activeMoves;
     public List<Move> LearnedMoves => _learnedMoves;
     public Dictionary<Stat, int> Stats { get; private set; }
-    public Dictionary<Stat, int> StatEVs { get; private set; } //--Consider moving EV variables to a dictionary instead!
+    public Dictionary<Stat, int> EffortValues { get; private set; } //--Consider moving EV variables to a dictionary instead!
     public Dictionary<Stat, int> StatStage { get; private set; }
     public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers { get; private set; }
     public StatusCondition SevereStatus { get; private set; }
@@ -56,12 +63,12 @@ public class Pokemon
 //--------------------------------------------------------------------------------------------
 
     //--Stats
-    public int MaxHP =>     GetStat( Stat.HP );
-    public int Attack =>    GetStat( Stat.Attack );
-    public int Defense =>   GetStat( Stat.Defense );
-    public int SpAttack =>  GetStat( Stat.SpAttack );
-    public int SpDefense => GetStat( Stat.SpDefense );
-    public int Speed =>     GetStat( Stat.Speed );
+    public int MaxHP =>         GetStat( Stat.HP );
+    public int Attack =>        GetStat( Stat.Attack );
+    public int Defense =>       GetStat( Stat.Defense );
+    public int SpAttack =>      GetStat( Stat.SpAttack );
+    public int SpDefense =>     GetStat( Stat.SpDefense );
+    public int Speed =>         GetStat( Stat.Speed );
 
     //--Direct Stat Modifier (burn, paralyze, ruin abilities, etc. )
     public float HP_Modifier { get; private set; }
@@ -72,12 +79,12 @@ public class Pokemon
 //--------------------------------------------------------------------------------------------
     public int GainedEffortPoints => _gainedEffortPoints;
     public int RemainingEffortPoints { get; private set; }
-    public int HP_EVs { get; private set; }
-    public int ATK_EVs { get; private set; }
-    public int DEF_EVs { get; private set; }
-    public int SPATK_EVs { get; private set; }
-    public int SPDEF_EVs { get; private set; }
-    public int SPE_EVs { get; private set; }
+    public int HP_EVs =>        GetEVs( Stat.HP );
+    public int ATK_EVs =>       GetEVs( Stat.Attack );
+    public int DEF_EVs =>       GetEVs( Stat.Defense );
+    public int SPATK_EVs =>     GetEVs( Stat.SpAttack );
+    public int SPDEF_EVs =>     GetEVs( Stat.SpDefense );
+    public int SPE_EVs =>       GetEVs( Stat.Speed );
 
 //--------------------------------------------------------------------------------------------
 //------------------------------------[ CONSTRUCTORS ]----------------------------------------
@@ -91,21 +98,29 @@ public class Pokemon
     }
 
     public Pokemon( PokemonSaveData saveData ){
-        _pokeSO                 = PokemonDB.GetPokemonBySpecies( saveData.Species );
+        _pokeSO                 = PokemonDB.GetPokemonBySpecies( ( saveData.Species, saveData.Form ) );
         _nickName               = saveData.NickName;
         _level                  = saveData.Level;
+        _currentAbilityIndex    = saveData.CurrentAbilityIndex;
+        _heldItem               = ItemsDB.GetItemByName( saveData.HeldItem );
         CanEvolveByLevelUp      = saveData.CanEvolveByLevelUp;
         CurrentHP               = saveData.CurrentHP;
         Exp                     = saveData.Exp;
         _gainedEffortPoints     = saveData.GainedEffortPoints;
+        RemainingEffortPoints   = saveData.RemainingEffortPoints;
         _currentBallType        = saveData.CurrentBall;
-        HP_EVs                  = saveData.HP_EVs;
-        ATK_EVs                 = saveData.ATK_EVs;
-        DEF_EVs                 = saveData.DEF_EVs;
-        SPATK_EVs               = saveData.SPATK_EVs;
-        SPDEF_EVs               = saveData.SPDEF_EVs;
-        SPE_EVs                 = saveData.SPE_EVs;
         IsPlayerUnit            = saveData.IsPlayerUnit;
+
+        InitializeEVs();
+        AssignEVs( Stat.HP,         saveData.HP_EVs, true );
+        AssignEVs( Stat.Attack,     saveData.ATK_EVs, true );
+        AssignEVs( Stat.Defense,    saveData.DEF_EVs, true );
+        AssignEVs( Stat.SpAttack,   saveData.SPATK_EVs, true );
+        AssignEVs( Stat.SpDefense,  saveData.SPDEF_EVs, true );
+        AssignEVs( Stat.Speed,      saveData.SPE_EVs, true );
+
+        GetCurrentAbility();
+        SetupBattleItem();
 
         if( saveData.SevereStatus != null ){
             SevereStatus = StatusConditionsDB.Conditions[saveData.SevereStatus.Value];
@@ -122,6 +137,7 @@ public class Pokemon
 
         ResetStatChanges();
         VolatileStatus = null;
+        TransientStatus = null;
 
         StatusChanges = new Queue<StatusEvent>();
     }
@@ -134,38 +150,55 @@ public class Pokemon
         //--Set Name
         _nickName = PokeSO.Species;
         GetCurrentAbility();
-        //--Hard coded items for testing. make a give function for inventory and bag screen!!
-        // if( PokeSO.Species == "Knighinum" )
-        // {
-        //     _heldItem = ItemsDB.GetItemByName( "Choice Band" );
-        //     Debug.Log( $"{NickName}'s Held Item is: {_heldItem.ItemName}" );
-        // }
         SetupBattleItem();
 
         //--------GENERATE MOVES-----------
+        bool populateActiveMoves = true;
+        if( _preSelectedMoves != null && _preSelectedMoves.Count > 0 )
+            populateActiveMoves = false;
+
         _activeMoves = new List<Move>();
         _learnedMoves = new List<Move>();
         foreach( var move in PokeSO.LearnableMoves ){
             //--Add moves from the most recent down, i think until we reach max active moves
             //--once we reach max active moves, if there's still more moves we should learn
             //--from our learnset via levelup, add them to the LearnedMoves list for access later
-            if( move.LevelLearned <= Level && ActiveMoves.Count < PokemonSO.MAX_ACTIVE_MOVES ){
+            if( move.LevelLearned <= Level && ActiveMoves.Count < PokemonSO.MAX_ACTIVE_MOVES && populateActiveMoves ){
                 ActiveMoves.Add( new Move( move.MoveSO ) );
             }
             else if( move.LevelLearned <= Level && ActiveMoves.Count == PokemonSO.MAX_ACTIVE_MOVES )
                 LearnedMoves.Add( new Move( move.MoveSO ) );
         }
 
+        if( !populateActiveMoves && _preSelectedMoves.Count > 0 )
+        {
+            foreach( var move in _preSelectedMoves )
+            {
+                ActiveMoves.Add( new( move.MoveSO ) );
+            }
+        }
+
+
         //--Exp
         if( Exp == 0 )
             Exp = PokeSO.GetExpForLevel( Level );
 
-        //--Stats and Status
+        //--Evolve by level Flag
+        if( CheckForEvolution() != null )
+            CanEvolveByLevelUp = true;
+
+        //--Stats
+        _gainedEffortPoints = 20;
+        RemainingEffortPoints = 20;
+        InitializeEVs();
         CalculateStats();
         ResetStatChanges();
         CurrentHP = MaxHP;
+
+        //--Status
         SevereStatus = null;
         VolatileStatus = null;
+        TransientStatus = null;
 
         StatusChanges = new Queue<StatusEvent>();
 
@@ -179,12 +212,16 @@ public class Pokemon
     public PokemonSaveData CreateSaveData(){
         var saveData = new PokemonSaveData(){
             Species = _pokeSO.Species,
+            Form = _pokeSO.Form,
             NickName = _nickName,
             Level = _level,
+            CurrentAbilityIndex = _currentAbilityIndex,
+            HeldItem = _heldItem.ItemName,
             CanEvolveByLevelUp = CanEvolveByLevelUp,
             CurrentHP = CurrentHP,
             Exp = Exp,
             GainedEffortPoints = GainedEffortPoints,
+            RemainingEffortPoints = RemainingEffortPoints,
             CurrentBall = CurrentBallType,
             HP_EVs = HP_EVs,
             ATK_EVs = ATK_EVs,
@@ -241,13 +278,21 @@ public class Pokemon
         return false;
     }
 
-    public void GainExp( int gainedExp, int gainedEP ){
-        _gainedEffortPoints += gainedEP;
-
+    public void GainExp( int gainedExp )
+    {
         if( _level == PokemonSO.MAXLEVEL )
             return;
             
         Exp += gainedExp;
+    }
+
+    public void GainEP( int gainedEP )
+    {
+        if( _gainedEffortPoints >= 508 )
+            return;
+
+        _gainedEffortPoints += gainedEP;
+        RemainingEffortPoints += gainedEP;
     }
 
     //--disabled for now just to shut up trylearnmove, will be used for out of battle leveling via candies n shit
@@ -321,7 +366,15 @@ public class Pokemon
             return true;
         }
         else
+            LearnedMoves.Add( new Move( newMove ) );
             return false;
+    }
+
+    public void LearnLevelUpMove( MoveSO newMove ){
+        if( ActiveMoves.Count < PokemonSO.MAX_ACTIVE_MOVES )
+            ActiveMoves.Add( new Move( newMove ) );
+        else
+            LearnedMoves.Add( new Move( newMove ) );
     }
 
     public void TryReplaceMove( MoveSO newMove, ILearnMoveContext moveMenu, Action<bool> learnMoveComplete, BattleSystem battleSystem ){
@@ -344,7 +397,6 @@ public class Pokemon
             }
         }
     }
-
     public bool CheckHasMove( MoveSO move ){
         return ActiveMoves.Count( m => m.MoveSO == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO == move ) > 0;
     }
@@ -358,45 +410,81 @@ public class Pokemon
     }
 
     private void CalculateStats(){
+        int iv = 31;
+        int nature = 1;
+
         Stats = new()
         {
-            { Stat.HP,        Mathf.FloorToInt( 2 * PokeSO.MaxHP     * ( MathF.Max( CalcEVs( HP_EVs ),    1f ) * Level ) / 100f + Level ) + 10 },
-            { Stat.Attack,    Mathf.FloorToInt( 2 * PokeSO.Attack    * ( MathF.Max( CalcEVs( ATK_EVs ),   1f ) * Level ) / 100f ) + 5 },
-            { Stat.Defense,   Mathf.FloorToInt( 2 * PokeSO.Defense   * ( MathF.Max( CalcEVs( DEF_EVs ),   1f ) * Level ) / 100f ) + 5 },
-            { Stat.SpAttack,  Mathf.FloorToInt( 2 * PokeSO.SpAttack  * ( MathF.Max( CalcEVs( SPATK_EVs ), 1f ) * Level ) / 100f ) + 5 },
-            { Stat.SpDefense, Mathf.FloorToInt( 2 * PokeSO.SpDefense * ( MathF.Max( CalcEVs( SPDEF_EVs ), 1f ) * Level ) / 100f ) + 5 },
-            { Stat.Speed,     Mathf.FloorToInt( 2 * PokeSO.Speed     * ( MathF.Max( CalcEVs( SPE_EVs ),   1f ) * Level ) / 100f ) + 5 },
+            { Stat.HP,        Mathf.FloorToInt( ( ( 2 * PokeSO.MaxHP     + iv + CalcEVs( HP_EVs )  ) * Level / 100f + Level ) + 10 ) },
+            { Stat.Attack,    Mathf.FloorToInt( ( ( ( 2 * PokeSO.Attack    + iv + CalcEVs( ATK_EVs )   ) * Level / 100f ) + 5 ) * nature ) },
+            { Stat.Defense,   Mathf.FloorToInt( ( ( ( 2 * PokeSO.Defense   + iv + CalcEVs( DEF_EVs )   ) * Level / 100f ) + 5 ) * nature ) },
+            { Stat.SpAttack,  Mathf.FloorToInt( ( ( ( 2 * PokeSO.SpAttack  + iv + CalcEVs( SPATK_EVs ) ) * Level / 100f ) + 5 ) * nature ) },
+            { Stat.SpDefense, Mathf.FloorToInt( ( ( ( 2 * PokeSO.SpDefense + iv + CalcEVs( SPDEF_EVs ) ) * Level / 100f ) + 5 ) * nature ) },
+            { Stat.Speed,     Mathf.FloorToInt( ( ( ( 2 * PokeSO.Speed     + iv + CalcEVs( SPE_EVs )   ) * Level / 100f ) + 5 ) * nature ) },
         };
     }
 
-    //--Not in use yet
-    private void InitializeEVs( Stat stat, int points ){
-        StatEVs = new()
+    private void InitializeEVs(){
+        EffortValues = new()
         {
-            { Stat.HP,          0 },
-            { Stat.Attack,      0 },
-            { Stat.Defense,     0 },
-            { Stat.SpAttack,    0 },
-            { Stat.SpDefense,   0 },
-            { Stat.Speed,       0 },
+            { Stat.HP,          _hpEVs },
+            { Stat.Attack,      _atkEVs },
+            { Stat.Defense,     _defEVs },
+            { Stat.SpAttack,    _spatkEVs },
+            { Stat.SpDefense,   _spdefEVs },
+            { Stat.Speed,       _speEVs },
         };
     }
 
     private float CalcEVs( int statEVs ){
-        int value = statEVs / 4;
+        float ev = statEVs;
+        float value = ev / 4;
 
         return Mathf.FloorToInt( value );
     }
 
     private int GetEVs( Stat stat ){
-        return 0;
+        return EffortValues[stat];
     }
 
-    private void GiveEVs( Stat stat, int amount ){
-        if( StatEVs.ContainsKey( stat ) && StatEVs[stat] != 252 )
-            Mathf.Clamp( StatEVs[stat] += amount, 0, 252 );
-        else if( StatEVs[stat] == 252 )
+    public void AssignEVs( Stat stat, int amount, bool loading = false )
+    {
+        if( !EffortValues.ContainsKey( stat ) )
+            return;
+
+        if( loading )
+        {
+            EffortValues[stat] = Mathf.Clamp( EffortValues[stat] + amount, 0, 252 );
+            return;
+        }
+
+        if( EffortValues[stat] >= 252 )
+        {
             DialogueManager.Instance.PlaySystemMessage( $"{_nickName}'s {stat} is maxed out!" );
+            return;
+        }
+
+        int currentEVs = EffortValues[stat];
+        
+        if( amount > 0 )
+        {
+            //--Remove from pool, add to Stat
+            int maxAdd = 252 - currentEVs;
+            int add = Mathf.Min( amount, maxAdd, RemainingEffortPoints );
+
+            EffortValues[stat] += add;
+            RemainingEffortPoints -= add;
+        }
+        else if( amount < 0 )
+        {
+            //--Remove from stat, add to pool
+            int maxReturn = Mathf.Min( Mathf.Abs( amount ), currentEVs );
+            
+            EffortValues[stat] -= maxReturn;
+            RemainingEffortPoints += maxReturn;
+        }
+
+        RemainingEffortPoints = Mathf.Clamp( RemainingEffortPoints, 0, _gainedEffortPoints );
     }
 
     private int GetStat( Stat stat ){
@@ -441,15 +529,15 @@ public class Pokemon
             Debug.Log( $"{NickName}'s {stat} is now {GetStat( stat )}!" );
 
             if( change == 1 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} rose by {change} stage!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} rose by {Mathf.Abs( change )} stage!" );
             if( change > 1 && change < 6 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply rose by {change} stages!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply rose by {Mathf.Abs( change )} stages!" );
             if( change == 6 )
                 AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} has maxed out!" );
             if( change == -1 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} decreased by {change} stage!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} decreased by {Mathf.Abs( change )} stage!" );
             if( change < -1 && change > -6 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply decreased by {change} stages!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply decreased by {Mathf.Abs( change )} stages!" );
             if( change == -6 )
                 AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} has bottomed out!" );
         }
@@ -719,6 +807,11 @@ public class Pokemon
         CurrentHP = MaxHP;
     }
 
+    public void StatUpdated()
+    {
+        CalculateStats();
+    }
+
     public bool IsFainted()
     {
         return CurrentHP <= 0 || SevereStatus?.ID == StatusConditionID.FNT;
@@ -743,6 +836,8 @@ public enum DirectModifierCause
     WeatherDEF, WeatherSpDEF, WeatherSPD,
     Tailwind, Reflect, LightScreen,
     ChoiceBand, ChoiceSpecs, ChoiceScarf,
+    LightBall, Guts, MarvelScale,
+    SolarPower,
 
 }
 
@@ -758,13 +853,17 @@ public class DamageDetails
 public class PokemonSaveData
 {
     public string Species;
+    public int Form;
     public string NickName;
     public int Level;
+    public int CurrentAbilityIndex;
+    public string HeldItem;
     public bool CanEvolveByLevelUp;
     public PokeBallType CurrentBall;
     public int CurrentHP;
     public int Exp;
     public int GainedEffortPoints;
+    public int RemainingEffortPoints;
     public int HP_EVs;
     public int ATK_EVs;
     public int DEF_EVs;

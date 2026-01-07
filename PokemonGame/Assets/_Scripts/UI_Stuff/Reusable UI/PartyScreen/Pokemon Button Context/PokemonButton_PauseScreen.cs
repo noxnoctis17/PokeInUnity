@@ -17,38 +17,60 @@ public class PokemonButton_PauseScreen : MonoBehaviour, IPokemonButtonContext
         _follower = PlayerReferences.Instance.FollowerPokemon;
     }
     
-    public void ContextSubmit(){
-        if( _pokemon.CanEvolveByLevelUp && _pokemon.CheckForEvolution() != null )
-            StartCoroutine( TriggerEvolution() );
+    public void ContextSubmit()
+    {
+        _pokemonScreen.SetAsLastButton( _pkmnButton.ThisButton );
+
+        if( _pokemonScreen.IsSwitchingPokemon )
+        {
+            if( _pokemon == _pokemonScreen.PokemonOptionMenu.ContextPokemon )
+            {
+                DialogueManager.Instance.PlaySystemMessage( $"You have to select a different Pokemon!", true );
+                return;
+            }
+            else
+                _pokemonScreen.PokemonOptionMenu.SetSwitchToPokemon( _pokemon );
+        }
         else
         {
-            _follower.SetFollowerPokemon( _pokemon );
+            _pokemonScreen.StateMachine.PushState( _pokemonScreen.PokemonOptionMenu );
+            _pokemonScreen.PokemonOptionMenu.Init( _pokemonScreen, _partyDisplay, _pokemon, _pkmnButton );
         }
     }
 
-    public void ContextSelected(){
-
+    public void ContextSelected()
+    {
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
+        int i = _partyDisplay.GetIndex( _pkmnButton );
+        Vector3 rotate = new( 0f, 0f, 0f );
+        _partyDisplay.MemberSlots[i].AnimateBall( rotate );
+        _pokemonScreen.SetDisplayedPokemon( _pokemon );
     }
 
-    public void ContextDeSelected(){
-
+    public void ContextDeSelected()
+    {
+        int i = _partyDisplay.GetIndex( _pkmnButton );
+        Vector3 rotate = new( 0f, 0f, 45f );
+        _partyDisplay.MemberSlots[i].AnimateBall( rotate );
     }
 
     public void ContextCancel(){
-        StartCoroutine( _pkmnButton.WaitForCloseAnims() );
+        if( _pokemonScreen.IsSwitchingPokemon )
+        {
+            DialogueManager.Instance.PlaySystemMessage( $"You have to select a different Pokemon!" );
+            return;
+        }
+        else
+            StartCoroutine( _pkmnButton.WaitForCloseAnims() );
     }
 
     public void CloseContextMenu(){
-        _pokemonScreen.PauseMenuStateMachine.PopState();
+        if( _pokemonScreen.StateMachine.StateMachine.CurrentState == _pokemonScreen )
+            _pokemonScreen.StateMachine.PopState();
     }
 
-    private IEnumerator TriggerEvolution(){
-        _partyDisplay.SetPartyButtons_Interactable( false );
-        var evolution = _pokemon.CheckForEvolution();
-        GameStateController.Instance.PushGameState( EvolutionManager.Instance );
-        yield return EvolutionManager.Instance.Evolve( _pokemon, evolution );
-        _partyDisplay.SetPartyButtons_Interactable( true );
-        _pokemonScreen.LastButton.Select();
+    public void SetFollowerPokemon( FollowerPokemon follower )
+    {
+        _follower = follower;
     }
-
 }

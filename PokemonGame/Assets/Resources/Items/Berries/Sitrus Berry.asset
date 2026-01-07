@@ -16,7 +16,7 @@ MonoBehaviour:
   _itemName: Sitrus Berry
   _itemDescription: "A Berry to be consumed by Pok\xE9mon. If a Pok\xE9mon holds
     one, it can restore its own HP by a small amount during battle. "
-  _icon: {fileID: 0}
+  _icon: {fileID: 21300000, guid: 77c33b7727247514699b69e14568ac58, type: 3}
   _hasBattleEffect: 1
   _battleEffectID: 9
   _hpHealAmnt: 50

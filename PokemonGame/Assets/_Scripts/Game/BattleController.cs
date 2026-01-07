@@ -32,9 +32,17 @@ public class BattleController : MonoBehaviour
         //--Initialize Trainer Battle
         if( trainer.BattleType == BattleType.TrainerSingles )
             _battleSystem.InitializeTrainerSingles( trainer );
-            
+
         if( trainer.BattleType == BattleType.TrainerDoubles )
             _battleSystem.InitializeTrainerDoubles( trainer );
+    }
+
+    public void InitAITrainerBattle( Trainer topTrainer, Trainer bottomTrainer )
+    {
+        //--Push Game State
+        GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
         
+        if( topTrainer.BattleType == BattleType.AI_Singles )
+            _battleSystem.InitializeAISingles( topTrainer, bottomTrainer );
     }
 }

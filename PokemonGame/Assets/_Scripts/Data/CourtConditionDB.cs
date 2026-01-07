@@ -10,6 +10,7 @@ public class CourtConditionDB
           CourtConditionID.Tailwind, new( 4, 0 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
           {
             ID = CourtConditionID.Tailwind,
+            ConType = ConditionType.AllySide_Buff,
             StartMessage = "A tailwind blows from behind your team!",
             EndMessage = "The tailwind subsided.",
             //--Duration = 4,
@@ -96,6 +97,7 @@ public class CourtConditionDB
           CourtConditionID.Reflect, new( 5, 3 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
           {
             ID = CourtConditionID.Reflect,
+            ConType = ConditionType.AllySide_Buff,
             StartMessage = "A reflective screen will reduce incoming physical damage!",
             EndMessage = "The effects of Reflect have disappeared.",
             //--Duration = 4,
@@ -132,6 +134,7 @@ public class CourtConditionDB
           CourtConditionID.LightScreen, new( 5, 3 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
           {
             ID = CourtConditionID.LightScreen,
+            ConType = ConditionType.AllySide_Buff,
             StartMessage = "A screen of light will reduce incoming special damage!",
             EndMessage = "The effects of Light Screen have disappeared.",
             //--Duration = 4,
@@ -168,6 +171,7 @@ public class CourtConditionDB
           CourtConditionID.LeechSeed, new( 0, 0 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
           {
             ID = CourtConditionID.LeechSeed,
+            ConType = ConditionType.OpposingSide_Hazard,
             StartMessage = "The opposing side has been seeded!",
             EffectMessage = "Your opponents' health has been drained!",
             EndMessage = "The seeds have been cleared from the field.",
@@ -186,49 +190,107 @@ public class CourtConditionDB
                 //--Similar to how poison types will remove toxic spikes
             },
 
-            OnCourtEffect = ( BattleUnit target, Battlefield field, CourtLocation location ) =>
+            OnCourtEffect = ( BattleUnit unit, Battlefield field, CourtLocation location ) =>
             {
                 Debug.Log( "OnCourtEffect: Leech Seed" );
-                Pokemon user;
-                Pokemon opp;
+                Pokemon drainedUnit;
+                Pokemon healedUnit;
                 int stolenHP = 0;
-                if( field.GetUnitCourt( target ).Location == CourtLocation.TopCourt )
+
+                //--Leech seed drains hp from the effected court! it's correctly applied to the opposing court when used.
+                //--Here we check to see if the currently effected unit is in the top court. if it is, we have to drain its hp and give it to the
+                //--opposing unit on the bottom court.
+                if( field.GetUnitCourt( unit ).Location == CourtLocation.TopCourt )
                 {
-                    int unitIndex = field.ActiveCourts[CourtLocation.TopCourt].GetUnitIndex( target );
-                    user = field.ActiveCourts[CourtLocation.TopCourt].Units[unitIndex].Pokemon;
+                    int unitIndex = field.ActiveCourts[CourtLocation.TopCourt].GetUnitIndex( unit );
+                    drainedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[unitIndex].Pokemon;
+                    stolenHP = drainedUnit.MaxHP / 8;
+
                     if( unitIndex == 0 )
                     {
-                        opp = field.ActiveCourts[CourtLocation.BottomCourt].Units[0].Pokemon;
-                        stolenHP = opp.MaxHP / 8;
+                        if( field.ActiveCourts[CourtLocation.BottomCourt].Units[1] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1].Pokemon;
+                        
+                        else if( field.ActiveCourts[CourtLocation.BottomCourt].Units[1] == null && field.ActiveCourts[CourtLocation.BottomCourt].Units[0] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0].Pokemon;
+
+                        else
+                            healedUnit = null;
                     }
                     else
                     {
-                        opp = field.ActiveCourts[CourtLocation.BottomCourt].Units[1].Pokemon;
-                        stolenHP = opp.MaxHP / 8;
-                    }
+                        if( field.ActiveCourts[CourtLocation.BottomCourt].Units[0] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0].Pokemon;
 
+                        else if( field.ActiveCourts[CourtLocation.BottomCourt].Units[0] == null && field.ActiveCourts[CourtLocation.BottomCourt].Units[1] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1].Pokemon;
+
+                        else
+                            healedUnit = null;
+                    }
                 }
                 else
                 {
-                    int unitIndex = field.ActiveCourts[CourtLocation.BottomCourt].GetUnitIndex( target );
-                    user = field.ActiveCourts[CourtLocation.BottomCourt].Units[unitIndex].Pokemon;
+                    int unitIndex = field.ActiveCourts[CourtLocation.BottomCourt].GetUnitIndex( unit );
+                    drainedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[unitIndex].Pokemon;
+                    stolenHP = drainedUnit.MaxHP / 8;
+
                     if( unitIndex == 0 )
                     {
-                        opp = field.ActiveCourts[CourtLocation.TopCourt].Units[0].Pokemon;
-                        stolenHP = opp.MaxHP / 8;
+                        if( field.ActiveCourts[CourtLocation.TopCourt].Units[1] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1].Pokemon;
+                        
+                        else if( field.ActiveCourts[CourtLocation.TopCourt].Units[1] == null && field.ActiveCourts[CourtLocation.TopCourt].Units[0] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0].Pokemon;
+
+                        else
+                            healedUnit = null;
                     }
                     else
                     {
-                        opp = field.ActiveCourts[CourtLocation.TopCourt].Units[1].Pokemon;
-                        stolenHP = opp.MaxHP / 8;
+                        if( field.ActiveCourts[CourtLocation.TopCourt].Units[0] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0].Pokemon;
+
+                        else if( field.ActiveCourts[CourtLocation.TopCourt].Units[0] == null && field.ActiveCourts[CourtLocation.TopCourt].Units[1] != null )
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1].Pokemon;
+
+                        else
+                            healedUnit = null;
                     }
                 }
 
-                  opp.DecreaseHP( stolenHP );
-                  user.IncreaseHP( stolenHP );
-                  opp.AddStatusEvent( $"{opp.NickName} had its HP stolen by leech seed!" );
+                if( healedUnit != null )
+                {
+                    drainedUnit.DecreaseHP( stolenHP );
+                    healedUnit.IncreaseHP( stolenHP );
+                    drainedUnit.AddStatusEvent( StatusEventType.Damage, $"{drainedUnit.NickName} had its HP stolen by leech seed!" );
+                }
             },
 
+          }  
+        },
+        {
+          CourtConditionID.StealthRock, new( 0, 0 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
+          {
+            ID = CourtConditionID.StealthRock,
+            ConType = ConditionType.OpposingSide_Hazard,
+            StartMessage = "Sharp stones have been scattered on the opposing side of the field!",
+            EndMessage = "The sharp stones have been cleared from the field.",
+
+            OnStart = ( BattleSystem bs, Battlefield field, CourtLocation location, BattleUnit user ) =>
+            {
+                //--This is an entry hazard, and must be placed in the opposing court of the user!
+                var court = field.ActiveCourts[location];
+                court.Conditions[CourtConditionID.StealthRock].IsInfinite = true;
+            },
+
+            OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
+            {
+                float effectiveness = TypeChart.GetEffectiveness( PokemonType.Rock, unit.Pokemon.PokeSO.Type1 ) * TypeChart.GetEffectiveness( PokemonType.Rock, unit.Pokemon.PokeSO.Type2 );
+                float damage = ( unit.Pokemon.MaxHP / 8 ) * effectiveness;
+                unit.Pokemon.DecreaseHP( Mathf.FloorToInt( damage ) );
+                unit.Pokemon.AddStatusEvent( StatusEventType.Damage, $"Pointed stones dig into {unit.Pokemon.NickName}!" );
+            },
           }  
         },
     };

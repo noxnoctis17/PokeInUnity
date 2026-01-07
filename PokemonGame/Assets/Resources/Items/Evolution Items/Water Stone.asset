@@ -16,4 +16,6 @@ MonoBehaviour:
   _itemName: Water Stone
   _itemDescription: ' A peculiar stone that can make certain species of Pokemon evolve.
     It is the clear blue of a deep pool.'
-  _icon: {fileID: 1145607302, guid: 28095ff80a2131148a056d2126cb7c86, type: 3}
+  _icon: {fileID: 21300000, guid: eb8966233d29aa34baa6f5d911c0ab09, type: 3}
+  _hasBattleEffect: 0
+  _battleEffectID: 0

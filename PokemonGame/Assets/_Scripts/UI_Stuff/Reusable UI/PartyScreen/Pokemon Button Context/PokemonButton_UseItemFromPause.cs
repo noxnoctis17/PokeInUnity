@@ -44,12 +44,19 @@ public class PokemonButton_UseItemFromPause : MonoBehaviour, IPokemonButtonConte
         }
     }
 
-    public void ContextSelected(){
-        //--Arrow pointing and selected bounce animation start, from _partyDisplay
+    public void ContextSelected()
+    {
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
+        int i = _partyDisplay.GetIndex( _pkmnButton );
+        Vector3 rotate = new( 0f, 0f, 0f );
+        _partyDisplay.MemberSlots[i].AnimateBall( rotate );
     }
 
-    public void ContextDeSelected(){
-        //--Arrow pointing and selected bounce animation cancel, from _partyDisplay. probably don't need
+    public void ContextDeSelected()
+    {
+        int i = _partyDisplay.GetIndex( _pkmnButton );
+        Vector3 rotate = new( 0f, 0f, 45f );
+        _partyDisplay.MemberSlots[i].AnimateBall( rotate );
     }
 
     public void ContextCancel(){

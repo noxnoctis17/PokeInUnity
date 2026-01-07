@@ -16,6 +16,8 @@ MonoBehaviour:
   _itemName: Great Ball
   _itemDescription: A good, high-performance Poke Ball that provides a higher success
     rate for catching Pokemon than a standard Poke Ball. 1.5x Capture Rate.
-  _icon: {fileID: -222215688, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _icon: {fileID: 21300000, guid: 1fc37c0b66ec6d14798bae2427de7432, type: 3}
+  _hasBattleEffect: 0
+  _battleEffectID: 0
   _ballType: 1
   _catchRate: 1.5

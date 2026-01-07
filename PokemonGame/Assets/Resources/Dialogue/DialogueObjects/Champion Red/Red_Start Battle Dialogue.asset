@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed40aaee1b5ebb9489ba3949303be34d, type: 3}
+  m_Name: Red_Start Battle Dialogue
+  m_EditorClassIdentifier: 
+  _dialogueItem:
+  - _speakerName: Red
+    _dialogueSpeaker: 2
+    _dialogueColor: {fileID: 11400000, guid: 32640eb4e7474c943890e60a7f76ff9c, type: 2}
+    _leftPortrait_1: {fileID: 21300000, guid: 54a8c040590f5db4c88b5dd32e611670, type: 3}
+    _leftPortrait_2: {fileID: 0}
+    _rightPortrait_1: {fileID: -935719284, guid: 6b1db2ab1eea3644cabc59c43c993953, type: 3}
+    _rightPortrait_2: {fileID: 0}
+    _dialogue: ... ... ... ... ... ... ...
+  _responses:
+  - _responseText: Alright then, let's go!
+    _dialogueSO: {fileID: 11400000, guid: 7029c6e516fdbfd48be53b5e8f013d89, type: 2}
+  - _responseText: ???
+    _dialogueSO: {fileID: 11400000, guid: 3421fa3c5726e7840a033a81fc36338f, type: 2}

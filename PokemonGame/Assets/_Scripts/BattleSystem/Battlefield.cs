@@ -70,4 +70,36 @@ public class Battlefield
 
         return null;
     }
+
+    public CourtLocation GetOpposingCourtLocation( BattleUnit unit )
+    {
+        foreach( var court in ActiveCourts.Values )
+        {
+            if( court.Units.Contains( unit ) )
+            {
+                if( court.Location == CourtLocation.TopCourt )
+                    return CourtLocation.BottomCourt;
+                else
+                    return CourtLocation.TopCourt;
+            }
+        }
+
+        return default;
+    }
+
+    public List<BattleUnit> GetOpposingUnits( BattleUnit unit )
+    {
+        foreach( var court in ActiveCourts.Values )
+        {
+            if( court.Units.Contains( unit ) )
+            {
+                if( court.Location == CourtLocation.TopCourt )
+                    return ActiveCourts[CourtLocation.BottomCourt].Units;
+                else
+                    return ActiveCourts[CourtLocation.TopCourt].Units;
+            }
+        }
+
+        return null;
+    }
 }

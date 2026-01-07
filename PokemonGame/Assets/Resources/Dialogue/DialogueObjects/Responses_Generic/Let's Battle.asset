@@ -15,6 +15,7 @@ MonoBehaviour:
   _dialogueItem:
   - _speakerName: Catch
     _dialogueSpeaker: 1
+    _dialogueColor: {fileID: 11400000, guid: bf5ac1436ecaceb4e8b6b91a4b981553, type: 2}
     _leftPortrait_1: {fileID: 21300000, guid: 54a8c040590f5db4c88b5dd32e611670, type: 3}
     _leftPortrait_2: {fileID: 0}
     _rightPortrait_1: {fileID: 0}

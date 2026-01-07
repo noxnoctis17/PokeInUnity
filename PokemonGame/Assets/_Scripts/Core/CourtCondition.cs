@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+public enum ConditionType { AllySide_Buff, OpposingSide_Debuff, OpposingSide_Hazard }
 public class CourtCondition
 {
     public CourtConditionID ID { get; set; }
+    public ConditionType ConType { get; set; }
     public int Duration { get; private set; }
     public int DurationModifier { get; private set; }
     public int TimeLeft { get; set; }

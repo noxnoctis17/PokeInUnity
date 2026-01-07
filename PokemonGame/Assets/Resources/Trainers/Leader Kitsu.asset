@@ -13,4 +13,5 @@ MonoBehaviour:
   m_Name: Leader Kitsu
   m_EditorClassIdentifier: 
   _name: Kitsu
-  _trainerClassEnum: 6
+  _trainerClass: 6
+  _portrait: {fileID: 21300000, guid: c2c7702f2cf71854f912a63d4a5300ab, type: 3}

@@ -98,8 +98,12 @@ public class CharacterShadow : MonoBehaviour
         Quaternion currentRotation = transform.rotation;
 
         if( _characterAnimator.IsWalking ){
-            Quaternion targetRotation = Quaternion.LookRotation( moveDirection.MovementAxisCorrection( PlayerReferences.MainCameraTransform ) );
+            Vector3 corrected = moveDirection.MovementAxisCorrection( PlayerReferences.MainCameraTransform );
 
+            if( corrected.sqrMagnitude < 0.0001f )
+                return;
+
+            Quaternion targetRotation = Quaternion.LookRotation( corrected );
             transform.rotation = Quaternion.Slerp( currentRotation, targetRotation, 5f ); //--1f is rotations per frame
         }
     }

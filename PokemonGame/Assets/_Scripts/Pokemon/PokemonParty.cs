@@ -8,7 +8,7 @@ public class PokemonParty : MonoBehaviour
     [SerializeField] private bool _isPlayerParty;
     [SerializeField] private bool _isEnemyParty;
     [SerializeField] private List<Pokemon> _partyPokemon;
-    public List<Pokemon> PartyPokemon { get { return _partyPokemon; } set { PartySetter( value ); } }
+    public List<Pokemon> Party { get { return _partyPokemon; } set { PartySetter( value ); } }
     public event Action OnPartyUpdated;
 
     private void Start(){
@@ -57,7 +57,7 @@ public class PokemonParty : MonoBehaviour
         copyPokemon.ChangeCurrentBall( ball );
 
         if( _partyPokemon.Count < 6 ){
-            PartyPokemon.Add( copyPokemon );
+            Party.Add( copyPokemon );
             copyPokemon.SetAsPlayerUnit();
             OnPartyUpdated?.Invoke();
 
@@ -70,8 +70,38 @@ public class PokemonParty : MonoBehaviour
         }
     }
 
+    public void UpdateParty()
+    {
+        OnPartyUpdated?.Invoke();
+    }
+
+    public void GiveParty( List<Pokemon> givenParty )
+    {
+        Party = givenParty;
+    }
+
     public void RestoreSavedParty( List<Pokemon> restoredParty ){
-        PartyPokemon = restoredParty;
+        Party = restoredParty;
+    }
+
+    public void SwitchPokemonPosition( Pokemon chosenMon, Pokemon swapTo )
+    {
+        int chosen = 0;
+        int swap = 0;
+
+        for( int i = 0; i < _partyPokemon.Count; i++ )
+        {
+            if( _partyPokemon[i] == chosenMon )
+                chosen = i;
+
+            if( _partyPokemon[i] == swapTo )
+                swap = i;
+        }
+        
+        Debug.Log( $"Swapping indices {swap} & {chosenMon}" );
+        _partyPokemon[swap] = chosenMon;
+        _partyPokemon[chosen] = swapTo;
+        OnPartyUpdated?.Invoke();
     }
     
 }

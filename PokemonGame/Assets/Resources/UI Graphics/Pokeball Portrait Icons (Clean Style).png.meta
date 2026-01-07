@@ -1,0 +1,734 @@
+fileFormatVersion: 2
+guid: 9a407c1f474948b42aa9bc1d1a87f4aa
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 12
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Server
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Poke Ball (Clean)
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 741
+        width: 130
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 180891e2fba206447b2730557599c26d
+      internalID: 1634986062
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_1
+      rect:
+        serializedVersion: 2
+        x: 152
+        y: 741
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5228ca3bd50d1444bb4bf31fed020497
+      internalID: 157297429
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Great Ball (Clean)
+      rect:
+        serializedVersion: 2
+        x: 296
+        y: 741
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f4e723bee0600a04d83c3a4f2a11b058
+      internalID: -1781098634
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Ultra Ball (Clean)
+      rect:
+        serializedVersion: 2
+        x: 439
+        y: 741
+        width: 130
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b5572dfddde6b90418203b87077d0021
+      internalID: 461251695
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_4
+      rect:
+        serializedVersion: 2
+        x: 584
+        y: 741
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f80965520db3d947a3e2c50be484eae
+      internalID: -333079128
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_5
+      rect:
+        serializedVersion: 2
+        x: 9
+        y: 594
+        width: 130
+        height: 129
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a187bd9a57333664b81c94bec9fd28a6
+      internalID: 613106092
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_6
+      rect:
+        serializedVersion: 2
+        x: 155
+        y: 594
+        width: 129
+        height: 129
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d7a304378a30ebd45baaf8bf3c8d3b99
+      internalID: 1694948139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_7
+      rect:
+        serializedVersion: 2
+        x: 300
+        y: 594
+        width: 129
+        height: 129
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 73712a5c32b896347a4d0a9a95421fd0
+      internalID: -512023814
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_8
+      rect:
+        serializedVersion: 2
+        x: 444
+        y: 594
+        width: 129
+        height: 129
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d25a1213af8c5ec4f94791965fb856dd
+      internalID: -1224825827
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_9
+      rect:
+        serializedVersion: 2
+        x: 589
+        y: 594
+        width: 130
+        height: 129
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0a2511d3fed133c47b8d5a71fbbaae20
+      internalID: 789903515
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_10
+      rect:
+        serializedVersion: 2
+        x: 9
+        y: 451
+        width: 130
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: af11ec54ea8db934d8cbe6d0dc1b472a
+      internalID: -1182777824
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_11
+      rect:
+        serializedVersion: 2
+        x: 153
+        y: 451
+        width: 133
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e0ecc8a1f7e50f14c91d4f4d2edc9375
+      internalID: 553224567
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_12
+      rect:
+        serializedVersion: 2
+        x: 300
+        y: 451
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f285534aef10e1a4cad730996e7ba476
+      internalID: 422379575
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_13
+      rect:
+        serializedVersion: 2
+        x: 444
+        y: 451
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6388da541b869a54eab1f2c00f1be8dd
+      internalID: -1637912199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_14
+      rect:
+        serializedVersion: 2
+        x: 589
+        y: 451
+        width: 130
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a62be87e787553745ba6abc234eab8c5
+      internalID: 842068423
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_15
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 304
+        width: 130
+        height: 138
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 162d037e47369f8439b73a36132bd8f7
+      internalID: 1626935663
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_16
+      rect:
+        serializedVersion: 2
+        x: 158
+        y: 308
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c8e549427c8ff4f4892ac99dd1640d08
+      internalID: 338460870
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_17
+      rect:
+        serializedVersion: 2
+        x: 303
+        y: 305
+        width: 129
+        height: 135
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 807363176ca3cad44aa54aa4d03e8b21
+      internalID: 1352888263
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_18
+      rect:
+        serializedVersion: 2
+        x: 447
+        y: 308
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 80d71d42b6941224facf3da89bfe56b8
+      internalID: 425129937
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_19
+      rect:
+        serializedVersion: 2
+        x: 592
+        y: 308
+        width: 130
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 71e5832968eac3342bb7178b20631d92
+      internalID: -823022659
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_20
+      rect:
+        serializedVersion: 2
+        x: 11
+        y: 166
+        width: 130
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 19982f131e117ed4eabe5aad63d714e8
+      internalID: -1410363380
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_21
+      rect:
+        serializedVersion: 2
+        x: 153
+        y: 162
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cc61b29e4d6e1ca4f80dd51eb596cd49
+      internalID: 1698086112
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_22
+      rect:
+        serializedVersion: 2
+        x: 298
+        y: 162
+        width: 129
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ec1e1484f6bcadb479593ef90641ecc7
+      internalID: 452261706
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_23
+      rect:
+        serializedVersion: 2
+        x: 446
+        y: 162
+        width: 126
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1beb69859e109c848b66181ef8e7f0ad
+      internalID: 1441949571
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_24
+      rect:
+        serializedVersion: 2
+        x: 588
+        y: 162
+        width: 130
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 20b6a34dac3bc184c95d1fae35ff9a90
+      internalID: -751838257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_25
+      rect:
+        serializedVersion: 2
+        x: 231
+        y: 19
+        width: 129
+        height: 129
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 60977af3e9f64054eb3cb80aad1558ba
+      internalID: -1442155892
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Pokeball Portrait Icons (Clean Style)_26
+      rect:
+        serializedVersion: 2
+        x: 379
+        y: 20
+        width: 127
+        height: 127
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9a062842ac9a88c4d99ef310e0eb8d52
+      internalID: 140449784
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: 37dabf837e595f744902aa726883d824
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    nameFileIdTable:
+      Great Ball (Clean): -1781098634
+      Poke Ball (Clean): 1634986062
+      Pokeball Portrait Icons (Clean Style)_1: 157297429
+      Pokeball Portrait Icons (Clean Style)_10: -1182777824
+      Pokeball Portrait Icons (Clean Style)_11: 553224567
+      Pokeball Portrait Icons (Clean Style)_12: 422379575
+      Pokeball Portrait Icons (Clean Style)_13: -1637912199
+      Pokeball Portrait Icons (Clean Style)_14: 842068423
+      Pokeball Portrait Icons (Clean Style)_15: 1626935663
+      Pokeball Portrait Icons (Clean Style)_16: 338460870
+      Pokeball Portrait Icons (Clean Style)_17: 1352888263
+      Pokeball Portrait Icons (Clean Style)_18: 425129937
+      Pokeball Portrait Icons (Clean Style)_19: -823022659
+      Pokeball Portrait Icons (Clean Style)_20: -1410363380
+      Pokeball Portrait Icons (Clean Style)_21: 1698086112
+      Pokeball Portrait Icons (Clean Style)_22: 452261706
+      Pokeball Portrait Icons (Clean Style)_23: 1441949571
+      Pokeball Portrait Icons (Clean Style)_24: -751838257
+      Pokeball Portrait Icons (Clean Style)_25: -1442155892
+      Pokeball Portrait Icons (Clean Style)_26: 140449784
+      Pokeball Portrait Icons (Clean Style)_4: -333079128
+      Pokeball Portrait Icons (Clean Style)_5: 613106092
+      Pokeball Portrait Icons (Clean Style)_6: 1694948139
+      Pokeball Portrait Icons (Clean Style)_7: -512023814
+      Pokeball Portrait Icons (Clean Style)_8: -1224825827
+      Pokeball Portrait Icons (Clean Style)_9: 789903515
+      Ultra Ball (Clean): 461251695
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -10,31 +11,56 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
 
     //--Private
     [SerializeField] private TrainerSO _trainerSO;
-    [SerializeField] private string _trainerName;
+    [SerializeField] private DialogueColorSO _dialogueColor;
     [SerializeField] private int _trainerSkillLevel;
     [SerializeField] private PokemonParty _trainerParty;
     [SerializeField] private BattleType _battleType;
+    [SerializeField] private MusicTheme _trainerMusic;
     [SerializeField] private DialogueSO _dialogueSO;
     [SerializeField] private DialogueSO _postBattleDialogueSO;
     [SerializeField] private GameObject _trainerCenter;
+    [SerializeField] private Trainer _partnerTrainer;
+    [SerializeField] private Trainer _opposingTrainer; //--Should be Bottom Trainer
     [SerializeField] private bool _isDefeated;
     [SerializeField] private bool _isRematchable;
     [SerializeField] private bool _allow2v1;
 
     //--Public
     public TrainerSO TrainerSO => _trainerSO;
-    public string TrainerName => _trainerName;
+    public string TrainerName => _trainerSO.TrainerName;
+    public DialogueColorSO DialogueColor => _dialogueColor;
+    public string TrainerClass => TrainerClassDB[_trainerSO.TrainerClass];
     public int TrainerSkillLevel => _trainerSkillLevel;
     public PokemonParty TrainerParty => _trainerParty;
     public BattleType BattleType => _battleType;
+    public MusicTheme TrainerMusic => _trainerMusic;
     public DialogueSO DialogueSO => _dialogueSO;
     public GameObject TrainerCenter => _trainerCenter;
     public bool IsDefeated => _isDefeated;
     public bool IsRematchable => _isRematchable;
+    public Dictionary<TrainerClasses, string> TrainerClassDB { get; private set; }
 
     private void OnEnable()
     {
-        _trainerName = _trainerSO.TrainerName;
+        SetClassDB();
+    }
+
+    private void SetClassDB()
+    {
+        TrainerClassDB = new()
+        {
+            { TrainerClasses.None,          "" },
+            { TrainerClasses.AceTrainer,    "Ace Trainer" },
+            { TrainerClasses.Hiker,         "Hiker" },
+            { TrainerClasses.Lass,          "Lass" },
+            { TrainerClasses.Youngster,     "Youngster" },
+            { TrainerClasses.Swimmer,       "Swimmer" },
+            { TrainerClasses.BugCatcher,    "Bug Catcher" },
+            { TrainerClasses.GymLeader,     "Gym Leader" },
+            { TrainerClasses.EliteFour,     "Elite Four" },
+            { TrainerClasses.Champion,      "Champion" },
+            { TrainerClasses.Trainer,       "Trainer" },
+        };
     }
 
     //--You need to create a callback that returns whether the trainer or player won the battle
@@ -67,7 +93,11 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
         if( CheckIfBattlePossible() )
         {
             UpdateDialogueObject( _postBattleDialogueSO );
-            StartCoroutine( InitializeTrainerBattle() );
+
+            if( _battleType == BattleType.AI_Singles || _battleType == BattleType.AI_Doubles )
+                StartCoroutine( InitAITrainerBattle() );
+            else
+                StartCoroutine( InitializeTrainerBattle() );
         }
         else
         {
@@ -75,17 +105,26 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
         }
     }
 
-    public IEnumerator InitializeTrainerBattle(){
-        // yield return new WaitForSeconds( 0.25f );
+    public IEnumerator InitializeTrainerBattle()
+    {
         yield return new WaitForEndOfFrame();
         yield return DialogueManager.Instance.DialogueUI.ActiveDialogueCoroutine;
         yield return null;
         BattleController.Instance.InitTrainerBattle( this );
     }
 
+    public IEnumerator InitAITrainerBattle()
+    {
+        Debug.Log( "InitAITrainerBattle()" );
+        yield return new WaitForEndOfFrame();
+        yield return DialogueManager.Instance.DialogueUI.ActiveDialogueCoroutine;
+        yield return null;
+        BattleController.Instance.InitAITrainerBattle( this, _opposingTrainer );
+    }
+
     private bool CheckIfBattlePossible()
     {
-        var availablePlayerPokemon = PlayerReferences.Instance.PlayerParty.PartyPokemon.Select( p => p ).Where( p => p.CurrentHP > 0 ).ToList();
+        var availablePlayerPokemon = PlayerReferences.Instance.PlayerParty.Party.Select( p => p ).Where( p => p.CurrentHP > 0 ).ToList();
 
         if( availablePlayerPokemon.Count == 0 )
         {

@@ -81,7 +81,15 @@ public class ItemButton_PauseScreen : MonoBehaviour, ISelectHandler, IDeselectHa
             case BagScreenContext.Battle:
                 if( Item.ItemSO.ItemCategory == ItemCategory.PokeBall ){
                     if( Item.ItemSO.CheckIfUsable( null ) )
+                    {
+                        if( _bagScreenBattle.BattleMenu.BattleSystem.BattleType == BattleType.TrainerSingles || _bagScreenBattle.BattleMenu.BattleSystem.BattleType == BattleType.TrainerDoubles ){
+                            DialogueManager.Instance.PlaySystemMessage( "You can't steal another trainer's Pokemon!" );
+                            return;
+                        }
+
                         _bagScreenBattle.UsePokeball( Item );
+                    }
+                        
                 }
                 else
                     _bagScreenBattle.UseItem( Item );

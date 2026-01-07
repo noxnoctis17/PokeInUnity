@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 704404f17766d724193abeb3d295b5de, type: 3}
+  m_Name: dc_Gym Leader Kitsu
+  m_EditorClassIdentifier: 
+  _trim: {r: 0.13725491, g: 0.098039225, b: 0.18823531, a: 1}
+  _inside: {r: 0.47377872, g: 0.37878248, b: 0.6037736, a: 1}

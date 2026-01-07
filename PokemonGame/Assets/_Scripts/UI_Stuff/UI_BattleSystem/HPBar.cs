@@ -30,7 +30,6 @@ public class HPBar : MonoBehaviour
         float changeAmount = currentHP - newHP;
 
         yield return GetComponentInParent<BattleHUD>().gameObject.GetComponent<RectTransform>().DOShakeAnchorPos( 0.25f, 100f, 10 ).WaitForCompletion();
-        // yield return _instantHPSlider.transform.DOPunchPosition( new( -10f, 0f, 0 ), 0.75f, 10, 0f ).WaitForCompletion();
         _instantHPSlider.value = newHP;
         yield return new WaitForSeconds( 0.25f );
 

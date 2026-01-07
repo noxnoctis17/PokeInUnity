@@ -9,10 +9,11 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
     [SerializeField] private PartyScreenContext _partyScreenContext;
     [SerializeField] private Button _partyButton1;
     private IPartyScreen _parentMenu;
-    private PokemonParty _playerParty;
     private PartyMember_UI[] _memberSlots;
     private PokemonButton[] _pkmnButtons;
+    public PokemonParty PlayerParty { get; private set; }
     public Button PartyButton1 => _partyButton1;
+    public PartyMember_UI[] MemberSlots => _memberSlots;
     public PokemonButton[] PKMNButtons => _pkmnButtons;
     public Action<Button> OnSubmittedButton;
     public Action<bool> OnHPPocketEntered;
@@ -38,16 +39,16 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
     public void Init(){
         _memberSlots = GetComponentsInChildren<PartyMember_UI>( true );
         _pkmnButtons = GetComponentsInChildren<PokemonButton>();
-        _playerParty = PlayerReferences.Instance.PlayerParty;
+        PlayerParty = PlayerReferences.Instance.PlayerParty;
         _parentMenu = GetComponentInParent<IPartyScreen>( true );
 
-        _playerParty.OnPartyUpdated += SetParty;
+        PlayerParty.OnPartyUpdated += SetParty;
 
         SetParty();
     }
 
     public void SetParty(){
-        var pokemon = _playerParty.PartyPokemon;
+        var pokemon = PlayerParty.Party;
 
         for( int i = 0; i < _memberSlots.Length; i++ ){
             if( i < pokemon.Count ){
@@ -109,4 +110,14 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
         }
     }
 
+    public int GetIndex( PokemonButton button )
+    {
+        for( int i = 0; i < _memberSlots.Length; i++ )
+        {
+            if( _pkmnButtons[i] == button )
+                return i;
+        }
+
+        return default;
+    }
 }

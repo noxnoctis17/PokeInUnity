@@ -17,6 +17,6 @@ MonoBehaviour:
   _itemDescription: "An item to be held by a Pok\xE9mon. If the holder has full HP
     and is hit with a move that should knock it out, it will endure with 1 HP\u2014but
     only once. "
-  _icon: {fileID: 0}
+  _icon: {fileID: 21300000, guid: ae6d5f67a278b5a49a00a810c5a1ca76, type: 3}
   _hasBattleEffect: 1
   _battleEffectID: 8

@@ -2,20 +2,20 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using DG.Tweening;
-using UnityEditor.Experimental.GraphView;
+using NoxNoctisDev.StateMachine;
 using UnityEngine;
-
-    //==[STATES]==
-public enum PokeAnimationState{
-    Idle, Walking, Attack, Evolving,
-}
 
 public class PokemonAnimator : MonoBehaviour
 {
+    //==[STATE MACHINE]==
+    public StateStackMachine<PokemonAnimator> StateMachine;
+    [SerializeField] private State<PokemonAnimator> _idleState;
+    [SerializeField] private State<PokemonAnimator> _walkingState;
+    [SerializeField] private PokemonAnimator_EvolutionState _evolutionState;
     //==[REFERENCES]==
     private SpriteRenderer _spriteRenderer;
     private SpriteAnimator _spriteAnimator;
-    public SpriteAnimator Animator => _spriteAnimator;
+    public SpriteAnimator SpriteAnimator => _spriteAnimator;
     private Transform _camera;
     [SerializeField] private Transform _pokemonTransform; //--Main Parent Transform
     [SerializeField] private bool _disableBillboarding;
@@ -23,9 +23,7 @@ public class PokemonAnimator : MonoBehaviour
     public BattleSystem BattleSys => _battleSystem;
     public SpriteRenderer SpriteRenderer => _spriteRenderer;
     public Transform PokemonTransform => _pokemonTransform;
-
-    //==[ACTIONS]==
-    public Action<PokeAnimationState> OnAnimationStateChange;
+    public PokemonSO PokeSO { get; private set; }
 
     //==[SPRITES]==
     //--Current Sheet
@@ -68,34 +66,25 @@ public class PokemonAnimator : MonoBehaviour
     private bool _wasWalking;
     public bool WasWalking => _wasWalking;
     private bool _initialized;
-    private bool _isAnimating;
 
     //==[ROTATION STEP CONSTANT]==
-    private const float _rotationStep = 90f;
+    private const float _rotationStep = 22.5f;
 
-    public enum FacingDirection{
-        Up, Down,
-    }
-
-    private FacingDirection _facingDirection;
-    public FacingDirection FacingDir => _facingDirection;
-
-    private PokeAnimationState _animState;
+    public SpritePerspective SpritePerspective { get; private set; }
 
     private void OnEnable(){
-        OnAnimationStateChange += ChangeAnimationState;
 
         _spriteRenderer = GetComponent<SpriteRenderer>();
-        _spriteAnimator = new SpriteAnimator( _spriteRenderer, 0.08f );
+        _spriteAnimator = new SpriteAnimator( _spriteRenderer, 0.16f ); //--0.08f
         _camera = PlayerReferences.MainCameraTransform;
     }
 
-    private void OnDisable(){
-        OnAnimationStateChange -= ChangeAnimationState;
-    }
-
     public void Initialize( PokemonSO pokeSO ){
-        SetAllSpriteSheets( pokeSO );
+        PokeSO = pokeSO;
+        SetAllSpriteSheets( PokeSO );
+
+        StateMachine = new( this );
+        StateMachine.Push( _idleState );
 
         //--Default/Initial Animation
         _defaultAnimSheet = _idleDownSprites;
@@ -115,61 +104,27 @@ public class PokemonAnimator : MonoBehaviour
     }
 
     private void Update(){
-        if( _prevAnimSheet != _currentAnimSheet )
-            _spriteAnimator.Start();
-
-        if( _initialized ){
-            SetFacingDirection();
-            PlayAnimations();
-            _prevAnimSheet = _currentAnimSheet;
-            _spriteAnimator.HandleUpdate();
+        if( _initialized )
+        {
+            StateMachine.Update();
+            SpriteAnimator.HandleUpdate();
+            // DetectWalking();
+            SetSpritePerspective();
+            Billboard();
         }
-
-        if( !_disableBillboarding )
-            if( _initialized )
-                if( !_isAnimating )
-                    Billboard();
     }
 
     private void Billboard(){
         transform.forward = _camera.forward;
     }
 
-    public void ChangeAnimationState( PokeAnimationState state ){
-        _animState = state;
-    }
-
-    private void PlayAnimations(){
-        switch( _animState ){
-            case PokeAnimationState.Idle:
-                SetIdleSprites();
-
-            break;
-
-            case PokeAnimationState.Walking:
-                SetIdleSprites(); //--Change to Walking eventually
-
-            break;
-
-            case PokeAnimationState.Evolving:
-                AssignAnimations( _currentAnimSheet );
-            break;
-
-            default:
-                SetIdleSprites();
-
-            break;
-
-        }
-    }
-
     private void SetAllSpriteSheets( PokemonSO pokeSO ){
         if( pokeSO != null ){
-            //--Idle
-            _idleUpSprites = pokeSO.IdleUpSprites;
-            _idleDownSprites = pokeSO.IdleDownSprites;
+            //--Idle Sprites
+            var idleState = _idleState as IPokemonAnimator_SpriteSetter;
+            idleState.SetSprites( pokeSO );
 
-            //--Walking
+            //--Walking Sprites
             _walkUpSprites = pokeSO.IdleUpSprites; //--make sure to set these to the walking sprites eventually lol
             _walkDownSprites = pokeSO.IdleDownSprites; //--make sure to set these to the walking sprites eventually lol
 
@@ -198,44 +153,36 @@ public class PokemonAnimator : MonoBehaviour
             _spriteAnimator.AnimationFrames = _defaultAnimSheet;
     }
 
-    private void SetFacingDirection(){
+    private void SetSpritePerspective(){
         //--Sets facing direction (up or down) based on the Pokemon's parent transform forward
         var projection = Vector3.ProjectOnPlane( _camera.transform.forward, _pokemonTransform.up );
         var angle = Vector3.SignedAngle( projection, _pokemonTransform.forward, _pokemonTransform.up );
         var absAngle = Mathf.Abs( angle );
 
         if( absAngle <= _rotationStep )
-            _facingDirection = FacingDirection.Up;
-        else if( absAngle >= _rotationStep )
-            _facingDirection = FacingDirection.Down;
+            SpritePerspective = SpritePerspective.Up;
+        else if( absAngle <= _rotationStep * 3 )
+            SpritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.UpLeft     : SpritePerspective = SpritePerspective.UpRight;
+        else if( absAngle <= _rotationStep * 5 )
+            SpritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.Left       : SpritePerspective = SpritePerspective.Right;
+        else if( absAngle <= _rotationStep * 7 )
+            SpritePerspective = Mathf.Sign( angle ) < 0 ? SpritePerspective.DownLeft   : SpritePerspective = SpritePerspective.DownRight;
+        else
+            SpritePerspective = SpritePerspective.Down;
+
+        // OnSpritePerspectiveChanged?.Invoke( _facingDirection );
     }
 
-    private void SetIdleSprites(){
-        //--Assigns Idle Sprites based on facing direction/parent transform forward
-        switch( _facingDirection ){
-            case FacingDirection.Up:
-                _currentAnimSheet = _idleUpSprites;
-            
-            break;
-
-            case FacingDirection.Down:
-                _currentAnimSheet = _idleDownSprites;
-
-            break;
-
-            default:
-                _currentAnimSheet = _defaultAnimSheet;
-            break;
-        }
+    public void SetSpriteSheet( List<Sprite> sprites )
+    {
+        if( sprites == null )
+            _currentAnimSheet = PokeSO.IdleDownSprites;
+        else if( sprites != null && sprites.Count == 0 )
+            _currentAnimSheet = PokeSO.IdleDownSprites;
+        else
+            _currentAnimSheet = sprites;
 
         AssignAnimations( _currentAnimSheet );
-    }
-
-    private void SetWalkingSprites(){
-        //--Vertical
-        //--Up
-
-        //--Down
     }
 
     //==============================================================================================
@@ -246,26 +193,34 @@ public class PokemonAnimator : MonoBehaviour
         _spriteRenderer.color = color;
     }
 
-    public IEnumerator PlayEvolutionAnimation( PokemonSO pokemon, PokemonSO evolution ){
+    public IEnumerator PlayBeginEvolutionAnimation( PokemonSO current, PokemonSO evolution )
+    {
+        StateMachine.Push( _evolutionState );
+        _evolutionState.SetSprites( current, evolution );
+        _evolutionState.CurrentMon();
         yield return null;
+    }
+
+    public IEnumerator PlayEvolutionAnimation()
+    {
         int cycles = 10;
         float speed = 0.25f;
 
         var sequence = DOTween.Sequence();
-        sequence.Append( _spriteRenderer.DOColor( Color.black, 0.5f ) );
+        sequence.Append( _spriteRenderer.DOColor( Color.black, 0.5f ) ).WaitForCompletion();
 
         for( int i = 1; i < cycles + 1; i++ ){
-            sequence.Append( transform.DOScale( 1f, speed / i ) );
+            sequence.Append( transform.DOScale( 0.5f, speed / i ) );
 
             if( i % 2 == 1 )
-                sequence.AppendCallback( () => _currentAnimSheet = evolution.IdleDownSprites );
+                sequence.AppendCallback( () => _evolutionState.Evolution() ).WaitForCompletion();
             else
-                sequence.AppendCallback( () => _currentAnimSheet = pokemon.IdleDownSprites );
+                sequence.AppendCallback( () => _evolutionState.CurrentMon() ).WaitForCompletion();
             
             sequence.Append( transform.DOScale( 1f, speed / i ) );
         }
 
-        sequence.AppendCallback( () => _currentAnimSheet = evolution.IdleDownSprites );
+        sequence.AppendCallback( () => _evolutionState.Evolution() );
         sequence.Join( _spriteRenderer.DOColor( Color.white, 0.5f ) );
 
         yield return sequence.WaitForCompletion();
@@ -290,43 +245,81 @@ public class PokemonAnimator : MonoBehaviour
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlayPhysicalAttackAnimation( Transform originalPos, Transform targetPos, TweenCallback cameraCallback = null ){
+    Vector3 _originalPos;
+    public IEnumerator PlayMoveIntoStrikePosition( Transform targetPos )
+    {
+        yield return null;
+        _originalPos = _pokemonTransform.position;
+        Vector3 direction = targetPos.position - _pokemonTransform.position;
+        direction.Normalize();
+        Vector3 readyPos = targetPos.position - direction;
+
+        var sequence = DOTween.Sequence();
+        _pokemonTransform.DOMove( readyPos, 0.75f ).WaitForCompletion();   //--Move to Strike position
+        sequence.AppendInterval( 0.5f );
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayMoveIntoShootPosition( Transform targetPos )
+    {
+        yield return null;
+        _originalPos = _pokemonTransform.position;
+        Vector3 direction = _pokemonTransform.position - targetPos.position;
+        direction.Normalize();
+        Vector3 readyPos = _pokemonTransform.position - direction;
+
+        var sequence = DOTween.Sequence();
+        _pokemonTransform.DOMove( readyPos, 0.75f ).WaitForCompletion();
+        sequence.AppendInterval( 0.5f );
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayReturnToDefaultPosition()
+    {
+        Debug.Log( $"{PokeSO.Species} is returning to default position" );
+        if( _pokemonTransform.position == _originalPos || _originalPos == null )
+            yield return null;
+        else
+            yield return _pokemonTransform.DOMove( _originalPos, 0.25f ).WaitForCompletion(); //--Move back to default position
+    }
+
+    public IEnumerator PlayStrikeAnimation( Transform targetPos, TweenCallback cameraCallback = null ){
         Vector3 direction = targetPos.position - _pokemonTransform.position;
         direction.Normalize();
         Vector3 readyPos = targetPos.position - direction;
         Vector3 attackPos = targetPos.position - new Vector3( 0.01f, 0, 0.01f );
 
         var sequence = DOTween.Sequence();
-        sequence.Append( _pokemonTransform.DOMove( readyPos, 0.75f ) );             //--Move to close range Attack position
-        sequence.AppendInterval( 0.25f );                                           //--Wait
+        sequence.AppendInterval( 0.25f );
         sequence.Append( _pokemonTransform.DOMove( attackPos, 0.15f ) );            //--"Hit" target
 
         if( cameraCallback != null )
             sequence.AppendCallback( cameraCallback );                              //--If camera stuff isn't null, trigger the callback to change cameras in the BattleComposer
 
         sequence.Append( _pokemonTransform.DOMove( readyPos, 0.15f) );              //--Move back to close range Attack position
-        sequence.AppendInterval( 0.1f );                                            //--Wait
-        sequence.Append( _pokemonTransform.DOMove( originalPos.position, 0.25f ) ); //--Move back to default position
-
+        sequence.AppendInterval( 0.25f );
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlaySpecialAttackAnimation( Transform targetPos ){
-        Vector3 originalPos = _pokemonTransform.position;
+    public IEnumerator PlayShootAnimation( Transform targetPos )
+    {
         Vector3 direction = _pokemonTransform.position - targetPos.position;
         direction.Normalize();
         Vector3 attackPos = _pokemonTransform.position - direction;
 
         var sequence = DOTween.Sequence();
+        sequence.AppendInterval( 0.25f );
         sequence.Append( _pokemonTransform.DOMove( attackPos, 0.75f ) ).WaitForCompletion();
         sequence.AppendInterval( 0.25f );
         sequence.Append( _pokemonTransform.DOShakePosition( 0.5f, 0.25f, 8 ) ).WaitForCompletion();
         sequence.AppendInterval( 0.1f );
-        sequence.Append( _pokemonTransform.DOMove( originalPos, 0.25f ) ).WaitForCompletion();
+        sequence.Append( _pokemonTransform.DOMove( _originalPos, 0.25f ) ).WaitForCompletion();
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlayStatusAttackAnimation(){
+    public IEnumerator PlayStatusAttackAnimation()
+    {
+        _originalPos = _pokemonTransform.position;
         Vector3 front = _pokemonTransform.position + _pokemonTransform.forward * 1f;
         Vector3 behind = _pokemonTransform.position - _pokemonTransform.forward * 1f;
 
@@ -339,8 +332,69 @@ public class PokemonAnimator : MonoBehaviour
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlayEnterBattleAnimation( Transform originalPos, Transform player ){
-        transform.position = player.position;
+    public IEnumerator PlayEarthquakeAnimation( Transform targetPos )
+    {
+        yield return null;
+    }
+
+    public IEnumerator PlayFastAnimation( Transform targetPos )
+    {
+        _originalPos = _pokemonTransform.position;
+        yield return null;
+        Vector3 direction = targetPos.position - _pokemonTransform.position;
+        direction.Normalize();
+        Vector3 attackPos = targetPos.position + new Vector3( 0f, 0f, 1f );
+
+        var sequence = DOTween.Sequence();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.1f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.5f );
+        sequence.Append( _pokemonTransform.DOMove( _originalPos, 0.01f ) ).WaitForCompletion();
+
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayFakeOutAnimation( Transform targetPos )
+    {
+        _originalPos = _pokemonTransform.position;
+        yield return null;
+        Vector3 direction = targetPos.position - _pokemonTransform.position;
+        direction.Normalize();
+        Vector3 readyPos = _pokemonTransform.position + new Vector3( direction.x + 0.5f, direction.y, direction.z + 0.5f );
+        Vector3 fakeoutPos = readyPos + new Vector3( direction.x - 1f, direction.y, direction.z + 0.5f );
+        Vector3 attackPos = targetPos.position - new Vector3( 0.01f, 0, 0.01f );
+
+        var sequence = DOTween.Sequence();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOMove( readyPos, 0.25f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOMove( fakeoutPos, 0.25f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.25f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOMove( _originalPos, 0.01f ) ).WaitForCompletion();
+
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayPivotAnimation( Transform targetPos )
+    {
+        _originalPos = _pokemonTransform.position;
+        yield return null;
+        Vector3 attackPos = targetPos.position - new Vector3( 0.01f, 0, 0.01f );
+
+        var sequence = DOTween.Sequence();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.25f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.25f );
+        sequence.Append( _pokemonTransform.DOJump( _originalPos, 1, 1, 0.5f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.25f );
+
+        yield return sequence.WaitForCompletion();
+    }
+
+    public IEnumerator PlayEnterBattleAnimation( Transform originalPos, Transform trainer ){
+        transform.position = trainer.position;
         _spriteRenderer.DOFade( 0, 0f );
         transform.DOScale( Vector3.zero, 0f );
         
@@ -352,10 +406,10 @@ public class PokemonAnimator : MonoBehaviour
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlayExitBattleAnimation( Transform player ){
+    public IEnumerator PlayExitBattleAnimation( Transform trainer ){
         var sequence = DOTween.Sequence();
         sequence.Append( _spriteRenderer.DOFade( 0, 0.5f ) );
-        sequence.Join( transform.DOMove( player.position, 0.5f ) );
+        sequence.Join( transform.DOMove( trainer.position, 0.5f ) );
         sequence.Join( transform.DOScale( Vector3.zero, 0.5f ) );
 
         yield return sequence.WaitForCompletion();
@@ -390,4 +444,12 @@ public class PokemonAnimator : MonoBehaviour
         _spriteRenderer.DOFade( 1, 0f );
         transform.DOScale( Vector3.one, 0f );
     }
+
+#if UNITY_EDITOR
+
+public void OnDrawGizmos(){
+        Debug.DrawRay( new Vector3( _pokemonTransform.position.x, _pokemonTransform.position.y + 0.75f, _pokemonTransform.position.z ), transform.forward * 2f, Color.red );
+    }
+
+#endif
 }

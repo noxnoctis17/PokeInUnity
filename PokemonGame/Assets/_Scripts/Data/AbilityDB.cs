@@ -874,6 +874,98 @@ public class AbilityDB
                 },
             }
         },
+        {
+            AbilityID.Burninate, new()
+            {
+                Name = "Burninate",
+                Description = "Normal-type moves become Fire-type moves. The power of those moves is boosted by 1.2x.",
+
+                OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
+                {
+                    foreach( var move in pokemon.ActiveMoves )
+                    {
+                        if( move.MoveSO.Type == PokemonType.Normal )
+                        {
+                            move.OverrideMoveType( PokemonType.Fire );
+                            move.OverrideMovePower( Mathf.FloorToInt( move.MoveSO.Power * 1.2f ) );
+                        }
+                    }
+                },
+
+                OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
+                {
+                    foreach( var move in pokemon.ActiveMoves )
+                    {
+                        if( move.MoveSO.Type == PokemonType.Normal && move.MoveType == PokemonType.Fire)
+                        {
+                            move.OverrideMoveType( PokemonType.Normal );
+                            move.OverrideMovePower( Mathf.FloorToInt( move.MoveSO.Power ) );
+                        }
+                    }
+                },
+            }
+        },
+        {
+            AbilityID.SereneGrace, new()
+            {
+                Name = "Serene Grace",
+                Description = "Raises the likelihood of additional effects occurring when the Pokémon uses its moves.",
+
+                OnSecondaryEffectChanceModify = () =>
+                {
+                    return 2f;
+                }
+            }
+        },
+        {
+            AbilityID.SolarPower, new()
+            {
+                Name = "Solar Power",
+                Description = "In harsh sunlight, the Pokémon's Sp. Atk stat is boosted, but its HP decreases every turn.",
+
+                //--Stat Modifiers applied in WeatherConditionDB
+
+                OnAbilityAfterTurn = ( BattleUnit attacker, Battlefield field ) =>
+                {
+                    if( field.Weather?.ID == WeatherConditionID.SUNNY && field.WeatherDuration > 1 )
+                    {
+                        attacker.Pokemon.DecreaseHP( Mathf.FloorToInt( attacker.Pokemon.MaxHP / 8 ) );
+                    }
+                },
+            }
+        },
+        {
+            AbilityID.MagicBounce, new()
+            {
+                Name = "Magic Bounce",
+                Description = "The Pokémon reflects status moves instead of getting hit by them.",
+
+                //--Ability's effect is handled for in PerformMoveCommand() in the Battle System.
+                //--If a status move targets a Pokemon with this ability, it switches the target to the attacker.
+            }
+        },
+        {
+            AbilityID.ThickFat, new()
+            {
+                Name = "Thick Fat",
+                Description = "The Pokémon is protected by a layer of thick fat, which halves the damage taken from Fire- and Ice-type moves.",
+
+                OnIncomingDamage = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
+                {
+                    if( move.MoveType == PokemonType.Fire || move.MoveType == PokemonType.Ice )
+                    {
+                        Debug.Log( "Thick Fat is active!" );
+                        BattleSystem.Instance.TriggerAbilityCutIn( target );
+                        if( move.MoveSO.MoveCategory == MoveCategory.Physical )
+                            atk = attacker.Attack * 0.5f;
+                        else if( move.MoveSO.MoveCategory == MoveCategory.Special )
+                            atk = attacker.SpAttack * 0.5f;
+                    }
+
+                    return atk;
+                }
+            }
+        },
 
     };
 
@@ -942,12 +1034,14 @@ public enum AbilityID
 //--Move Type Changing Abilities
     Pixilate,
     LiquidVoice,
-    BurnUp,
+    Burninate,
     Electrify,
 
 //--Adaptability
     Adaptability,
-
-
+    SereneGrace,
+    SolarPower,
+    MagicBounce,
+    ThickFat,
 
 }

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Runtime.Remoting.Messaging;
 using UnityEngine;
 using System;
 
@@ -7,9 +6,11 @@ using System;
 public class PokemonSO : ScriptableObject
 {
     [SerializeField] string _species;
+    [SerializeField] int _form;
     [SerializeField] private WildType _wildType;
     [SerializeField] private Sprite _defaultBall;
     public string Species => _species;
+    public int Form => _form;
     public WildType WildType => _wildType;
     public Sprite DefaultBall => _defaultBall;
 
@@ -52,10 +53,22 @@ public class PokemonSO : ScriptableObject
     //--Idle
     [SerializeField] private List<Sprite> _idleUpSprites;
     [SerializeField] private List<Sprite> _idleDownSprites;
+    [SerializeField] private List<Sprite> _idleLeftSprites;
+    [SerializeField] private List<Sprite> _idleRightSprites;
+    [SerializeField] private List<Sprite> _idleUpLeftSprites;
+    [SerializeField] private List<Sprite> _idleUpRightSprites;
+    [SerializeField] private List<Sprite> _idleDownLeftSprites;
+    [SerializeField] private List<Sprite> _idleDownRightSprites;
 
     //--Idle Getters for Shadows
     public List<Sprite> IdleUpSprites => _idleUpSprites;
     public List<Sprite> IdleDownSprites => _idleDownSprites;
+    public List<Sprite> IdleLeftSprites => _idleLeftSprites;
+    public List<Sprite> IdleRightSprites => _idleRightSprites;
+    public List<Sprite> IdleUpLeftSprites => _idleUpLeftSprites;
+    public List<Sprite> IdleUpRightSprites => _idleUpRightSprites;
+    public List<Sprite> IdleDownLeftSprites => _idleDownLeftSprites;
+    public List<Sprite> IdleDownRightSprites => _idleDownRightSprites;
 
     //--Walking
     [SerializeField] private List<Sprite> _walkUpSprites;
@@ -77,7 +90,9 @@ public class PokemonSO : ScriptableObject
 #endregion
     //--Card Portraits
     [SerializeField] private Sprite _cardPortrait;
+    [SerializeField] private Sprite _portraitHappy;
     public Sprite CardPortrait => _cardPortrait;
+    public Sprite Portrait_Happy => _portraitHappy;
 
     //----------------------------------
     

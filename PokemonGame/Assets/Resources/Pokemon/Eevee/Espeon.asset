@@ -1,0 +1,126 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Espeon
+  m_EditorClassIdentifier: 
+  _species: Espeon
+  _wildType: 0
+  _defaultBall: {fileID: 0}
+  _description: Its fur is so sensitive, it can feel minute shifts in the air and
+    predict the weather...and its foes' thoughts.
+  _maxHP: 65
+  _attack: 65
+  _defense: 60
+  _spAttack: 130
+  _spDefense: 95
+  _speed: 110
+  _catchRate: 45
+  _expYield: 184
+  _effortPointsYield: 2
+  _growthRate: 1
+  _idleUpSprites:
+  - {fileID: 71411445, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1711142920, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 707871789, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 878385262, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1007100161, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1468376590, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 2107506240, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 608421370, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _idleDownSprites:
+  - {fileID: -619735070, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1201990419, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1244828624, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -2084651873, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 413936334, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1577716837, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1806710852, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1278630599, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _idleLeftSprites:
+  - {fileID: -1834068232, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1665435934, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1003946161, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1155287629, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 365140522, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -717976387, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1766900964, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1344583151, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _idleRightSprites:
+  - {fileID: -6707105, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -787573348, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -135465395, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1744053577, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1850396229, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1489251588, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1379598462, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -848302341, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _idleUpLeftSprites:
+  - {fileID: 305619586, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1825073930, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 2015278336, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1056248887, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 241860536, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 2095276080, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -997543183, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1890816832, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _idleUpRightSprites:
+  - {fileID: -1151189704, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 50654065, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 726604073, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -2109892069, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 792888423, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -969593392, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -2026793779, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 923571605, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _idleDownLeftSprites:
+  - {fileID: 1091182922, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1778813783, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -851903213, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -1388206661, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -267371290, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 151763077, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -400310215, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 288501425, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _idleDownRightSprites:
+  - {fileID: 1400745397, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 1736557256, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 47675235, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 277682969, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -254546833, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -2117172400, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: -605020970, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  - {fileID: 973166822, guid: f01d7a4ee4b201948ad8d8c7cc62946b, type: 3}
+  _walkUpSprites:
+  - {fileID: -2012792498, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  - {fileID: 1335874101, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  - {fileID: 543494000, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  - {fileID: 530592782, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  _walkDownSprites:
+  - {fileID: -265054972, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  - {fileID: 536954699, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  - {fileID: 410160826, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  - {fileID: -260355758, guid: 9a896ff4c3704ec4f89f91f26d006ac8, type: 3}
+  _cardPortrait: {fileID: -83678312, guid: 02752ffbbcb95394f9bf1657d571cf2a, type: 3}
+  _type1: 11
+  _type2: 0
+  _abilities: 29000000
+  _evolutions: []
+  _learnableMoves:
+  - _moveSO: {fileID: 11400000, guid: c83c0173d55591d4d9866e24269a5ed3, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: cd860d2f9b510ff4dbd97b4f3842a188, type: 2}
+    _levelLearned: 3
+  - _moveSO: {fileID: 11400000, guid: 3d6337c650246f948a7f71d2e7e7eab3, type: 2}
+    _levelLearned: 6
+  - _moveSO: {fileID: 11400000, guid: 735c784f726ac1a4d867e8178819848e, type: 2}
+    _levelLearned: 9
+  _teachableMoves: []

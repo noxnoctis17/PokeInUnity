@@ -18,19 +18,18 @@ public class BattleUnit : MonoBehaviour
     public bool IsAI => _isAI;
     public PokemonAnimator PokeAnimator { get; private set; }
     public Transform PokeTransform { get; private set; } //--quick ref for battle tweens. tweens need to target the gameobject named "Pokemon" that holds the animator and shadow animator objects for a mon in battle.
-    public Action OnIsAI;
     public Dictionary<UnitFlags, BattleUnitFlag> Flags { get; private set; }
     private const float SCREENS_MODIFIER = 0.66796875f;
     private const float AURORA_VEIL_MODIFIER = 0.6669921875f;
     public Move LastUsedMove { get; private set; }
 
     private void OnEnable(){
-        OnIsAI += EnableAI;
         PokeAnimator = GetComponentInChildren<PokemonAnimator>();
     }
 
-    private void OnDisable(){
-        OnIsAI -= EnableAI;
+    public void SetAI( bool value )
+    {
+        _isAI = value;
     }
 
     public void Setup( Pokemon pokemon, BattleHUD battleHUD, BattleSystem battleSystem ){
@@ -58,17 +57,12 @@ public class BattleUnit : MonoBehaviour
         if( _isAI )
         {
             _battleAI.enabled = true;
-            // Debug.Log( _battleAI + " " + name );
             SetupAI();
         }
         else
         {
             _battleAI.enabled = false;
         }
-    }
-
-    private void EnableAI(){
-        _isAI = true;
     }
 
     private void SetupAI(){
@@ -88,9 +82,10 @@ public class BattleUnit : MonoBehaviour
             { UnitFlags.ChoiceItem,             new() },
             { UnitFlags.FocusSash,              new() },
             { UnitFlags.SitrusBerry,            new() },
+            { UnitFlags.Phased,                 new() },
         };
 
-        if( Pokemon.HeldItem != null && Pokemon.HeldItem.BattleEffectID == BattleItemEffectID.SitrusBerry )
+        if( Pokemon.HeldItem != null && Pokemon.HeldItem.BattleEffectID == BattleItemEffectID.FocusSash )
             Flags[UnitFlags.FocusSash].Count = 1;
 
         if( Pokemon.HeldItem != null && Pokemon.HeldItem.BattleEffectID == BattleItemEffectID.SitrusBerry )
@@ -104,6 +99,7 @@ public class BattleUnit : MonoBehaviour
 
     public void SetFlagActive( UnitFlags flag, bool active )
     {
+        Debug.Log( $"Setting flag {flag} to: {active}" );
         Flags[flag].IsActive = active;
     }
 
@@ -112,17 +108,28 @@ public class BattleUnit : MonoBehaviour
         int turnsTaken = Flags[UnitFlags.TurnsTaken].Count;
         turnsTaken++;
         SetFlagCount( UnitFlags.TurnsTaken, turnsTaken );
+        Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
     }
 
     public void ResetTurnsTakenInBattle()
     {
         int turnsTaken = -1;
+        Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
         SetFlagCount( UnitFlags.TurnsTaken, turnsTaken );
+        Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
     }
 
     public void SetLastUsedMove( Move move )
     {
         LastUsedMove = move;
+    }
+
+    public bool IsChoiceItemLocked()
+    {
+        if( Flags[UnitFlags.ChoiceItem].IsActive && LastUsedMove != null )
+            return true;
+        else
+            return false;
     }
 
     public DamageDetails TakeDamage( Move move, BattleUnit attacker, WeatherCondition weather ){
@@ -146,10 +153,10 @@ public class BattleUnit : MonoBehaviour
 
         //--STAB. If either of the attacker's types match the move types, return 1.5f, otherwise, return 1f. Adaptability returns 2f, otherwise it returns whatever STAB is.
         float STAB = attacker.Pokemon.CheckTypes( move.MoveType ) ? 1.5f : 1f;
-        float onAbilitySTABModify = attacker.Pokemon.Ability?.OnSTABModify?.Invoke( attacker.Pokemon, move ) ?? STAB;
+        STAB = attacker.Pokemon.Ability?.OnSTABModify?.Invoke( attacker.Pokemon, move ) ?? STAB;
 
         //--Move Type vs target type effectiveness
-        float effectiveness = TypeChart.GetEffectiveness( move.MoveSO.Type, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveSO.Type, target.PokeSO.Type2 );
+        float effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
 
         //--Weather damage modifier
         float weatherModifier = weather?.OnDamageModify?.Invoke( Pokemon, attacker.Pokemon, move ) ?? 1f;
@@ -161,7 +168,7 @@ public class BattleUnit : MonoBehaviour
 
         //--Held item damage modifier
         float itemOnDamageModify = attacker.Pokemon.BattleItemEffect?.OnDamageModify?.Invoke( attacker, target, move ) ?? 1f;
-        Debug.Log( $"itemOnDamageModify: {itemOnDamageModify}" );
+        // Debug.Log( $"itemOnDamageModify: {itemOnDamageModify}" );
 
         //--Ability damage modifier
         // float abilityOnDamageModify
@@ -176,7 +183,7 @@ public class BattleUnit : MonoBehaviour
         if( Flags[UnitFlags.AuroraVeil].IsActive )
             auroraVeilModifier = AURORA_VEIL_MODIFIER;
 
-        Debug.Log( $"Screen modifiers are: R: {reflectModifier}, LS: {lightScreenModifier}, AV: {auroraVeilModifier}" );
+        // Debug.Log( $"Screen modifiers are: R: {reflectModifier}, LS: {lightScreenModifier}, AV: {auroraVeilModifier}" );
         
         var damageDetails = new DamageDetails()
         {
@@ -192,18 +199,29 @@ public class BattleUnit : MonoBehaviour
                 attackStat = attacker.Pokemon.Attack;
                 defenseStat = target.Defense;
 
-                //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow. Will need to encapsulate this stuff eventually...
+                //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow.
                 attackStat = attacker.Pokemon.Modify_ATK( attackStat, target, move );
                 defenseStat = target.Modify_DEF( defenseStat, attacker.Pokemon, move );
+
+                //--If a move uses a different stat or a different formula, such as Body Press or Gyro Ball
+                if( move.MoveSO.OverrideAttackStat )
+                    attackStat = move.OverrideAttackingStat( attacker.Pokemon, move, attackStat );
         }
         else if( move.MoveSO.MoveCategory == MoveCategory.Special ){
                 attackStat = attacker.Pokemon.SpAttack;
                 defenseStat = target.SpDefense;
 
-                //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow. Will need to encapsulate this stuff eventually...
+                //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow.
                 attackStat = attacker.Pokemon.Modify_SpATK( attackStat, target, move );
                 defenseStat = target.Modify_SpDEF( defenseStat, attacker.Pokemon, move );
+
+                //--If a move uses a different stat or a different formula, such as Body Press or Gyro Ball
+                if( move.MoveSO.OverrideAttackStat )
+                    attackStat = move.OverrideAttackingStat( attacker.Pokemon, move, attackStat );
         }
+
+        //--Apply any damage modifications to the attacker based on the target's ability. In the only existing case atm, Thick Fat reduces both the atk and spatk of the attacker if the move is ice or fire. --12/21/25
+        attackStat = target.Ability?.OnIncomingDamage?.Invoke( attackStat, attacker.Pokemon, target, move ) ?? attackStat;
         
         float random = UnityEngine.Random.Range( 0.85f, 1f );
 
@@ -211,6 +229,9 @@ public class BattleUnit : MonoBehaviour
         float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attackStat / defenseStat / 50 + 2 ) * modifiers;
         int rawDamage = (int)Mathf.Max( damageCalc, 1f );
         int damage = Mathf.Clamp( rawDamage, 1, Pokemon.CurrentHP );
+
+        if( effectiveness == 0 )
+            damage = 0;
 
         damage = Pokemon.BattleItemEffect?.OnTakeMoveDamage?.Invoke( attacker, this, move, damage ) ?? damage;
 
@@ -240,6 +261,10 @@ public enum UnitFlags
     ChoiceItem,
     FocusSash,
     SitrusBerry,
+    Phased,
+    Trapped,
+    Grounded,
+    
 
 }
 

@@ -24,11 +24,7 @@ public class SwitchPokemonCommand : IBattleCommand
     }
 
     public IEnumerator ExecuteBattleCommand(){
-
-        if( !_isAISwitch )
-            yield return _battleSystem.PerformSwitchPokemonCommand( _pokemon, _battleUnit );
-        else
-            yield return _battleSystem.PerformSwitchEnemyTrainerPokemonCommand( _pokemon, _battleUnit );
+        yield return _battleSystem.PerformSwitchPokemonCommand( _pokemon, _battleUnit );
     }
 
     public Pokemon GetPokemon()

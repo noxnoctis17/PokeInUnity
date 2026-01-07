@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 public class PartyMember_UI : MonoBehaviour
 {
@@ -17,13 +19,13 @@ public class PartyMember_UI : MonoBehaviour
     [SerializeField] private Image _battlePortrait;
     [SerializeField] private Image _severeStatusIcon;
     [SerializeField] private Image _currenBall;
+    [SerializeField] private Image _heldItemIcon;
     private int _currentHPTracker;
     private Pokemon _pokemon;
     public int HP => _currentHPTracker;
     public Pokemon Pokemon => _pokemon;
 
     public void Init( Pokemon pokemon ){
-        // Debug.Log( "PartyMember_UI Init()" );
         _pokemon = pokemon;
         UpdateData();
 
@@ -38,16 +40,22 @@ public class PartyMember_UI : MonoBehaviour
 
     private void UpdateData(){
         _nameText.text = _pokemon.NickName;
-        _levelText.text = "" + _pokemon.Level;
+        _levelText.text = $"Lv. {_pokemon.Level}";
         _hpBar.SetHP( _pokemon.CurrentHP, _pokemon.MaxHP );
         _currentHPTracker = _pokemon.CurrentHP;
         _currentHPText.text = $"{_hpBar.RedHPSlider.value}/{_hpBar.RedHPSlider.maxValue}";
         _statusText.text = "";
 
-        if( _pokemon.PokeSO.IdleDownSprites != null ) //--TODO: Remove, all mons should have sprites lol
-            _battlePortrait.sprite = _pokemon.PokeSO.IdleDownSprites[0];
+        _battlePortrait.sprite = _pokemon.PokeSO.CardPortrait;
 
         _currenBall.sprite = _pokemon.CurrentBallSprite;
+
+        _heldItemIcon.gameObject.SetActive( false );
+        if( _pokemon.HeldItem != null )
+        {
+            _heldItemIcon.sprite = _pokemon.HeldItem.Icon;
+            _heldItemIcon.gameObject.SetActive( true );
+        }
 
         if( _pokemon.CanEvolveByLevelUp && _canEvolveText != null )
             _canEvolveText.SetActive( true );
@@ -114,4 +122,8 @@ public class PartyMember_UI : MonoBehaviour
             _severeStatusIcon.gameObject.SetActive( false );
     }
 
+    public void AnimateBall( Vector3 rotate )
+    {
+        _currenBall.GetComponent<RectTransform>().DOLocalRotate( rotate, 0.25f );
+    }
 }

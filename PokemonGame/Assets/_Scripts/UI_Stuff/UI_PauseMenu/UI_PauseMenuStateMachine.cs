@@ -6,6 +6,7 @@ public class UI_PauseMenuStateMachine : State<UI_PauseMenuStateMachine>
 {
     [SerializeField] private State<UI_PauseMenuStateMachine> _pauseMenu;
     public StateStackMachine<UI_PauseMenuStateMachine> StateMachine { get; private set; }
+    public State<UI_PauseMenuStateMachine> CurrentState => StateMachine.CurrentState;
 
     private void Start(){
         //--Setup State Machine

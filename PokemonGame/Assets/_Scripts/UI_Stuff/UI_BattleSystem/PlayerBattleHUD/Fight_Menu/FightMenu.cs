@@ -15,7 +15,7 @@ public class FightMenu : State<PlayerBattleMenu>
     public Button LastButton { get; private set; }
     [SerializeField] private BattleUnit _activeUnit;
     public BattleUnit ActiveUnit => _activeUnit;
-    [SerializeField] private List<MoveButton> _moveButtons;
+    [SerializeField] private List<MoveButton_Fight> _moveButtons;
     [SerializeField] private List<TextMeshProUGUI> _moveNameText, _ppText;
 
     public override void EnterState( PlayerBattleMenu owner ){
@@ -28,6 +28,8 @@ public class FightMenu : State<PlayerBattleMenu>
         SetUpMoves( _activeUnit.Pokemon.ActiveMoves );
 
         _initialButton = move1button;
+        if( _activeUnit.LastUsedMove != null )
+            SetMemoryButton();
 
         StartCoroutine( SetInitialButton() );
 
@@ -95,20 +97,31 @@ public class FightMenu : State<PlayerBattleMenu>
         }
     }
 
-    private IEnumerator SetInitialButton(){
+    private IEnumerator SetInitialButton()
+    {
         yield return new WaitForSeconds( 0.15f );
 
         if( LastButton != null )
             SelectMemoryButton();
-        else{
-            SetMemoryButton( _initialButton );
-        }
+        else
+            _initialButton.Select();
 
         BattleUIActions.OnFightMenuOpened?.Invoke();
     }
 
-    public void SetMemoryButton( Button lastButton ){
-        LastButton = lastButton;
+    private void SetMemoryButton()
+    {
+        if( _activeUnit.LastUsedMove != null )
+        {
+            for( int i = 0; i < _moveButtons.Count; i++ )
+            {
+                if( _moveButtons[i].AssignedMove == _activeUnit.LastUsedMove )
+                    LastButton = _moveButtons[i].ThisButton;
+            }
+        }
+        else
+            LastButton = _initialButton;
+
         SelectMemoryButton();
     }
 

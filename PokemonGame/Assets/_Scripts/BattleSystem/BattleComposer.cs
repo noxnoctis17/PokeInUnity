@@ -67,12 +67,115 @@ public class BattleComposer : MonoBehaviour
         yield return coroutine;
     }
 
+    public IEnumerator RunMoveToAttackPosition( Move move, BattleUnit attacker, BattleUnit target )
+    {
+        switch( move.MoveSO.AnimationType )
+        {
+            //--None
+            case AnimationType.None:
+                yield return null;
+            break;
+            
+            //--Strike
+            case AnimationType.Strike:
+                yield return attacker.PokeAnimator.PlayMoveIntoStrikePosition( target.PokeTransform );
+            break;
+
+            //--Shoot
+            case AnimationType.Shoot:
+                yield return attacker.PokeAnimator.PlayMoveIntoShootPosition( target.PokeTransform );
+            break;
+
+            //--Status
+            case AnimationType.Status:
+                yield return null;
+            break;
+
+            //--Dance
+            case AnimationType.Dance:
+                yield return null;
+            break;
+
+            //--Earthquake
+            case AnimationType.Earthquake:
+                yield return null;
+            break;
+
+            //--Fake Out
+            case AnimationType.FakeOut:
+                yield return null;
+            break;
+
+            //--Fast
+            case AnimationType.Fast:
+                yield return null;
+            break;
+
+            //--Pivot
+            case AnimationType.Pivot:
+                yield return null;
+            break;
+        }
+    }
+
+    public IEnumerator RunAttackAnimation( Move move, BattleUnit attacker, BattleUnit target )
+    {
+        switch( move.MoveSO.AnimationType )
+        {
+            //--None
+            case AnimationType.None:
+                yield return null;
+            break;
+            
+            //--Strike
+            case AnimationType.Strike:
+                yield return RunStrikeAttackScene( move, attacker, target );
+            break;
+
+            //--Shoot
+            case AnimationType.Shoot:
+                yield return RunShootAttackScene( move, attacker, target );
+            break;
+
+            //--Status
+            case AnimationType.Status:
+                yield return null;
+            break;
+
+            //--Dance
+            case AnimationType.Dance:
+                yield return null;
+            break;
+
+            //--Earthquake
+            case AnimationType.Earthquake:
+                yield return null;
+            break;
+
+            //--Fake Out
+            case AnimationType.FakeOut:
+                yield return RunFakeOutAttackScene( move, attacker, target );
+            break;
+
+            //--Fast
+            case AnimationType.Fast:
+                yield return RunFastAttackScene( move, attacker, target );
+            break;
+
+            //--Pivot
+            case AnimationType.Pivot:
+                yield return RunPivotAttackScene( move, attacker, target );
+            break;
+
+        }
+    }
+
     public IEnumerator RunStatusAttackScene( Move move, BattleUnit attacker, BattleUnit target )
     {
         yield return attacker.PokeAnimator.PlayStatusAttackAnimation();
     }
 
-    public IEnumerator RunPhysicalAttackScene( Move move, BattleUnit attacker, BattleUnit target )
+    public IEnumerator RunStrikeAttackScene( Move move, BattleUnit attacker, BattleUnit target )
     {
         TweenCallback cameraCallback = null;
         
@@ -103,13 +206,31 @@ public class BattleComposer : MonoBehaviour
             yield return _cameraDelay;
         }
 
-        yield return attacker.PokeAnimator.PlayPhysicalAttackAnimation( attacker.PokeTransform, target.PokeTransform, cameraCallback );
+        yield return attacker.PokeAnimator.PlayStrikeAnimation( target.PokeTransform, cameraCallback );
     }
 
-    public IEnumerator RunSpecialAttackScene( Move move, BattleUnit attacker, BattleUnit target )
+    public IEnumerator RunShootAttackScene( Move move, BattleUnit attacker, BattleUnit target )
     {
         yield return _cameraDelay;
-        yield return attacker.PokeAnimator.PlaySpecialAttackAnimation( target.PokeTransform );
+        yield return attacker.PokeAnimator.PlayShootAnimation( target.PokeTransform );
+    }
+
+    public IEnumerator RunFakeOutAttackScene( Move move, BattleUnit attacker, BattleUnit target )
+    {
+        yield return _cameraDelay;
+        yield return attacker.PokeAnimator.PlayFakeOutAnimation( target.PokeTransform );
+    }
+
+    public IEnumerator RunFastAttackScene( Move move, BattleUnit attacker, BattleUnit target )
+    {
+        yield return _cameraDelay;
+        yield return attacker.PokeAnimator.PlayFastAnimation( target.PokeTransform );
+    }
+
+    public IEnumerator RunPivotAttackScene( Move move, BattleUnit attacker, BattleUnit target )
+    {
+        yield return _cameraDelay;
+        yield return attacker.PokeAnimator.PlayPivotAnimation( target.PokeTransform );
     }
 
     public IEnumerator RunTakeDamagePhase( float typeEffectiveness, BattleUnit target )

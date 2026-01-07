@@ -4,13 +4,15 @@ using UnityEngine;
 public class TrainerSO : ScriptableObject
 {
     [SerializeField] private string _name;
-    [SerializeField] private TrainerClassEnum _trainerClassEnum;
+    [SerializeField] private TrainerClasses _trainerClass;
+    [SerializeField] private Sprite _portrait;
     
-    public TrainerClassEnum TrainerClassEnum => _trainerClassEnum;
+    public TrainerClasses TrainerClass => _trainerClass;
     public string TrainerName => _name;
+    public Sprite Portrait => _portrait;
 }
 
-public enum TrainerClassEnum{
+public enum TrainerClasses{
     AceTrainer,
     Hiker,
     Lass,
@@ -18,5 +20,8 @@ public enum TrainerClassEnum{
     Swimmer,
     BugCatcher,
     GymLeader,
-
+    EliteFour,
+    Champion,
+    Trainer,
+    None,
 }

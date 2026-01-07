@@ -15,6 +15,6 @@ MonoBehaviour:
   _itemCategory: 3
   _itemName: Para Orb
   _itemDescription: 
-  _icon: {fileID: 0}
+  _icon: {fileID: 21300000, guid: 391ab6be5c962c0439f84c0242b399aa, type: 3}
   _hasBattleEffect: 1
   _battleEffectID: 3

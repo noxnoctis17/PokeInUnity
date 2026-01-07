@@ -3,13 +3,13 @@
   <Project Path="Unity.Timeline.csproj" />
   <Project Path="Unity.VisualEffectGraph.Editor.csproj" />
   <Project Path="Unity.TerrainTools.Editor.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.ShaderGraph.Editor.csproj" />
   <Project Path="AstarPathfindingProject.csproj" />
   <Project Path="Unity.InputSystem.csproj" />
   <Project Path="JBooth.MicroSplat.Core.Editor.csproj" />
   <Project Path="CFXREditor.csproj" />
   <Project Path="Unity.VisualScripting.Flow.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Runtime.csproj" />
   <Project Path="UnityEditor.UI.csproj" />
   <Project Path="Unity.Timeline.Editor.csproj" />
@@ -38,6 +38,8 @@
   <Project Path="Unity.2D.Animation.Editor.csproj" />
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
+  <Project Path="Unity.TestTools.CodeCoverage.Editor.OpenCover.Model.csproj" />
+  <Project Path="Unity.Rider.Editor.csproj" />
   <Project Path="AstarPathfindingProjectEditor.csproj" />
   <Project Path="Unity.InternalAPIEditorBridge.001.csproj" />
   <Project Path="Unity.VisualEffectGraph.Runtime.csproj" />
@@ -45,8 +47,11 @@
   <Project Path="Unity.VisualScripting.State.Editor.csproj" />
   <Project Path="com.unity.cinemachine.editor.csproj" />
   <Project Path="UnityEngine.UI.csproj" />
+  <Project Path="Unity.TestTools.CodeCoverage.Editor.csproj" />
   <Project Path="Unity.Burst.CodeGen.csproj" />
+  <Project Path="Unity.Postprocessing.Runtime.csproj" />
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
+  <Project Path="Unity.Postprocessing.Editor.csproj" />
   <Project Path="Unity.AI.Navigation.csproj" />
   <Project Path="Unity.VisualScripting.State.csproj" />
   <Project Path="Unity.TextMeshPro.csproj" />
@@ -60,6 +65,7 @@
   <Project Path="Unity.2D.IK.Editor.csproj" />
   <Project Path="Unity.InternalAPIEngineBridge.001.csproj" />
   <Project Path="Unity.Burst.Editor.csproj" />
+  <Project Path="Unity.TestTools.CodeCoverage.Editor.OpenCover.Mono.Reflection.csproj" />
   <Project Path="Unity.2D.Common.Editor.csproj" />
   <Project Path="Unity.AI.Navigation.Updater.csproj" />
   <Project Path="Assembly-CSharp-firstpass.csproj" />

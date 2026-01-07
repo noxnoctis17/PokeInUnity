@@ -8,7 +8,7 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
 {
     public UI_PauseMenuStateMachine StateMachine { get; private set; }
     public UI_PauseMenuButton_Events ButtonEvents { get; private set; }
-    [SerializeField] private Button _pokedexButton, _pokemonButton, _bagButton, _saveButton, _loadButton, _optionsButton;
+    [SerializeField] private Button _pokedexButton, _pokemonButton, _bagButton, _saveButton, _optionsButton;
     private Button[] _buttons;
     private Button _initialButton;
     private Vector3 _defaultScale;
@@ -35,7 +35,7 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         PlayerReferences.Instance.PlayerController.EnableUI();
 
         //--Throw Buttons in Array for mass handling
-        _buttons = new Button[]{ _pokedexButton, _pokemonButton, _bagButton, _saveButton, _loadButton, _optionsButton };
+        _buttons = new Button[]{ _pokedexButton, _pokemonButton, _bagButton, _saveButton, _optionsButton };
         SetupButtons();
 
         //--Open Menu

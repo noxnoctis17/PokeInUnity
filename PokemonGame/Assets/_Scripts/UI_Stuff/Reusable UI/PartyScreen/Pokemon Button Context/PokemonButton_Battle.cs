@@ -9,7 +9,6 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
     private PokemonButton _pkmnButton;
     private PartyScreen_Battle _partyScreen;
     // private BattleDialogueBox _dialogueBox;
-    private bool _isFaintedSelect;
 
     public void Init( PartyDisplay partyScreen, PokemonButton button, IPartyScreen battleMenu ){
         _partyDisplay = partyScreen;
@@ -17,14 +16,15 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
         _partyScreen = (PartyScreen_Battle)battleMenu;
         _pokemon = _pkmnButton.Pokemon;
 
-        BattleSystem.OnPlayerPokemonFainted += SetFaintSelectTrue;
-        BattleSystem.OnPlayerChoseNextPokemon += SetFaintSelectFalse;
+        // BattleSystem.OnPlayerPokemonFainted += SetFaintSelectTrue;
+        // BattleSystem.OnPlayerChoseNextPokemon += SetFaintSelectFalse;
     }
 
     public void ContextSubmit(){
         // Debug.Log ("fainted select in button is: " + _isFaintedSelect );
         // _dialogueBox = BattleSystem.Instance.DialogueBox;
         Debug.Log( $"This pokemon is: {_pokemon.NickName}" );
+        _partyScreen.SetMemoryButton( _pkmnButton.ThisButton );
         
         //--we're popping the state first because code is sequential
         //--all battle system stuff would get run to completion before we get to the end, where we'd finally pop the state
@@ -53,9 +53,9 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
         //--I should really take a small dive into figuring out if popping a state before executing code is really actually doing anything or not
         _partyScreen.BattleMenu.StateMachine.Pop();
 
-        if( _isFaintedSelect ){ //--If switch is caused by a faint, we don't add the command to the command queue
-            BattleSystem.OnPlayerChoseNextPokemon?.Invoke();
-            _partyScreen.BattleSystem.SetFaintedSwitchMon( _pokemon, _partyScreen.BattleSystem.SwitchUnitToPosition );
+        if( _partyScreen.BattleSystem.IsForcedSwitch ){ //--If switch is caused by a faint, we don't add the command to the command queue
+            Debug.Log( "Is forced switch" );
+            _partyScreen.BattleSystem.SetForcedSwitchMon( _pokemon, _partyScreen.BattleSystem.SwitchUnitToPosition );
         }
         else{
             //--I NEED TO KNOW WHICH BATTLE UNIT IS CURRENTLY ADDING A COMMAND TO THE COMMAND QUEUE TO KNOW WHICH POSITION TO SWITCH TO
@@ -64,21 +64,26 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
             BattleUIActions.OnCommandUsed?.Invoke();
             BattleUIActions.OnSubMenuClosed?.Invoke();
         }
-        
-        _partyScreen.SetMemoryButton( _pkmnButton.ThisButton );
     }
 
-    public void ContextSelected(){
-        
+    public void ContextSelected()
+    {
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
+        int i = _partyDisplay.GetIndex( _pkmnButton );
+        Vector3 rotate = new( 0f, 0f, 0f );
+        _partyDisplay.MemberSlots[i].AnimateBall( rotate );
+        _partyScreen.SetDisplayedPokemon( _pokemon );
     }
 
-    public void ContextDeSelected(){
-
+    public void ContextDeSelected()
+    {
+        int i = _partyDisplay.GetIndex( _pkmnButton );
+        Vector3 rotate = new( 0f, 0f, 45f );
+        _partyDisplay.MemberSlots[i].AnimateBall( rotate );
     }
 
     public void ContextCancel(){
-        if( _isFaintedSelect ){
-            // StartCoroutine( _dialogueBox.TypeDialogue( "You need to select a Pokemon!" ) );
+        if( _partyScreen.BattleSystem.IsForcedSwitch ){
             DialogueManager.Instance.PlaySystemMessage( "You need to select a Pokemon!" );
         }
         else{
@@ -90,16 +95,5 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
 
     public void CloseContextMenu(){
         _partyScreen.BattleMenu.StateMachine.Pop();
-    }
-
-
-    private void SetFaintSelectTrue(){
-        // Debug.Log( "SetFaintSelectTrue in button fired. should it have?" );
-        _isFaintedSelect = true;
-    }
-
-    private void SetFaintSelectFalse(){
-        // Debug.Log( "SetFaintSelectFalse in button fired. should it have?" );
-        _isFaintedSelect = false;
     }
 }

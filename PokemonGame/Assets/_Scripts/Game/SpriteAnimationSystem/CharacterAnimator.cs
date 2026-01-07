@@ -116,7 +116,7 @@ public class CharacterAnimator : MonoBehaviour
         else
             SpritePerspective = SpritePerspective.Down;
 
-        OnSpritePerspectiveChanged?.Invoke( SpritePerspective );
+        // OnSpritePerspectiveChanged?.Invoke( SpritePerspective );
     }
 
     //--This is to set the shadow facing direction based on the character's forward angle. i don't know math tho lol
@@ -156,6 +156,7 @@ public class CharacterAnimator : MonoBehaviour
     }
 
     public IEnumerator JumpFromLedge( Transform player, Vector3 destination ){
+        Debug.Log( $"JumpFromLedge()" );
         StateMachine.Push( _ledgeHopState );
 
         yield return SpriteAnimator.PauseAtFrameUntil( 2, 0.05f );

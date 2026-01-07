@@ -14,6 +14,7 @@ public class EvolutionManager : State<GameStateController>
     [SerializeField] private Image _pokemonSprite;
     [SerializeField] private SpriteRenderer _evolutionSpriteRenderer;
     [SerializeField] private PokemonAnimator _pokeAnimator;
+    [SerializeField] private Sprite _transparentPixel;
     public bool Evolving { get; private set; }
 
     public event Action OnEvolutionStateEntered;
@@ -25,17 +26,22 @@ public class EvolutionManager : State<GameStateController>
 
     public override void EnterState( GameStateController owner ){
         StateMachine = owner;
-
         OnEvolutionStateEntered?.Invoke();
 
-        PlayerReferences.Instance.PlayerController.EnableUI();
+        _pokemonSprite.sprite = _transparentPixel;
+        _evolutionSpriteRenderer.sprite = _transparentPixel;
+
         _evolutionUI.SetActive( true );
+
+        PlayerReferences.Instance.PlayerController.EnableUI();
     }
 
     public void Update(){
         if( Evolving )
-            _pokemonSprite.sprite = _evolutionSpriteRenderer.sprite;
+        {
             _pokemonSprite.color = _evolutionSpriteRenderer.color;
+            _pokemonSprite.sprite = _evolutionSpriteRenderer.sprite;
+        }
     }
 
     public override void ReturnToState(){
@@ -56,22 +62,20 @@ public class EvolutionManager : State<GameStateController>
 
     public IEnumerator Evolve( Pokemon pokemon, Evolutions evolution ){
         //--Initialize Animator
-        _pokeAnimator.ChangeAnimationState( PokeAnimationState.Evolving );
         _pokeAnimator.Initialize( pokemon.PokeSO );
-
-        //--Initialize Evolution Image because of bullshit!!!!
-        _pokemonSprite.sprite = pokemon.PokeSO.IdleDownSprites[0];
-        yield return new WaitForEndOfFrame();
-        yield return _pokemonSprite.DOFade( 1f, 0.1f ).WaitForCompletion();
+        
+        yield return _pokeAnimator.PlayBeginEvolutionAnimation( pokemon.PokeSO, evolution.Evolution );
+        Evolving = true;
 
         //--Evolving Dialogue
-        yield return DialogueManager.Instance.PlaySystemMessageCoroutine( $"What? {pokemon.NickName} is evolving!" );
+        yield return DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} is evolving!", true );
         string prevoName = pokemon.NickName;
         string evoSpecies = evolution.Evolution.Species;
 
+        Debug.Log( $"[Evolution Manager] Playing evolution animation!" );
         //--Evolution Animation
-        Evolving = true;
-        yield return _pokeAnimator.PlayEvolutionAnimation( pokemon.PokeSO, evolution.Evolution );
+        yield return _pokemonSprite.DOFade( 1f, 0.1f );
+        yield return _pokeAnimator.PlayEvolutionAnimation();
         yield return new WaitForSeconds( 1f );
         
         //--Evolve
@@ -90,11 +94,11 @@ public class EvolutionManager : State<GameStateController>
         var evolveAgain = pokemon.CheckForEvolution();
         if( evolveAgain != null ){
             pokemon.SetCanEvolveByLevelUp( true );
-            Debug.Log( $"{pokemon.NickName} can evolve again." );
+            Debug.Log( $"[Evolution Manager] {pokemon.NickName} can evolve again." );
         }
         else if( evolveAgain == null ){
             pokemon.SetCanEvolveByLevelUp( false );
-            Debug.Log( $"{pokemon.NickName} can NOT evolve again." );
+            Debug.Log( $"[Evolution Manager] {pokemon.NickName} can NOT evolve again." );
         }
 
         //--Leave Evolving State

@@ -1,37 +1,37 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.PlayerLoop;
 
 public class PokemonDB
 {
-    private static Dictionary<string, PokemonSO> _pokemonSpeciesDB;
+    private static Dictionary<(string Species, int Form), PokemonSO> _pokemonSpeciesDB;
 
     public static void Init(){
         _pokemonSpeciesDB = new();
 
         var dbArray = Resources.LoadAll<PokemonSO>( "" );
-        foreach( var pokeSO in dbArray ){
-            if( _pokemonSpeciesDB.ContainsKey( pokeSO.Species ) ){
+        foreach( var pokeSO in dbArray )
+        {
+            var key = ( pokeSO.Species, pokeSO.Form );
+
+            if( _pokemonSpeciesDB.ContainsKey( key ) )
+            {
                 Debug.LogError( "Duplicate Pokemon Species" );
                 continue;
             }
 
-            _pokemonSpeciesDB[pokeSO.Species] = pokeSO;
-
+            _pokemonSpeciesDB[key] = pokeSO;
         }
     }
 
-    public static PokemonSO GetPokemonBySpecies( string species ){
-        if( !_pokemonSpeciesDB.ContainsKey( species ) ){
+    public static PokemonSO GetPokemonBySpecies( ( string species, int form ) key )
+    {
+        if( !_pokemonSpeciesDB.ContainsKey( key ) )
+        {
             Debug.LogError( "Pokemon not found in Pokemon Database!" );
             return null;
         }
         
-        return _pokemonSpeciesDB[species];
+        return _pokemonSpeciesDB[key];
     }
-
-    // public static PokemonSO GetPokemonByType(){
-
-    // }
-
 }

@@ -96,12 +96,13 @@ public class TypeText : MonoBehaviour
         return false;
     }
 
-    //--something something fuck dictionaries or whatever
-    private readonly struct Punctuation{
+    private readonly struct Punctuation
+    {
         public readonly HashSet<char> Punctuations;
         public readonly float WaitTime;
 
-        public Punctuation( HashSet<char> punctuations, float waitTime ){
+        public Punctuation( HashSet<char> punctuations, float waitTime )
+        {
             Punctuations = punctuations;
             WaitTime = waitTime;
         }

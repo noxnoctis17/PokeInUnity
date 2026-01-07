@@ -19,6 +19,7 @@ public class UseMoveCommand : IBattleCommand
     public int CommandPriority => _commandPriority;
     public int AttackPriority => _attackPriority;
     public int UnitAgility => _unitAgility;
+    public Move Move => _move;
 
     public UseMoveCommand( Move move, BattleUnit attacker, BattleUnit target, BattleSystem battleSystem ){
         _move = move;

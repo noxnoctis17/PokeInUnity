@@ -18,6 +18,8 @@ public class MoveSO : ScriptableObject
     [SerializeField] private MoveCategory _moveCategory;
     [SerializeField] private MoveTarget _moveTarget;
     [SerializeField] PokemonType _moveType;
+    [SerializeField] AnimationType _animationType;
+    [SerializeField] bool _statOverride;
     [SerializeField] private int _power;
     [SerializeField] private int _accuracy;
     [SerializeField] private bool _alwaysHits;
@@ -34,6 +36,8 @@ public class MoveSO : ScriptableObject
     public MoveCategory MoveCategory => _moveCategory;
     public MoveTarget MoveTarget => _moveTarget;
     public PokemonType Type => _moveType;
+    public AnimationType AnimationType => _animationType;
+    public bool OverrideAttackStat => _statOverride;
     public int Power => _power;
     public int Accuracy => _accuracy;
     public bool Alwayshits => _alwaysHits;
@@ -89,12 +93,14 @@ public class MoveEffects
     [SerializeField] private WeatherConditionID _weather;
     //--Court Conditions (Tailwind, Entry Hazards, Screens, etc.)
     [SerializeField] private CourtConditionID _courtCondition;
+    [SerializeField] private SwitchEffect _switchEffect;
 
     public StatusConditionID SevereStatus => _severeStatus;
     public StatusConditionID VolatileStatus => _volatileStatus;
     public StatusConditionID TransientStatus => _transientStatus;
     public WeatherConditionID Weather => _weather;
     public CourtConditionID CourtCondition => _courtCondition;
+    public SwitchEffect SwitchEffect => _switchEffect;
 
 }
 
@@ -122,11 +128,18 @@ public class RecoilMoveEffect
     public int RecoilDamage = 0;
 }
 
+[Serializable]
+public class SwitchEffect
+{
+    public SwitchEffectType SwitchType;
+}
+
 public enum MoveTarget { Enemy, Self, OpposingSide, AllAdjacent, Ally, }
 
 public enum CritBehavior { none, HighCritRatio, AlwaysCrits, NeverCrits, }
 
 public enum RecoilType { none, RecoilByMaxHP, RecoilByCurrentHP, RecoilByDamage, }
+public enum SwitchEffectType { None, SelfPivot, ForceOpponentOut, }
 
 public enum MovePriority { Neg_7, Neg_6, Neg_5, Neg_4, Neg_3, Neg_2, Neg_1, Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine }
 
@@ -141,10 +154,26 @@ public enum MoveFlags
     Heal, //--Prevented from taking effect during Heal Block
     Jaw, //--For abilities like Strong Jaw and Biting moves
     Mirror, //--Can be copied by Mirror Move. I probably won't implement this nor MM
-    Protect, //--Official marks moves blocked by protect with protect. May save myself the time and reverse this so that moves with this flag ignore protect instead. --12/14/25
+    ProtectIgnore, //--Official marks moves blocked by protect with protect. May save myself the time and reverse this so that moves with this flag ignore protect instead. --12/14/25
     Punch, //--For abilities like Iron Fist or items like the Punching Glove
     Recharge, //--User must recharge during their next turn on move success. Hyper Beam
     Reflectable, //--Can be reflected back by Magic Coat or Magic Bounce
     Sound, //--Sound proof
+    Bullet,
+    Powder,
 
+}
+
+public enum AnimationType
+{
+    None,
+    Strike,
+    Shoot,
+    Status,
+    Dance,
+    Earthquake,
+    FakeOut,
+    Fast,
+    Pivot,
+    
 }

@@ -26,28 +26,36 @@ public class DialogueManager : MonoBehaviour
         OnHasResponseEvents         -= AddResponseEvents;
     }
 
-    private void PlayDialogue( DialogueSO dialogueSO ){
-        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
+    private void PlayDialogue( DialogueSO dialogueSO )
+    {
+        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance )
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
-        }
-        Debug.Log( dialogueSO );
+
         _dialogueUI.StartDialogue( dialogueSO );
     }
 
-    public void PlaySystemMessage( string dialogue ){
-        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
+    public void PlaySystemMessage( string dialogue, bool skipButton = false )
+    {
+        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance )
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
-        }
 
-        StartCoroutine( _dialogueUI.StartSystemMessage( dialogue ) );
+        StartCoroutine( _dialogueUI.StartSystemMessage( dialogue, skipButton ) );
     }
 
-    public IEnumerator PlaySystemMessageCoroutine( string dialogue ){
-        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance ){
+    public IEnumerator PlaySystemMessageCoroutine( string dialogue, bool skipButton = false )
+    {
+        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance )
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
-        }
         
-        yield return _dialogueUI.StartSystemMessage( dialogue );
+        yield return _dialogueUI.StartSystemMessage( dialogue, skipButton );
+    }
+
+    public IEnumerator PlayTrainerDialogueCR( string dialogue, Trainer trainer )
+    {
+        if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance )
+            GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );
+        
+        yield return _dialogueUI.StartTrainerDialogue( dialogue, trainer );
     }
 
     private void ContinueDialogue( DialogueSO dialogueSO ){

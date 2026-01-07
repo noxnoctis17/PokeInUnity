@@ -15,6 +15,6 @@ MonoBehaviour:
   _itemCategory: 3
   _itemName: Life Orb
   _itemDescription: life orb baybee
-  _icon: {fileID: 0}
+  _icon: {fileID: 21300000, guid: 0587dd44c8bd5324fb697b15d779720d, type: 3}
   _hasBattleEffect: 1
   _battleEffectID: 4

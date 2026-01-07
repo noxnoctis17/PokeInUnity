@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bacbed27f57496419a2f1a86825a863, type: 3}
+  m_Name: Pikachu
+  m_EditorClassIdentifier: 
+  _species: Pikachu
+  _wildType: 0
+  _defaultBall: {fileID: 0}
+  _description: 
+  _maxHP: 35
+  _attack: 55
+  _defense: 40
+  _spAttack: 50
+  _spDefense: 50
+  _speed: 90
+  _catchRate: 190
+  _expYield: 112
+  _effortPointsYield: 2
+  _growthRate: 1
+  _idleUpSprites:
+  - {fileID: 1621842625, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -2038566227, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -534508477, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -463337769, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -1211662592, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: 1900259947, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  _idleDownSprites:
+  - {fileID: 246602917, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -999248723, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -1413957262, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: 1572527065, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -2040113075, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -1438205512, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  _walkUpSprites:
+  - {fileID: 1621842625, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -2038566227, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -534508477, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -463337769, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -1211662592, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: 1900259947, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  _walkDownSprites:
+  - {fileID: 246602917, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -999248723, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -1413957262, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: 1572527065, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -2040113075, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  - {fileID: -1438205512, guid: 0aac71e05027b0b4bafb327295487c43, type: 3}
+  _cardPortrait: {fileID: -1823485985, guid: ed30fbcebf060024bbecae0047bb96c2, type: 3}
+  _type1: 4
+  _type2: 0
+  _abilities: 21000000
+  _evolutions: []
+  _learnableMoves:
+  - _moveSO: {fileID: 11400000, guid: f38555f9b13a3344689db17d35781d21, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: b68b576a456f3c544b3769b08dd17450, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: 449a176030ca537418bca947f6556c53, type: 2}
+    _levelLearned: 1
+  - _moveSO: {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}
+    _levelLearned: 1
+  _teachableMoves: []

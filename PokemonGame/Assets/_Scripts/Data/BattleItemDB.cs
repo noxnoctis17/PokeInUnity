@@ -181,7 +181,7 @@ public class BattleItemDB
                         Debug.Log( $"Damage done to Focus Sash: {damage}/{target.Pokemon.CurrentHP}" );
                         if( target.Pokemon.CurrentHP - damage == 0 )
                         {
-                            damage--;
+                            damage--; //--if damage will kill, we reduce the total damage by 1, leaving the target with 1hp. damage is clamped to never go over currenthp, so this should always work
                             target.Pokemon.BattleItemEffect?.OnEnd?.Invoke( target );
                             Debug.Log( $"Damage after Focus Sash: {damage}" );
                         }
@@ -216,13 +216,13 @@ public class BattleItemDB
                         Debug.Log( $"{unit.Pokemon.NickName} is holding a Sitrus Berry!" );
                         if( unit.Pokemon.IsBelowHPPercent( 50 ) )
                         {
-                            Debug.Log( $"{unit.Pokemon.NickName} previous hp: {unit.Pokemon.CurrentHP}" );
+                            // Debug.Log( $"{unit.Pokemon.NickName} previous hp: {unit.Pokemon.CurrentHP}" );
                             int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 4 );
                             unit.Pokemon.IncreaseHP( healBy );
                             unit.SetFlagActive( UnitFlags.SitrusBerry, false );
                             unit.SetFlagCount( UnitFlags.SitrusBerry, 0 );
-                            Debug.Log( $"{unit.Pokemon.NickName} new hp: {unit.Pokemon.CurrentHP}" );
-                            unit.Pokemon.AddStatusEvent( $"{unit.Pokemon.NickName}'s ate its Sitrus Berry to restore HP!" );
+                            // Debug.Log( $"{unit.Pokemon.NickName} new hp: {unit.Pokemon.CurrentHP}" );
+                            unit.Pokemon.AddStatusEvent( $"{unit.Pokemon.NickName} ate its Sitrus Berry to restore HP!" );
                         }
                     }
                 }
@@ -238,11 +238,11 @@ public class BattleItemDB
                     Debug.Log( $"Leftovers Triggered!" );
                     if( pokemon.CurrentHP < pokemon.MaxHP )
                     {
-                        Debug.Log( $"Prev HP: {pokemon.CurrentHP}" );
+                        // Debug.Log( $"Prev HP: {pokemon.CurrentHP}" );
                         int healBy = Mathf.FloorToInt( pokemon.MaxHP / 16 );
                         pokemon.IncreaseHP( healBy );
-                        Debug.Log( $"New HP: {pokemon.CurrentHP}" );
-                        pokemon.AddStatusEvent( $"{pokemon.NickName}'s ate some leftovers to restore its HP!" );
+                        // Debug.Log( $"New HP: {pokemon.CurrentHP}" );
+                        pokemon.AddStatusEvent( $"{pokemon.NickName} ate some leftovers to restore its HP!" );
                     }
                 }
             }
@@ -262,6 +262,49 @@ public class BattleItemDB
                     else
                         return 1f;
                 },
+            }
+        },
+        {
+            BattleItemEffectID.Charcoal, new()
+            {
+                ID = BattleItemEffectID.Charcoal,
+                
+                OnDamageModify = ( BattleUnit attacker, Pokemon target, Move move ) =>
+                {
+                    if( move.MoveSO.Type == PokemonType.Fire )
+                    {
+                        Debug.Log( $"{attacker.Pokemon.NickName} is holding a Charcoal! 1.2x fire move damage baybeee!" );
+                        return 1.2f;
+                    }
+                    else
+                        return 1f;
+                },
+            }
+        },
+        {
+            BattleItemEffectID.LightBall, new()
+            {
+                ID = BattleItemEffectID.LightBall,
+                
+                OnItemEnter = ( BattleUnit unit ) =>
+                {
+                    if( unit.Pokemon.PokeSO.Species == "Pikachu" || unit.Pokemon.PokeSO.Species == "Pikachu_Red" )
+                    {
+                        Debug.Log( $"{unit.Pokemon.NickName} is holding a Light Ball! Its Attack and SpAttack have been doubled!" );
+                        unit.Pokemon.ApplyDirectStatModifier( Stat.Attack, DirectModifierCause.LightBall, 2f );
+                        unit.Pokemon.ApplyDirectStatModifier( Stat.SpAttack, DirectModifierCause.LightBall, 2f );
+                    }
+                },
+
+                OnItemExit = ( BattleUnit unit ) =>
+                {
+                    if( unit.Pokemon.PokeSO.Species == "Pikachu" || unit.Pokemon.PokeSO.Species == "Pikachu_Red" )
+                    {
+                        Debug.Log( $"{unit.Pokemon.NickName} is holding a Light Ball! Its Attack and SpAttack modifiers have been removed!" );
+                        unit.Pokemon.RemoveDirectStatModifier( Stat.Attack, DirectModifierCause.LightBall );
+                        unit.Pokemon.RemoveDirectStatModifier( Stat.SpAttack, DirectModifierCause.LightBall );
+                    }
+                }
             }
         },
     };
@@ -286,4 +329,7 @@ public enum BattleItemEffectID
     SmoothRock,
     IcyRock,
     MysticWater,
+    Charcoal,
+
+    LightBall,
 }

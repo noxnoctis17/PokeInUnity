@@ -10,7 +10,7 @@ public class WildMon_AggressiveState : State<WildPokemon>
     public override void EnterState( WildPokemon owner ){
         Debug.Log( _wildPokemon + "Enter State: " + this );
         _wildPokemon = owner;
-        _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokeAnimationState.Walking );
+        // _wildPokemon.PokeAnimator.OnAnimationStateChange?.Invoke( PokeAnimationState.Walking );
         _wildPokemon.AgentMon.speed = 10f;
         _wildPokemon.AgentMon.acceleration = 10f;
         _previousPosition = _wildPokemon.AgentMon.nextPosition;

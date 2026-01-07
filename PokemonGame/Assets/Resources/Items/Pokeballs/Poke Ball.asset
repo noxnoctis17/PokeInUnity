@@ -16,5 +16,8 @@ MonoBehaviour:
   _itemName: Poke Ball
   _itemDescription: A device for catching wild Pokemon. It's thrown like a ball at
     a Pokemon, comfortably encapsulating its target. 1x Capture Rate.
-  _icon: {fileID: -1472096893, guid: a3c271ae95c255b4da8459ecfb3d22f5, type: 3}
+  _icon: {fileID: 21300000, guid: fba85a2ae52c4f34d99de83ba59d4c14, type: 3}
+  _hasBattleEffect: 0
+  _battleEffectID: 0
+  _ballType: 0
   _catchRate: 1

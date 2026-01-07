@@ -16,6 +16,6 @@ MonoBehaviour:
   _itemName: Leftovers
   _itemDescription: "An item to be held by a Pok\xE9mon. The holder's HP is slowly
     but steadily restored throughout a battle. "
-  _icon: {fileID: 0}
+  _icon: {fileID: 21300000, guid: 479d19cd5d563ee47aca898c850faf32, type: 3}
   _hasBattleEffect: 1
   _battleEffectID: 10

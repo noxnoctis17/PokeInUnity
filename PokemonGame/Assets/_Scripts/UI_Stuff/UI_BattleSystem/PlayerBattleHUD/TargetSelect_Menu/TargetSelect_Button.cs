@@ -49,7 +49,7 @@ public class TargetSelect_Button : MonoBehaviour, ISelectHandler, IDeselectHandl
     public void OnSubmit( BaseEventData eventData )
     {   
         _targetSelectState.PlayerBattleMenu.PopState();
-        _battleSystem.SetPlayerMoveCommand( _attacker, _assignedUnit, _moveToBeUsed );
+        _battleSystem.SetMoveCommand( _attacker, _assignedUnit, _moveToBeUsed );
     }
 
     public void OnCancel( BaseEventData eventData )

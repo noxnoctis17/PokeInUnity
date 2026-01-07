@@ -11,9 +11,14 @@ public class AudioController : MonoBehaviour
     public bool IsPlayingSFX { get; private set; }
     [SerializeField] private MusicTheme _lastOverworldTheme;
     public MusicTheme LastOverworldTheme => _lastOverworldTheme;
+    private AudioClip _currentBattleTheme;
+    private AudioClip _currentOverworldTheme;
     [SerializeField] private AudioSource _sfxSource;
-    [SerializeField] private AudioSource _overworldTheme;
-    [SerializeField] private AudioSource _battleTheme;
+    [SerializeField] private AudioSource _overworldTheme; //--These play the currently playing music of their respective themes
+    [SerializeField] private AudioSource _battleTheme; //--These play the currently playing music of their respective themes
+    [SerializeField] private AudioClip _gen3_TrainerTheme;
+    [SerializeField] private AudioClip _gen3_GymLeaderTheme;
+    [SerializeField] private AudioClip _gen1_ChampionTheme;
     [SerializeField] private AudioClip _battleThemeDefault;
     [SerializeField] private AudioClip _routeMainThemeCalm;
     [SerializeField] private AudioClip _ledgeHop;
@@ -50,21 +55,40 @@ public class AudioController : MonoBehaviour
     {
         AudioClip sound = null;
 
+        Debug.Log( $"Selected music theme is: {theme}" );
+
         switch( theme )
         {
             case MusicTheme.BattleThemeDefault:
                 sound = _battleThemeDefault;
+                _currentBattleTheme = sound;
             break;
 
             case MusicTheme.RouteMainTheme_Calm:
                 sound = _routeMainThemeCalm;
                 _lastOverworldTheme = MusicTheme.RouteMainTheme_Calm;
             break;
+
+            case MusicTheme.Gen1_ChampionTheme:
+                sound = _gen1_ChampionTheme;
+                _currentBattleTheme = sound;
+            break;
+
+            case MusicTheme.Gen3_TrainerTheme:
+                sound = _gen3_TrainerTheme;
+                _currentBattleTheme = sound;
+            break;
+
+            case MusicTheme.Gen3_GymLeaderTheme:
+                sound = _gen3_GymLeaderTheme;
+                _currentBattleTheme = sound;
+            break;
         }
 
-        if( sound == _battleThemeDefault && _overworldTheme.isPlaying )
+        if( sound == _currentBattleTheme && _overworldTheme.isPlaying )
         {
             Debug.Log( "Battle Theme Music!" );
+            _battleTheme.clip = sound;
             StartCoroutine( MusicThemeCrossfade( _overworldTheme, _battleTheme, crossfadeDuration ) );
         }
         else if( sound == _routeMainThemeCalm && _battleTheme.isPlaying )
@@ -214,4 +238,4 @@ public enum SoundEffect {
 
     }
 
-public enum MusicTheme { BattleThemeDefault, RouteMainTheme_Calm }
+public enum MusicTheme { BattleThemeDefault, RouteMainTheme_Calm, Gen1_ChampionTheme, Gen3_WildBattleTheme, Gen3_TrainerTheme, Gen3_GymLeaderTheme, }

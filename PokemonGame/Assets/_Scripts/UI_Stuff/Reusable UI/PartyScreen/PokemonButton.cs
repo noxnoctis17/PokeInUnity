@@ -9,12 +9,14 @@ public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, IC
     [SerializeField] private PokemonButton_PauseScreen _pauseContext;
     [SerializeField] private PokemonButton_UseItemFromPause _useItemPauseContext;
     [SerializeField] private PokemonButton_UseItemInBattle _useItemBattleContext;
+    [SerializeField] private RectTransform _container;
     private PartyDisplay _partyDisplay;
     private IPartyScreen _parentMenu;
     private PartyScreenContext _partyScreenContext;
     private IPokemonButtonContext _buttonContext;
     public Pokemon Pokemon;
     public Button ThisButton { get; private set; }
+    public RectTransform Container => _container;
 
     public void Setup( PartyDisplay partyScreen, PartyScreenContext partyScreenContext, IPartyScreen parentMenu ){
         ThisButton = GetComponent<Button>();
@@ -55,7 +57,7 @@ public class PokemonButton : MonoBehaviour, ISelectHandler, IDeselectHandler, IC
 
     public void OnSubmit( BaseEventData eventData ){
         _buttonContext.ContextSubmit();
-        _partyDisplay.OnSubmittedButton?.Invoke( ThisButton );
+        _partyDisplay.OnSubmittedButton?.Invoke( ThisButton ); //--Sets the memory button for the party screen
     }
 
     public void OnCancel( BaseEventData baseEventData ){

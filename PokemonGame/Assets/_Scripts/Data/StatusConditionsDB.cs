@@ -49,13 +49,30 @@ public class StatusConditionsDB
                 StatusConditionID.TOX, new StatusCondition()
                 {
                     Name = "Toxic",
-                    StartMessage = "was severely poisoned!",
+                    StartMessage = "was badly poisoned!",
                     StatusIcon = StatusIconAtlas.StatusIcons[StatusConditionID.TOX].Icon,
+                    OnApplyStatus = ( Pokemon pokemon ) =>
+                    {
+                        pokemon.SevereStatusTime = 1;
+                    },
+
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
-                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.MaxHP / 8 ) );
+                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.SevereStatusTime * ( pokemon.MaxHP / 16 ) ) );
                         pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by its horrible poisoning!" );
-                    }}
+                        pokemon.SevereStatusTime++;
+                    },
+
+                    OnEnter = ( Pokemon pokemon ) =>
+                    {
+                        pokemon.SevereStatusTime = 1;
+                    },
+
+                    OnExit = ( Pokemon pokemon ) =>
+                    {
+                        pokemon.SevereStatusTime = 0;
+                    }
+                }
             },
 
             {   //--BURN
@@ -104,7 +121,7 @@ public class StatusConditionsDB
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
                         pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.MaxHP / 16 ) );
-                        pokemon.AddStatusEvent( StatusEventType.Damage, $"{pokemon.NickName} is hurt by its frostbite!" );
+                        pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by its frostbite!" );
                     }}
             },
 
@@ -242,7 +259,7 @@ public class StatusConditionsDB
                     var commandQueue = BattleSystem.Instance.CommandQueue; 
                     foreach( var command in commandQueue )
                     {
-                        if( command.User.Pokemon == pokemon ) //--Doesn't account for non-move commands. only move commands should get flinched. let's make it work first. --12/02/25
+                        if( command.User.Pokemon == pokemon && command is UseMoveCommand  ) //--Doesn't account for non-move commands. only move commands should get flinched. let's make it work first. --12/02/25 Checking if command IS UseMoveCommand --12/25/25
                         {
                             pokemon.TransientStatusActive = true;
                             Debug.Log( $"{pokemon.NickName} is going to be Flinched!" );
@@ -279,6 +296,36 @@ public class StatusConditionsDB
                     Debug.Log( "Protect OnStart" );
                     pokemon.TransientStatusActive = true;
                 },
+              }
+            },
+
+            {
+              StatusConditionID.Phased, new()
+              {
+                Name = "Phased",
+                  
+                OnStart = ( Pokemon pokemon ) =>
+                {
+                    Debug.Log( "Phased OnStart" );
+                    pokemon.TransientStatusActive = true;
+                    Debug.Log( $"{pokemon.NickName} has been phased!" );
+                },
+
+                OnBeforeTurn = ( Pokemon pokemon ) =>
+                {
+                    Debug.Log( $"{pokemon.NickName}'s TransientStatus is: {pokemon.TransientStatusActive}" );
+
+                    if( pokemon.TransientStatusActive )
+                    {
+                        pokemon.CureTransientStatus();
+                        return false;
+                    }
+                    else
+                    {
+                        pokemon.CureTransientStatus();
+                        return true;
+                    }
+                }
               }
             },
 
@@ -323,5 +370,6 @@ public enum StatusConditionID
     //--Transient Statuses. Occur only during the round they happen
     Flinch,
     Protect,
+    Phased,
 
 }
