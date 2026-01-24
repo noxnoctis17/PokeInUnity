@@ -193,8 +193,9 @@ public class CourtConditionDB
             OnCourtEffect = ( BattleUnit unit, Battlefield field, CourtLocation location ) =>
             {
                 Debug.Log( "OnCourtEffect: Leech Seed" );
-                Pokemon drainedUnit;
-                Pokemon healedUnit;
+                BattleSystem battleSystem = BattleSystem.Instance;
+                BattleUnit drainedUnit;
+                BattleUnit healedUnit;
                 int stolenHP = 0;
 
                 //--Leech seed drains hp from the effected court! it's correctly applied to the opposing court when used.
@@ -203,16 +204,16 @@ public class CourtConditionDB
                 if( field.GetUnitCourt( unit ).Location == CourtLocation.TopCourt )
                 {
                     int unitIndex = field.ActiveCourts[CourtLocation.TopCourt].GetUnitIndex( unit );
-                    drainedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[unitIndex].Pokemon;
-                    stolenHP = drainedUnit.MaxHP / 8;
+                    drainedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[unitIndex];
+                    stolenHP = drainedUnit.Pokemon.MaxHP / 8;
 
                     if( unitIndex == 0 )
                     {
                         if( field.ActiveCourts[CourtLocation.BottomCourt].Units[1] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1];
                         
                         else if( field.ActiveCourts[CourtLocation.BottomCourt].Units[1] == null && field.ActiveCourts[CourtLocation.BottomCourt].Units[0] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0];
 
                         else
                             healedUnit = null;
@@ -220,10 +221,10 @@ public class CourtConditionDB
                     else
                     {
                         if( field.ActiveCourts[CourtLocation.BottomCourt].Units[0] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0];
 
                         else if( field.ActiveCourts[CourtLocation.BottomCourt].Units[0] == null && field.ActiveCourts[CourtLocation.BottomCourt].Units[1] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1];
 
                         else
                             healedUnit = null;
@@ -232,16 +233,16 @@ public class CourtConditionDB
                 else
                 {
                     int unitIndex = field.ActiveCourts[CourtLocation.BottomCourt].GetUnitIndex( unit );
-                    drainedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[unitIndex].Pokemon;
-                    stolenHP = drainedUnit.MaxHP / 8;
+                    drainedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[unitIndex];
+                    stolenHP = drainedUnit.Pokemon.MaxHP / 8;
 
                     if( unitIndex == 0 )
                     {
                         if( field.ActiveCourts[CourtLocation.TopCourt].Units[1] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1];
                         
                         else if( field.ActiveCourts[CourtLocation.TopCourt].Units[1] == null && field.ActiveCourts[CourtLocation.TopCourt].Units[0] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0];
 
                         else
                             healedUnit = null;
@@ -249,10 +250,10 @@ public class CourtConditionDB
                     else
                     {
                         if( field.ActiveCourts[CourtLocation.TopCourt].Units[0] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0];
 
                         else if( field.ActiveCourts[CourtLocation.TopCourt].Units[0] == null && field.ActiveCourts[CourtLocation.TopCourt].Units[1] != null )
-                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1].Pokemon;
+                            healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1];
 
                         else
                             healedUnit = null;
@@ -261,9 +262,11 @@ public class CourtConditionDB
 
                 if( healedUnit != null )
                 {
-                    drainedUnit.DecreaseHP( stolenHP );
-                    healedUnit.IncreaseHP( stolenHP );
-                    drainedUnit.AddStatusEvent( StatusEventType.Damage, $"{drainedUnit.NickName} had its HP stolen by leech seed!" );
+                    // drainedUnit.DecreaseHP( stolenHP );
+                    // drainedUnit.AddStatusEvent( StatusEventType.Damage, $"{drainedUnit.NickName} had its HP stolen by leech seed!" );
+                    // healedUnit.IncreaseHP( stolenHP );
+                    // healedUnit.AddStatusEvent( StatusEventType.Heal, $"{healedUnit.NickName}'s HP was restored by leech seed!" );
+                    battleSystem.AddToEventQueue( () => battleSystem.CreateLifeStealEvent( drainedUnit, healedUnit, stolenHP ) );
                 }
             },
 

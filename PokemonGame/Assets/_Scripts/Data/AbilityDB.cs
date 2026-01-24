@@ -784,10 +784,27 @@ public class AbilityDB
             }  
         },
         {
+            AbilityID.RoughSkin, new()
+            {
+                Name = "Rough Skin",
+                Description = "The Pokemon's rough skin damages attackers that make direct contact with it.",
+
+                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                {
+                    if( move.MoveSO.HasFlag( MoveFlags.Contact ) )
+                    {
+                        int damage = Mathf.FloorToInt( attacker.Pokemon.MaxHP / 8 );
+                        attacker.Pokemon.DecreaseHP( damage );
+                        attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} is hurt by {target.Pokemon.NickName}'s Rough Skin" );
+                    }
+                },
+            }
+        },
+        {
             AbilityID.FlameBody, new()
             {
                 Name = "Flame Body",
-                Description = "Contact with the Pokémon may burn the attacker.",
+                Description = "Contact with the Pokemon may burn the attacker.",
 
                 OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                 {
@@ -802,7 +819,7 @@ public class AbilityDB
             AbilityID.PoisonPoint, new()
             {
                 Name = "Poison Point",
-                Description = "Contact with the Pokémon may poison the attacker.",
+                Description = "Contact with the Pokemon may poison the attacker.",
 
                 OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                 {
@@ -817,7 +834,7 @@ public class AbilityDB
             AbilityID.Static, new()
             {
                 Name = "Static",
-                Description = "The Pokémon is charged with static electricity and may paralyze attackers that make direct contact with it.",
+                Description = "The Pokemon is charged with static electricity and may paralyze attackers that make direct contact with it.",
 
                 OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                 {
@@ -832,7 +849,7 @@ public class AbilityDB
             AbilityID.Adaptability, new()
             {
                 Name = "Adaptability",
-                Description = "Powers up moves of the same type as the Pokémon.",
+                Description = "Powers up moves of the same type as the Pokemon.",
 
                 OnSTABModify = ( Pokemon pokemon, Move move ) =>
                 {
@@ -909,7 +926,7 @@ public class AbilityDB
             AbilityID.SereneGrace, new()
             {
                 Name = "Serene Grace",
-                Description = "Raises the likelihood of additional effects occurring when the Pokémon uses its moves.",
+                Description = "Raises the likelihood of additional effects occurring when the Pokemon uses its moves.",
 
                 OnSecondaryEffectChanceModify = () =>
                 {
@@ -921,7 +938,7 @@ public class AbilityDB
             AbilityID.SolarPower, new()
             {
                 Name = "Solar Power",
-                Description = "In harsh sunlight, the Pokémon's Sp. Atk stat is boosted, but its HP decreases every turn.",
+                Description = "In harsh sunlight, the Pokemon's Sp. Atk stat is boosted, but its HP decreases every turn.",
 
                 //--Stat Modifiers applied in WeatherConditionDB
 
@@ -938,7 +955,7 @@ public class AbilityDB
             AbilityID.MagicBounce, new()
             {
                 Name = "Magic Bounce",
-                Description = "The Pokémon reflects status moves instead of getting hit by them.",
+                Description = "The Pokemon reflects status moves instead of getting hit by them.",
 
                 //--Ability's effect is handled for in PerformMoveCommand() in the Battle System.
                 //--If a status move targets a Pokemon with this ability, it switches the target to the attacker.
@@ -948,7 +965,7 @@ public class AbilityDB
             AbilityID.ThickFat, new()
             {
                 Name = "Thick Fat",
-                Description = "The Pokémon is protected by a layer of thick fat, which halves the damage taken from Fire- and Ice-type moves.",
+                Description = "The Pokemon is protected by a layer of thick fat, which halves the damage taken from Fire- and Ice-type moves.",
 
                 OnIncomingDamage = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
                 {
@@ -963,6 +980,69 @@ public class AbilityDB
                     }
 
                     return atk;
+                }
+            }
+        },
+        {
+            AbilityID.Prankster, new()
+            {
+                Name = "Prankster",
+                ID = AbilityID.Prankster,
+                Description = "Gives priority to the Pokemon's status moves.",
+                //--Ability's Effect is handled in UseMoveCommand
+            }
+        },
+        {
+            AbilityID.Triage, new()
+            {
+                Name = "Triage",
+                ID = AbilityID.Triage,
+                Description = "Gives priority to the Pokemon's healing moves. ",
+                //--Ability's Effect is handled in UseMoveCommand
+            }
+        },
+        {
+            AbilityID.Levitate, new()
+            {
+                Name = "Levitate",
+                ID = AbilityID.Levitate,
+                Description = "By floating in the air, the Pokémon receives full immunity to all Ground-type moves.",
+                //--Ability's Effect is handled in MoveSuccess & BattleFlags for Grounded
+            }
+        },
+        {
+            AbilityID.GrassySurge, new()
+            {
+                Name = "Grassy Surge",
+                ID = AbilityID.GrassySurge,
+                Description = "Turns the ground into Grassy Terrain when the Pokemon enters a battle.",
+                
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                {
+                    if( battleField.Terrain?.ID != TerrainID.Grassy )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
+                        Debug.Log( "Setting Terrain: Grassy Terrain" );
+                        battleField.SetTerrain( TerrainID.Grassy );
+                    }
+                }
+            }
+        },
+        {
+            AbilityID.PsychicSurge, new()
+            {
+                Name = "Psychic Surge",
+                ID = AbilityID.PsychicSurge,
+                Description = "Turns the ground into Psychic Terrain when the Pokemon enters a battle.",
+                
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                {
+                    if( battleField.Terrain?.ID != TerrainID.Psychic )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
+                        Debug.Log( "Setting Terrain: Psychic Terrain" );
+                        battleField.SetTerrain( TerrainID.Psychic );
+                    }
                 }
             }
         },
@@ -1043,5 +1123,12 @@ public enum AbilityID
     SolarPower,
     MagicBounce,
     ThickFat,
+    Prankster,
+    Triage,
+    Levitate,
+    GrassySurge,
+    PsychicSurge,
+    RoughSkin,
+
 
 }

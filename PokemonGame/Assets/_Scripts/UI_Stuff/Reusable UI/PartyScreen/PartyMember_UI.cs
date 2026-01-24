@@ -46,7 +46,7 @@ public class PartyMember_UI : MonoBehaviour
         _currentHPText.text = $"{_hpBar.RedHPSlider.value}/{_hpBar.RedHPSlider.maxValue}";
         _statusText.text = "";
 
-        _battlePortrait.sprite = _pokemon.PokeSO.CardPortrait;
+        _battlePortrait.sprite = _pokemon.PokeSO.Portrait_Normal;
 
         _currenBall.sprite = _pokemon.CurrentBallSprite;
 
@@ -94,7 +94,7 @@ public class PartyMember_UI : MonoBehaviour
                 _statusBackground.color = Color.blue;
                 _statusText.text = "Learned";
             }
-            else if( _pokemon.CheckCanLearnMove( tm.MoveSO ) ){
+            else if( _pokemon.CheckCanLearnTM( tm.MoveSO ) ){
                 _statusBackground.color = Color.green;
                 _statusText.text = "Can Learn";
             }

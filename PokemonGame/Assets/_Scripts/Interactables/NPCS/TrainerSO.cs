@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "PokemonGame/TrainerSO")]
@@ -24,4 +26,21 @@ public enum TrainerClasses{
     Champion,
     Trainer,
     None,
+}
+
+[Serializable]
+public class TrainerPokemon
+{
+    [SerializeField] private PokemonSO _pokemon;
+    [SerializeField] private int _level;
+    [SerializeField] private NatureID _nature;
+    [SerializeField] private AbilityID _ability;
+    [SerializeField] private ItemSO _heldItem;
+    [SerializeField] private int _hpEVs;
+    [SerializeField] private int _attackEVs;
+    [SerializeField] private int _defenseEVs;
+    [SerializeField] private int _spattackEVs;
+    [SerializeField] private int _spdefenseEVs;
+    [SerializeField] private int _speedEVs;
+    [SerializeField] private List<MoveSO> _moves;
 }

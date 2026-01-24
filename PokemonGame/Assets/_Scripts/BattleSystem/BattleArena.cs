@@ -44,6 +44,7 @@ public class BattleArena : MonoBehaviour
     private List<GameObject> _activePositionsList = new();
     public List<GameObject> ActivePositionsList => _activePositionsList;
     private bool _animatingEnemyPositionsIn;
+    public Transform ArenaCenterTransform => _arenaGizmoCenter.transform;
 
     private void OnEnable(){
         _mainCamera = PlayerReferences.MainCameraTransform.GetComponent<Camera>();
@@ -215,11 +216,6 @@ public class BattleArena : MonoBehaviour
         _wildEncounter = null;
         _enemyTrainer1 = null;
         // _enemyTrainer2 = null;
-    }
-
-    private IEnumerator AnimateArenaDecal_In()
-    {
-        yield return null;
     }
 
     private void SetCirclesToZero()

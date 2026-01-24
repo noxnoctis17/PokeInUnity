@@ -15,14 +15,22 @@ public class BattleAI_MoveCommand
         Debug.Log( "[AI Scoring] SubmitMoveCommand()" );
 
         var move = ChooseAMove( target );
+        List<BattleUnit> targets = new();
         
         if( move.MoveSO.MoveTarget == MoveTarget.Self )
-            target = _ai.Unit;
+            targets.Add( _ai.Unit );
+        else
+            targets.Add( target );
 
-        _ai.BattleSystem.SetMoveCommand( _ai.Unit, target, move, true );
+        if( move != null )
+        {
+            _ai.BattleSystem.SetMoveCommand( _ai.Unit, targets, move, true );
+        }
+        else
+            Debug.LogError( $"{_ai.Unit.Pokemon.NickName} has not chosen a move even though it was supposed to! Battle will now hang!" );
     }
 
-    public bool ShouldAttackInstead( ThreatResult damageThreat )
+    public bool ShouldAttackInstead( ThreatResult damageThreat, TempoStateResult tempo )
     {
         var target = damageThreat.Unit.Pokemon;
         var attacker = _ai.Unit.Pokemon;
@@ -38,7 +46,24 @@ public class BattleAI_MoveCommand
 
         Debug.Log( $"[AI Scoring][Should Attack] {attacker.NickName} has chosen whether it will attack {target.NickName}! Target's HP Ratio: {targetHPRatio}, Potential to KO: {potentialToKOTarget.PotentialKO}, Faster: {isFaster}, Target is Kill: {targetIsKillable}" );
 
-        return isFaster && targetIsKillable || _ai.Check_IsLastPokemon();
+        Debug.Log( $"[AI Scoring][Should Attack] Checking against Tempo State!" );
+
+        switch( tempo.TempoState )
+        {
+            case TempoState.WinningHard:
+            case TempoState.Winning:
+                return true;
+
+            case TempoState.LosingHard:
+                return _ai.Check_IsLastPokemon();
+
+            case TempoState.Losing:
+                return isFaster && targetIsKillable;
+
+            case TempoState.Neutral:
+            default:
+                return ( isFaster && targetIsKillable ) || _ai.Check_IsLastPokemon();
+        }
     }
 
     private AIDecisionType ChooseAttackStyle()
@@ -83,9 +108,13 @@ public class BattleAI_MoveCommand
             usableMoves.Add( move );
         }
 
-        int r = Random.Range( 0, usableMoves.Count );
-        var randMove = usableMoves[r];
-        usableMoves.Clear();
+        Move randMove = null;
+        if( usableMoves != null && usableMoves.Count > 0 )
+        {
+            int r = Random.Range( 0, usableMoves.Count );
+            randMove = usableMoves[r];
+            usableMoves.Clear();
+        }
 
         return randMove;
     }

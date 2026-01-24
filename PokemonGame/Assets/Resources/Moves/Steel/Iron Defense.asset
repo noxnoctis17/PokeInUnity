@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Iron Defense
   m_EditorClassIdentifier: 
   _moveName: Iron Defense
+  _hasTM: 1
   _description: The user hardens its body's surface like iron, sharply boosting its
     Defense stat.
   _moveCategory: 2
@@ -33,6 +34,8 @@ MonoBehaviour:
   _hitRange: {x: 0, y: 0}
   _flags: 
   _moveEffects:
+    _target: 1
+    _trigger: 0
     _statChangeList:
     - Stat: 2
       Change: 2
@@ -40,6 +43,7 @@ MonoBehaviour:
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
     _switchEffect:
       SwitchType: 0

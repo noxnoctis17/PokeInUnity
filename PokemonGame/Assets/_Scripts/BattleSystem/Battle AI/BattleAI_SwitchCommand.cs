@@ -20,7 +20,7 @@ public class BattleAI_SwitchCommand
         _ai.BattleSystem.SetSwitchPokemonCommand( incomingPokemon, _ai.Unit, true );
     }
 
-    public bool ShouldSwitch( ThreatResult damageThreat, int outgoingPressure )
+    public bool ShouldSwitch( ThreatResult damageThreat, int outgoingPressure, TempoStateResult tempo )
     {
         if( _ai.Check_IsLastPokemon() )
             return false;

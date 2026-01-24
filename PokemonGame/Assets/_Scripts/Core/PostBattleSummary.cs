@@ -18,7 +18,8 @@ public class PostBattleSummary : MonoBehaviour
     private int ExpGain;
     private int EffortGain;
     private PokemonParty _playerParty;
-    private const float MOVE_EVENT_X = 0f;
+    private const float MOVE_EVENT_X_IN = 0f;
+    private const float MOVE_EVENT_X_STARTPOS = -575f;
 
     private PostBattleEvent EventPoolCreate(){
         var PostBattleEvent = Instantiate( _eventPrefab, _inactivePoolContainer );
@@ -28,6 +29,7 @@ public class PostBattleSummary : MonoBehaviour
 
     private void EventPoolRelease( PostBattleEvent eventObj )
     {
+        eventObj.gameObject.transform.DOMoveX( MOVE_EVENT_X_STARTPOS, 0 );
         eventObj.gameObject.SetActive( false );
         eventObj.gameObject.transform.SetParent( _inactivePoolContainer );
     }
@@ -93,7 +95,6 @@ public class PostBattleSummary : MonoBehaviour
             {
                 yield return delay;
             }
-
         }
 
         yield return new WaitUntil( () => _activeSummaryEvents.Count == 0 );
@@ -118,19 +119,18 @@ public class PostBattleSummary : MonoBehaviour
             //--Check for Level up
             while( pokemon.CheckForLevelUpBattle() )
             {
-                summary = CreateSummaryEvent( $"{pokemon.NickName} grew to level {pokemon.Level}!", pokemon.PokeSO.CardPortrait );
+                summary = CreateSummaryEvent( $"{pokemon.NickName} grew to level {pokemon.Level}!", pokemon.PokeSO.Portrait_Normal );
                 _summaryEvents.Enqueue( summary );
 
-                //--Try Learn Moves //--i gotta get rid of this shit and move the post battle exp gain shit out of battle and remove the stoppage of play, like in time stranger, a game that did it after i wanted to.
+                //--Try Learn Moves
                 if( pokemon.GetNextLearnableMove() != null )
                 {
                     var newMove = pokemon.GetNextLearnableMove();
                     if( !pokemon.CheckHasMove( newMove.MoveSO ) )
                     {
                         pokemon.LearnLevelUpMove( newMove.MoveSO );
-                        summary = CreateSummaryEvent( $"{pokemon.NickName} has learned {newMove.MoveSO.Name}!", pokemon.PokeSO.CardPortrait );
+                        summary = CreateSummaryEvent( $"{pokemon.NickName} has learned {newMove.MoveSO.Name}!", pokemon.PokeSO.Portrait_Normal );
                         _summaryEvents.Enqueue( summary );
-
                     }
                 }
 
@@ -138,7 +138,7 @@ public class PostBattleSummary : MonoBehaviour
                 if( evolution != null && !pokemon.CanEvolveByLevelUp )
                 {
                     pokemon.SetCanEvolveByLevelUp( true );
-                    summary = CreateSummaryEvent( $"{pokemon.NickName} can now evolve!", pokemon.PokeSO.CardPortrait );
+                    summary = CreateSummaryEvent( $"{pokemon.NickName} can now evolve!", pokemon.PokeSO.Portrait_Normal );
                     _summaryEvents.Enqueue( summary );
                 }
             }
@@ -156,7 +156,7 @@ public class PostBattleSummary : MonoBehaviour
 
     private IEnumerator AnimateSummaryEventIn( PostBattleEvent summary )
     {
-        summary.AnimateThis.DOLocalMoveX( MOVE_EVENT_X, 0.25f );
+        summary.AnimateThis.DOLocalMoveX( MOVE_EVENT_X_IN, 0.25f );
         yield return null;
     }
 }

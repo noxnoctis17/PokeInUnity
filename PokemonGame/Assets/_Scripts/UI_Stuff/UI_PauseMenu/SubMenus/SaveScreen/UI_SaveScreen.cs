@@ -8,6 +8,7 @@ public class UI_SaveScreen : State<UI_PauseMenuStateMachine>
     private UI_PauseMenuStateMachine _pauseMenuStateMachine;
     private UI_PauseMenu _pauseMenu;
     [SerializeField] private SaveScreenButton _saveButton;
+    [SerializeField] private SaveScreenButton _loadButton;
     [SerializeField] private TextMeshProUGUI _playtimeText;
     public Action OnSaveMade;
 
@@ -24,6 +25,7 @@ public class UI_SaveScreen : State<UI_PauseMenuStateMachine>
         gameObject.SetActive( true );
 
         _saveButton.Setup( _pauseMenuStateMachine, this );
+        _loadButton.Setup( _pauseMenuStateMachine, this );
     }
 
     public override void ReturnToState(){

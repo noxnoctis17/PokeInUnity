@@ -5,5 +5,16 @@ using UnityEngine;
 
 public class BattleSystem_ForceSelectPokemonState : State<BattleSystem>
 {
-    
+    private BattleSystem _battleSystem;
+
+    public override void EnterState( BattleSystem owner )
+    {
+        _battleSystem = owner;
+
+    }
+
+    public override void ExitState()
+    {
+
+    }
 }

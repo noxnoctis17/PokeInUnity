@@ -7,6 +7,8 @@ public class MoveSO : ScriptableObject
 {
     [SerializeField] private string _moveName;
     public string Name => _moveName;
+    [SerializeField] private bool _hasTM;
+    public bool HasTM => _hasTM;
 
     [TextArea(10, 20)]
     [SerializeField] private string _description;
@@ -18,7 +20,7 @@ public class MoveSO : ScriptableObject
     [SerializeField] private MoveCategory _moveCategory;
     [SerializeField] private MoveTarget _moveTarget;
     [SerializeField] PokemonType _moveType;
-    [SerializeField] AnimationType _animationType;
+    [SerializeField] MoveAnimationType _animationType;
     [SerializeField] bool _statOverride;
     [SerializeField] private int _power;
     [SerializeField] private int _accuracy;
@@ -36,7 +38,7 @@ public class MoveSO : ScriptableObject
     public MoveCategory MoveCategory => _moveCategory;
     public MoveTarget MoveTarget => _moveTarget;
     public PokemonType Type => _moveType;
-    public AnimationType AnimationType => _animationType;
+    public MoveAnimationType AnimationType => _animationType;
     public bool OverrideAttackStat => _statOverride;
     public int Power => _power;
     public int Accuracy => _accuracy;
@@ -75,13 +77,16 @@ public class MoveSO : ScriptableObject
 [Serializable]
 public enum MoveCategory { Physical, Special, Status, Other };
 public enum EffectSource { Move, Ability, Item, }
+public enum MoveEffectTrigger { PerHit, LastHit }
+public enum EffectTarget { Enemy, Self, OpposingSide, AllySide }
 
 [Serializable]
 public class MoveEffects
 {
+    [SerializeField] private EffectTarget _target;
+    [SerializeField] private MoveEffectTrigger _trigger;
     //--Stat Modifiers
     [SerializeField] private List<StatStage> _statChangeList;
-    public List<StatStage> StatChangeList => _statChangeList;
 
     //--Severe Status Conditions (PSN, BRN, PAR, SLP, FRZ)
     [SerializeField] private StatusConditionID _severeStatus;
@@ -91,26 +96,28 @@ public class MoveEffects
     [SerializeField] private StatusConditionID _transientStatus;
     //-Weather Conditions (Harsh Sunlight, Rainfall, Sandstorm, Snowfall)
     [SerializeField] private WeatherConditionID _weather;
+    [SerializeField] private TerrainID _terrain;
     //--Court Conditions (Tailwind, Entry Hazards, Screens, etc.)
     [SerializeField] private CourtConditionID _courtCondition;
     [SerializeField] private SwitchEffect _switchEffect;
 
+    public EffectTarget Target => _target;
+    public MoveEffectTrigger Trigger => _trigger;
+    public List<StatStage> StatChangeList => _statChangeList;
     public StatusConditionID SevereStatus => _severeStatus;
     public StatusConditionID VolatileStatus => _volatileStatus;
     public StatusConditionID TransientStatus => _transientStatus;
     public WeatherConditionID Weather => _weather;
+    public TerrainID Terrain => _terrain;
     public CourtConditionID CourtCondition => _courtCondition;
     public SwitchEffect SwitchEffect => _switchEffect;
-
 }
 
 [Serializable]
 public class SecondaryMoveEffects : MoveEffects
 {
     [SerializeField] private int _chance;
-    [SerializeField] MoveTarget _target;
     public int Chance => _chance;
-    public MoveTarget Target => _target;
 }
 
 [Serializable]
@@ -134,7 +141,7 @@ public class SwitchEffect
     public SwitchEffectType SwitchType;
 }
 
-public enum MoveTarget { Enemy, Self, OpposingSide, AllAdjacent, Ally, }
+public enum MoveTarget { Enemy, Self, OpposingSide, AllAdjacent, Ally, AllySide, All, AllField }
 
 public enum CritBehavior { none, HighCritRatio, AlwaysCrits, NeverCrits, }
 
@@ -164,7 +171,7 @@ public enum MoveFlags
 
 }
 
-public enum AnimationType
+public enum MoveAnimationType
 {
     None,
     Strike,

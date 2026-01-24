@@ -13,27 +13,34 @@ public class TargetSelect_Button : MonoBehaviour, ISelectHandler, IDeselectHandl
     [SerializeField] private TextMeshProUGUI _nameText;
     [SerializeField] private TextMeshProUGUI _levelText;
     [SerializeField] private TextMeshProUGUI _hpText;
-    private BattleUnit _assignedUnit;
     private BattleUnit _attacker;
     private Button _thisButton;
     private Move _moveToBeUsed;
     public Button ThisButton => _thisButton;
+    public BattleUnit AssignedUnit { get; private set; }
 
     public void Setup( BattleUnit assignedUnit, BattleUnit attacker, Move move )
     {
         _thisButton = GetComponent<Button>();
-        _assignedUnit = assignedUnit;
+        AssignedUnit = assignedUnit;
         _attacker = attacker;
         _moveToBeUsed = move;
         _battleSystem = _targetSelectState.PlayerBattleMenu.BattleSystem;
 
-        if( _assignedUnit.Pokemon != null )
+        if( AssignedUnit.Pokemon != null )
         {
-            _portrait.sprite = _assignedUnit.PokeSO.CardPortrait;
-            _nameText.text = _assignedUnit.Pokemon.NickName;
-            _levelText.text = $"Lv. {_assignedUnit.Pokemon.Level}";
-            _hpText.text = $"{_assignedUnit.Pokemon.CurrentHP}/{_assignedUnit.Pokemon.MaxHP}";
+            _portrait.sprite = AssignedUnit.PokeSO.Portrait_Normal;
+            _nameText.text = AssignedUnit.Pokemon.NickName;
+            _levelText.text = $"Lv. {AssignedUnit.Pokemon.Level}";
+            _hpText.text = $"{AssignedUnit.Pokemon.CurrentHP}/{AssignedUnit.Pokemon.MaxHP}";
         }
+        
+        SetInteractable( false );
+    }
+
+    public void SetInteractable( bool value )
+    {
+        ThisButton.interactable = value;
     }
 
     public void OnSelect( BaseEventData eventData )
@@ -48,8 +55,9 @@ public class TargetSelect_Button : MonoBehaviour, ISelectHandler, IDeselectHandl
 
     public void OnSubmit( BaseEventData eventData )
     {   
+        List<BattleUnit> target = new() { AssignedUnit };
         _targetSelectState.PlayerBattleMenu.PopState();
-        _battleSystem.SetMoveCommand( _attacker, _assignedUnit, _moveToBeUsed );
+        _battleSystem.SetMoveCommand( _attacker, target, _moveToBeUsed );
     }
 
     public void OnCancel( BaseEventData eventData )

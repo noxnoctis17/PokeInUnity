@@ -44,8 +44,8 @@ public class WeatherListener : MonoBehaviour
 
         switch( _currentWeather )
         {
-            case WeatherConditionID.NONE:
-                if( _defaultAreaWeather != WeatherConditionID.NONE )
+            case WeatherConditionID.None:
+                if( _defaultAreaWeather != WeatherConditionID.None )
                 {
                     if( _currentWeatherVFX != null )
                     {

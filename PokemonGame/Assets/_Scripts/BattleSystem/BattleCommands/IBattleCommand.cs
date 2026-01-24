@@ -3,6 +3,7 @@
 //-------------------------Battle Command Interface----------------------------
 //-----------------------------------------------------------------------------
 using System.Collections;
+using System.Collections.Generic;
 
 public interface IBattleCommand
 {
@@ -12,7 +13,7 @@ public interface IBattleCommand
     public int UnitAgility { get; }
 
     public IEnumerator ExecuteBattleCommand();
-    public void ChangeTarget( BattleUnit target );
+    public void ChangeTarget( BattleUnit target ){}
 
 }
 

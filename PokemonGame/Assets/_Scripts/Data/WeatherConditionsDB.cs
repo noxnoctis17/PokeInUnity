@@ -23,12 +23,9 @@ public class WeatherConditionsDB
     private static void SetDictionary(){
         Conditions = new Dictionary<WeatherConditionID, WeatherCondition>()
         {
-            //========================================================================================================================================
-            //===========================================================[ WEATHER ]==================================================================
-            //========================================================================================================================================
             {
               //--None Weather, left beef
-              WeatherConditionID.NONE, new WeatherCondition()
+              WeatherConditionID.None, new WeatherCondition()
               {
                   Name = "None Weather, left beef"
               }  
@@ -279,7 +276,7 @@ public class WeatherConditionsDB
 public enum WeatherConditionID
 {
     //--None weather, left beef
-    NONE,
+    None,
 
     //--Weather
     SUNNY,

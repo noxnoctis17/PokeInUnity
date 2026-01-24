@@ -9,12 +9,24 @@ public class Move
     public int PP { get; set; }
     public PokemonType MoveType { get; private set; }
     public int MovePower { get; private set; }
+    public MovePriority Priority { get; private set; }
+    public MoveTarget MoveTarget { get; private set; }
 
     public Move( MoveSO mBase ){
         MoveSO = mBase;
         PP = MoveSO.PP;
         MoveType = MoveSO.Type;
         MovePower = MoveSO.Power;
+        Priority = MoveSO.MovePriority;
+        MoveTarget = MoveSO.MoveTarget;
+    }
+
+    public Move( MoveSaveData saveData ){
+        MoveSO = MoveDB.GetMoveByName( saveData.MoveName );
+        PP = saveData.PP;
+        MoveType = saveData.MoveType;
+        MovePower = saveData.MovePower;
+        MoveTarget = saveData.MoveTarget;
     }
 
     //--Mostly for shit like Pixilate, Liquid Voice, etc.
@@ -41,11 +53,14 @@ public class Move
         return defaultStat;
     }
 
-    public Move( MoveSaveData saveData ){
-        MoveSO = MoveDB.GetMoveByName( saveData.MoveName );
-        PP = saveData.PP;
-        MoveType = saveData.MoveType;
-        MovePower = saveData.MovePower;
+    public MovePriority OverridePriority( MovePriority priority )
+    {
+        return priority;
+    }
+
+    public MoveTarget OverrideMoveTarget( MoveTarget target )
+    {
+        return target;
     }
 
     public void RestorePP( int amount ){
@@ -58,6 +73,7 @@ public class Move
             PP = PP,
             MoveType = MoveType,
             MovePower = MovePower,
+            MoveTarget = MoveTarget,
         };
 
         return saveData;
@@ -72,4 +88,5 @@ public class MoveSaveData
     public int PP;
     public PokemonType MoveType;
     public int MovePower;
+    public MoveTarget MoveTarget;
 }

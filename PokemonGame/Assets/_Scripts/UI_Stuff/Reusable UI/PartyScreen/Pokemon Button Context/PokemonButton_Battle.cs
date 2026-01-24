@@ -55,7 +55,7 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
 
         if( _partyScreen.BattleSystem.IsForcedSwitch ){ //--If switch is caused by a faint, we don't add the command to the command queue
             Debug.Log( "Is forced switch" );
-            _partyScreen.BattleSystem.SetForcedSwitchMon( _pokemon, _partyScreen.BattleSystem.SwitchUnitToPosition );
+            _partyScreen.BattleSystem.CommandCenter.SetForcedSwitchMon( _pokemon, _partyScreen.BattleSystem.SwitchUnitToPosition );
         }
         else{
             //--I NEED TO KNOW WHICH BATTLE UNIT IS CURRENTLY ADDING A COMMAND TO THE COMMAND QUEUE TO KNOW WHICH POSITION TO SWITCH TO

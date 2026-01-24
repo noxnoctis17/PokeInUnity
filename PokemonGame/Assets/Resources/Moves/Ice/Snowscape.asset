@@ -13,10 +13,11 @@ MonoBehaviour:
   m_Name: Snowscape
   m_EditorClassIdentifier: 
   _moveName: Snowscape
+  _hasTM: 1
   _description: ooo it's snowing outside!!!
   _moveCategory: 2
-  _moveTarget: 0
-  _moveType: 3
+  _moveTarget: 7
+  _moveType: 6
   _animationType: 3
   _statOverride: 0
   _power: 0
@@ -32,11 +33,14 @@ MonoBehaviour:
   _hitRange: {x: 0, y: 0}
   _flags: 
   _moveEffects:
+    _target: 1
+    _trigger: 0
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 4
+    _terrain: 0
     _courtCondition: 0
     _switchEffect:
       SwitchType: 0

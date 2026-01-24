@@ -56,7 +56,7 @@ public class MoveButton_Fight : MonoBehaviour, ISelectHandler, IDeselectHandler,
             if( _battleSystem.BattleType == BattleType.TrainerDoubles )
                 _fightMenu.BattleMenu.HandleMoveTargetSelection( _fightMenu.ActiveUnit, AssignedMove );
             else
-                _battleSystem.SetMoveCommand( _fightMenu.ActiveUnit, _battleSystem.EnemyUnits[0], AssignedMove );
+                _battleSystem.SetMoveCommand( _fightMenu.ActiveUnit, _battleSystem.EnemyUnits, AssignedMove );
 
             //--Assign this as the last-used move for the Active BattleUnit.
             _fightMenu.ActiveUnit.SetLastUsedMove( AssignedMove );

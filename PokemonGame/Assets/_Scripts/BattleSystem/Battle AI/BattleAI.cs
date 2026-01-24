@@ -63,15 +63,16 @@ public class BattleAI : MonoBehaviour
 
             var opposingUnits = BattleSystem.GetOpposingUnits( Unit );
             var damageThreat = GetThreat_ImmediateDamage( opposingUnits, Unit.Pokemon );
+            var tempo = GetTempoState( Unit, opposingUnits[0] );
             int outgoingPressure = GetOutgoingPressure( Unit.Pokemon, damageThreat.Unit );
 
-            if( BattleSystem.BattleType != BattleType.WildBattle_1v1 && _switchCommand.ShouldSwitch( damageThreat, outgoingPressure ) )
+            if( BattleSystem.BattleType != BattleType.WildBattle_1v1 && _switchCommand.ShouldSwitch( damageThreat, outgoingPressure, tempo ) )
             {
                 Debug.Log( $"[AI Scoring] {Unit.Pokemon.NickName} is thinking about switching out!" );
                 var incomingCandidate = _switchCommand.GetSwitch_Defensive( opposingUnits );
                 if( incomingCandidate.Pokemon != null && incomingCandidate.IsLegitimate )
                 {
-                    if( _moveCommand.ShouldAttackInstead( damageThreat ) )
+                    if( _moveCommand.ShouldAttackInstead( damageThreat, tempo ) )
                     {
                         Debug.Log( $"[AI Scoring] {Unit.Pokemon.NickName} chose to attack instead of switch!" );
                         ResetSwitchAmount();
@@ -103,6 +104,90 @@ public class BattleAI : MonoBehaviour
     {
         var oppsingUnits = BattleSystem.GetOpposingUnits( Unit );
         return _switchCommand.GetSwitch_Defensive( oppsingUnits, true ).Pokemon;
+    }
+
+    private int GetUnitInferredSpeed( BattleUnit unit )
+    {
+        int unitSpeed = unit.Pokemon.PokeSO.Speed;
+        float stage = unit.Pokemon.StatStage[Stat.Speed];
+
+        if( stage > 0 )
+            unitSpeed = Mathf.FloorToInt( unitSpeed * stage );
+        else if( stage < 0 )
+            unitSpeed = Mathf.FloorToInt( unitSpeed / stage );
+
+        unitSpeed *= Mathf.FloorToInt( unit.Pokemon.DirectStatModifiers[Stat.Speed].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ) );
+
+        return unitSpeed;
+    }
+
+    public TempoStateResult GetTempoState( BattleUnit attacker, BattleUnit target )
+    {
+        Debug.Log( $"[AI Scoring][Get Tempo] Starting Tempo State Check for Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
+        
+        //--Speed Check
+        int attackerSpeed = GetUnitInferredSpeed( attacker );
+        int targetSpeed = GetUnitInferredSpeed( target );
+        bool attackerHasPriorityAdvantage = Check_UnitHasPriority( attacker.Pokemon) && !Check_UnitHasPriority( target.Pokemon );
+        bool targetHasPriorityAdvantage = Check_UnitHasPriority( target.Pokemon ) && !Check_UnitHasPriority( attacker.Pokemon );
+        bool attackerMovesFirst = attackerSpeed > targetSpeed || attackerHasPriorityAdvantage;
+        bool targetMovesFirst = targetSpeed > attackerSpeed || targetHasPriorityAdvantage;
+
+        Debug.Log( $"[AI Scoring][Get Tempo] Made speed comparisons! Results: Attacker Speed: {attackerSpeed}, Target Speed: {targetSpeed}, Attacker Priority: {attackerHasPriorityAdvantage}, Target Priority: {targetHasPriorityAdvantage}, Attacker Moves First: {attackerMovesFirst}, Target Moves First: {targetMovesFirst}" );
+
+        //--Potential to KO
+        //--Attacker PTKO Target
+        int targetWallscore = Get_WallingScore( attacker.Pokemon, target.Pokemon );
+        var attackerThreateningMove = Get_MostThreateningMove( attacker.Pokemon, target.Pokemon );
+        float targetHP = Get_HPRatio( target.Pokemon );
+
+        PotentialToKOResult attackerPTKO_target = Get_PotentialToKOResult( targetWallscore, attackerThreateningMove.Modifier, targetHP );
+
+        //--Target PTKO Attacker
+        int attackerWallscore = Get_WallingScore( target.Pokemon, attacker.Pokemon );
+        var targetThreatingMove = Get_MostThreateningMove( target.Pokemon, attacker.Pokemon );
+        float attackerHP = Get_HPRatio( attacker.Pokemon );
+
+        PotentialToKOResult targetPTKO_attacker = Get_PotentialToKOResult( attackerWallscore, targetThreatingMove.Modifier, attackerHP );
+
+        Debug.Log( $"[AI Scoring][Get Tempo] PTKO's Checked! Results: Attacker PTKO Target: {attackerPTKO_target.PotentialKO}, Target PTKO Attacker: {targetPTKO_attacker.PotentialKO}" );
+
+        bool attackerThreatensKO_onTarget       = attackerPTKO_target.PotentialKO >= PotentialToKO.Dangerous;
+        bool targetThreatensKO_onAttacker       = targetPTKO_attacker.PotentialKO >= PotentialToKO.Dangerous;
+        bool attackerSurvives_targetAttack      = targetPTKO_attacker.PotentialKO <= PotentialToKO.Risky;
+        bool targetSurvives_attackerAttack      = attackerPTKO_target.PotentialKO <= PotentialToKO.Risky;
+
+        Debug.Log( $"[AI Scoring][Get Tempo] Final Comparisons Made! Results: Attacker Threatens KO: {attackerThreatensKO_onTarget}, Target Threatens KO: {targetThreatensKO_onAttacker}, Attacker Survives: {attackerSurvives_targetAttack}, Target Survives: {targetSurvives_attackerAttack}" );
+
+        TempoState tempoState;
+
+        //--Winning Hard
+        if( attackerMovesFirst && attackerThreatensKO_onTarget && !targetSurvives_attackerAttack )
+            tempoState = TempoState.WinningHard;
+
+        //--Losing Hard
+        else if( targetMovesFirst && targetThreatensKO_onAttacker && !attackerSurvives_targetAttack )
+            tempoState = TempoState.LosingHard;
+
+        //--Winning
+        else if( attackerMovesFirst && ( attackerThreatensKO_onTarget || !targetSurvives_attackerAttack ) && attackerSurvives_targetAttack )
+            tempoState = TempoState.Winning;
+
+        // Slower but guaranteed retaliation KO
+        else if( targetMovesFirst && attackerThreatensKO_onTarget && attackerSurvives_targetAttack && !targetThreatensKO_onAttacker )
+            tempoState = TempoState.Winning;
+
+        //--Losing
+        else if( targetMovesFirst && ( targetThreatensKO_onAttacker || !attackerSurvives_targetAttack ) && targetSurvives_attackerAttack )
+            tempoState = TempoState.Losing;
+        
+        //--Neutral
+        else
+            tempoState = TempoState.Neutral;
+
+        Debug.Log( $"[AI Scoring][Get Tempo] Final Tempo State: {tempoState}, Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
+
+        return new(){ TempoState = tempoState, AttackerHasPriority = attackerHasPriorityAdvantage, TargetHasPriority = targetHasPriorityAdvantage };
     }
 
     public int GetOutgoingPressure( Pokemon me, BattleUnit target )
@@ -188,6 +273,7 @@ public class BattleAI : MonoBehaviour
         Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s HP Ratio is: {hpRatio}" );
         if( hpRatio < 0.25f )           score -= 30;
         else if( hpRatio < 0.5f )       score -= 15;
+        ///00
 
         Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s HP checked for low percentage. Score: {score}" );
 
@@ -307,31 +393,15 @@ public class BattleAI : MonoBehaviour
         return new(){ Score = highestThreat, Unit = highestUnit };
     }
 
-    public int Get_WallingScore( Pokemon attacker, Pokemon target )
-    {
-        int off;
-        int def;
-
-        if( attacker.PokeSO.Attack > attacker.PokeSO.SpAttack )
-        {
-            off = attacker.PokeSO.Attack;
-            def = target.PokeSO.Defense;
-        }
-        else
-        {
-            off = attacker.PokeSO.SpAttack;
-            def = target.PokeSO.SpDefense;
-        }
-
-        return ( def - off ) + WALLINGSCORE_NORMALIZATION_OFFSET; //--30 is the normalization offset
-    }
-
     public bool Check_UnitHasPriority( Pokemon pokemon )
     {
         for( int i = 0; i < pokemon.ActiveMoves.Count; i++ )
         {
-            if( pokemon.ActiveMoves[i].MoveSO.MovePriority <= MovePriority.One && pokemon.ActiveMoves[i].MoveSO.Name != "Protect" )
-                return true;
+            if( BattleSystem.Field.Terrain != null && BattleSystem.Field.Terrain.ID == TerrainID.Psychic )
+                return false;
+            else
+                if( pokemon.ActiveMoves[i].Priority <= MovePriority.One && pokemon.ActiveMoves[i].MoveSO.Name != "Protect" )
+                    return true;
         }
 
         return false;
@@ -419,6 +489,25 @@ public class BattleAI : MonoBehaviour
         Debug.Log( $"[AI Scoring][Most Threatening Move] {attacker.NickName}'s Most Threatening Move is: {bestMove.MoveSO.Name}. Modifier: {modifier}, Score: {score}" );
 
         return new(){ Score = score, Modifier = modifier, Move = bestMove };
+    }
+
+    public int Get_WallingScore( Pokemon attacker, Pokemon target )
+    {
+        int off;
+        int def;
+
+        if( attacker.PokeSO.Attack > attacker.PokeSO.SpAttack )
+        {
+            off = attacker.PokeSO.Attack;
+            def = target.PokeSO.Defense;
+        }
+        else
+        {
+            off = attacker.PokeSO.SpAttack;
+            def = target.PokeSO.SpDefense;
+        }
+
+        return ( def - off ) + WALLINGSCORE_NORMALIZATION_OFFSET; //--30 is the normalization offset
     }
 
     public PotentialToKOResult Get_PotentialToKOResult( int wallingScore, float moveModifier, float targetHPRatio )
@@ -525,4 +614,11 @@ public class PotentialToKOResult
     public int Score { get; set; }
     public PotentialToKO PotentialKO { get; set; }
     public float Modifier { get; set; }
+}
+
+public class TempoStateResult
+{
+    public TempoState TempoState { get; set; }
+    public bool AttackerHasPriority { get; set; }
+    public bool TargetHasPriority { get; set; }
 }

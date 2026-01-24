@@ -12,7 +12,7 @@ public class TMItemSO : ItemSO
     }
 
     public override bool CheckIfUsable( Pokemon pokemon ){
-        if( !pokemon.CheckCanLearnMove( _moveSO ) )
+        if( !pokemon.CheckCanLearnTM( _moveSO ) )
             return false;
 
         return true;

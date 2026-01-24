@@ -32,11 +32,16 @@ MonoBehaviour:
   _hitRange: {x: 0, y: 0}
   _flags: 0c000000
   _moveEffects:
-    _statChangeList: []
+    _target: 0
+    _trigger: 0
+    _statChangeList:
+    - Stat: 6
+      Change: -1
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
     _switchEffect:
       SwitchType: 0

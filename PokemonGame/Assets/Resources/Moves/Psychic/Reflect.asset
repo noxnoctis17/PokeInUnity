@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Reflect
   m_EditorClassIdentifier: 
   _moveName: Reflect
+  _hasTM: 1
   _description: ' A wondrous wall of light is put up to reduce damage from physical
     moves for five turns. '
   _moveCategory: 2
@@ -33,11 +34,14 @@ MonoBehaviour:
   _hitRange: {x: 0, y: 0}
   _flags: 
   _moveEffects:
+    _target: 3
+    _trigger: 0
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 3
     _switchEffect:
       SwitchType: 0

@@ -19,7 +19,7 @@ public class RunFromBattleCommand : IBattleCommand
     }
 
     public IEnumerator ExecuteBattleCommand(){
-        yield return _battleSystem.PerformRunFromBattleCommand();
+        yield return _battleSystem.CommandCenter.PerformRunFromBattleCommand();
     }
 
     public void ChangeTarget( BattleUnit target )

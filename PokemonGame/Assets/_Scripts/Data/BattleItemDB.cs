@@ -45,9 +45,9 @@ public class BattleItemDB
 
         },
         {
-            BattleItemEffectID.ParaOrb, new()
+            BattleItemEffectID.StaticOrb, new()
             {
-                ID = BattleItemEffectID.ParaOrb,
+                ID = BattleItemEffectID.StaticOrb,
                 
                 OnItemRoundEnd = ( Pokemon pokemon ) =>
                 {
@@ -214,7 +214,7 @@ public class BattleItemDB
                     if( unit.Flags[UnitFlags.SitrusBerry].IsActive )
                     {
                         Debug.Log( $"{unit.Pokemon.NickName} is holding a Sitrus Berry!" );
-                        if( unit.Pokemon.IsBelowHPPercent( 50 ) )
+                        if( unit.Pokemon.IsBelowHPPercent( 50 ) && unit.Pokemon.CurrentHP > 0 )
                         {
                             // Debug.Log( $"{unit.Pokemon.NickName} previous hp: {unit.Pokemon.CurrentHP}" );
                             int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 4 );
@@ -222,7 +222,7 @@ public class BattleItemDB
                             unit.SetFlagActive( UnitFlags.SitrusBerry, false );
                             unit.SetFlagCount( UnitFlags.SitrusBerry, 0 );
                             // Debug.Log( $"{unit.Pokemon.NickName} new hp: {unit.Pokemon.CurrentHP}" );
-                            unit.Pokemon.AddStatusEvent( $"{unit.Pokemon.NickName} ate its Sitrus Berry to restore HP!" );
+                            unit.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{unit.Pokemon.NickName} ate its Sitrus Berry to restore HP!" );
                         }
                     }
                 }
@@ -242,7 +242,7 @@ public class BattleItemDB
                         int healBy = Mathf.FloorToInt( pokemon.MaxHP / 16 );
                         pokemon.IncreaseHP( healBy );
                         // Debug.Log( $"New HP: {pokemon.CurrentHP}" );
-                        pokemon.AddStatusEvent( $"{pokemon.NickName} ate some leftovers to restore its HP!" );
+                        pokemon.AddStatusEvent( StatusEventType.Heal, $"{pokemon.NickName} ate some leftovers to restore its HP!" );
                     }
                 }
             }
@@ -315,7 +315,7 @@ public enum BattleItemEffectID
     NONE,
     FlameOrb,
     ToxicOrb,
-    ParaOrb,
+    StaticOrb,
     LifeOrb,
     ChoiceBand,
     ChoiceSpecs,

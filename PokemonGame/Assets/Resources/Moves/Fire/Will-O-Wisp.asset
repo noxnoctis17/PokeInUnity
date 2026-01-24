@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Will-O-Wisp
   m_EditorClassIdentifier: 
   _moveName: Will-O-Wisp
+  _hasTM: 1
   _description: Ghostly fire from spirits causes the target to be burned.
   _moveCategory: 2
   _moveTarget: 0
@@ -32,11 +33,14 @@ MonoBehaviour:
   _hitRange: {x: 0, y: 0}
   _flags: 0c000000
   _moveEffects:
+    _target: 0
+    _trigger: 0
     _statChangeList: []
     _severeStatus: 3
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
     _switchEffect:
       SwitchType: 0

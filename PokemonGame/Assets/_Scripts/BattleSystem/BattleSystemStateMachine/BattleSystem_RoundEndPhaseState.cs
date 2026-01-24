@@ -7,8 +7,8 @@ public class BattleSystem_RoundEndPhaseState : State<BattleSystem>
 {
     private BattleSystem _battleSystem;
     public Dictionary<RoundEndPhaseType, IRoundEndPhaseHandler> RoundEndPhaseDictionary { get; private set; }
-    [SerializeField] private List<RoundEndPhaseSO> _roundEndPhases;
-    public List<RoundEndPhaseSO> RoundEndPhases => _roundEndPhases;
+    [SerializeField] private List<RoundEndPhase> _roundEndPhases;
+    public List<RoundEndPhase> RoundEndPhases => _roundEndPhases;
 
     public override void EnterState( BattleSystem owner )
     {
@@ -19,10 +19,18 @@ public class BattleSystem_RoundEndPhaseState : State<BattleSystem>
     {
         RoundEndPhaseDictionary = new()
         {
-            { RoundEndPhaseType.WeatherDamage, new RoundEndPhase_WeatherDamage()    },
-            { RoundEndPhaseType.StatusDamage, new RoundEndPhase_StatusDamage()      },
-            { RoundEndPhaseType.ItemRoundEnd, new RoundEndPhase_ItemRoundEnd()      },
-            { RoundEndPhaseType.CourtEffect, new RoundEndPhase_CourtEffect()        },
+            { RoundEndPhaseType.WeatherDuration,        new RoundEndPhase_WeatherDuration() },
+            { RoundEndPhaseType.WeatherDamage,          new RoundEndPhase_WeatherDamage() },
+            { RoundEndPhaseType.GrassyTerrain,          new RoundEndPhase_GrassyTerrain() },
+            { RoundEndPhaseType.Leftovers,              new RoundEndPhase_Leftovers() },
+            { RoundEndPhaseType.LeechSeed,              new RoundEndPhase_LeechSeed() },
+            { RoundEndPhaseType.StatusDuration,         new RoundEndPhase_StatusDuration() },
+            { RoundEndPhaseType.PoisonDamage,           new RoundEndPhase_PoisonDamage() },
+            { RoundEndPhaseType.BurnFrostbiteDamage,    new RoundEndPhase_BurnFrostbiteDamage() },
+            { RoundEndPhaseType.CourtEffect,            new RoundEndPhase_CourtEffect() },
+            { RoundEndPhaseType.CourtDuration,          new RoundEndPhase_CourtDuration() },
+            { RoundEndPhaseType.TerrainDuration,        new RoundEndPhase_TerrainDuration() },
+            { RoundEndPhaseType.StatusOrbs,             new RoundEndPhase_StatusOrbs() },
         };
     }
 

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 public class Ability
 {
     public string Name { get; set; }
+    public AbilityID ID { get; set; }
     public string Description { get; set; }
     public Action<Pokemon> OnAbilityTriggered { get; set; }
 //--Temporary Stat Modifications---------------------------------------------------

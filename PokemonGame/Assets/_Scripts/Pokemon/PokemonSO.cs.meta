@@ -3,7 +3,10 @@ guid: 9bacbed27f57496419a2f1a86825a863
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - _portraitNormal: {instanceID: 0}
+  - _portraitHappy: {instanceID: 0}
+  - _tmDB: {fileID: 11400000, guid: 9fa80c7c32e1f7144b54ab27f9f16a7a, type: 2}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

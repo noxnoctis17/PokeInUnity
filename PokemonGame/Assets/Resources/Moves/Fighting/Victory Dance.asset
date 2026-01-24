@@ -31,8 +31,10 @@ MonoBehaviour:
     RecoilDamage: 0
   _drainPercentage: 0
   _hitRange: {x: 0, y: 0}
-  _flags: 
+  _flags: 03000000
   _moveEffects:
+    _target: 1
+    _trigger: 0
     _statChangeList:
     - Stat: 1
       Change: 1
@@ -44,6 +46,7 @@ MonoBehaviour:
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
     _switchEffect:
       SwitchType: 0

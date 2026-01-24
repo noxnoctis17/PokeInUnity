@@ -8,6 +8,7 @@ using UnityEngine.UI;
 public class EffortValueEditor : MonoBehaviour, IPokemonEditor_Button
 {
     [SerializeField] private Stat _stat;
+    [SerializeField] private GameObject _textObj;
     PartyScreen_PokemonEditor _editor;
     private Pokemon _pokemon;
     private PlayerInput _input;
@@ -20,6 +21,7 @@ public class EffortValueEditor : MonoBehaviour, IPokemonEditor_Button
         _pokemon = pokemon;
         ThisButton = GetComponent<Button>();
         _input = PlayerReferences.Instance.PlayerInput;
+        _textObj.SetActive( false );
     }
 
     private void EnableEVControls()
@@ -35,6 +37,7 @@ public class EffortValueEditor : MonoBehaviour, IPokemonEditor_Button
     public void OnSelect( BaseEventData eventData )
     {
         AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
+        _textObj.SetActive( true );
     }
 
     public void OnSubmit( BaseEventData eventData )
@@ -52,7 +55,7 @@ public class EffortValueEditor : MonoBehaviour, IPokemonEditor_Button
 
     public void OnDeselect( BaseEventData eventData )
     {
-
+        _textObj.SetActive( false );
     }
 
     public void OnCancel( BaseEventData eventData )

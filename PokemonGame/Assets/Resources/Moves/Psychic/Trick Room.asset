@@ -13,10 +13,11 @@ MonoBehaviour:
   m_Name: Trick Room
   m_EditorClassIdentifier: 
   _moveName: Trick Room
+  _hasTM: 1
   _description: The user creates a bizarre area in which slower Pokemon get to move
     first for five turns.
   _moveCategory: 2
-  _moveTarget: 1
+  _moveTarget: 7
   _moveType: 11
   _animationType: 3
   _statOverride: 0
@@ -33,11 +34,14 @@ MonoBehaviour:
   _hitRange: {x: 0, y: 0}
   _flags: 
   _moveEffects:
+    _target: 1
+    _trigger: 0
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 2
     _switchEffect:
       SwitchType: 0

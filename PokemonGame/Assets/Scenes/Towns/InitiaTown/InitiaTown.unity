@@ -757,7 +757,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _partyPokemon.Array.data[0]._currentAbilityIndex
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _partyPokemon.Array.data[1]._currentAbilityIndex
@@ -1259,50 +1259,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e2640358334fc634ea42924a33eb3c15, type: 3}
   m_PrefabInstance: {fileID: 296318717}
   m_PrefabAsset: {fileID: 0}
---- !u!21 &343369025
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: m_GrassUnlitBasic(Clone)
-  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - unity_Lightmaps:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_LightmapsInd:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_ShadowMasks:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _Blend: 0
-    - _BlendMult: 1
-    - _BlendOff: 0
-    - _QueueControl: 0
-    - _QueueOffset: 0
-    m_Colors: []
-  m_BuildTextureStacks: []
 --- !u!1001 &362105603
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6637,7 +6593,7 @@ MonoBehaviour:
     normal: {x: 0, y: 1, z: 0}
     length: {x: 0.25, y: 0.05}
     color: {x: 0.15686275, y: 0.6862745, z: 0.32941177}
-  m_InstantiatedMaterial: {fileID: 343369025}
+  m_InstantiatedMaterial: {fileID: 1303659762}
 --- !u!4 &615406172
 Transform:
   m_ObjectHideFlags: 0
@@ -9443,6 +9399,10 @@ PrefabInstance:
       propertyPath: _partyPokemon.Array.data[2]._currentAbilityIndex
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[3]._currentAbilityIndex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2495549282839026177, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: uniqueId
       value: 9e02bb3a-0bc8-4315-ae9e-e439c8cab275
@@ -9841,6 +9801,50 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7291480519668048689, guid: 083028925ba39e44aa99069929a15481, type: 3}
   m_PrefabInstance: {fileID: 1248975135}
   m_PrefabAsset: {fileID: 0}
+--- !u!21 &1303659762
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: m_GrassUnlitBasic(Clone)
+  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Blend: 0
+    - _BlendMult: 1
+    - _BlendOff: 0
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    m_Colors: []
+  m_BuildTextureStacks: []
 --- !u!1 &1323996105
 GameObject:
   m_ObjectHideFlags: 0
@@ -11573,6 +11577,10 @@ PrefabInstance:
     - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _partyPokemon.Array.data[2]._currentAbilityIndex
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2482589206662233048, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+      propertyPath: _partyPokemon.Array.data[3]._currentAbilityIndex
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2495549282839026177, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: uniqueId

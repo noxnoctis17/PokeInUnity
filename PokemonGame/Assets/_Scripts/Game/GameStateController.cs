@@ -47,6 +47,7 @@ public class GameStateController : MonoBehaviour
         TypeColorsDB.Init();
         StatusConditionsDB.Init();
         WeatherConditionsDB.Init();
+        TerrainDB.Init();
         PokemonDB.Init();
         ItemsDB.Init();
         MoveDB.Init();

@@ -1,10 +1,11 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class RoundEndPhase_WeatherDamage : IRoundEndPhaseHandler
 {
-    public void Apply( BattleSystem battleSystem, BattleUnit unit )
+    public void OnUnitTick( BattleSystem battleSystem, BattleUnit unit )
     {
         int prevHp = unit.Pokemon.CurrentHP;
         battleSystem.Field.Weather?.OnWeatherEffect?.Invoke( unit.Pokemon );

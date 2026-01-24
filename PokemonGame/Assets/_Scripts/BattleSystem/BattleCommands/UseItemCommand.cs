@@ -26,7 +26,7 @@ public class UseItemCommand : IBattleCommand
         if( _item.ItemSO.ItemCategory == ItemCategory.PokeBall )
             yield return _battleSystem.ThrowPokeball( _item );
         else
-            yield return _battleSystem.PerformUseItemCommand( _pokemon, _item );
+            yield return _battleSystem.CommandCenter.PerformUseItemCommand( _pokemon, _item );
         
     }
 

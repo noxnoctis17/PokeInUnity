@@ -15,6 +15,7 @@ public class BattleUnit : MonoBehaviour
     public BattleHUD BattleHUD { get; set; }
     public PokemonSO PokeSO { get; private set; } //--why the fuck is this public //--03/26/24 still don't know why this is public lol //--04/08/24 decided to just make it into a property finally lol //--11/25/25 pretty sure we actually use it now
     public Pokemon Pokemon { get; set; }
+    public ItemSO RemovedHeldItem { get; private set; }
     public bool IsAI => _isAI;
     public PokemonAnimator PokeAnimator { get; private set; }
     public Transform PokeTransform { get; private set; } //--quick ref for battle tweens. tweens need to target the gameobject named "Pokemon" that holds the animator and shadow animator objects for a mon in battle.
@@ -83,6 +84,9 @@ public class BattleUnit : MonoBehaviour
             { UnitFlags.FocusSash,              new() },
             { UnitFlags.SitrusBerry,            new() },
             { UnitFlags.Phased,                 new() },
+            { UnitFlags.Trapped,                new() },
+            { UnitFlags.Grounded,               new() },
+            { UnitFlags.Prankster,              new() },
         };
 
         if( Pokemon.HeldItem != null && Pokemon.HeldItem.BattleEffectID == BattleItemEffectID.FocusSash )
@@ -90,6 +94,9 @@ public class BattleUnit : MonoBehaviour
 
         if( Pokemon.HeldItem != null && Pokemon.HeldItem.BattleEffectID == BattleItemEffectID.SitrusBerry )
             Flags[UnitFlags.SitrusBerry].Count = 1;
+
+        if( !Pokemon.CheckTypes( PokemonType.Flying ) && Pokemon.Ability?.ID != AbilityID.Levitate )
+            SetFlagActive( UnitFlags.Grounded, true );
     }
 
     public void SetFlagCount( UnitFlags flag, int count )
@@ -132,10 +139,16 @@ public class BattleUnit : MonoBehaviour
             return false;
     }
 
-    public DamageDetails TakeDamage( Move move, BattleUnit attacker, WeatherCondition weather ){
+    public DamageDetails TakeDamage( Move move, BattleUnit attacker, WeatherCondition weather, TerrainCondition terrain, int targetCount ){
         var target = Pokemon;
         var category = move.MoveSO.MoveCategory;
         float critical = 1f;
+
+        float targets = 1f;
+        if( targetCount > 1 )
+            targets = 0.75f;
+
+        Debug.Log( $"[Perform Move Command][Battle Unit][Take Damage] Target Modifier is: {targets}" );
 
         //--Calculate crit chance in accordance to move's crit behavior
         if( move.MoveSO.CritBehavior != CritBehavior.NeverCrits ){
@@ -159,7 +172,12 @@ public class BattleUnit : MonoBehaviour
         float effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
 
         //--Weather damage modifier
-        float weatherModifier = weather?.OnDamageModify?.Invoke( Pokemon, attacker.Pokemon, move ) ?? 1f;
+        float weatherModifier = weather?.OnDamageModify?.Invoke( attacker.Pokemon, Pokemon, move ) ?? 1f;
+        Debug.Log( $"[Take Damage] Weather Modifier: {weatherModifier}" );
+
+        //--Terrain damage modifier
+        float terrainModifier = terrain?.OnDamageModify?.Invoke( attacker, this, move ) ?? 1f;
+        Debug.Log( $"[Take Damage] Terrain Modifier: {terrainModifier}" );
 
         //--Screens damage modifiers
         float reflectModifier = 1f;
@@ -225,7 +243,7 @@ public class BattleUnit : MonoBehaviour
         
         float random = UnityEngine.Random.Range( 0.85f, 1f );
 
-        float modifiers = random * STAB * effectiveness * critical * weatherModifier * reflectModifier * lightScreenModifier * auroraVeilModifier * itemOnDamageModify;
+        float modifiers = targets * random * STAB * effectiveness * critical * weatherModifier * terrainModifier * reflectModifier * lightScreenModifier * auroraVeilModifier * itemOnDamageModify;
         float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * move.MoveSO.Power * attackStat / defenseStat / 50 + 2 ) * modifiers;
         int rawDamage = (int)Mathf.Max( damageCalc, 1f );
         int damage = Mathf.Clamp( rawDamage, 1, Pokemon.CurrentHP );
@@ -264,6 +282,7 @@ public enum UnitFlags
     Phased,
     Trapped,
     Grounded,
+    Prankster,
     
 
 }

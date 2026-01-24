@@ -123,7 +123,7 @@ public class PlayerBattleMenu : MonoBehaviour
         PushState( _targetSelectState );
     }
 
-    public void HandleSwitchTargetSelection( Pokemon pokemon)
+    public void HandleSwitchTargetSelection( Pokemon pokemon )
     {
         
     }

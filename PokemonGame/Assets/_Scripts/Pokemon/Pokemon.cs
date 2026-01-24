@@ -4,6 +4,8 @@ using System;
 using System.Linq;
 using UnityEditor.SceneManagement;
 using System.Resources;
+using UnityEditor;
+using Unity.VisualScripting;
 
 [Serializable]
 public class Pokemon
@@ -11,6 +13,8 @@ public class Pokemon
     [SerializeField] private PokemonSO _pokeSO;
     [SerializeField] private string _nickName;  
     [SerializeField] private int _level;
+    [SerializeField] private NatureID _currentNature;
+    [SerializeField] private NatureID _defaultNature;
     [SerializeField] private Ability _ability; //--Eventually will be a list of learned abilities?
     [SerializeField] private AbilityID _abilityID; //--For seeing current ability in inspector
     [SerializeField] private int _currentAbilityIndex = 0; //--Might change these to a singular AbilityID instead of playing around with indicies, let's see how the rest of the implementation goes...
@@ -47,6 +51,9 @@ public class Pokemon
     public Dictionary<Stat, int> EffortValues { get; private set; } //--Consider moving EV variables to a dictionary instead!
     public Dictionary<Stat, int> StatStage { get; private set; }
     public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers { get; private set; }
+    public Dictionary<NatureID, Nature> Natures { get; private set; }
+    public NatureID CurrentNature => _currentNature;
+    public NatureID DefaultNature => _defaultNature;
     public StatusCondition SevereStatus { get; private set; }
     public StatusCondition VolatileStatus { get; private set; }
     public StatusCondition TransientStatus { get; private set; }
@@ -101,6 +108,8 @@ public class Pokemon
         _pokeSO                 = PokemonDB.GetPokemonBySpecies( ( saveData.Species, saveData.Form ) );
         _nickName               = saveData.NickName;
         _level                  = saveData.Level;
+        _currentNature          = saveData.CurrentNature;
+        _defaultNature          = saveData.DefaultNature;
         _currentAbilityIndex    = saveData.CurrentAbilityIndex;
         _heldItem               = ItemsDB.GetItemByName( saveData.HeldItem );
         CanEvolveByLevelUp      = saveData.CanEvolveByLevelUp;
@@ -149,6 +158,13 @@ public class Pokemon
     public void Init(){
         //--Set Name
         _nickName = PokeSO.Species;
+
+        InitializeNatures();
+        Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
+        if( _defaultNature == NatureID.None )
+            GetRandomNature();
+
+        _currentNature = _defaultNature;
         GetCurrentAbility();
         SetupBattleItem();
 
@@ -188,8 +204,7 @@ public class Pokemon
             CanEvolveByLevelUp = true;
 
         //--Stats
-        _gainedEffortPoints = 20;
-        RemainingEffortPoints = 20;
+        RemainingEffortPoints = _gainedEffortPoints;
         InitializeEVs();
         CalculateStats();
         ResetStatChanges();
@@ -209,12 +224,16 @@ public class Pokemon
         BattleSystem.OnBattleEnded += OnBattleEnded;
     }
 
-    public PokemonSaveData CreateSaveData(){
-        var saveData = new PokemonSaveData(){
+    public PokemonSaveData CreateSaveData()
+    {
+        var saveData = new PokemonSaveData()
+        {
             Species = _pokeSO.Species,
             Form = _pokeSO.Form,
             NickName = _nickName,
             Level = _level,
+            CurrentNature = _currentNature,
+            DefaultNature = _defaultNature,
             CurrentAbilityIndex = _currentAbilityIndex,
             HeldItem = _heldItem.ItemName,
             CanEvolveByLevelUp = CanEvolveByLevelUp,
@@ -236,6 +255,13 @@ public class Pokemon
         };
 
         return saveData;
+    }
+
+    private void GetRandomNature()
+    {
+        int d21 = UnityEngine.Random.Range( 1, 22 );
+        _defaultNature = (NatureID)d21;
+        Debug.Log( $"[Pokemon][Nature] Random Nature, {_defaultNature} chosen for {NickName}" );
     }
 
     private void GetCurrentAbility()
@@ -405,22 +431,21 @@ public class Pokemon
         return ActiveMoves.Count( m => m.MoveSO.Name == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO.Name == move ) > 0;
     }
 
-    public bool CheckCanLearnMove( MoveSO move ){
-        return PokeSO.TeachableMoves.Contains( move );
+    public bool CheckCanLearnTM( MoveSO move ){
+        return PokeSO.TeachableMoves[move];
     }
 
     private void CalculateStats(){
         int iv = 31;
-        int nature = 1;
 
         Stats = new()
         {
             { Stat.HP,        Mathf.FloorToInt( ( ( 2 * PokeSO.MaxHP     + iv + CalcEVs( HP_EVs )  ) * Level / 100f + Level ) + 10 ) },
-            { Stat.Attack,    Mathf.FloorToInt( ( ( ( 2 * PokeSO.Attack    + iv + CalcEVs( ATK_EVs )   ) * Level / 100f ) + 5 ) * nature ) },
-            { Stat.Defense,   Mathf.FloorToInt( ( ( ( 2 * PokeSO.Defense   + iv + CalcEVs( DEF_EVs )   ) * Level / 100f ) + 5 ) * nature ) },
-            { Stat.SpAttack,  Mathf.FloorToInt( ( ( ( 2 * PokeSO.SpAttack  + iv + CalcEVs( SPATK_EVs ) ) * Level / 100f ) + 5 ) * nature ) },
-            { Stat.SpDefense, Mathf.FloorToInt( ( ( ( 2 * PokeSO.SpDefense + iv + CalcEVs( SPDEF_EVs ) ) * Level / 100f ) + 5 ) * nature ) },
-            { Stat.Speed,     Mathf.FloorToInt( ( ( ( 2 * PokeSO.Speed     + iv + CalcEVs( SPE_EVs )   ) * Level / 100f ) + 5 ) * nature ) },
+            { Stat.Attack,    Mathf.FloorToInt( ( ( ( 2 * PokeSO.Attack    + iv + CalcEVs( ATK_EVs )   ) * Level / 100f ) + 5 ) * GetNatureModifier( Stat.Attack ) ) },
+            { Stat.Defense,   Mathf.FloorToInt( ( ( ( 2 * PokeSO.Defense   + iv + CalcEVs( DEF_EVs )   ) * Level / 100f ) + 5 ) * GetNatureModifier( Stat.Defense ) ) },
+            { Stat.SpAttack,  Mathf.FloorToInt( ( ( ( 2 * PokeSO.SpAttack  + iv + CalcEVs( SPATK_EVs ) ) * Level / 100f ) + 5 ) * GetNatureModifier( Stat.SpAttack ) ) },
+            { Stat.SpDefense, Mathf.FloorToInt( ( ( ( 2 * PokeSO.SpDefense + iv + CalcEVs( SPDEF_EVs ) ) * Level / 100f ) + 5 ) * GetNatureModifier( Stat.SpDefense ) ) },
+            { Stat.Speed,     Mathf.FloorToInt( ( ( ( 2 * PokeSO.Speed     + iv + CalcEVs( SPE_EVs )   ) * Level / 100f ) + 5 ) * GetNatureModifier( Stat.Speed ) ) },
         };
     }
 
@@ -487,10 +512,59 @@ public class Pokemon
         RemainingEffortPoints = Mathf.Clamp( RemainingEffortPoints, 0, _gainedEffortPoints );
     }
 
+    private void InitializeNatures()
+    {
+        Natures = new()
+        {
+            { NatureID.Neutral, new() },
+            { NatureID.Lonely,      new(){ PositiveStat = Stat.Attack,      NegativeStat = Stat.Defense } },
+            { NatureID.Brave,       new(){ PositiveStat = Stat.Attack,      NegativeStat = Stat.Speed } },
+            { NatureID.Adamant,     new(){ PositiveStat = Stat.Attack,      NegativeStat = Stat.SpAttack } },
+            { NatureID.Naughty,     new(){ PositiveStat = Stat.Attack,      NegativeStat = Stat.SpDefense } },
+            { NatureID.Bold,        new(){ PositiveStat = Stat.Defense,     NegativeStat = Stat.Attack } },
+            { NatureID.Relaxed,     new(){ PositiveStat = Stat.Defense,     NegativeStat = Stat.Speed } },
+            { NatureID.Impish,      new(){ PositiveStat = Stat.Defense,     NegativeStat = Stat.SpAttack } },
+            { NatureID.Lax,         new(){ PositiveStat = Stat.Defense,     NegativeStat = Stat.SpDefense } },
+            { NatureID.Timid,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.Defense } },
+            { NatureID.Hasty,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.Defense } },
+            { NatureID.Jolly,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.SpAttack } },
+            { NatureID.Naive,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.SpDefense } },
+            { NatureID.Modest,      new(){ PositiveStat = Stat.SpAttack,    NegativeStat = Stat.Attack } },
+            { NatureID.Mild,        new(){ PositiveStat = Stat.SpAttack,    NegativeStat = Stat.Defense } },
+            { NatureID.Quiet,       new(){ PositiveStat = Stat.SpAttack,    NegativeStat = Stat.Speed } },
+            { NatureID.Rash,        new(){ PositiveStat = Stat.SpAttack,    NegativeStat = Stat.SpDefense } },
+            { NatureID.Calm,        new(){ PositiveStat = Stat.SpDefense,   NegativeStat = Stat.Attack } },
+            { NatureID.Gentle,      new(){ PositiveStat = Stat.SpDefense,   NegativeStat = Stat.Defense } },
+            { NatureID.Sassy,       new(){ PositiveStat = Stat.SpDefense,   NegativeStat = Stat.Speed } },
+            { NatureID.Careful,     new(){ PositiveStat = Stat.SpDefense,   NegativeStat = Stat.SpAttack } },
+        };
+    }
+
+    private float GetNatureModifier( Stat stat )
+    {
+        var nature = Natures[_currentNature];
+
+        if( stat == nature.PositiveStat )
+        {
+            Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 1.1f modifier!");
+            return 1.1f;
+        }
+        else if( stat == nature.NegativeStat )
+        {
+            Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 0.9f modifier!");
+            return 0.9f;
+        }
+        else
+        {
+            Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 1f modifier!");
+            return 1f;
+        }
+    }
+
     private int GetStat( Stat stat ){
         int statValue = Stats[stat];
 
-        int boost = StatStage[stat];
+        int stage = StatStage[stat];
         var changeModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
         var directModifier = DirectStatModifiers[stat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm );
 
@@ -501,10 +575,10 @@ public class Pokemon
         statValue = Mathf.FloorToInt( statValue * directModifier );
         // Debug.Log( $"Stat Value after direct modifier: {statValue}" );
 
-        if( boost >= 0 )
-            statValue = Mathf.FloorToInt( statValue * changeModifier[boost] );
+        if( stage >= 0 )
+            statValue = Mathf.FloorToInt( statValue * changeModifier[stage] );
         else
-            statValue = Mathf.FloorToInt( statValue / changeModifier[-boost] );
+            statValue = Mathf.FloorToInt( statValue / changeModifier[-stage] );
 
         return statValue;
     }
@@ -529,17 +603,17 @@ public class Pokemon
             Debug.Log( $"{NickName}'s {stat} is now {GetStat( stat )}!" );
 
             if( change == 1 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} rose by {Mathf.Abs( change )} stage!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} rose by {Mathf.Abs( change )} stage!", change );
             if( change > 1 && change < 6 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply rose by {Mathf.Abs( change )} stages!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply rose by {Mathf.Abs( change )} stages!", change );
             if( change == 6 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} has maxed out!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} has maxed out!", change );
             if( change == -1 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} decreased by {Mathf.Abs( change )} stage!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} decreased by {Mathf.Abs( change )} stage!", change );
             if( change < -1 && change > -6 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply decreased by {Mathf.Abs( change )} stages!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply decreased by {Mathf.Abs( change )} stages!", change );
             if( change == -6 )
-                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} has bottomed out!" );
+                AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} has bottomed out!", change );
         }
     }
 
@@ -689,21 +763,42 @@ public class Pokemon
         else if( SevereStatus != null )
             return;
 
-        bool canApply = Ability?.OnTrySetSevereStatus?.Invoke( conditionID, this, effectSource ) ?? true;
+        bool canApply = CanApplySevereStatus( conditionID, effectSource );
 
         if( !canApply )
             return;
 
         SevereStatus = StatusConditionsDB.Conditions[conditionID];
 
-        if( BattleSystem.BattleIsActive ){
+        if( BattleSystem.BattleIsActive )
+        {
             SevereStatus?.OnApplyStatus?.Invoke( this );
             SevereStatus?.OnStart?.Invoke( this );
             AddStatusEvent( $"{_pokeSO.Species} {SevereStatus.StartMessage}" );
         }
 
-        // Debug.Log( $"{_pokeSO.Species} {SevereStatus.StartMessage}" );
         OnStatusChanged?.Invoke();
+    }
+
+    private bool CanApplySevereStatus( StatusConditionID conditionID, EffectSource effectSource = EffectSource.Move )
+    {
+        bool canApply = Ability?.OnTrySetSevereStatus?.Invoke( conditionID, this, effectSource ) ?? true;
+        if( !canApply )
+            return false;
+
+        if( conditionID == StatusConditionID.BRN && CheckTypes( PokemonType.Fire ) )
+            return false;
+
+        if( conditionID == StatusConditionID.PAR && CheckTypes( PokemonType.Electric ) )
+            return false;
+
+        if( conditionID == StatusConditionID.FBT && CheckTypes( PokemonType.Ice ) )
+            return false;
+
+        if( ( conditionID == StatusConditionID.PSN || conditionID == StatusConditionID.TOX ) && CheckTypes( PokemonType.Steel ) )
+            return false;
+
+        return true;
     }
 
     public void CureSevereStatus(){
@@ -743,6 +838,7 @@ public class Pokemon
 
     public void SetTransientStatus( StatusConditionID id )
     {
+        Debug.Log( $"SetTransientStatus()" );
         //--May need to limit to one transient status at a time
         TransientStatus = StatusConditionsDB.Conditions[id];
         TransientStatus?.OnStart?.Invoke( this );
@@ -817,16 +913,23 @@ public class Pokemon
         return CurrentHP <= 0 || SevereStatus?.ID == StatusConditionID.FNT;
     }
 
-    public void AddStatusEvent( StatusEventType type, string message )
+    public void AddStatusEvent( StatusEventType type, string message, int change = 0 )
     {
-        StatusChanges.Enqueue( new( type, message ) );
+        StatusChanges.Enqueue( new( type, message, change ) );
     }
 
-    public void AddStatusEvent( string message )
+    public void AddStatusEvent( string message, int change = 0 )
     {
-        StatusChanges.Enqueue( new( StatusEventType.Text, message ) );
+        StatusChanges.Enqueue( new( StatusEventType.Text, message, change ) );
     }
 
+}
+
+public enum NatureID { None, Neutral, Lonely, Brave, Adamant, Naughty, Bold, Relaxed, Impish, Lax, Timid, Hasty, Jolly, Naive, Modest, Mild, Quiet, Rash, Calm, Gentle, Sassy, Careful }
+public class Nature
+{
+    public Stat PositiveStat { get; set; }
+    public Stat NegativeStat { get; set; }
 }
 
 public enum DirectModifierCause
@@ -856,6 +959,8 @@ public class PokemonSaveData
     public int Form;
     public string NickName;
     public int Level;
+    public NatureID CurrentNature;
+    public NatureID DefaultNature;
     public int CurrentAbilityIndex;
     public string HeldItem;
     public bool CanEvolveByLevelUp;
@@ -876,16 +981,18 @@ public class PokemonSaveData
     public bool IsPlayerUnit;
 }
 
-public enum StatusEventType { Text, Damage, StatChange, SevereStatusDamage, VolatileStatusDamage, SevereStatusPassive, VolatileStatusPassive, AbilityCutIn }
+public enum StatusEventType { Text, Damage, StatChange, SevereStatusDamage, VolatileStatusDamage, SevereStatusPassive, VolatileStatusPassive, AbilityCutIn, Heal }
 
 public class StatusEvent
 {
     public StatusEventType Type { get; private set; }
     public string Message { get; private set; }
+    public int StageChange { get; private set; }
 
-    public StatusEvent( StatusEventType type, string message )
+    public StatusEvent( StatusEventType type, string message, int change )
     {
         Type = type;
         Message = message;
+        StageChange = change;
     }
 }

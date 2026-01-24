@@ -33,7 +33,7 @@ public class AbilityCutIn : MonoBehaviour
             _userNameRight.text = $"{user}'s";
             _rightCutInOL.color = colors.color2;
             _rightCutInBG.color = colors.color1;
-            _rightCutInPortrait.sprite = pokemon.PokeSO.CardPortrait;
+            _rightCutInPortrait.sprite = pokemon.PokeSO.Portrait_Normal;
             yield return AnimateAbilityCutIn( _rightCutIn, location );
         }
         else
@@ -42,7 +42,7 @@ public class AbilityCutIn : MonoBehaviour
             _userNameLeft.text = $"{user}'s";
             _leftCutInOL.color = colors.color2;
             _leftCutInBG.color = colors.color1;
-            _leftCutInPortrait.sprite = pokemon.PokeSO.CardPortrait;
+            _leftCutInPortrait.sprite = pokemon.PokeSO.Portrait_Normal;
             yield return AnimateAbilityCutIn( _leftCutIn, location );
         }
 

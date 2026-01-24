@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Fire Punch
   m_EditorClassIdentifier: 
   _moveName: Fire Punch
+  _hasTM: 1
   _description: The target is attacked with a fiery punch. This may also leave the
     target with a burn.
   _moveCategory: 0
@@ -31,24 +32,29 @@ MonoBehaviour:
     RecoilDamage: 0
   _drainPercentage: 0
   _hitRange: {x: 0, y: 0}
-  _flags: 
+  _flags: 020000000a000000
   _moveEffects:
+    _target: 0
+    _trigger: 0
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
     _switchEffect:
       SwitchType: 0
   _secondaryMoveEffects:
-  - _statChangeList: []
+  - _target: 0
+    _trigger: 0
+    _statChangeList: []
     _severeStatus: 3
     _volatileStatus: 0
     _transientStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
     _switchEffect:
       SwitchType: 0
     _chance: 10
-    _target: 0

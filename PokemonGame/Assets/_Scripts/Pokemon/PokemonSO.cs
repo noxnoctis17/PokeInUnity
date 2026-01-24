@@ -1,18 +1,21 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using UnityEditor.Experimental.GraphView;
+using UnityEditor;
+using System.Linq;
 
-[CreateAssetMenu(menuName = "Pokemon/New Pokemon")]
+[CreateAssetMenu( menuName = "Pokemon/New Pokemon" )]
 public class PokemonSO : ScriptableObject
 {
+    [SerializeField] int _dexNO;
     [SerializeField] string _species;
     [SerializeField] int _form;
     [SerializeField] private WildType _wildType;
-    [SerializeField] private Sprite _defaultBall;
+    public int DexNO => _dexNO;
     public string Species => _species;
     public int Form => _form;
     public WildType WildType => _wildType;
-    public Sprite DefaultBall => _defaultBall;
 
     [TextArea(10, 20)]
     [SerializeField] private string _description;
@@ -88,11 +91,16 @@ public class PokemonSO : ScriptableObject
 
     //--Faint Sprites
 #endregion
-    //--Card Portraits
-    [SerializeField] private Sprite _cardPortrait;
+
+    //--Portraits
+    [SerializeField] private Sprite _portraitNormal;
     [SerializeField] private Sprite _portraitHappy;
-    public Sprite CardPortrait => _cardPortrait;
+    [SerializeField] private Sprite _portraitAngry;
+    [SerializeField] private Sprite _portraitHurt;
+    public Sprite Portrait_Normal => _portraitNormal;
     public Sprite Portrait_Happy => _portraitHappy;
+    public Sprite Portrait_Angry => _portraitAngry;
+    public Sprite Portrait_Hurt => _portraitHurt;
 
     //----------------------------------
     
@@ -117,9 +125,11 @@ public class PokemonSO : ScriptableObject
     [Header( "Learnable Moves" )]
     [SerializeField] private List<LearnableMoves> _learnableMoves;
     [Header( "Teachable Moves" )]
-    [SerializeField] private List<MoveSO> _teachableMoves;
+    [SerializeField] private TMDB _tmDB;
+    [SerializeField] private List<MoveSO> _tmKeys;
+    [SerializeField] private List<bool> _tmValues;
     public List<LearnableMoves> LearnableMoves => _learnableMoves;
-    public List<MoveSO> TeachableMoves => _teachableMoves;
+    public Dictionary<MoveSO, bool> TeachableMoves { get; private set; }
 
     public static int MAXLEVEL { get; set; } = 100;
     public static int MAX_ACTIVE_MOVES { get; set; } = 4;
@@ -184,6 +194,312 @@ public class PokemonSO : ScriptableObject
         }
     }
 
+//================================Editor Tool=========================================
+#if UNITY_EDITOR
+    public void OnEnable()
+    {
+        if( _tmKeys == null )
+            _tmKeys = new();
+
+        if( _tmValues == null )
+            _tmValues = new();
+
+        if( _tmDB != null )
+            BuildTMDB();
+    }
+
+    //--Dex Number
+    public void SetDexNO( int dexNO )
+    {
+        _dexNO = dexNO;
+    }
+
+    //--Species
+    public void SetSpecies( string species )
+    {
+        _species = species;
+    }
+
+    //--Form Index
+    public void SetFormIndex( int formIndex )
+    {
+        _form = formIndex;
+    }
+
+    //--Wild Type
+    public void SetWildType( WildType type )
+    {
+        _wildType = type;
+    }
+
+    //--Dex Description
+    public void SetDexDescription( string desc )
+    {
+        _description = desc;
+    }
+
+    //--Types
+    public void SetType1( PokemonType type1 )
+    {
+        _type1 = type1;
+    }
+
+    public void SetType2( PokemonType type2 )
+    {
+        _type2 = type2;
+    }
+
+    //--Base Stats
+    public void SetHP( int value )
+    {
+        _maxHP = value;
+    }
+
+    public void SetAttack( int value )
+    {
+        _attack = value;
+    }
+
+    public void SetDefense( int value )
+    {
+        _defense = value;
+    }
+
+    public void SetSpAttack( int value )
+    {
+        _spAttack = value;
+    }
+
+    public void SetSpDefense( int value )
+    {
+        _spDefense = value;
+    }
+
+    public void SetSpeed( int value )
+    {
+        _speed = value;
+    }
+
+    public void SetCatchRate( int value )
+    {
+        _catchRate = value;
+    }
+
+    public void SetEXPYield( int value )
+    {
+        _expYield = value;
+    }
+
+    public void SetEffortYield( int value )
+    {
+        _effortPointsYield = value;
+    }
+
+    public void SetGrowthRate( GrowthRate value )
+    {
+        _growthRate = value;
+    }
+
+    //--Abilities
+    public void AddAbility( AbilityID ability )
+    {
+        _abilities.Add( ability );
+    }
+
+    public void SetAbility( int index, AbilityID ability )
+    {
+        _abilities[index] = ability;
+    }
+
+    public void RemoveAbility( int index )
+    {
+        if ( index < 0 || index >= _abilities.Count )
+            return;
+
+        _abilities.RemoveAt( index );
+    }
+
+    //--Evolutions
+    public void AddEvolution()
+    {
+        _evolutions.Add( new() );
+    }
+
+    public void SetEvolutionPokemon( int index, PokemonSO evo )
+    {
+        _evolutions[index].SetEvolutionPokemon( evo );
+    }
+
+    public void SetEvolutionLevel( int index, int level )
+    {
+        _evolutions[index].SetEvolutionLevel( level );
+    }
+
+    public void SetEvolutionItem( int index, EvolutionItemsSO item )
+    {
+        _evolutions[index].SetEvolutionItem( item );
+    }
+
+    public void RemoveEvolution( int index )
+    {
+        if ( index < 0 || index >= _evolutions.Count )
+            return;
+
+        _evolutions.RemoveAt( index );
+    }
+
+    //--Learnable Moves
+    public void AddLevelUpMove()
+    {
+        _learnableMoves.Add( new() );
+    }
+
+    public void SetLevelUpMove( int index, MoveSO move )
+    {
+        _learnableMoves[index].SetMove( move );
+    }
+
+    public void SetLevelUpMoveLevel( int index, int level )
+    {
+        _learnableMoves[index].SetLevelLearned( level );
+    }
+
+    public void RemoveLevelUpMove( int index )
+    {
+        if ( index < 0 || index >= _learnableMoves.Count )
+            return;
+
+        _learnableMoves.RemoveAt( index );
+    }
+
+    //--Teachable Moves
+    public void BuildTMDB()
+    {
+        TeachableMoves = new();
+
+        for( int i = 0; i < _tmKeys.Count; i++ )
+        {
+            TeachableMoves[_tmKeys[i]] = _tmValues[i];
+        }
+    }
+
+    public void SyncTMs( List<MoveSO> tmList, bool allowRemoval = false )
+    {
+        //--Add new TMs
+        foreach( var tm in tmList )
+        {
+            if( !_tmKeys.Contains( tm ) )
+            {
+                _tmKeys.Add( tm );
+                _tmValues.Add( false );
+            }
+        }
+
+        BuildTMDB();
+
+        if( !allowRemoval )
+            return;
+
+        //--Remove TMs that were removed from the DB
+        for( int i = _tmKeys.Count - 1; i >= 0; i-- )
+        {
+            if( !tmList.Contains( _tmKeys[i] ) )
+            {
+                _tmKeys.RemoveAt( i );
+                _tmValues.RemoveAt( i );
+            }
+        }
+
+        BuildTMDB();
+
+    }
+
+    public void SetTM( MoveSO tm, bool canLearn )
+    {
+        int index = _tmKeys.IndexOf( tm );
+        if( index == -1 )
+            return;
+
+        Debug.Log( $"Setting {tm.Name} Learnable from {TeachableMoves[tm]} to {canLearn} for {Species}" );
+        if( TeachableMoves.ContainsKey( tm ) )
+        {
+            _tmValues[index] = canLearn;
+            TeachableMoves[tm] = canLearn;
+        }
+        else
+            Debug.LogError( $"TM not found in database!" );
+
+        Debug.Log( $"{tm.Name} is: {TeachableMoves[tm]} for {Species}" );
+    }
+
+    public void SetNormalPortrait( Sprite portrait )
+    {
+        _portraitNormal = null;
+        _portraitNormal = portrait;
+    }
+
+    public void SetHappyPortrait( Sprite portrait )
+    {
+        _portraitHappy = null;
+        _portraitHappy = portrait;
+    }
+
+    public void SetAngryPortrait( Sprite portrait )
+    {
+        _portraitAngry = null;
+        _portraitAngry = portrait;
+    }
+
+    public void SetHurtPortrait( Sprite portrait )
+    {
+        _portraitHurt = null;
+        _portraitHurt = portrait;
+    }
+
+    private const int DIRECTION_COUNT = 8;
+    //--Sprites are generated counter clockwise from "Down" (6:00)
+    private void AddSpriteToDirection( int direction, Sprite sprite, FacingDirection sheetDirection = default )
+    {
+        switch( direction )
+        {
+            case 0: _idleDownSprites.Add( sprite );         break;
+            case 1: _idleDownRightSprites.Add( sprite );    break;
+            case 2: _idleRightSprites.Add( sprite );        break;
+            case 3: _idleUpRightSprites.Add( sprite );      break;
+            case 4: _idleUpSprites.Add( sprite );           break;
+            case 5: _idleUpLeftSprites.Add( sprite );       break;
+            case 6: _idleLeftSprites.Add( sprite );         break;
+            case 7: _idleDownLeftSprites.Add( sprite );     break;
+        }
+    }
+
+    public void SetIdleSprites( List<List<Sprite>> sprites )
+    {
+        ClearIdleSprites();
+        
+        for( int dir = 0; dir < DIRECTION_COUNT; dir++ )
+        {
+            foreach( var sprite in sprites[dir] )
+            {
+                AddSpriteToDirection( dir, sprite );
+            }
+        }
+    }
+
+    private void ClearIdleSprites()
+    {
+        _idleDownSprites.Clear();
+        _idleDownRightSprites.Clear();
+        _idleRightSprites.Clear();
+        _idleUpRightSprites.Clear();
+        _idleUpSprites.Clear();
+        _idleUpLeftSprites.Clear();
+        _idleLeftSprites.Clear();
+        _idleDownLeftSprites.Clear();
+    }
+
+#endif
+
 }
 
 [Serializable]
@@ -194,6 +510,20 @@ public class LearnableMoves
     [SerializeField] private int _levelLearned;
     public MoveSO MoveSO => _moveSO;
     public int LevelLearned => _levelLearned;
+
+#if UNITY_EDITOR
+
+    public void SetMove( MoveSO move )
+    {
+        _moveSO = move;
+    }
+
+    public void SetLevelLearned( int level )
+    {
+        _levelLearned = level;
+    }
+
+#endif
 }
 
 [Serializable]
@@ -205,6 +535,34 @@ public class Evolutions
     public PokemonSO Evolution => _evolution;
     public int EvolutionLevel => _evolutionLevel;
     public EvolutionItemsSO EvolutionItem => _evolutionItem;
+
+#if UNITY_EDITOR
+
+    public void SetEvolutionPokemon( PokemonSO evo )
+    {
+        _evolution = evo;
+    }
+
+    public void SetEvolutionLevel( int level )
+    {
+        _evolutionLevel = level;
+    }
+
+    public void SetEvolutionItem( EvolutionItemsSO item )
+    {
+        _evolutionItem = item;
+    }
+
+#endif
+}
+
+public enum PokemonAnimationType
+{
+    Idle,
+    Walk,
+    Strike,
+    Shoot,
+    Faint,
 }
 
 public enum PokemonType

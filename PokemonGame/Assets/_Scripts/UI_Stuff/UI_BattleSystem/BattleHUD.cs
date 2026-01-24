@@ -28,7 +28,7 @@ public class BattleHUD : MonoBehaviour
     public void SetData( Pokemon pokemon, BattleUnit battleUnit ){
         if( _pokemon != null ){
             _pokemon.OnStatusChanged        -= SetSevereStatus;
-            _pokemon.OnDisplayInfoChanged   -= UpdateHP;
+            // _pokemon.OnDisplayInfoChanged   -= UpdateHP;
         }
 
         _pokemon = pokemon;
@@ -37,7 +37,7 @@ public class BattleHUD : MonoBehaviour
         _nameText.text = pokemon.NickName;
         _levelText.text = "" + pokemon.Level;
 
-        _battlePortrait.sprite = _pokemon.PokeSO.CardPortrait;
+        _battlePortrait.sprite = _pokemon.PokeSO.Portrait_Normal;
 
         //--Set Type Colors
         SetColors();
@@ -53,7 +53,7 @@ public class BattleHUD : MonoBehaviour
 
         SetSevereStatus();
         _pokemon.OnStatusChanged        += SetSevereStatus;
-        _pokemon.OnDisplayInfoChanged   += UpdateHP;
+        // _pokemon.OnDisplayInfoChanged   += UpdateHP;
         BattleSystem.OnBattleEnded      += ClearData;
     }
 
@@ -122,7 +122,7 @@ public class BattleHUD : MonoBehaviour
 
     private void ClearData(){
         _pokemon.OnStatusChanged        -= SetSevereStatus;
-        _pokemon.OnDisplayInfoChanged   -= UpdateHP;
+        // _pokemon.OnDisplayInfoChanged   -= UpdateHP;
         BattleSystem.OnBattleEnded      -= ClearData;
     }
 

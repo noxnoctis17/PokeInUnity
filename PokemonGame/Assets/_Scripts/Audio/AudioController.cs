@@ -30,11 +30,15 @@ public class AudioController : MonoBehaviour
     [SerializeField] private AudioClip _damageEffective;
     [SerializeField] private AudioClip _damageSuperEffective;
     [SerializeField] private AudioClip _damageNotEffective;
+    [SerializeField] private AudioClip _hpRestore;
     [SerializeField] private AudioClip _battleBallThrow;
     [SerializeField] private AudioClip _battleBallDrop;
     [SerializeField] private AudioClip _battleBallShake;
     [SerializeField] private AudioClip _battleBallClick;
     [SerializeField] private AudioClip _itemGet;
+    [SerializeField] private AudioClip _statDown;
+    [SerializeField] private AudioClip _statUp;
+
 
     private void OnEnable(){
         if( Instance != null )
@@ -201,6 +205,18 @@ public class AudioController : MonoBehaviour
             case SoundEffect.ItemGet:
                 sound = _itemGet;
             break;
+
+            case SoundEffect.HPRestore:
+                sound = _hpRestore;
+            break;
+
+            case SoundEffect.StatDown:
+                sound = _statDown;
+            break;
+
+            case SoundEffect.StatUp:
+                sound = _statUp;
+            break;
         }
 
         IsPlayingSFX = true;
@@ -235,6 +251,9 @@ public enum SoundEffect {
     BattleBallShake,
     BattleBallClick,
     ItemGet,
+    HPRestore,
+    StatUp,
+    StatDown,
 
     }
 
