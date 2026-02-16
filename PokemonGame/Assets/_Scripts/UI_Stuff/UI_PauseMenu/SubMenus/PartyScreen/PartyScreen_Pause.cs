@@ -25,7 +25,7 @@ public class PartyScreen_Pause : State<UI_PauseMenuStateMachine>, IPartyScreen
     public Button InitialButton => _initialButton;
 //======================================================================
     [Header( "Pokemon Information" )]
-    [SerializeField] private TextMeshProUGUI _hpText, _atkText, _defText, _spatkText, _spdefText, _speText, _abilityText, _abilityDescription, _heldItemText;
+    [SerializeField] private TextMeshProUGUI _hpText, _atkText, _defText, _spatkText, _spdefText, _speText, _abilityText, _abilityDescription, _heldItemText, _natureText;
     [SerializeField] private TextMeshProUGUI _expText, _epText;
     [SerializeField] private TextMeshProUGUI _hpEP, _atkEP, _defEP, _spatkEP, _spdefEP, _speEP;
     [SerializeField] private Slider _expBar;
@@ -149,6 +149,8 @@ public class PartyScreen_Pause : State<UI_PauseMenuStateMachine>, IPartyScreen
             _heldItemIcon.sprite = pokemon.HeldItem.Icon;
             _heldItemIcon.gameObject.SetActive( false );
         }
+
+        _natureText.text = $"{pokemon.CurrentNature}";
 
         //--Set Moves
         SetMoveNames( pokemon.ActiveMoves );

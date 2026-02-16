@@ -1,0 +1,48 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/Editor/Move%20Editor/MoveEditor.uss?fileID=7433441132597879392&amp;guid=bec930baaad6c034083ca92d20d86b96&amp;type=3#MoveEditor" />
+    <ui:Foldout text="Move Effects" style="background-color: rgb(47, 47, 47); color: rgb(255, 255, 255); -unity-font: resource(&apos;Fonts/Roboto-ExtraBold&apos;); -unity-font-definition: initial; font-size: 18px; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; height: auto; -unity-font-style: bold; -unity-text-outline-width: 0.5px; -unity-text-outline-color: rgb(0, 0, 0); flex-shrink: 0; flex-grow: 1;">
+        <ui:Button text="Remove" parse-escape-sequences="true" display-tooltip-when-elided="true" name="RemoveButton" class="buttons button" style="width: auto; height: 25px;" />
+        <ui:GroupBox name="Content" style="flex-direction: row; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;">
+            <ui:GroupBox name="EverythingElse" style="margin-top: 0; margin-right: 10px; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; width: 55%;">
+                <ui:IntegerField value="10" name="ChanceField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Chance" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" />
+                </ui:IntegerField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="TargetField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Target" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="TriggerField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Trigger" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="SevereStatusField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Severe Status" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="VolatileStatusField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Volatile Status" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="TransientStatusField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Transient Status" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="BindingStatusField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Binding Status" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="WeatherField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Weather" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="TerrainField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Terrain" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="CourtConditionField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Court Condition" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+                <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="SwitchEffectTypeField" class="infoFieldOne" style="flex-direction: row-reverse;">
+                    <ui:Label tabindex="-1" text="Switch Type" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                </ui:EnumField>
+            </ui:GroupBox>
+            <ui:GroupBox name="StatStageContainer" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 10px; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; width: 40%;">
+                <ui:Label tabindex="-1" text="Stat Stage Changes" parse-escape-sequences="true" display-tooltip-when-elided="true" name="StatStageList" class="detailGroupLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;" />
+                <ui:Button text="Add Stat Stage Change" parse-escape-sequences="true" display-tooltip-when-elided="true" name="AddStatStageChangeButton" class="button buttons" style="width: 100%; height: 25px; font-size: 18px;" />
+                <ui:ListView focusable="true" name="StatStageChangeList" fixed-item-height="120" selection-type="None" reorderable="true" show-border="true" />
+            </ui:GroupBox>
+        </ui:GroupBox>
+    </ui:Foldout>
+</ui:UXML>

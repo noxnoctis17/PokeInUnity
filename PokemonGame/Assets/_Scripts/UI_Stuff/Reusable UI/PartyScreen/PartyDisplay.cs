@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using System.Collections.Generic;
 
 public enum PartyScreenContext { Battle, Pause, UseItemPaused, UseItemBattle, Trade,  }
 
@@ -11,7 +12,7 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
     private IPartyScreen _parentMenu;
     private PartyMember_UI[] _memberSlots;
     private PokemonButton[] _pkmnButtons;
-    public PokemonParty PlayerParty { get; private set; }
+    public PlayerTrainer PlayerTrainer { get; private set; }
     public Button PartyButton1 => _partyButton1;
     public PartyMember_UI[] MemberSlots => _memberSlots;
     public PokemonButton[] PKMNButtons => _pkmnButtons;
@@ -20,40 +21,49 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
     public Action<Item, bool> OnEvolutionItemSelected;
     public Action<Item, bool> OnTMSelected;
 
-    private void OnEnable(){
-        if( _partyScreenContext == PartyScreenContext.UseItemPaused ){
+    private void OnEnable()
+    {
+        if( _partyScreenContext == PartyScreenContext.UseItemPaused )
+        {
             OnHPPocketEntered           += SetHPBarActive;
             OnEvolutionItemSelected     += SetStatusText_EvoItem;
             OnTMSelected                += SetStatusText_TM;
         }
     }
 
-    private void OnDisable(){
-        if( _partyScreenContext == PartyScreenContext.UseItemPaused ){
+    private void OnDisable()
+    {
+        if( _partyScreenContext == PartyScreenContext.UseItemPaused )
+        {
             OnHPPocketEntered           -= SetHPBarActive;
             OnEvolutionItemSelected     -= SetStatusText_EvoItem;
             OnTMSelected                -= SetStatusText_TM;
         }
     }
 
-    public void Init(){
+    public void Init()
+    {
         _memberSlots = GetComponentsInChildren<PartyMember_UI>( true );
         _pkmnButtons = GetComponentsInChildren<PokemonButton>();
-        PlayerParty = PlayerReferences.Instance.PlayerParty;
+        PlayerTrainer = PlayerReferences.Instance.PlayerTrainer;
         _parentMenu = GetComponentInParent<IPartyScreen>( true );
 
-        PlayerParty.OnPartyUpdated += SetParty;
+        PlayerTrainer.OnPartyUpdated += SetParty;
+        BattleSystem.OnBattlePartyUpdated += SetParty;
+        
 
-        SetParty();
+        SetParty( PlayerTrainer.ActiveParty );
     }
 
-    public void SetParty(){
-        var pokemon = PlayerParty.Party;
-
-        for( int i = 0; i < _memberSlots.Length; i++ ){
-            if( i < pokemon.Count ){
+    public void SetParty( List<Pokemon> party )
+    {
+        for( int i = 0; i < _memberSlots.Length; i++ )
+        {
+            if( i < party.Count )
+            {
+                Debug.Log( $"Swapping. Button index {i} has Pokemon {party[i].NickName}" );
                 _memberSlots[i].gameObject.SetActive( true );
-                _memberSlots[i].Init( pokemon[i] );
+                _memberSlots[i].Init( party[i] );
             }
             else
                 _memberSlots[i].gameObject.SetActive( false );
@@ -62,15 +72,18 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
         AssignPokemonToButtons();
     }
 
-    public void ClearParty(){
-        foreach( PartyMember_UI member in _memberSlots ){
+    public void ClearParty()
+    {
+        foreach( PartyMember_UI member in _memberSlots )
+        {
             member.gameObject.SetActive( true );
         }
 
         ClearPartyScreen();
     }
 
-    private void ClearPartyScreen(){
+    private void ClearPartyScreen()
+    {
         _memberSlots = null;
         _pkmnButtons = null;
     }

@@ -1,0 +1,129 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2eb24358a6a0488409e1319ae03bba77, type: 3}
+  m_Name: EditorTest
+  m_EditorClassIdentifier: 
+  _name: Editor
+  _trainerClass: 0
+  _skillLevel: 0
+  _portrait: {fileID: 0}
+  _dialogueColor: {fileID: 0}
+  _battleTheme: 0
+  _party:
+  - _pokemon: {fileID: 0}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+  - _pokemon: {fileID: 0}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+  - _pokemon: {fileID: 0}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+  - _pokemon: {fileID: 0}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+  - _pokemon: {fileID: 0}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+  - _pokemon: {fileID: 0}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}

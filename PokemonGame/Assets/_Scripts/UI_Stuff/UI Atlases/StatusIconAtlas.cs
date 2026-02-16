@@ -38,7 +38,7 @@ public class StatusIconAtlas : MonoBehaviour
     [SerializeField] private Color _fntColor;
     [SerializeField] private GameObject _fntVFX;
 
-    public static Dictionary<StatusConditionID, StatusObject> StatusIcons;
+    public static Dictionary<SevereConditionID, StatusObject> StatusIcons;
 
     private void OnEnable(){
         InitializeDictionary();
@@ -47,13 +47,13 @@ public class StatusIconAtlas : MonoBehaviour
     private void InitializeDictionary(){
         StatusIcons = new()
         {
-            { StatusConditionID.PSN, new( _psn, _psnColor, _psnVFX ) },
-            { StatusConditionID.TOX, new( _tox, _toxColor, _toxVFX ) },
-            { StatusConditionID.BRN, new( _brn, _brnColor, _brnVFX ) },
-            { StatusConditionID.FBT, new( _fbt, _fbtColor, _fbtVFX ) },
-            { StatusConditionID.PAR, new( _par, _parColor, _parVFX ) },
-            { StatusConditionID.SLP, new( _slp, _slpColor, _slpVFX ) },
-            { StatusConditionID.FNT, new( _fnt, _fntColor, _fntVFX ) },
+            { SevereConditionID.PSN, new( _psn, _psnColor, _psnVFX ) },
+            { SevereConditionID.TOX, new( _tox, _toxColor, _toxVFX ) },
+            { SevereConditionID.BRN, new( _brn, _brnColor, _brnVFX ) },
+            { SevereConditionID.FBT, new( _fbt, _fbtColor, _fbtVFX ) },
+            { SevereConditionID.PAR, new( _par, _parColor, _parVFX ) },
+            { SevereConditionID.SLP, new( _slp, _slpColor, _slpVFX ) },
+            { SevereConditionID.FNT, new( _fnt, _fntColor, _fntVFX ) },
 
         };
     }

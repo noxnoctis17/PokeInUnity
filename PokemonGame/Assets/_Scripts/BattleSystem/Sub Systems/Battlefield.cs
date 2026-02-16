@@ -8,7 +8,12 @@ public class Battlefield
     public int? WeatherDuration { get; set; }
     public TerrainCondition Terrain { get; set; }
     public int? TerrainDuration { get; set; }
-    public Dictionary<CourtLocation, Court> ActiveCourts { get; set; }
+    public Dictionary<CourtLocation, Court> ActiveCourts { get; private set; }
+    
+    public Battlefield( BattleSystem bs )
+    {
+        ActiveCourts = new();
+    }
 
     public void SetWeather( WeatherConditionID id, int duration = 5 )
     {

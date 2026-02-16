@@ -13,7 +13,7 @@ public class PlayerReferences : MonoBehaviour
    public Transform PlayerSpriteTransform { get; private set; }
    public PlayerMovement PlayerMovement { get; private set; }
    public PlayerController PlayerController { get; private set; }
-   public PokemonParty PlayerParty { get; private set; }
+   public PlayerTrainer PlayerTrainer { get; private set; }
    public Inventory PlayerInventory { get; private set; }
    public Transform PlayerTransform { get; private set; }
    public Transform PlayerCenter { get; private set; }
@@ -38,7 +38,7 @@ public class PlayerReferences : MonoBehaviour
       PlayerSpriteTransform   = GetComponentInChildren<SpriteRenderer>().gameObject.transform;
       PlayerMovement          = GetComponent<PlayerMovement>();
       PlayerController        = GetComponent<PlayerController>();
-      PlayerParty             = GetComponent<PokemonParty>();
+      PlayerTrainer           = GetComponent<PlayerTrainer>();
       PlayerInventory         = GetComponent<Inventory>();
       PlayerTransform         = transform;
       PlayerCenter            = _playerCenter;

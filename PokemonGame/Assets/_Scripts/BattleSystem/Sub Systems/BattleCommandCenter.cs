@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Analytics;
 
 public class BattleCommandCenter : MonoBehaviour
 {
@@ -22,24 +23,36 @@ public class BattleCommandCenter : MonoBehaviour
 //--------------------------------------------[ MOVE COMMAND ]-----------------------------------------------
 //-------------------------------------------------------------------------------------------------------
     //--Perform any Move
-    public IEnumerator PerformMoveCommand( Move move, BattleUnit attacker, List<BattleUnit> targets ){
-        Debug.Log( $"[Perform Move Command] Starting Perform Move Command. Attacker: {attacker.Pokemon.NickName}, target count: {targets.Count}" );
-
+    public IEnumerator PerformMoveCommand( Move move, BattleUnit attacker, List<BattleUnit> targets )
+    {
+        //--Catch a fainted pokemon trying to perform an attack
         if( attacker.Pokemon.IsFainted() )
             yield break;
 
         //--Assign last used move.
         attacker.SetLastUsedMove( move );
 
-        if( move.MoveSO.Name != "Protect" )
+        if( move.MoveSO.Name != "Protect" || move.MoveSO.Name != "Endure" || move.MoveSO.Name != "Detect" )
             attacker.Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
 
-        // Debug.Log( $"{attacker.Pokemon.NickName} has used Protect: {attacker.Flags[UnitFlags.SuccessiveProtectUses].Count} times!" );
+        //--Handle Imprison
+        if( BattleSystem.IsImprisoned( move, attacker ) )
+        {
+            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName}'s {move.MoveSO.Name} is imprisoned! The move failed!" ) );
+            yield return null;
+            yield return BattleSystem.WaitForUIQueue();
+            yield break;
+        }
 
         //--Checks if there's a status impeding the pokemon from using a move this turn, such as sleep, flinch, first turn para, confusion, etc.
-        bool canAttack = attacker.Pokemon.OnBeforeTurn();
-        if( !canAttack )
+        bool severe = attacker.Pokemon.OnBeforeTurn_Severe();
+        bool volatileStatus = attacker.Pokemon.OnBeforeTurn_Volatile();
+        bool transient = attacker.Pokemon.OnBeforeTurn_Transient();
+
+        bool passedStatusBeforeTurn =  severe && volatileStatus && transient;
+        if( !passedStatusBeforeTurn )
         {
+            BattleSystem.SetLastUsedMove( null );
             BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
             yield return null;
             yield return BattleSystem.WaitForEventQueue();
@@ -49,11 +62,6 @@ public class BattleCommandCenter : MonoBehaviour
         BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
         yield return null;
         yield return BattleSystem.WaitForEventQueue();
-
-        move.PP--; //--Reduces the move's PP by 1
-
-        BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName} used {move.MoveSO.Name}!" ) );
-        yield return BattleSystem.WaitForUIQueue();
 
         //--We remove targets that have fainted before the attack was executed, but were passed in the targets list because they were alive
         //--at the time of move selection. For example, chomp selected dclaw and ttar selected rock slide. dclaw kills one target, but rock slide
@@ -68,6 +76,10 @@ public class BattleCommandCenter : MonoBehaviour
             }
         }
 
+        //--If all targets have fainted, we shouldn't try executing an attack. Hopefully this fixes that issue entirely, finally. --02/08/26
+        if( faintedUnits.Count == targets.Count )
+            yield break;
+
         foreach( var unit in faintedUnits )
         {
             targets.Remove( unit );
@@ -76,23 +88,82 @@ public class BattleCommandCenter : MonoBehaviour
         var damageDetails = new DamageDetails();
         var sortedTargets = SortTargetsBySpeed( targets );
 
-        List<BattleUnit> targetsHit = new();
-        foreach( var target in sortedTargets )
+        //--Handle Encore
+        if( attacker.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Encore ) )
         {
+            var encore = attacker.Pokemon.VolatileStatuses[VolatileConditionID.Encore];
+            move = encore.Condition?.OnBeforeMoveUsed?.Invoke( attacker ) ?? move;
+        }
+
+        //--Handle Use Struggle
+        //--We definitely need to implement this soon. scenarios with move locking are absolutely possible now
+
+        //--Handle my pp daddy, put pressure on it please daddy please
+        bool pressure = false;
+        for( int i = 0; i < sortedTargets.Count; i++ )
+        {
+            if( sortedTargets[i].Pokemon.AbilityID == AbilityID.Pressure )
+            {
+                move.PP = Mathf.Max( 0, move.PP - 2 );
+                pressure = true;
+                break;
+            }
+            else
+                continue;
+        }
+
+        if( !pressure )
+            move.PP--; //--Reduces the move's PP by 1
+
+        BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName} used {move.MoveSO.Name}!" ) );
+        yield return BattleSystem.WaitForUIQueue();
+
+        List<BattleUnit> targetsHit = new();
+        for( int t = 0; t < sortedTargets.Count; t++ )
+        {
+            var target = sortedTargets[t];
+
+            //--Handle Target redirection (Moves that need to retarget/rand target in doubles, also redirection like follow me and rage powder)
+            if( BattleSystem.BattleFlags[BattleFlag.Redirect] )
+                target = BattleSystem.HandleRedirection( attacker, target, move );
+            
+            //--Handle Conditional move redirection, 
+            if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
+            {
+                var redirect = MoveConditionDB.Conditions[move.MoveSO.Name].OnTargetRedirect?.Invoke( attacker, target, move, BattleSystem );
+                target = redirect != null ? redirect : target;
+            }
+            
             if( BattleSystem.MoveSuccess( attacker, target, move ) )
             {
+                if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
+                {
+                    MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveSuccess?.Invoke( attacker, target, move, BattleSystem );
+                    move = MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveChanged?.Invoke( attacker, move, BattleSystem ) ?? move; //--Sleep Talk, Metronome, etc.
+                }
+                
+                yield return null;
+                yield return BattleSystem.WaitForUIQueue();
+
                 if( CheckMoveAccuracy( move, attacker, target ) )
                 {
+                    //--Charging is checked for in CheckMoveAccuracy(). If a move needs to charge, it skips the accuracy check (as true) and the database entry handles setting the flag
+                    //--The flag being set means we're in a charging state, and should not follow through with a full attack loop, so we break out of PerformMoveCommand() entirely.
+                    if( attacker.Flags[UnitFlags.Charging].IsActive && attacker.Flags[UnitFlags.Charging].Count == 0 )
+                        yield break;
+
                     targetsHit.Add( target );
                 }
                 else
                 {
+                    BattleSystem.SetLastUsedMove( null );
                     BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName}'s attack missed!" ) );
                     yield return BattleSystem.WaitForUIQueue();
                 }
             }
             else
             {
+                BattleSystem.SetLastUsedMove( null );
                 yield return BattleSystem.WaitForUIQueue();
             }
         }
@@ -117,6 +188,9 @@ public class BattleCommandCenter : MonoBehaviour
             {
                 Debug.Log( $"[Perform Move Command] {attacker.Pokemon.NickName} is attacking with {move.MoveSO.Name}! Current Target: {target.Pokemon.NickName}" );
 
+                //--Move Use Abilities, such as Technician -- 02/08/26
+                attacker.Pokemon.Ability?.OnMoveUsed?.Invoke( attacker, target, move, BattleSystem );
+
                 //--Check if move is a multi-hit, and return the amount of hits rolled
                 int totalHits = move.MoveSO.GetHitAmount();
                 int hits = 1;
@@ -129,10 +203,15 @@ public class BattleCommandCenter : MonoBehaviour
                     if( move.MoveSO.MoveCategory == MoveCategory.Status )
                     {
                         //--Look at all of this shit just for magic bounce lol. I can probably reuse it for Mirror Armor n shit. --12/21/25
-                        var newTarget = target;
+                        var effectTarget = move.MoveSO.MoveEffects.Target;
+                        var newTarget = effectTarget;
                         if( move.MoveSO.Flags.Contains( MoveFlags.Reflectable ) && target.Pokemon.Ability?.Name == "Magic Bounce" )
                         {
-                            newTarget = attacker;
+                            if( effectTarget == EffectTarget.Enemy )
+                                newTarget = EffectTarget.Self;
+                            else if( effectTarget == EffectTarget.OpposingSide )
+                                newTarget = EffectTarget.AllySide;
+
                             BattleSystem.TriggerAbilityCutIn( target.Pokemon );
                             BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{target.Pokemon.NickName}'s Magic Bounce reflected it back!" ) );
                             yield return BattleSystem.WaitForUIQueue();
@@ -141,7 +220,17 @@ public class BattleCommandCenter : MonoBehaviour
                         if( move.MoveTarget == MoveTarget.Enemy || move.MoveTarget == MoveTarget.Self )
                             yield return BattleSystem.BattleComposer.RunStatusAttackScene( move, attacker, target );
 
-                        yield return RunMoveEffects( move, move.MoveSO.MoveEffects, move.MoveSO.MoveEffects.Target, attacker, newTarget ); //--Run Move Effects must be a Command Level queue event, it cannot be an Event Queue level event! Event Queue Items cannot add more items to the Event Queue and then wait on them! it will hang!!!!!
+                        if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
+                        {
+                            MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveHitTarget?.Invoke( attacker, target, move, damageDetails.DamageDealt, hits, BattleSystem );
+                            yield return null;
+                            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+                            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+                            yield return null;
+                            yield return BattleSystem.WaitForEventQueue();
+                        }
+
+                        yield return RunMoveEffects( move, move.MoveSO.MoveEffects, newTarget, attacker, target ); //--Run Move Effects must be a Command Level queue event, it cannot be an Event Queue level event! Event Queue Items cannot add more items to the Event Queue and then wait on them! it will hang!!!!!
                         yield return null;
                         yield return BattleSystem.WaitForEventQueue();
                     }
@@ -153,10 +242,20 @@ public class BattleCommandCenter : MonoBehaviour
                             yield return new WaitForSeconds( 0.25f );
                             yield return BattleSystem.BattleComposer.RunAttackAnimation( move, attacker, target, totalHits, hits );
                         }
+
+                        if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
+                        {
+                            MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveHitTarget?.Invoke( attacker, target, move, damageDetails.DamageDealt, hits, BattleSystem );
+                            yield return null;
+                            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+                            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+                            yield return null;
+                            yield return BattleSystem.WaitForEventQueue();
+                        }
                         
-                        attacker.SetFlagActive( UnitFlags.DidDamage, true );
-                        damageDetails = target.TakeDamage( move, attacker, BattleSystem.Field.Weather, BattleSystem.Field.Terrain, targetCount );
+                        damageDetails = target.TakeDamage( move, attacker, BattleSystem.Field.Weather, BattleSystem.Field.Terrain, targetCount, hits );
                         typeEffectiveness = damageDetails.TypeEffectiveness;
+                        attacker.SetDidDamage( attacker, target, move, damageDetails.DamageDealt );
 
                         if( typeEffectiveness != 0 )
                             yield return BattleSystem.BattleComposer.RunTakeDamagePhase( typeEffectiveness, target );
@@ -211,11 +310,30 @@ public class BattleCommandCenter : MonoBehaviour
                     yield return null;
                     yield return BattleSystem.WaitForEventQueue();
 
+                    if( move.MoveSO.AccuracyType == AccuracyType.PerHit && target.Pokemon.CurrentHP > 0 )
+                    {
+                         bool hitAgain = CheckMoveAccuracy( move, attacker, target );
+
+                         if( !hitAgain )
+                            break;
+                    }
+                    
                     if( target.Pokemon.CurrentHP <= 0 )
                         break;
                 }
 
                 yield return attacker.PokeAnimator.PlayReturnToDefaultPosition();
+
+                if( MoveSuccessDB.MoveSuccess.ContainsKey( move.MoveSO.Name ) )
+                    MoveSuccessDB.MoveSuccess[move.MoveSO.Name].OnMoveCompleted?.Invoke( attacker, target, move, BattleSystem );
+
+                if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
+                    MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveCompleted?.Invoke( attacker, target, move, BattleSystem );
+
+                //--Move Use Abilities, such as Technician -- 02/08/26
+                attacker.Pokemon.Ability?.OnMoveCompleted?.Invoke( attacker, target, move, BattleSystem );
+
+                BattleSystem.SetLastUsedMove( move );
 
                 yield return ShowTypeEffectiveness( typeEffectiveness );
 
@@ -238,17 +356,30 @@ public class BattleCommandCenter : MonoBehaviour
     }
 
     //--Check a Move's accuracy and determine if it hits or misses
-    private bool CheckMoveAccuracy( Move move, BattleUnit attacker, BattleUnit target ){
-        if( move.MoveSO.Alwayshits )
+    private bool CheckMoveAccuracy( Move move, BattleUnit attacker, BattleUnit target )
+    {
+        if( MoveSuccessDB.MoveSuccess.ContainsKey( move.MoveSO.Name ) )
+            MoveSuccessDB.MoveSuccess[move.MoveSO.Name].OnCheckAccuracy?.Invoke( attacker, target, move, BattleSystem );
+
+        if( move.MoveSO.AccuracyType == AccuracyType.AlwaysHits )
             return true;
 
-        if( move.MoveType == PokemonType.Poison && move.MoveSO.Name == "Toxic" && attacker.Pokemon.CheckTypes( PokemonType.Poison ) )
-            return true;
+        if( move.MoveSO.Flags.Count > 0 && ( move.MoveSO.Flags.Contains( MoveFlags.Charge ) || move.MoveSO.Flags.Contains( MoveFlags.TwoTurnMove ) ) )
+        {
+            if( MoveSuccessDB.MoveSuccess.ContainsKey( move.MoveSO.Name ) )
+            {
+                bool needsToCharge = MoveSuccessDB.MoveSuccess[move.MoveSO.Name].OnCheckNeedsToCharge( attacker, target, move, BattleSystem );
+                Debug.Log( $"[Charge] Checking if a move needs to be charged: {needsToCharge}" );
+                
+                if( needsToCharge )
+                    return true;
+            }
+        }
 
         float moveAccuracy = move.MoveSO.Accuracy;
 
-        int accuracy = attacker.Pokemon.StatStage[ Stat.Accuracy ];
-        int evasion = target.Pokemon.StatStage[ Stat.Evasion ];
+        int accuracy = attacker.Pokemon.StatStages[ Stat.Accuracy ];
+        int evasion = target.Pokemon.StatStages[ Stat.Evasion ];
 
         var modifierValue = new float[] { 1f, 4f / 3f, 5f / 3f, 2f, 7f / 3f, 8f / 3f, 3f };
 
@@ -278,9 +409,27 @@ public class BattleCommandCenter : MonoBehaviour
         if( effects.StatChangeList != null )
         {
             if( effectTarget == EffectTarget.Self )
-                attacker.Pokemon.ApplyStatStageChange( effects.StatChangeList, attacker.Pokemon ); //--Apply stat change to self, like ddance or swords dance
+            {
+                StageChangeSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    MoveName = move.MoveSO.Name,
+                    Source = StageChangeSourceType.Move,
+                };
+
+                attacker.Pokemon.ApplyStatStageChange( effects.StatChangeList, source ); //--Apply stat change to self, like ddance or swords dance
+            }
             else if( effectTarget == EffectTarget.Enemy )
-                target.Pokemon.ApplyStatStageChange( effects.StatChangeList, attacker.Pokemon ); //--Apply stat change to target, like growl or tail whip
+            {
+                StageChangeSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    MoveName = move.MoveSO.Name,
+                    Source = StageChangeSourceType.Move,
+                };
+
+                target.Pokemon.ApplyStatStageChange( effects.StatChangeList, source ); //--Apply stat change to target, like growl or tail whip
+            }
         }
 
         BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
@@ -289,12 +438,28 @@ public class BattleCommandCenter : MonoBehaviour
         yield return BattleSystem.WaitForEventQueue();
 
         //--Apply Severe Status Effects like BRN, FRZ, PSN
-        if( effects.SevereStatus != StatusConditionID.NONE )
+        if( effects.SevereStatus != SevereConditionID.None )
         {
             if( effectTarget == EffectTarget.Self )
-                attacker.Pokemon.SetSevereStatus( effects.SevereStatus );
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                attacker.Pokemon.SetSevereStatus( effects.SevereStatus, source );
+            }
             else if( effectTarget == EffectTarget.Enemy )
-                target.Pokemon.SetSevereStatus( effects.SevereStatus );
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                target.Pokemon.SetSevereStatus( effects.SevereStatus, source );
+            }
         }
 
         BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
@@ -302,13 +467,33 @@ public class BattleCommandCenter : MonoBehaviour
         yield return null;
         yield return BattleSystem.WaitForEventQueue();
 
-        //--Apply Volatile Status Effects like Confusion, Affection
-        if( effects.VolatileStatus != StatusConditionID.NONE )
+        //--Apply Volatile Status Effects like Confusion, Affection --and fucking everything else apparently 02/02/26
+        if( effects.VolatileStatus != VolatileConditionID.None )
         {
-            if( effectTarget == EffectTarget.Self ) //--Outrage!!!!!! needed to do this adjustment anyway... 01/16/26
-                attacker.Pokemon.SetVolatileStatus( effects.VolatileStatus );
+            if( effectTarget == EffectTarget.Self )
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                attacker.Pokemon.SetVolatileStatus( effects.VolatileStatus, source );
+                var status = attacker.Pokemon.VolatileStatuses[effects.VolatileStatus].Condition;
+                status.OnApplyStatus?.Invoke( attacker, target, BattleSystem );
+            }
             else if( effectTarget == EffectTarget.Enemy )
-                target.Pokemon.SetVolatileStatus( effects.VolatileStatus );
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                target.Pokemon.SetVolatileStatus( effects.VolatileStatus, source );
+                var status = target.Pokemon.VolatileStatuses[effects.VolatileStatus].Condition;
+                status.OnApplyStatus?.Invoke( attacker, target, BattleSystem );
+            }
         }
 
         BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
@@ -317,12 +502,58 @@ public class BattleCommandCenter : MonoBehaviour
         yield return BattleSystem.WaitForEventQueue();
 
         //--Apply Transient Status Effects like Flinch, Protect, Follow me, etc.
-        if( effects.TransientStatus != StatusConditionID.NONE )
+        if( effects.TransientStatus != TransientConditionID.None )
         {
             if( effectTarget == EffectTarget.Self )
-                attacker.Pokemon.SetTransientStatus( effects.TransientStatus );
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                attacker.Pokemon.SetTransientStatus( effects.TransientStatus, source );
+            }
             else if( effectTarget == EffectTarget.Enemy )
-                target.Pokemon.SetTransientStatus( effects.TransientStatus );
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                target.Pokemon.SetTransientStatus( effects.TransientStatus, source );
+            }
+        }
+
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+
+        //--Apply Extra Status Effects like Fire Spin, Whirlpool, and Sand Tomb
+        if( effects.BindingStatus != BindingConditionID.None )
+        {
+            if( effectTarget == EffectTarget.Self )
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                attacker.Pokemon.SetBindingStatus( effects.BindingStatus, source );
+            }
+            else if( effectTarget == EffectTarget.Enemy )
+            {
+                StatusEffectSource source = new()
+                {
+                    Pokemon = attacker.Pokemon,
+                    Source = EffectSource.Move,
+                };
+
+                target.Pokemon.SetBindingStatus( effects.BindingStatus, source );
+            }
         }
 
         BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
@@ -336,9 +567,9 @@ public class BattleCommandCenter : MonoBehaviour
             var activePokemon = BattleSystem.GetActivePokemon();
 
             //--First we call OnExitWeather while the previous weather was active, if there was one, so they can exit that weather (and lose their speed boosts, fuckers!)
-            foreach( var unit in activePokemon )
+            for( int i = 0; i < activePokemon.Count; i++ )
             {
-                BattleSystem.Field.Weather?.OnExitWeather?.Invoke( unit.Pokemon );
+                BattleSystem.Field.Weather?.OnExitWeather?.Invoke( activePokemon[i].Pokemon );
                 yield return null;
             }
 
@@ -375,27 +606,17 @@ public class BattleCommandCenter : MonoBehaviour
         }
 
         //--Start Court Condition
-        if( effects.CourtCondition != CourtConditionID.NONE )
+        if( effects.CourtCondition != CourtConditionID.None )
         {
             CourtLocation location;
 
             Debug.Log( $"Running effect: {effects.CourtCondition}!" );
 
-            if( BattleSystem.PlayerUnits.Contains( attacker ) )
-            {
-                if( effectTarget == EffectTarget.Enemy || effectTarget == EffectTarget.OpposingSide )
-                    location = CourtLocation.TopCourt;
-                else
-                    location = CourtLocation.BottomCourt;
-            }
+            if( effectTarget == EffectTarget.Enemy || effectTarget == EffectTarget.OpposingSide )
+                location = BattleSystem.Field.GetUnitCourt( target ).Location;
             else
-            {
-                if( effectTarget == EffectTarget.Enemy || effectTarget == EffectTarget.OpposingSide )
-                    location = CourtLocation.BottomCourt;
-                else
-                    location = CourtLocation.TopCourt;
-            }
-
+                location = BattleSystem.Field.GetUnitCourt( attacker ).Location;
+            
             BattleSystem.Field.ActiveCourts[location]?.AddCondition( effects.CourtCondition );
 
             if( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage != null )
@@ -415,7 +636,7 @@ public class BattleCommandCenter : MonoBehaviour
 
             foreach( var unit in BattleSystem.Field.ActiveCourts[location].Units )
             {
-                if( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.ConType != ConditionType.OpposingSide_Hazard )
+                if( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.ConditionType != ConditionType.OpposingSide_Hazard )
                     BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.OnEnterCourt?.Invoke( unit, BattleSystem.Field );
             }
 
@@ -423,21 +644,20 @@ public class BattleCommandCenter : MonoBehaviour
             BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
             yield return null;
             yield return BattleSystem.WaitForEventQueue();
-            yield return null;
         }
 
-        if( effects.SwitchEffect != null && effects.SwitchEffect?.SwitchType != SwitchEffectType.None )
+        if( effects.SwitchType != SwitchEffectType.None )
         {
             var activePokemon = BattleSystem.PlayerUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
-            var remainingPokemon = BattleSystem.BottomTrainerParty.GetHealthyPokemon( dontInclude: activePokemon );
+            var remainingPokemon = BattleSystem.BottomTrainer1.GetHealthyPokemon( dontInclude: activePokemon );
 
             var activeEnemyPokemon = BattleSystem.EnemyUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
             Pokemon remainingEnemyPokemon = null;
 
             if( BattleSystem.BattleType != BattleType.WildBattle_1v1 )
-                remainingEnemyPokemon = BattleSystem.TopTrainerParty.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
+                remainingEnemyPokemon = BattleSystem.TopTrainer1.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
 
-            if( effects.SwitchEffect?.SwitchType == SwitchEffectType.SelfPivot )
+            if( effects.SwitchType == SwitchEffectType.SelfPivot )
             {
                 Debug.Log( $"{attacker.Pokemon.NickName} is trying to Pivot out!" );
 
@@ -473,7 +693,7 @@ public class BattleCommandCenter : MonoBehaviour
                 }
             }
             
-            if( effects.SwitchEffect?.SwitchType == SwitchEffectType.ForceOpponentOut )
+            if( effects.SwitchType == SwitchEffectType.ForceOpponentOut )
             {
                 Debug.Log( $"{attacker.Pokemon.NickName} is trying to force its opponent, {target.Pokemon.NickName}, out!" );
 
@@ -483,13 +703,13 @@ public class BattleCommandCenter : MonoBehaviour
                     {
                         BattleSystem.SetForcedSwitch( true );
                         var switchIn = target.BattleAI.RequestedForcedSwitch();
-                        target.SetFlagActive( UnitFlags.Phased, true );
+                        target.SetFlagActive( UnitFlags.Phazed, true );
                         yield return PerformSwitchPokemonCommand( switchIn, target, true );
                         yield return new WaitUntil( () => !BattleSystem.IsForcedSwitch );
                     }
                     else
                     {
-                        target.SetFlagActive( UnitFlags.Phased, true );
+                        target.SetFlagActive( UnitFlags.Phazed, true );
                         yield return ForcedSwitchPartyMenu( target );
                         yield return new WaitUntil( () => !BattleSystem.IsForcedSwitch );
                     }
@@ -508,7 +728,8 @@ public class BattleCommandCenter : MonoBehaviour
         yield return BattleSystem.WaitForEventQueue();
     }
 
-    private IEnumerator RunAfterMove( DamageDetails details, MoveSO move, BattleUnit attacker, BattleUnit target ){
+    private IEnumerator RunAfterMove( DamageDetails details, MoveSO move, BattleUnit attacker, BattleUnit target )
+    {
         Debug.Log( $"[Move Command][Run After Move] Beginning RunAfterMove(): Damage Details: {details}, Move: {move.Name}, Attacker: {attacker.Pokemon.NickName}, Target: {target.Pokemon.NickName}" );
 
         if( details == null )
@@ -525,7 +746,23 @@ public class BattleCommandCenter : MonoBehaviour
                 attacker.Pokemon.AddStatusEvent( StatusEventType.Heal, $"The enemy {target.Pokemon.NickName} had its energy drained!" );
         }
 
-        if( move.Recoil.RecoilType != RecoilType.none ){
+        if( move.HealType != HealType.None )
+        {
+            if( move.HealType == HealType.PercentOfMaxHP )
+            {
+                float healAmount = move.HealAmount; //--Just in case to avoid integer division resulting in 0 or 100
+                float percent = healAmount / 100f;
+                int healedHP = Mathf.Clamp( Mathf.CeilToInt( attacker.Pokemon.MaxHP * percent ), 1, attacker.Pokemon.MaxHP );
+                attacker.Pokemon.IncreaseHP( healedHP );
+                
+                if( attacker.Pokemon == BattleSystem.WildPokemon )
+                    attacker.Pokemon.AddStatusEvent( StatusEventType.Heal, $"The wild {target.Pokemon.NickName} recovered its HP!" );
+                else
+                    attacker.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{attacker.Pokemon.NickName} recovered its HP!" );
+            }
+        }
+
+        if( move.Recoil.RecoilType != RecoilType.None ){
             int damage = 0;
 
             switch( move.Recoil.RecoilType )
@@ -594,9 +831,34 @@ public class BattleCommandCenter : MonoBehaviour
         yield return BattleSystem.WaitForUIQueue();
     }
 
-//-------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
 //--------------------------------------------[ SWITCH COMMAND ]-----------------------------------------------
-//-------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------
+
+    private void ClearBattleUnitFlags( BattleUnit unit )
+    {
+        unit.Pokemon.ClearAllVolatileStatus(); //--Cure all of the volatile statuses of the previous pokemon.
+        unit.ResetTurnsTakenInBattle();
+        unit.Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
+        unit.SetFlagActive( UnitFlags.ChoiceItem, false );
+        unit.SetLastUsedMove( null );
+        unit.ClearCharging();
+        unit.SetFlagActive( UnitFlags.IncreasedStatStage, false );
+
+        if( unit.Flags[UnitFlags.SkillSwapped].IsActive )
+        {
+            unit.Pokemon.ResetSkillSwap();
+            unit.SetFlagActive( UnitFlags.SkillSwapped, false );
+        }
+
+        if( unit.Flags[UnitFlags.Substitute].IsActive && !unit.Flags[UnitFlags.BatonPass].IsActive )
+        {
+            unit.Flags[UnitFlags.Substitute].SubstituteHP = 0;
+            unit.SetFlagActive( UnitFlags.Substitute, false );
+        }
+
+        unit.SetFlagActive( UnitFlags.BatonPass, false );
+    }
 
     //--When the player's pokemon faints, this is called explicitly, rather than as a command added to the command queue
     //--Command Level
@@ -606,26 +868,25 @@ public class BattleCommandCenter : MonoBehaviour
 
         if( BattleSystem.BattleType != BattleType.AI_Singles && BattleSystem.BattleType != BattleType.AI_Doubles )
         {
-            var chosenMon = unit.Pokemon;
-            var switchMon = pokemon;
-            BattleSystem.BottomTrainerParty.SwitchPokemonPosition( chosenMon, switchMon );
+            if( BattleSystem.PlayerUnits.Contains( unit ) )
+            {
+                Debug.Log( $"Swapping pokemon on the party screen!" );
+                var a = unit.Pokemon;
+                var b = pokemon;
+                BattleSystem.BottomTrainer1.SwitchPokemonPosition( a, b );
+            }
         }
 
         CourtLocation courtLocation = BattleSystem.Field.GetUnitCourt( unit ).Location;
-        Trainer trainer;
+        List<BattleUnit> opposingUnits = BattleSystem.GetOpposingUnits( unit );
+        BattleTrainer trainer;
 
         if( courtLocation == CourtLocation.TopCourt )
             trainer = BattleSystem.TopTrainer1;
         else
             trainer = BattleSystem.BottomTrainer1;
 
-        Debug.Log( $"[Switch Pokemon] Switching unit: {unit.Pokemon.NickName} for {pokemon.NickName} in the court: {courtLocation}" );
-
-        unit.Pokemon.CureVolatileStatus(); //--Cure the volatile status of the previous pokemon. Will need to set a previous pokemon soon
-        unit.ResetTurnsTakenInBattle();
-        unit.Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
-        unit.SetFlagActive( UnitFlags.ChoiceItem, false );
-        unit.SetLastUsedMove( null );
+        ClearBattleUnitFlags( unit );
 
         if( !BattleSystem.IsForcedSwitch )
         {
@@ -642,11 +903,11 @@ public class BattleCommandCenter : MonoBehaviour
             yield return unit.PokeAnimator.PlayExitBattleAnimation( BattleSystem.TrainerCenter_Bottom1.transform );
 
         //--Check for phase-out
-        Debug.Log( $"AI {unit.Pokemon.NickName}'s Phased flag is: {unit.Flags[UnitFlags.Phased].IsActive}" );
-        var isPhasedSwitch = unit.Flags[UnitFlags.Phased].IsActive;
+        Debug.Log( $"AI {unit.Pokemon.NickName}'s Phased flag is: {unit.Flags[UnitFlags.Phazed].IsActive}" );
+        var isPhasedSwitch = unit.Flags[UnitFlags.Phazed].IsActive;
 
         //--Raise OnExit for ability, weather, and held item conditions on the returning Pokemon
-        unit.Pokemon.Ability?.OnAbilityExit?.Invoke( unit.Pokemon, BattleSystem.EnemyUnits, BattleSystem.Field );
+        unit.Pokemon.Ability?.OnAbilityExit?.Invoke( unit.Pokemon, opposingUnits, BattleSystem.Field );
         BattleSystem.Field.Weather?.OnExitWeather?.Invoke( unit.Pokemon );
         unit.Pokemon.BattleItemEffect?.OnItemExit?.Invoke( unit );
 
@@ -677,6 +938,10 @@ public class BattleCommandCenter : MonoBehaviour
         yield return BattleSystem.WaitForUIQueue();
         AudioController.Instance.PlaySFX( SoundEffect.BattleBallThrow );
 
+        //--Consider adding "exit" and "enter" functions or something -- 02/02/26
+        //--Enter weather.
+        BattleSystem.Field.Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
+
         if( courtLocation == CourtLocation.TopCourt )
             yield return unit.PokeAnimator.PlayEnterBattleAnimation( unit.transform, BattleSystem.TrainerCenter_Top1.transform );
         else
@@ -685,7 +950,15 @@ public class BattleCommandCenter : MonoBehaviour
         yield return new WaitForSeconds( 0.25f );
 
         if( isPhasedSwitch )
-            unit.Pokemon.SetTransientStatus( StatusConditionID.Phased );
+        {
+            StatusEffectSource source = new()
+            {
+                Pokemon = null,
+                Source = EffectSource.Phazed,
+            };
+
+            unit.Pokemon.SetTransientStatus( TransientConditionID.Phazed, source );
+        }
 
         //--Call OnEnterCourt from all existing court conditions on the incoming pokemon
         if( BattleSystem.Field.ActiveCourts[courtLocation].Conditions.Count > 0 )
@@ -717,7 +990,7 @@ public class BattleCommandCenter : MonoBehaviour
         }
 
         //--Check if the Pokemon has an entrace ability, then we need to show status changes for all pokemon on the field in case they are effected.
-        pokemon.Ability?.OnAbilityEnter?.Invoke( pokemon, BattleSystem.EnemyUnits, BattleSystem.Field );
+        pokemon.Ability?.OnAbilityEnter?.Invoke( pokemon, opposingUnits, BattleSystem.Field );
         
         var activeUnits = BattleSystem.GetActivePokemon();
         foreach( var activeUnit in activeUnits )

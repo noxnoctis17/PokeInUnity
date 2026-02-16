@@ -11,9 +11,11 @@ public class PokeballItemSO : ItemSO
     public float CatchRate => _catchRate;
     public PokeBallType BallType => _ballType;
 
-    public override bool Use( Pokemon pokemon ){
+    public override bool Use( Pokemon pokemon )
+    {
         //--Battle Use, to catch a wild pokemon
-        if( BattleSystem.Instance != null ){
+        if( BattleSystem.Instance != null )
+        {
             if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState )
                 if( BattleSystem.Instance.BattleType != BattleType.TrainerSingles || BattleSystem.Instance.BattleType != BattleType.TrainerDoubles )
                     return true;
@@ -22,7 +24,7 @@ public class PokeballItemSO : ItemSO
         }
 
         //--Overworld Use to change Pokemon's current Ball
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
             return false;
         
         if( pokemon.CurrentBallType == _ballType )
@@ -34,8 +36,10 @@ public class PokeballItemSO : ItemSO
 
     public override bool CheckIfUsable( Pokemon pokemon ){
         //--Battle Use, to catch a wild pokemon
-        if( BattleSystem.Instance != null ){
-            if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
+        if( BattleSystem.Instance != null )
+        {
+            if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState )
+            {
                 if( BattleSystem.Instance.BattleType != BattleType.TrainerSingles || BattleSystem.Instance.BattleType != BattleType.TrainerDoubles )
                     return true;
             }
@@ -44,7 +48,8 @@ public class PokeballItemSO : ItemSO
         return false;
     }
 
-    public override string UseText( Pokemon pokemon ){
+    public override string UseText( Pokemon pokemon )
+    {
         return $"{pokemon.NickName} was placed inside your extra {ItemName}!";
     }
 }

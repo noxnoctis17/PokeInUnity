@@ -20,6 +20,6 @@ public class RoundEndPhase_CourtEffect : IRoundEndPhaseHandler
 
         int damage = prevHp - unit.Pokemon.CurrentHP;
         if( damage != 0 )
-            unit.Pokemon.BattleItemEffect?.OnTakeMoveDamage?.Invoke( null, unit, null, damage );
+            unit.Pokemon.BattleItemEffect?.OnTakePassiveDamage?.Invoke( unit, damage );
     }
 }

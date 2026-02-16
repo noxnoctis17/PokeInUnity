@@ -199,13 +199,13 @@ public class WildPokemon : MonoBehaviour
         }
     }
 
-    private IEnumerator StartBattle(){
+    private IEnumerator StartBattle()
+    {
         _isBattling = true;
         BoxCollider.enabled = false;
         WildPokemonStateMachine.OnQueueNextState?.Invoke( BattleState );
         yield return new WaitUntil( () => !AgentMon.enabled );
         Pokemon.Init();
-        Pokemon.SetAsEnemyUnit();
         WildPokemonEvents.OnPlayerEncounter?.Invoke( this );
         WildPokemonLocation = transform.position;
     }

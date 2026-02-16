@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2eb24358a6a0488409e1319ae03bba77, type: 3}
+  m_Name: Quick Battle Kitsu
+  m_EditorClassIdentifier: 
+  _name: Quick Battle Kitsu
+  _trainerClass: 9
+  _skillLevel: 80
+  _portrait: {fileID: 0}
+  _dialogueColor: {fileID: 11400000, guid: ad671d68783857748ac8c25caf995908, type: 2}
+  _battleTheme: 0
+  _party:
+  - _pokemon: {fileID: 11400000, guid: 907fa4e48c5f417459b9eec223f7b8c5, type: 2}
+    _nickName: 
+    _level: 9
+    _nature: 14
+    _ability: 21
+    _heldItem: {fileID: 11400000, guid: 16a2c6dadc3ee49429effd19cd0216ce, type: 2}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: 52369ddd7b32a3d4f9add7d7a12a894b, type: 2}
+    - {fileID: 11400000, guid: 4e2558dbbc070a142a74714b86955fe8, type: 2}
+    - {fileID: 11400000, guid: a682f8d1433b83f4eb13e17d7ccdad65, type: 2}
+    - {fileID: 11400000, guid: 37dfce9a2dfd7724baee2dca9add0698, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 80f4a126d789985479c0745858a16c3a, type: 2}
+    _nickName: 
+    _level: 9
+    _nature: 4
+    _ability: 17
+    _heldItem: {fileID: 11400000, guid: d482ef0897599bc478295da34c80ef41, type: 2}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 2
+    _moves:
+    - {fileID: 11400000, guid: e9ee2e069c067e64f89f375a9ea17473, type: 2}
+    - {fileID: 11400000, guid: bf3af322a5ff81f468439f51df543565, type: 2}
+    - {fileID: 11400000, guid: 37dfce9a2dfd7724baee2dca9add0698, type: 2}
+    - {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}

@@ -28,10 +28,19 @@ public class PokemonButton_Battle : MonoBehaviour, IPokemonButtonContext
         
         //--we're popping the state first because code is sequential
         //--all battle system stuff would get run to completion before we get to the end, where we'd finally pop the state
-        //--we need to pop the state immediately. i have already made this change in MoveButton. I will likely need to do this
+        //--we need to pop the state immediately. i have already made this change in MoveButton. I will likely need to do this 
         //--for the pokeball (soon to be items) button.
-        if( _pokemon.IsFainted() ){
+        if( _pokemon.IsFainted() )
+        {
             DialogueManager.Instance.PlaySystemMessage( $"{_pokemon.NickName} is unable to fight!" );
+            return;
+        }
+        
+        //--Check if Active Unit is trapped
+        var unit = _partyScreen.BattleSystem.UnitInSelectionState;
+        if( unit.Flags[UnitFlags.Trapped].IsActive )
+        {
+            DialogueManager.Instance.PlaySystemMessage( $"{unit.Pokemon.NickName} can't switch! It's trapped in the arena!" );
             return;
         }
 

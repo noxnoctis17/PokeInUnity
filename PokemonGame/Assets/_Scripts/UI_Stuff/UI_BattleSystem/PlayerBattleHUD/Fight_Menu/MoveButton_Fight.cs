@@ -13,12 +13,14 @@ public class MoveButton_Fight : MonoBehaviour, ISelectHandler, IDeselectHandler,
     public Button ThisButton { get; private set; }
 
 
-    private void OnEnable(){
+    private void OnEnable()
+    {
         gameObject.GetComponent<Outline>().enabled = false;
         ThisButton = gameObject.GetComponent<Button>();
     }
 
-    public void OnSelect( BaseEventData baseEventData ){
+    public void OnSelect( BaseEventData baseEventData )
+    {
         gameObject.GetComponent<Outline>().enabled = true;
 
         if( AssignedMove != null )
@@ -29,11 +31,19 @@ public class MoveButton_Fight : MonoBehaviour, ISelectHandler, IDeselectHandler,
         AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
-    public void OnDeselect( BaseEventData baseEventData ){
+    public void OnDeselect( BaseEventData baseEventData )
+    {
         gameObject.GetComponent<Outline>().enabled = false;
     }
 
-    public void OnSubmit( BaseEventData baseEventData ){
+    public void OnSubmit( BaseEventData baseEventData )
+    {
+        //--Imprison Check
+        if( _battleSystem.IsImprisoned( AssignedMove, _fightMenu.ActiveUnit ) )
+        {
+            DialogueManager.Instance.PlaySystemMessage( $"{AssignedMove.MoveSO.Name} is imprisoned and can't be used!" );
+            return;
+        }
 
         //--Choice Item Check
         if( _fightMenu.ActiveUnit.Flags[UnitFlags.ChoiceItem].IsActive )

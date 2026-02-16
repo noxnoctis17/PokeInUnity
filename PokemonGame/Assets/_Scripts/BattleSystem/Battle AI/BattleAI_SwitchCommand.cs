@@ -75,7 +75,7 @@ public class BattleAI_SwitchCommand
         float mostThreateningMoveModifier = 1f;
         bool islegit = true;
 
-        var ourParty = _ai.BattleSystem.GetAllyParty( _ai.Unit ).Party;
+        var ourParty = _ai.BattleSystem.GetAllyParty( _ai.Unit );
         var ourActiveUnits = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
         var bench = ourParty.Where( p => !ourActiveUnits.Any( u => u.Pokemon == p ) && p.CurrentHP > 0  ).ToList();
 

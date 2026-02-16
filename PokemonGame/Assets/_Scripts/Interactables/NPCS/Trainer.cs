@@ -11,11 +11,7 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
 
     //--Private
     [SerializeField] private TrainerSO _trainerSO;
-    [SerializeField] private DialogueColorSO _dialogueColor;
-    [SerializeField] private int _trainerSkillLevel;
-    [SerializeField] private PokemonParty _trainerParty;
     [SerializeField] private BattleType _battleType;
-    [SerializeField] private MusicTheme _trainerMusic;
     [SerializeField] private DialogueSO _dialogueSO;
     [SerializeField] private DialogueSO _postBattleDialogueSO;
     [SerializeField] private GameObject _trainerCenter;
@@ -28,40 +24,16 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
     //--Public
     public TrainerSO TrainerSO => _trainerSO;
     public string TrainerName => _trainerSO.TrainerName;
-    public DialogueColorSO DialogueColor => _dialogueColor;
-    public string TrainerClass => TrainerClassDB[_trainerSO.TrainerClass];
-    public int TrainerSkillLevel => _trainerSkillLevel;
-    public PokemonParty TrainerParty => _trainerParty;
+    public Sprite Portrait => _trainerSO.Portrait;
+    public DialogueColorSO DialogueColor => _trainerSO.DialogueColor;
+    public TrainerClasses TrainerClass => _trainerSO.TrainerClass;
+    public int TrainerSkillLevel => _trainerSO.SkillLevel;
     public BattleType BattleType => _battleType;
-    public MusicTheme TrainerMusic => _trainerMusic;
+    public MusicTheme TrainerMusic => _trainerSO.BattleTheme;
     public DialogueSO DialogueSO => _dialogueSO;
     public GameObject TrainerCenter => _trainerCenter;
     public bool IsDefeated => _isDefeated;
     public bool IsRematchable => _isRematchable;
-    public Dictionary<TrainerClasses, string> TrainerClassDB { get; private set; }
-
-    private void OnEnable()
-    {
-        SetClassDB();
-    }
-
-    private void SetClassDB()
-    {
-        TrainerClassDB = new()
-        {
-            { TrainerClasses.None,          "" },
-            { TrainerClasses.AceTrainer,    "Ace Trainer" },
-            { TrainerClasses.Hiker,         "Hiker" },
-            { TrainerClasses.Lass,          "Lass" },
-            { TrainerClasses.Youngster,     "Youngster" },
-            { TrainerClasses.Swimmer,       "Swimmer" },
-            { TrainerClasses.BugCatcher,    "Bug Catcher" },
-            { TrainerClasses.GymLeader,     "Gym Leader" },
-            { TrainerClasses.EliteFour,     "Elite Four" },
-            { TrainerClasses.Champion,      "Champion" },
-            { TrainerClasses.Trainer,       "Trainer" },
-        };
-    }
 
     //--You need to create a callback that returns whether the trainer or player won the battle
     //--and there you can set _isDefeated. Right now this class doesn't actually work very well lol --04/29/24
@@ -73,9 +45,12 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
     //--i assume this is going to be for forced battles after dialogue, mostly against the evil team
 	public void Interact(){
         Debug.Log( $"You've Interacted With Trainer {this}!" );
-        if( !_isDefeated || _isRematchable ){
-            foreach( DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>() ){
-                if( responseEvents.DialogueSO == _dialogueSO ){
+        if( !_isDefeated || _isRematchable )
+        {
+            foreach( DialogueResponseEvents responseEvents in GetComponents<DialogueResponseEvents>() )
+            {
+                if( responseEvents.DialogueSO == _dialogueSO )
+                {
                     DialogueManager.Instance.OnHasResponseEvents?.Invoke( responseEvents );
                     break;
                 }
@@ -83,7 +58,8 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
 
             DialogueManager.Instance.OnDialogueEvent?.Invoke( _dialogueSO );
         }
-        else{
+        else
+        {
             DialogueManager.Instance.OnDialogueEvent?.Invoke( _postBattleDialogueSO );
         }
     }
@@ -105,12 +81,34 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
         }
     }
 
+    public List<Pokemon> BuildTrainerParty()
+    {
+        List<Pokemon> battleParty = new();
+
+        for( int i = 0; i < _trainerSO.Party.Count; i++ )
+        {
+            Pokemon pokemon = new( _trainerSO.Party[i] );
+            battleParty.Add( pokemon );
+        }
+
+        return battleParty;
+    }
+
     public IEnumerator InitializeTrainerBattle()
     {
+        Debug.Log( $"[Trainer] Initialize Trainer Battle" );
         yield return new WaitForEndOfFrame();
         yield return DialogueManager.Instance.DialogueUI.ActiveDialogueCoroutine;
         yield return null;
-        BattleController.Instance.InitTrainerBattle( this );
+
+        //--Build CPU BattleTrainer
+        // var party = BuildTrainerParty();
+        BattleTrainer cpuBattleTrainer = BattleTrainerFactory.FromNPC( this );
+
+        //--Build Player BattleTrainer
+        var playerTrainer = PlayerReferences.Instance.PlayerTrainer;
+        var playerBattleTrainer = playerTrainer.MakeBattleTrainer();
+        BattleController.Instance.InitTrainerBattle( playerBattleTrainer, cpuBattleTrainer, BattleType ); //--We pass BattleTrainer here
     }
 
     public IEnumerator InitAITrainerBattle()
@@ -119,12 +117,22 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
         yield return new WaitForEndOfFrame();
         yield return DialogueManager.Instance.DialogueUI.ActiveDialogueCoroutine;
         yield return null;
-        BattleController.Instance.InitAITrainerBattle( this, _opposingTrainer );
+
+        //--Build This Trainer
+        // var thisParty = BuildTrainerParty();
+        BattleTrainer thisBattleTrainer = BattleTrainerFactory.FromNPC( this );
+
+        //--Build Opposing Trainer
+        // var opposingParty = _opposingTrainer.BuildTrainerParty();
+        BattleTrainer opposingBattleTrainer = BattleTrainerFactory.FromNPC( _opposingTrainer );
+
+        BattleController.Instance.InitAITrainerBattle( BattleType, thisBattleTrainer, opposingBattleTrainer );
     }
 
     private bool CheckIfBattlePossible()
     {
-        var availablePlayerPokemon = PlayerReferences.Instance.PlayerParty.Party.Select( p => p ).Where( p => p.CurrentHP > 0 ).ToList();
+        var playerTrainer = PlayerReferences.Instance.PlayerTrainer;
+        var availablePlayerPokemon = playerTrainer.ActiveParty.Select( p => p ).Where( p => p.CurrentHP > 0 ).ToList();
 
         if( availablePlayerPokemon.Count == 0 )
         {

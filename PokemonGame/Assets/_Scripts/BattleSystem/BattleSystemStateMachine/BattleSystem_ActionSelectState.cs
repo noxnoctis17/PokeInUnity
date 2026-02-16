@@ -8,21 +8,23 @@ public class BattleSystem_ActionSelectState : State<BattleSystem>
     private BattleSystem _battleSystem;
     private int _commands;
     private Coroutine _awaitCommands;
+    private Coroutine _handleTurnSkipping;
 
-    public override void EnterState( BattleSystem owner ){
+    public override void EnterState( BattleSystem owner )
+    {
         _battleSystem = owner;
         BattleSystem.OnCommandAdded += IncreaseCommandCount;
         _commands = 0;
 
-        _battleSystem.SetStateEnum( BattleStateEnum.ActionSelect );
-        _battleSystem.PlayerBattleMenu.OnUnpauseState?.Invoke();
-        _battleSystem.PlayerBattleMenu.EnableMenuButtons();
-        
+        _handleTurnSkipping = StartCoroutine( HandleTurnSkipping() );
         _awaitCommands = StartCoroutine( AwaitActionSelections() );
+        _battleSystem.HandleTwoTurnMoves( _battleSystem.UnitInSelectionState );
     }
 
-    public override void ExitState(){
+    public override void ExitState()
+    {
         BattleSystem.OnCommandAdded -= IncreaseCommandCount;
+        StopCoroutine( _handleTurnSkipping );
         StopCoroutine( _awaitCommands );
         _commands = 0;
         _battleSystem.PlayerBattleMenu.OnPauseState?.Invoke();
@@ -36,6 +38,21 @@ public class BattleSystem_ActionSelectState : State<BattleSystem>
             _commands++;
 
         Debug.Log( $"[Action Select][Move Command] Command entred by: {_battleSystem.UnitInSelectionState.Pokemon.NickName}, Count After Increase: {_commands}" );
+    }
+
+    private IEnumerator HandleTurnSkipping()
+    {
+        while( _battleSystem.UnitInSelectionState.Flags[UnitFlags.Charging].IsActive )
+        {       
+            yield return null;
+        }
+
+        Debug.Log( $"{_battleSystem.UnitInSelectionState.Pokemon.NickName} is either not charging or has finished charging! Giving player menu control!" );
+        _battleSystem.SetStateEnum( BattleStateEnum.ActionSelect );
+        _battleSystem.PlayerBattleMenu.OnUnpauseState?.Invoke();
+        _battleSystem.PlayerBattleMenu.EnableMenuButtons();
+
+        yield return null;
     }
 
     private IEnumerator AwaitActionSelections()

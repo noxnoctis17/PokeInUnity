@@ -187,7 +187,7 @@ public class BattleArena : MonoBehaviour
     }
 
     private GameObject GrabEnemyTrainer1(){
-        _enemyTrainer1 = _battleSystem.TopTrainerParty.gameObject;
+        _enemyTrainer1 = _battleSystem.TopTrainer1.TrainerCenter.transform.parent.gameObject;
         return _enemyTrainer1;
     }
 
@@ -279,7 +279,7 @@ public class BattleArena : MonoBehaviour
 
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
-        playerUnit.Setup( _battleSystem.BottomTrainerParty.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
+        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
 
         var enemyUnit = _battleSystem.EncounteredPokemon.gameObject.GetComponent<BattleUnit>();
         enemyUnit.SetAI( true ); //--enable AI for this unit
@@ -318,7 +318,7 @@ public class BattleArena : MonoBehaviour
         StartCoroutine( MovePlayerIntoPosition( _singlesTrainer1.transform ) );
 
         //--Wild Trainer wants to fight! Add a trainer name variable that gets fed into the battle system or something --11/27/25
-        var enemyTrainer = _battleSystem.TopTrainerParty.GetComponent<Trainer>();
+        var enemyTrainer = _battleSystem.TopTrainer1;
         yield return DialogueManager.Instance.PlaySystemMessageCoroutine( $"{enemyTrainer.TrainerClass} {enemyTrainer.TrainerName} wants to battle!" );
 
         //--Activate Relevant Positions
@@ -355,10 +355,10 @@ public class BattleArena : MonoBehaviour
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
         
-        playerUnit.Setup( _battleSystem.BottomTrainerParty.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
+        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
         
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        enemyUnit.Setup( _battleSystem.TopTrainerParty.GetHealthyPokemon(), _battleSystem.EnemyHUDs[0], _battleSystem );
+        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.EnemyHUDs[0], _battleSystem );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit
@@ -397,7 +397,7 @@ public class BattleArena : MonoBehaviour
         StartCoroutine( MovePlayerIntoPosition( _singlesTrainer1.transform ) );
 
         //--Wild Trainer wants to fight! Add a trainer name variable that gets fed into the battle system or something --11/27/25
-        var enemyTrainer = _battleSystem.TopTrainerParty.GetComponent<Trainer>();
+        var enemyTrainer = _battleSystem.TopTrainer1;
         yield return DialogueManager.Instance.PlaySystemMessageCoroutine( $"{enemyTrainer.TrainerClass} {enemyTrainer.TrainerName} wants to battle!" );
 
         //--Activate Relevant Positions
@@ -459,8 +459,8 @@ public class BattleArena : MonoBehaviour
         };
 
         //--Get top 2 mons off each player's party.
-        var playerMons = _battleSystem.BottomTrainerParty.GetHealthyPokemon( DOUBLES_COUNT );
-        var enemyMons = _battleSystem.TopTrainerParty.GetHealthyPokemon( DOUBLES_COUNT );
+        var playerMons = _battleSystem.BottomTrainer1.GetHealthyPokemon( DOUBLES_COUNT );
+        var enemyMons = _battleSystem.TopTrainer1.GetHealthyPokemon( DOUBLES_COUNT );
 
         //--Setup each unit, all indicies should be the same! unit 0 should have hud 0!
         for( int i = 0; i < playerMons.Count; i++)
@@ -517,7 +517,7 @@ public class BattleArena : MonoBehaviour
         yield return null;
 
         //--Move Bottom Trainer into position
-        StartCoroutine( MoveCPUIntoPosition( _battleSystem.BottomTrainer1.transform, _singlesTrainer1.transform ) );
+        StartCoroutine( MoveCPUIntoPosition( _battleSystem.BottomTrainer1.TrainerCenter.transform.parent, _singlesTrainer1.transform ) );
 
         //--Wild Trainer wants to fight! Add a trainer name variable that gets fed into the battle system or something --11/27/25
         var topTrainer = _battleSystem.TopTrainer1;
@@ -559,10 +559,10 @@ public class BattleArena : MonoBehaviour
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
         
         playerUnit.SetAI( true ); //--enable AI for this unit
-        playerUnit.Setup( _battleSystem.BottomTrainerParty.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
+        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
         
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        enemyUnit.Setup( _battleSystem.TopTrainerParty.GetHealthyPokemon(), _battleSystem.EnemyHUDs[0], _battleSystem );
+        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.EnemyHUDs[0], _battleSystem );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit
@@ -572,7 +572,7 @@ public class BattleArena : MonoBehaviour
 
         //--Make everyone face the arena center
         yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _arenaGizmoCenter );
-        yield return LookAtArenaCenter( _battleSystem.BottomTrainer1.gameObject, _singlesTrainer1 );
+        yield return LookAtArenaCenter( _battleSystem.BottomTrainer1.TrainerCenter.transform.parent.gameObject, _singlesTrainer1 );
         yield return LookAtArenaCenter( _singlesTrainer2, _singlesTrainer1 );
         yield return LookAtArenaCenter( _singlesPokemon1, _singlesUnit2 );
         yield return LookAtArenaCenter( _singlesPokemon2, _singlesUnit1 );

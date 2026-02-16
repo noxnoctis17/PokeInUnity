@@ -40,7 +40,8 @@ public class AudioController : MonoBehaviour
     [SerializeField] private AudioClip _statUp;
 
 
-    private void OnEnable(){
+    private void OnEnable()
+    {
         if( Instance != null )
             Destroy( Instance );
 
@@ -142,7 +143,8 @@ public class AudioController : MonoBehaviour
             from.volume = 1f;
     }
 
-    public void PlaySFX( SoundEffect effect ){
+    public void PlaySFX( SoundEffect effect )
+    {
         AudioClip sound = null;
 
         if( IsPlayingSFX && effect == SoundEffect.Bump )
@@ -224,7 +226,8 @@ public class AudioController : MonoBehaviour
             StartCoroutine( PlaySFX( sound ) );
     }
 
-    private IEnumerator PlaySFX( AudioClip sound ){
+    private IEnumerator PlaySFX( AudioClip sound )
+    {
         _sfxSource.PlayOneShot( sound );
         if( sound == _bump)
         {
@@ -236,7 +239,8 @@ public class AudioController : MonoBehaviour
 
 }
 
-public enum SoundEffect {
+public enum SoundEffect
+{
     LedgeHop,
     Bump,
     SendPokemon,
@@ -255,6 +259,15 @@ public enum SoundEffect {
     StatUp,
     StatDown,
 
-    }
+}
 
-public enum MusicTheme { BattleThemeDefault, RouteMainTheme_Calm, Gen1_ChampionTheme, Gen3_WildBattleTheme, Gen3_TrainerTheme, Gen3_GymLeaderTheme, }
+public enum MusicTheme
+{ 
+    BattleThemeDefault,
+    RouteMainTheme_Calm,
+    Gen1_ChampionTheme,
+    Gen3_WildBattleTheme,
+    Gen3_TrainerTheme,
+    Gen3_GymLeaderTheme,
+
+ }

@@ -5,13 +5,14 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
-using UnityEngine.AI;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 public class PokemonEditor : EditorWindow
 {
     [MenuItem( "Tools/Pokemon SO Editor" )]
-    public static void OpenPokeTerrain() => GetWindow<PokemonEditor>( "PokemonSO Editor" );
+    public static void OpenPokemonEditor() => GetWindow<PokemonEditor>( "PokemonSO Editor", typeof(PokemonEditor), typeof(MoveEditor), typeof(TrainerEditor), typeof(RentalTeamEditor) );
+    public static PokemonSO OpenedPokemon;
     
     //--Basics
     private VisualTreeAsset _uxml;
@@ -22,6 +23,7 @@ public class PokemonEditor : EditorWindow
     private PokemonSO _currentPokemon;
     private Texture2D _loadedSpriteSheet;
     private Dictionary<PokemonType, ( Color PrimaryColor, Color SecondaryColor )> TypeColors { get; set; }
+    private Button _refreshListButton;
     private Button _createNewPokemonButton;
     private SpritePreviewPlayer _previewPlayer;
     private VisualElement _previewImage;
@@ -33,6 +35,8 @@ public class PokemonEditor : EditorWindow
     private EnumField _previewDirectionTypeField;
     private PokemonAnimationType _previewAnimationType = PokemonAnimationType.Idle;
     private FacingDirection _previewDirection = FacingDirection.Down;
+    [SerializeField] private Sprite _missingNoSprite;
+    private List<Sprite> _noSpriteSheetAvailable;
 
 
     //--Species info
@@ -49,8 +53,10 @@ public class PokemonEditor : EditorWindow
     private Button _addAbilityButton;
     private ListView _evolutionList;
     private Button _addEvolutionButton;
+    private Button _passLearnSetButton;
     private ListView _levelUpMovesList;
     private Button _addMoveButton;
+    private Button _sortLevelUpMovesButton;
     [SerializeField] private TMDB _tmDB;
     private ListView _teachableMovesList;
     private List<MoveSO> _tmKeys;
@@ -68,6 +74,11 @@ public class PokemonEditor : EditorWindow
     private IntegerField _expField;
     private IntegerField _epField;
     private EnumField _growthRateField;
+    private IntegerField _friendshipField;
+    private IntegerField _heightField;
+    private IntegerField _weightField;
+    private IntegerField _maleField;
+    private IntegerField _femaleField;
 
     //--Sprites
     // default portrait
@@ -77,9 +88,16 @@ public class PokemonEditor : EditorWindow
     private Button _assignSpriteSheetButton;
     private ObjectField _spriteSheetField;
 
+    public static void OpenPokemonEditor( PokemonSO pokemon )
+    {
+        OpenedPokemon = pokemon;
+        GetWindow<PokemonEditor>( "PokemonSO Editor", typeof(PokemonEditor), typeof(MoveEditor), typeof(TrainerEditor), typeof(RentalTeamEditor) );
+    }
+
     private void OnEnable()
     {
         _previewPlayer = new();
+        _noSpriteSheetAvailable = new(){ _missingNoSprite };
         Undo.undoRedoPerformed += OnUndoRedo;
         EditorApplication.update += UpdateSpritePreview;
     }
@@ -109,6 +127,7 @@ public class PokemonEditor : EditorWindow
         _detailsPanel = rootVisualElement.Q<VisualElement>( "pokemonDetailsPanel" );
         _currentPokemonLabel = rootVisualElement.Q<Label>( "CurrentPokemonLabel" );
         CreatePokemonList();
+        _refreshListButton = rootVisualElement.Q<Button>( "RefreshListButton" );
         _createNewPokemonButton = rootVisualElement.Q<Button>( "CreateNewPokemonButton" );
         _previewImage = rootVisualElement.Q<VisualElement>( "PreviewImage" );
         _normalPortrait = rootVisualElement.Q<VisualElement>( "NormalPortrait" );
@@ -137,6 +156,7 @@ public class PokemonEditor : EditorWindow
         //--Evolutions
         _evolutionList = rootVisualElement.Q<ListView>( "EvolutionList" );
         _addEvolutionButton = rootVisualElement.Q<Button>( "AddEvolutionButton" );
+        _passLearnSetButton = rootVisualElement.Q<Button>( "PassLearnSetButton" );
         CreateEvolutionsList();
 
         //--Base Stats
@@ -151,6 +171,11 @@ public class PokemonEditor : EditorWindow
         _epField = rootVisualElement.Q<IntegerField>( "EPYieldField" );
         _growthRateField = rootVisualElement.Q<EnumField>( "GrowthRateField" );
         _growthRateField.Init( GrowthRate.MediumFast );
+        _friendshipField = rootVisualElement.Q<IntegerField>( "FriendshipField" );
+        _heightField = rootVisualElement.Q<IntegerField>( "HeightField" );
+        _weightField = rootVisualElement.Q<IntegerField>( "WeightField" );
+        _maleField = rootVisualElement.Q<IntegerField>( "MaleField" );
+        _femaleField = rootVisualElement.Q<IntegerField>( "FemaleField" );
 
         //--Abilities
         _abilitiesList = rootVisualElement.Q<ListView>( "AbilityList" );
@@ -160,6 +185,7 @@ public class PokemonEditor : EditorWindow
         //--Moves
         _levelUpMovesList = rootVisualElement.Q<ListView>( "LevelUpMovesList" );
         _addMoveButton = rootVisualElement.Q<Button>( "AddMoveButton" );
+        _sortLevelUpMovesButton = rootVisualElement.Q<Button>( "SortLevelUpMovesButton" );
         CreateLevelUpMovesList();
 
         //--TM Learn Set
@@ -175,7 +201,11 @@ public class PokemonEditor : EditorWindow
         _spriteSheetField.objectType = typeof(Texture2D);
 
         RegisterFieldCallbacks();
-        SelectPokemon( _pokemonList[0] );
+
+        if( OpenedPokemon != null )
+            SelectPokemon( OpenedPokemon );
+        else
+            SelectPokemon( _pokemonList[0] );
     }
 
     private void LoadPokemon()
@@ -217,7 +247,7 @@ public class PokemonEditor : EditorWindow
             var pokemon = _pokemonList[index];
 
             label.text = $"{pokemon.DexNO:D3} - {pokemon.Species}";
-            Debug.Log( $"Label Text: {label.text}" );
+            // Debug.Log( $"Label Text: {label.text}" );
         };
 
         _pokemonListView.selectionType = SelectionType.Single;
@@ -243,16 +273,16 @@ public class PokemonEditor : EditorWindow
             row.style.paddingRight = 2;
             row.style.paddingBottom = 2;
 
-            var enumField = new EnumField( AbilityID.None );
-            enumField.style.flexGrow = 1;
+            Button abilityButton = new() { text = "Select Ability" };
+            abilityButton.style.flexGrow = 1;
 
-            var removeButton = new Button { text = "Remove Ability" };
+            Button removeButton = new() { text = "Remove Ability" };
 
-            row.Add( enumField );
+            row.Add( abilityButton );
             row.Add( removeButton );
 
-            row.userData = enumField;
-            removeButton.userData = row;
+            row.userData = ( abilityButton, removeButton );
+            // removeButton.userData = row;
 
             return row;
         };
@@ -262,23 +292,58 @@ public class PokemonEditor : EditorWindow
             if( _currentPokemon == null )
                 return;
 
-            var enumField = (EnumField)element.userData;
-            enumField.SetValueWithoutNotify( _currentPokemon.Abilities[index] );
+            var ( abilityButton, removeButton ) = (( Button, Button ))element.userData;
+            var ability = _currentPokemon.Abilities[index];
 
-            enumField.UnregisterValueChangedCallback( OnAbilityChanged );
+            abilityButton.userData = index;
+            removeButton.userData = index;
 
-            enumField.RegisterValueChangedCallback( OnAbilityChanged );
+            // element.userData = index;
 
-            enumField.userData = index;
+            //--Update Button Label
+            if( ability == AbilityID.None )
+                abilityButton.text = "Select Ability";
+            else
+                abilityButton.text = $"{ability}";
 
-            var removeButton = element.Q<Button>();
-            removeButton.clicked += () =>
+            //--Clear clicked
+            abilityButton.clicked -= abilityButton.userData as Action;
+            removeButton.clicked -= removeButton.userData as Action;
+            // abilityButton.userData = null;
+
+            Action abilityClick = () =>
             {
+                Vector2 mousePos = Mouse.current.position.ReadValue();
+
+                AbilityPickerWindow.Show( ability, mousePos, selected =>
+                {
+                    Undo.RecordObject( _currentPokemon, "Changed Ability" );
+                    _currentPokemon.Abilities[index] = selected;
+                    EditorUtility.SetDirty( _currentPokemon );
+
+                    //--Update Button Label
+                    abilityButton.text = selected.ToString();
+                });
+            };
+
+            abilityButton.userData = index;
+            abilityButton.clicked += abilityClick;
+
+            Action removeClick = () =>
+            {
+                int removeIndex = (int)removeButton.userData;
+
+                if( removeIndex < 0 || removeIndex >= _currentPokemon.Abilities.Count )
+                    return;
+
                 Undo.RecordObject( _currentPokemon, "Remove Ability" );
                 _currentPokemon.RemoveAbility( index );
                 EditorUtility.SetDirty( _currentPokemon );
                 RefreshAbilityList();
             };
+
+            removeButton.userData = index;
+            removeButton.clicked += removeClick;
         };
 
         _addAbilityButton.clicked += () =>
@@ -319,15 +384,46 @@ public class PokemonEditor : EditorWindow
 
             ObjectField itemField = new();
             itemField.objectType = typeof( EvolutionItemsSO );
+            itemField.style.width = 150;
 
-            var removeButton = new Button { text = "Remove Evolution" };
+            IntegerField friendshipField = new();
+            friendshipField.style.width = 50;
+
+            EnumField timeField = new();
+            timeField.Init( TimeOfDay.None );
+            timeField.style.width = 75;
+
+            Button passLearnsetButton = new() { text = "Pass Learnset" };
+            passLearnsetButton.clicked += () =>
+            {
+                if( _currentPokemon == null )
+                    return;
+                    
+                PassLearnset( (PokemonSO)pokeSOField.value );
+            };
+
+            var removeButton = new Button { text = "X" };
+            removeButton.clicked += () =>
+            {
+                int i = (int)removeButton.userData;
+                if( _currentPokemon == null || i < 0 || i >= _currentPokemon.Evolutions.Count )
+                    return;
+
+                Undo.RecordObject( _currentPokemon, "X" );
+                _currentPokemon.RemoveEvolution( i );
+                EditorUtility.SetDirty( _currentPokemon );
+                RefreshEvolutionsList();
+            };
 
             row.Add( pokeSOField );
             row.Add( levelField );
             row.Add( itemField );
+            row.Add( friendshipField );
+            row.Add( timeField );
+            row.Add( passLearnsetButton );
             row.Add( removeButton );
 
-            row.userData = ( pokeSOField, levelField, itemField );
+            row.userData = ( pokeSOField, levelField, itemField, friendshipField, timeField, passLearnsetButton, removeButton );
             removeButton.userData = row;
 
             return row;
@@ -339,36 +435,38 @@ public class PokemonEditor : EditorWindow
                 return;
 
             var evolution = _currentPokemon.Evolutions[index];
-            var ( pokeSOField, levelField, itemField ) = ( ( ObjectField, IntegerField, ObjectField ) )element.userData;
+            var ( pokeSOField, levelField, itemField, friendshipField, timeField, passLearnsetButton, removeButton ) = ( ( ObjectField, IntegerField, ObjectField, IntegerField, EnumField, Button, Button ) )element.userData;
 
             //--Set Values
-            pokeSOField.SetValueWithoutNotify( evolution.Evolution );
+            pokeSOField.SetValueWithoutNotify( evolution.Pokemon );
             levelField.SetValueWithoutNotify( evolution.EvolutionLevel );
             itemField.SetValueWithoutNotify( evolution.EvolutionItem );
+            friendshipField.SetValueWithoutNotify( evolution.Friendship );
+            timeField.SetValueWithoutNotify( evolution.TimeOfDay );
 
             //--Clear Old Callbacks
             pokeSOField.UnregisterValueChangedCallback( OnEvolutionPokemonChanged );
             levelField.UnregisterValueChangedCallback( OnEvolutionLevelChanged );
             itemField.UnregisterValueChangedCallback( OnEvolutionItemChanged );
+            friendshipField.UnregisterValueChangedCallback( OnEvolutionFriendshipChanged );
+            timeField.UnregisterValueChangedCallback( OnEvolutionTimeChanged );
 
             //--Assign the index?
             pokeSOField.userData = index;
             levelField.userData = index;
             itemField.userData = index;
+            friendshipField.userData = index;
+            timeField.userData = index;
+            passLearnsetButton.userData = index;
+            removeButton.userData = index;
 
             //--Register Callbacks
             pokeSOField.RegisterValueChangedCallback( OnEvolutionPokemonChanged );
             levelField.RegisterValueChangedCallback( OnEvolutionLevelChanged );
             itemField.RegisterValueChangedCallback( OnEvolutionItemChanged );
-
-            var removeButton = element.Q<Button>();
-            removeButton.clicked += () =>
-            {
-                Undo.RecordObject( _currentPokemon, "Remove Evolution" );
-                _currentPokemon.RemoveEvolution( index );
-                EditorUtility.SetDirty( _currentPokemon );
-                RefreshEvolutionsList();
-            };
+            friendshipField.RegisterValueChangedCallback( OnEvolutionFriendshipChanged );
+            timeField.RegisterValueChangedCallback( OnEvolutionTimeChanged );
+            
         };
 
         _addEvolutionButton.clicked += () =>
@@ -380,6 +478,15 @@ public class PokemonEditor : EditorWindow
             _currentPokemon.AddEvolution();
             EditorUtility.SetDirty( _currentPokemon );
             RefreshEvolutionsList();
+        };
+
+        _passLearnSetButton.clicked += () =>
+        {
+            if( _currentPokemon == null )
+                return;
+
+            var evo = _currentPokemon.Evolutions[0].Pokemon;
+            PassLearnset( evo );
         };
     }
 
@@ -404,13 +511,32 @@ public class PokemonEditor : EditorWindow
             IntegerField levelField = new();
             levelField.style.width = 50;
 
-            var removeButton = new Button { text = "Remove Move" };
+            Button openInEditor = new() { text = "Open in Editor" };
+            Button removeButton = new() { text = "X" };
+
+            openInEditor.clicked += () =>
+            {
+                MoveEditor.OpenMoveEditor( (MoveSO)moveSOField.value );
+            };
+
+            removeButton.clicked += () =>
+            {
+                int i = (int)removeButton.userData;
+                if( _currentPokemon == null || i < 0 || i >= _currentPokemon.LearnableMoves.Count )
+                    return;
+
+                Undo.RecordObject( _currentPokemon, "Remove Level Up Move" );
+                _currentPokemon.RemoveLevelUpMove( i );
+                EditorUtility.SetDirty( _currentPokemon );
+                RefreshLevelUpMovesList();
+            };
 
             row.Add( moveSOField );
             row.Add( levelField );
+            row.Add( openInEditor );
             row.Add( removeButton );
 
-            row.userData = ( moveSOField, levelField );
+            row.userData = ( moveSOField, levelField, openInEditor, removeButton );
             removeButton.userData = row;
 
             return row;
@@ -422,7 +548,7 @@ public class PokemonEditor : EditorWindow
                 return;
 
             var levelUpMove = _currentPokemon.LearnableMoves[index];
-            var ( moveSOField, levelField ) = ( ( ObjectField, IntegerField ) )element.userData;
+            var ( moveSOField, levelField, openInEditor, removeButton ) = ( ( ObjectField, IntegerField, Button, Button ) )element.userData;
 
             //--Set Values
             moveSOField.SetValueWithoutNotify( levelUpMove.MoveSO );
@@ -432,22 +558,15 @@ public class PokemonEditor : EditorWindow
             moveSOField.UnregisterValueChangedCallback( OnLevelUpMoveChanged );
             levelField.UnregisterValueChangedCallback( OnLevelUpMoveLevelChanged );
 
-            //--Assign the index?
-            moveSOField.userData = index;
-            levelField.userData = index;
-
             //--Register Callbacks
             moveSOField.RegisterValueChangedCallback( OnLevelUpMoveChanged );
             levelField.RegisterValueChangedCallback( OnLevelUpMoveLevelChanged );
 
-            var removeButton = element.Q<Button>();
-            removeButton.clicked += () =>
-            {
-                Undo.RecordObject( _currentPokemon, "Remove Level Up Move" );
-                _currentPokemon.RemoveLevelUpMove( index );
-                EditorUtility.SetDirty( _currentPokemon );
-                RefreshLevelUpMovesList();
-            };
+            //--Assign the index?
+            moveSOField.userData = index;
+            levelField.userData = index;
+            openInEditor.userData = index;
+            removeButton.userData = index;
         };
 
         _addMoveButton.clicked += () =>
@@ -457,6 +576,17 @@ public class PokemonEditor : EditorWindow
 
             Undo.RecordObject( _currentPokemon, "Add Level Up Move" );
             _currentPokemon.AddLevelUpMove();
+            EditorUtility.SetDirty( _currentPokemon );
+            RefreshLevelUpMovesList();
+        };
+
+        _sortLevelUpMovesButton.clicked += () =>
+        {
+            if( _currentPokemon == null )
+                return;
+
+            Undo.RecordObject( _currentPokemon, "Sort Level Up Move List" );
+            _currentPokemon.SortLevelUpMovesByLevel();
             EditorUtility.SetDirty( _currentPokemon );
             RefreshLevelUpMovesList();
         };
@@ -557,6 +687,23 @@ public class PokemonEditor : EditorWindow
         RefreshTeachableMovesList();
     }
 
+    private void PassLearnset( PokemonSO evolution )
+    {
+        bool passLearnset = EditorUtility.DisplayDialog( "Sync Learnsets", "Do you want to transfer the full learnset?\n\n" + "This will pass all current level up moves and all TM flags to the evolution's PokemonSO.\n\n", "Pass Learnset", "No thanks lol" );
+        if( passLearnset )
+        {
+            Undo.RecordObject( evolution, "Passed prevo Learnset" );
+
+            for( int i = 0; i < _currentPokemon.LearnableMoves.Count; i++ )
+            {
+                LearnableMoves move = new( _currentPokemon.LearnableMoves[i] );
+                evolution.AddLevelUpMove( move );
+            }
+
+            EditorUtility.SetDirty( evolution );
+        }
+    }
+
     private void OnAbilityChanged( ChangeEvent<Enum> evt )
     {
         if( _currentPokemon == null )
@@ -576,11 +723,26 @@ public class PokemonEditor : EditorWindow
         if( _currentPokemon == null )
             return;
 
-            int index = (int)( (VisualElement)evt.target ).userData;
-            var evolution = (PokemonSO)evt.newValue;
+        bool passLearnset = EditorUtility.DisplayDialog( "Sync Learnsets", "Do you want to transfer the full learnset?\n\n" + "This will pass all current level up moves and all TM flags to the evolution's PokemonSO.\n\n", "Pass Learnset", "No thanks lol" );
 
-            Undo.RecordObject( _currentPokemon, "Change Evolution PokemonSO" );
-            _currentPokemon.SetEvolutionPokemon( index, evolution );
+        int index = (int)( (VisualElement)evt.target ).userData;
+        var evolution = (PokemonSO)evt.newValue;
+
+        Undo.RecordObject( _currentPokemon, "Change Evolution PokemonSO" );
+        _currentPokemon.SetEvolutionPokemon( index, evolution );
+
+        if( passLearnset )
+        {
+            Undo.RecordObject( evolution, "Passed prevo Learnset" );
+
+            for( int i = 0; i < _currentPokemon.LearnableMoves.Count; i++ )
+            {
+                LearnableMoves move = new( _currentPokemon.LearnableMoves[i] );
+                evolution.AddLevelUpMove( move );
+            }
+
+            EditorUtility.SetDirty( evolution );
+        }
     }
 
     private void OnEvolutionLevelChanged( ChangeEvent<int> evt )
@@ -588,11 +750,11 @@ public class PokemonEditor : EditorWindow
         if( _currentPokemon == null )
             return;
 
-            int index = (int)( (VisualElement)evt.target ).userData;
-            int level = evt.newValue;
+        int index = (int)( (VisualElement)evt.target ).userData;
+        int level = evt.newValue;
 
-            Undo.RecordObject( _currentPokemon, "Change Evolution Level" );
-            _currentPokemon.SetEvolutionLevel( index, level );
+        Undo.RecordObject( _currentPokemon, "Change Evolution Level" );
+        _currentPokemon.SetEvolutionLevel( index, level );
     }
 
     private void OnEvolutionItemChanged( ChangeEvent<UnityEngine.Object> evt )
@@ -605,6 +767,30 @@ public class PokemonEditor : EditorWindow
 
             Undo.RecordObject( _currentPokemon, "Change Evolution Item" );
             _currentPokemon.SetEvolutionItem( index, item );
+    }
+
+    private void OnEvolutionFriendshipChanged( ChangeEvent<int> evt )
+    {
+        if( _currentPokemon == null )
+            return;
+
+        int index = (int)( (VisualElement)evt.target ).userData;
+        int friendship = evt.newValue;
+
+        Undo.RecordObject( _currentPokemon, "Change Evolution Friendship" );
+        _currentPokemon.SetEvolutionFriendship( index, friendship );
+    }
+
+    private void OnEvolutionTimeChanged( ChangeEvent<Enum> evt )
+    {
+        if( _currentPokemon == null )
+            return;
+
+        int index = (int)( (VisualElement)evt.target ).userData;
+        TimeOfDay time = (TimeOfDay)evt.newValue;
+
+        Undo.RecordObject( _currentPokemon, "Change Evolution Time" );
+        _currentPokemon.SetEvolutionTime( index, time );
     }
 
     private void OnLevelUpMoveChanged( ChangeEvent<UnityEngine.Object> evt )
@@ -657,13 +843,6 @@ public class PokemonEditor : EditorWindow
 
     private void RefreshTeachableMovesList()
     {
-        // if (_currentPokemon.TeachableMoves == null)
-        // {
-        //     Undo.RecordObject(_currentPokemon, "Init TM DB");
-        //     _currentPokemon.EnsureTMDB();
-        //     EditorUtility.SetDirty(_currentPokemon);
-        // }
-
         _tmKeys = _currentPokemon.TeachableMoves.Keys.OrderBy( k => k.Name ).ToList();
         _teachableMovesList.itemsSource = _tmKeys;
         _teachableMovesList.Rebuild();
@@ -691,17 +870,17 @@ public class PokemonEditor : EditorWindow
 
     private void RefreshDetailPanel()
     {
-        Debug.Log( $"Refreshing Details Panel" );
         if( _currentPokemon == null )
         {
-            Debug.Log( $"Current Pokemon is Null!" );
+            Debug.LogError( $"Current Pokemon is Null!" );
             _dexNoField.SetValueWithoutNotify( 0 );
             _speciesField.SetValueWithoutNotify( string.Empty );
             return;
         }
 
+        //--Label
         var typeColors = GetColors( _currentPokemon );
-        _currentPokemonLabel.text = $"{_currentPokemon.DexNO:D3} - {_currentPokemon.Species}";
+        _currentPokemonLabel.text = $"({_currentPokemon.name}) {_currentPokemon.DexNO:D3} - {_currentPokemon.Species}";
         _currentPokemonLabel.style.backgroundColor      = typeColors.color1;
         _currentPokemonLabel.style.borderTopColor       = typeColors.color2;
         _currentPokemonLabel.style.borderBottomColor    = typeColors.color2;
@@ -734,6 +913,11 @@ public class PokemonEditor : EditorWindow
         _expField.SetValueWithoutNotify( _currentPokemon.ExpYield );
         _epField.SetValueWithoutNotify( _currentPokemon.EffortYield );
         _growthRateField.SetValueWithoutNotify( _currentPokemon.GrowthRate );
+        _friendshipField.SetValueWithoutNotify( _currentPokemon.BaseFriendship );
+        _heightField.SetValueWithoutNotify( _currentPokemon.Height );
+        _weightField.SetValueWithoutNotify( _currentPokemon.Weight );
+        _maleField.SetValueWithoutNotify( _currentPokemon.MaleRatio );
+        _femaleField.SetValueWithoutNotify( _currentPokemon.FemaleRatio );
 
         //--Evolutions
         RefreshEvolutionsList();
@@ -754,15 +938,23 @@ public class PokemonEditor : EditorWindow
 
     private void RegisterFieldCallbacks()
     {
+        _refreshListButton.RegisterCallback<ClickEvent>( evt =>
+        {
+            CreatePokemonList();
+        });
+
         _createNewPokemonButton.RegisterCallback<ClickEvent>( evt =>
         {
-            string path = EditorUtility.SaveFilePanelInProject( "Create New Pokemon", "NewPokemon", "asset", "Choose location for the new Pokemon" );
+            var folder = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>( "Assets/Resources/Pokemon" );
+            if (folder != null)
+                Selection.activeObject = folder;
+
+            string path = EditorUtility.SaveFilePanelInProject( "Create New Pokemon", "NewPokemon", "asset", "Choose location for the new Pokemon", "Assets/Resources/Pokemon" );
 
             if( string.IsNullOrEmpty( path ) )
                 return;
 
             CreateNewPokemonAsset( path );
-            RefreshPokemonList();
         });
 
         _previewAnimationTypeField.RegisterValueChangedCallback( evt =>
@@ -1003,21 +1195,77 @@ public class PokemonEditor : EditorWindow
             EditorUtility.SetDirty( _currentPokemon );
             RefreshDetailPanel();
         });
+
+        _friendshipField.RegisterValueChangedCallback( evt =>
+        {
+            if( _currentPokemon == null )
+                return;
+
+            Undo.RecordObject( _currentPokemon, "Edit Base Friendship" );
+            _currentPokemon.SetBaseFriendship( evt.newValue );
+            EditorUtility.SetDirty( _currentPokemon );
+            RefreshDetailPanel();
+        });
+
+        _heightField.RegisterValueChangedCallback( evt =>
+        {
+            if( _currentPokemon == null )
+                return;
+
+            Undo.RecordObject( _currentPokemon, "Edit Height" );
+            _currentPokemon.SetHeight( evt.newValue );
+            EditorUtility.SetDirty( _currentPokemon );
+            RefreshDetailPanel();
+        });
+
+        _weightField.RegisterValueChangedCallback( evt =>
+        {
+            if( _currentPokemon == null )
+                return;
+
+            Undo.RecordObject( _currentPokemon, "Edit Weight" );
+            _currentPokemon.SetWeight( evt.newValue );
+            EditorUtility.SetDirty( _currentPokemon );
+            RefreshDetailPanel();
+        });
+
+        _maleField.RegisterValueChangedCallback( evt =>
+        {
+            if( _currentPokemon == null )
+                return;
+
+            Undo.RecordObject( _currentPokemon, "Edit Male Ratio" );
+            _currentPokemon.SetMaleRatio( evt.newValue );
+            EditorUtility.SetDirty( _currentPokemon );
+            RefreshDetailPanel();
+        });
+
+        _femaleField.RegisterValueChangedCallback( evt =>
+        {
+            if( _currentPokemon == null )
+                return;
+
+            Undo.RecordObject( _currentPokemon, "Edit Female Ratio" );
+            _currentPokemon.SetFemaleRatio( evt.newValue );
+            EditorUtility.SetDirty( _currentPokemon );
+            RefreshDetailPanel();
+        });
+
     }
 
     private void CreateNewPokemonAsset( string path )
     {
         var pokemon = CreateInstance<PokemonSO>();
 
-        pokemon.SyncTMs( _tmDB.TMList );
-
-        AssetDatabase.CreateAsset(pokemon, path);
+        AssetDatabase.CreateAsset( pokemon, path );
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        // Reload list + select
-        RefreshPokemonList();
+        pokemon.InitFromEditor();
+        pokemon.SyncTMs( _tmDB.TMList );
 
+        // Reload list + select
+        CreatePokemonList();
         SelectPokemon( pokemon );
     }
 
@@ -1026,7 +1274,7 @@ public class PokemonEditor : EditorWindow
         _currentPokemon = pokemon;
         RefreshDetailPanel();
 
-        int index = _pokemonList.IndexOf( pokemon) ;
+        int index = _pokemonList.IndexOf( pokemon );
         if( index >= 0 )
             _pokemonListView.SetSelection( index );
     }
@@ -1050,17 +1298,20 @@ public class PokemonEditor : EditorWindow
 
         if( sheet != null && sheet.Count > 0 )
         {
-            _previewPlayer.SetCurrentSpriteSheet( sheet );
-            _previewPlayer.Play();
+            _previewPlayer.SetCurrentSpriteSheet( new( sheet ) );
         }
         else
-            _previewPlayer.Clear();
+        {
+            _previewPlayer.SetCurrentSpriteSheet( new( _noSpriteSheetAvailable ) );
+        }
+
+        _previewPlayer.Play();
     }
 
     private void GetSpriteSheet( Texture2D sheet )
     {
         string path = AssetDatabase.GetAssetPath( sheet );
-        UnityEngine.Object[] assets = AssetDatabase.LoadAllAssetsAtPath( path );
+        List<UnityEngine.Object> assets = AssetDatabase.LoadAllAssetsAtPath( path ).ToList();
 
         List<Sprite> sprites = new();
 
@@ -1076,6 +1327,7 @@ public class PokemonEditor : EditorWindow
             return;
         }
 
+        sprites.Sort( ( a, b ) => EditorUtility.NaturalCompare( a.name, b.name ) );
         AssignSpriteSheet( sheet.name, sprites );
     }
 
@@ -1107,7 +1359,7 @@ public class PokemonEditor : EditorWindow
         if( _currentPokemon == null )
             return;
 
-        if( name.Contains( "Portrait", StringComparison.OrdinalIgnoreCase ) )
+        if( name.Contains( "Portraits", StringComparison.OrdinalIgnoreCase ) )
         {
             Debug.Log( $"Sprite Sheet is a Portrait Sprite Sheet! The current Pokemon is: {_currentPokemon.Species}, Form: {_currentPokemon.Form}" );
             Undo.RecordObject( _currentPokemon, $"Assign Portrait Sprites" );
@@ -1187,28 +1439,28 @@ public class PokemonEditor : EditorWindow
         {
             case PokemonAnimationType.Idle:
 
-                if( direction == FacingDirection.Up && _currentPokemon.IdleUpSprites.Count > 0 )
+                if( direction == FacingDirection.Up && _currentPokemon.IdleUpSprites != null && _currentPokemon.IdleUpSprites.Count > 0 )
                     return _currentPokemon.IdleUpSprites;
 
-                else if( direction == FacingDirection.Down && _currentPokemon.IdleDownSprites.Count > 0 )
+                else if( direction == FacingDirection.Down && _currentPokemon.IdleDownSprites != null && _currentPokemon.IdleDownSprites.Count > 0 )
                     return _currentPokemon.IdleDownSprites;
 
-                else if( direction == FacingDirection.Left && _currentPokemon.IdleLeftSprites.Count > 0 )
+                else if( direction == FacingDirection.Left && _currentPokemon.IdleLeftSprites != null && _currentPokemon.IdleLeftSprites.Count > 0 )
                     return _currentPokemon.IdleLeftSprites;
 
-                else if( direction == FacingDirection.Right && _currentPokemon.IdleRightSprites.Count > 0 )
+                else if( direction == FacingDirection.Right && _currentPokemon.IdleRightSprites != null && _currentPokemon.IdleRightSprites.Count > 0 )
                     return _currentPokemon.IdleRightSprites;
 
-                else if( direction == FacingDirection.UpLeft && _currentPokemon.IdleUpLeftSprites.Count > 0 )
+                else if( direction == FacingDirection.UpLeft && _currentPokemon.IdleUpLeftSprites != null && _currentPokemon.IdleUpLeftSprites.Count > 0 )
                     return _currentPokemon.IdleUpLeftSprites;
 
-                else if( direction == FacingDirection.UpRight && _currentPokemon.IdleUpRightSprites.Count > 0 )
+                else if( direction == FacingDirection.UpRight && _currentPokemon.IdleUpRightSprites != null && _currentPokemon.IdleUpRightSprites.Count > 0 )
                     return _currentPokemon.IdleUpRightSprites;
 
-                else if( direction == FacingDirection.DownLeft && _currentPokemon.IdleDownLeftSprites.Count > 0 )
+                else if( direction == FacingDirection.DownLeft && _currentPokemon.IdleDownLeftSprites != null && _currentPokemon.IdleDownLeftSprites.Count > 0 )
                     return _currentPokemon.IdleDownLeftSprites;
 
-                else if( direction == FacingDirection.DownRight && _currentPokemon.IdleDownRightSprites.Count > 0 )
+                else if( direction == FacingDirection.DownRight && _currentPokemon.IdleDownRightSprites != null && _currentPokemon.IdleDownRightSprites.Count > 0 )
                     return _currentPokemon.IdleDownRightSprites;
     
                 break;

@@ -40,7 +40,7 @@ public class DialogueUI : MonoBehaviour
         yield return ActiveDialogueCoroutine;
     }
 
-    public IEnumerator StartTrainerDialogue( string dialogue, Trainer trainer )
+    public IEnumerator StartTrainerDialogue( string dialogue, BattleTrainer trainer )
     {
         ActiveDialogueCoroutine = StepThroughTrainerDialogue( dialogue, trainer );
         yield return ActiveDialogueCoroutine;
@@ -71,14 +71,14 @@ public class DialogueUI : MonoBehaviour
         _dialogueBox.SetActive( true );
     }
 
-    private void SetDialogueBox( Trainer trainer )
+    private void SetDialogueBox( BattleTrainer trainer )
     {
         _leftSpeakerNameText_1.text = trainer.TrainerName;
         _leftSpeakerName_Inside.color = trainer.DialogueColor.Trim;
         _leftSpeakerNameBox.SetActive( true );
         
-        if( trainer.TrainerSO.Portrait != null )
-            _leftPortrait_1.sprite = trainer.TrainerSO.Portrait;
+        if( trainer.Portrait != null )
+            _leftPortrait_1.sprite = trainer.Portrait;
 
         _dialogueBox_Trim.color = trainer.DialogueColor.Trim;
         _dialogueBox_Inside.color = trainer.DialogueColor.Inside;
@@ -185,8 +185,9 @@ public class DialogueUI : MonoBehaviour
         CloseDialogueBox();
     }
 
-    private IEnumerator StepThroughTrainerDialogue( string dialogue, Trainer trainer )
+    private IEnumerator StepThroughTrainerDialogue( string dialogue, BattleTrainer trainer )
     {
+        Debug.Log( $"[Battle System][Dialogue UI] The battle trainer is: {trainer} and their name is: {trainer.TrainerName}" );
         PlayerReferences.Instance.PlayerController.DisableUI();
         SetDialogueBox( trainer );
 

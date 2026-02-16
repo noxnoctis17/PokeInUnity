@@ -2,14 +2,16 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
-using UnityEditor.SceneManagement;
-using System.Resources;
 using UnityEditor;
-using Unity.VisualScripting;
+using System.Runtime.InteropServices;
+using Unity.Collections.LowLevel.Unsafe;
+using System.Threading;
 
 [Serializable]
 public class Pokemon
 {
+    [SerializeField] private string _pid;
+    [SerializeField] private Gender _gender;
     [SerializeField] private PokemonSO _pokeSO;
     [SerializeField] private string _nickName;  
     [SerializeField] private int _level;
@@ -27,17 +29,19 @@ public class Pokemon
     [SerializeField] private int _spdefEVs = 0;
     [SerializeField] private int _speEVs = 0;
 //==============================================================================
+    public string PID => _pid;
+    public Gender Gender => _gender;
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
     public string NickName => _nickName;
     public Ability Ability => _ability;
+    public AbilityID AbilityID => _abilityID;
     public int CurrentAbilityIndex => _currentAbilityIndex; //--Might change these to a singular AbilityID instead of playing around with indicies, let's see how the rest of the implementation goes...
     public ItemSO HeldItem => _heldItem;
     public int Exp { get; private set; }
     public BattleItemEffect BattleItemEffect { get; set; }
+    public int Friendship { get; private set; }
     public bool CanEvolveByLevelUp { get; private set; }
-    public bool IsPlayerUnit { get; private set; }
-    public bool IsEnemyUnit { get; private set; }
     public int CurrentHP { get; set; }
     [SerializeField] private PokeBallType _currentBallType;
     public PokeBallType CurrentBallType => _currentBallType;
@@ -49,17 +53,19 @@ public class Pokemon
     public List<Move> LearnedMoves => _learnedMoves;
     public Dictionary<Stat, int> Stats { get; private set; }
     public Dictionary<Stat, int> EffortValues { get; private set; } //--Consider moving EV variables to a dictionary instead!
-    public Dictionary<Stat, int> StatStage { get; private set; }
+    public Dictionary<Stat, int> StatStages { get; private set; }
     public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers { get; private set; }
     public Dictionary<NatureID, Nature> Natures { get; private set; }
     public NatureID CurrentNature => _currentNature;
     public NatureID DefaultNature => _defaultNature;
-    public StatusCondition SevereStatus { get; private set; }
-    public StatusCondition VolatileStatus { get; private set; }
-    public StatusCondition TransientStatus { get; private set; }
+    public SevereCondition SevereStatus { get; private set; }
+    // public List<VolatileCondition> VolatileStatus { get; private set; }
+    public Dictionary<VolatileConditionID, ( VolatileCondition Condition, int Duration )> VolatileStatuses { get; private set; }
+    public TransientCondition TransientStatus { get; private set; }
+    public Dictionary<BindingConditionID, ( BindingCondition Condition, int Duration )> BindingStatuses { get; private set; }
     public int SevereStatusTime { get; set; }
-    public int VolatileStatusTime { get; set; }
     public bool TransientStatusActive { get; set; }
+    // public int BindingStatusDuration { get; set; }
     public Queue<StatusEvent> StatusChanges { get; private set; }
 //==================[ Events ]===========================================
     public event Action OnStatusChanged;
@@ -97,14 +103,86 @@ public class Pokemon
 //------------------------------------[ CONSTRUCTORS ]----------------------------------------
 //--------------------------------------------------------------------------------------------
 
-    public Pokemon( PokemonSO pokeSO, int level ){
+    public Pokemon( PokemonSO pokeSO, int level )
+    {
         _pokeSO = pokeSO;
         _level = level;
 
         Init();
     }
 
-    public Pokemon( PokemonSaveData saveData ){
+    public Pokemon( TrainerPokemon trainerPokemon )
+    {
+        _pokeSO = trainerPokemon.PokeSO;
+        _level = trainerPokemon.Level;
+
+        //--Nickname
+        if( trainerPokemon.NickName != "" )
+            _nickName = trainerPokemon.NickName;
+        else
+            _nickName = _pokeSO.Species;
+
+        //--Nature
+        InitializeNatures();
+        _defaultNature = trainerPokemon.Nature;
+        Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
+        if( _defaultNature == NatureID.None )
+            GetRandomNature();
+
+        _currentNature = _defaultNature;
+        AssignAbilityFromID( trainerPokemon.AbilityID );
+
+        //--Held Item
+        _heldItem = trainerPokemon.HeldItem;
+        SetupBattleItem();
+
+        //--Effort Points
+        _hpEVs      = trainerPokemon.HP_EVs;
+        _atkEVs     = trainerPokemon.Atk_EVs;
+        _defEVs     = trainerPokemon.Def_EVs;
+        _spatkEVs   = trainerPokemon.SpAtk_EVs;
+        _spdefEVs   = trainerPokemon.SpDef_EVs;
+        _speEVs     = trainerPokemon.Spe_EVs;
+        InitializeEVs();
+
+        //--Stats
+        CalculateStats();
+        ResetStatChanges();
+        CurrentHP = MaxHP;
+
+        //--Moves
+        _activeMoves = new();
+        for( int i = 0; i < trainerPokemon.Moves.Count; i++ )
+        {
+            if( trainerPokemon.Moves[i] == null )
+                continue;
+                
+            Move move = new( trainerPokemon.Moves[i] );
+            _activeMoves.Add( move );
+        }
+
+        //--Status
+        SevereStatus = null;
+        // VolatileStatus = new();
+        VolatileStatuses = new();
+        TransientStatus = null;
+        BindingStatuses = new();
+
+        StatusChanges = new Queue<StatusEvent>();
+
+        _currentBallType = trainerPokemon.Ball;
+        if( _currentBallType == PokeBallType.None )
+            _currentBallType = PokeBallType.PokeBall;
+
+        _pid = GeneratePID( 31, 31, 31, 31, 31, 31, (int)_defaultNature, _currentAbilityIndex, _pokeSO.Form );
+
+        //--Events
+        BattleSystem.OnBattleEnded += OnBattleEnded;
+    }
+
+    public Pokemon( PokemonSaveData saveData )
+    {
+        _pid                    = saveData.PID;
         _pokeSO                 = PokemonDB.GetPokemonBySpecies( ( saveData.Species, saveData.Form ) );
         _nickName               = saveData.NickName;
         _level                  = saveData.Level;
@@ -112,13 +190,13 @@ public class Pokemon
         _defaultNature          = saveData.DefaultNature;
         _currentAbilityIndex    = saveData.CurrentAbilityIndex;
         _heldItem               = ItemsDB.GetItemByName( saveData.HeldItem );
+        Friendship              = saveData.Friendship;
         CanEvolveByLevelUp      = saveData.CanEvolveByLevelUp;
         CurrentHP               = saveData.CurrentHP;
         Exp                     = saveData.Exp;
         _gainedEffortPoints     = saveData.GainedEffortPoints;
         RemainingEffortPoints   = saveData.RemainingEffortPoints;
         _currentBallType        = saveData.CurrentBall;
-        IsPlayerUnit            = saveData.IsPlayerUnit;
 
         InitializeEVs();
         AssignEVs( Stat.HP,         saveData.HP_EVs, true );
@@ -128,11 +206,11 @@ public class Pokemon
         AssignEVs( Stat.SpDefense,  saveData.SPDEF_EVs, true );
         AssignEVs( Stat.Speed,      saveData.SPE_EVs, true );
 
-        GetCurrentAbility();
+        GetCurrentAbilityFromIndex();
         SetupBattleItem();
 
         if( saveData.SevereStatus != null ){
-            SevereStatus = StatusConditionsDB.Conditions[saveData.SevereStatus.Value];
+            SevereStatus = SevereConditionsDB.Conditions[saveData.SevereStatus.Value];
             OnStatusChanged?.Invoke();
         }
         else
@@ -145,8 +223,9 @@ public class Pokemon
         CalculateStats();
 
         ResetStatChanges();
-        VolatileStatus = null;
+        VolatileStatuses = new();
         TransientStatus = null;
+        BindingStatuses = new();
 
         StatusChanges = new Queue<StatusEvent>();
     }
@@ -155,9 +234,11 @@ public class Pokemon
 //-------------------------------------[ FUNCTIONS ]------------------------------------------
 //--------------------------------------------------------------------------------------------
     
-    public void Init(){
+    public void Init()
+    {
         //--Set Name
-        _nickName = PokeSO.Species;
+        if(  string.IsNullOrEmpty( _nickName ) )
+            _nickName = PokeSO.Species;
 
         InitializeNatures();
         Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
@@ -165,8 +246,10 @@ public class Pokemon
             GetRandomNature();
 
         _currentNature = _defaultNature;
-        GetCurrentAbility();
+        GetCurrentAbilityFromIndex();
         SetupBattleItem();
+
+        Friendship = PokeSO.BaseFriendship;
 
         //--------GENERATE MOVES-----------
         bool populateActiveMoves = true;
@@ -175,13 +258,13 @@ public class Pokemon
 
         _activeMoves = new List<Move>();
         _learnedMoves = new List<Move>();
-        foreach( var move in PokeSO.LearnableMoves ){
+        foreach( var move in PokeSO.LearnableMoves )
+        {
             //--Add moves from the most recent down, i think until we reach max active moves
             //--once we reach max active moves, if there's still more moves we should learn
             //--from our learnset via levelup, add them to the LearnedMoves list for access later
-            if( move.LevelLearned <= Level && ActiveMoves.Count < PokemonSO.MAX_ACTIVE_MOVES && populateActiveMoves ){
+            if( move.LevelLearned <= Level && move.LevelLearned > 0 && ActiveMoves.Count < PokemonSO.MAX_ACTIVE_MOVES && populateActiveMoves )
                 ActiveMoves.Add( new Move( move.MoveSO ) );
-            }
             else if( move.LevelLearned <= Level && ActiveMoves.Count == PokemonSO.MAX_ACTIVE_MOVES )
                 LearnedMoves.Add( new Move( move.MoveSO ) );
         }
@@ -212,13 +295,17 @@ public class Pokemon
 
         //--Status
         SevereStatus = null;
-        VolatileStatus = null;
+        // VolatileStatus = new();
+        VolatileStatuses = new();
         TransientStatus = null;
+        BindingStatuses = new();
 
         StatusChanges = new Queue<StatusEvent>();
 
         if( _currentBallType == PokeBallType.None )
             _currentBallType = PokeBallType.PokeBall;
+
+        _pid = GeneratePID( 31, 31, 31, 31, 31, 31, (int)_defaultNature, _currentAbilityIndex, _pokeSO.Form );
         
         //--Events
         BattleSystem.OnBattleEnded += OnBattleEnded;
@@ -228,6 +315,7 @@ public class Pokemon
     {
         var saveData = new PokemonSaveData()
         {
+            PID = _pid,
             Species = _pokeSO.Species,
             Form = _pokeSO.Form,
             NickName = _nickName,
@@ -236,6 +324,7 @@ public class Pokemon
             DefaultNature = _defaultNature,
             CurrentAbilityIndex = _currentAbilityIndex,
             HeldItem = _heldItem.ItemName,
+            Friendship = Friendship,
             CanEvolveByLevelUp = CanEvolveByLevelUp,
             CurrentHP = CurrentHP,
             Exp = Exp,
@@ -251,7 +340,6 @@ public class Pokemon
             SevereStatus = SevereStatus?.ID,
             ActiveMoves = ActiveMoves.Select( m => m.CreateSaveData() ).ToList(),
             LearnedMoves = LearnedMoves.Select( m => m.CreateSaveData() ).ToList(),
-            IsPlayerUnit = IsPlayerUnit,
         };
 
         return saveData;
@@ -264,7 +352,40 @@ public class Pokemon
         Debug.Log( $"[Pokemon][Nature] Random Nature, {_defaultNature} chosen for {NickName}" );
     }
 
-    private void GetCurrentAbility()
+    private void AssignAbilityFromID( AbilityID id )
+    {
+        Debug.Log( $"[Pokemon][Ability] Assigning {NickName}'s ability {id} from its id!" );
+        if( PokeSO.Abilities.Count > 0 && PokeSO.Abilities.Contains( id ) )
+        {
+            Debug.Log( $"[Pokemon][Ability] id found in {PokeSO.Species} PokemonSO! Assigning..." );
+            _ability = AbilityDB.Abilities[id];
+            _abilityID = id;
+            _currentAbilityIndex = PokeSO.Abilities.IndexOf( id );
+            Debug.Log( $"[Pokemon][Ability] {NickName}'s ability info: Ability: {_ability}, ID: {_abilityID}, Index: {_currentAbilityIndex}" );
+        }
+        else if( PokeSO.Abilities.Count > 0 )
+        {
+            Debug.Log( $"[Pokemon][Ability] id not found in {PokeSO.Species} PokemonSO! Assigning first index!" );
+            _currentAbilityIndex = 0;
+            _ability = AbilityDB.Abilities[PokeSO.Abilities[_currentAbilityIndex]];
+            _abilityID = PokeSO.Abilities[_currentAbilityIndex];
+        }
+        else
+            Debug.Log( $"[Pokemon][Ability] NO abilities found in {PokeSO.Species} PokemonSO!" );
+    }
+
+    public void SkillSwap( AbilityID id )
+    {
+        _ability = AbilityDB.Abilities[id];
+        _abilityID = id;
+    }
+
+    public void ResetSkillSwap()
+    {
+        GetCurrentAbilityFromIndex();
+    }
+
+    private void GetCurrentAbilityFromIndex()
     {
         if( PokeSO.Abilities.Count != 0 )
         {
@@ -280,24 +401,41 @@ public class Pokemon
             BattleItemEffect = BattleItemDB.BattleItemEffects[_heldItem.BattleEffectID];
     }
 
-    public void SetAsPlayerUnit(){
-        IsPlayerUnit = true;
+    public void GiveHeldItem( ItemSO item )
+    {
+        if( item == null )
+            return;
+        
+        Debug.Log( $"[Held Item] Giving {NickName} held item: {item}." );
+        if( _heldItem != null )
+            Debug.Log( $"[Held Item]{NickName} was holding: {_heldItem}!" );
+
+        _heldItem = item;
+        if( item.HasBattleEffect )
+            BattleItemEffect = BattleItemDB.BattleItemEffects[_heldItem.BattleEffectID];
+
+        Debug.Log( $"[Held Item] {NickName}'s held item now is: {_heldItem}" );
     }
 
-    public void SetAsEnemyUnit(){
-        IsEnemyUnit = true;
+    public void RemoveHeldItem()
+    {
+        _heldItem = null;
+        BattleItemEffect = null;
     }
 
-    public void ChangeNickName( string name ){
+    public void ChangeNickName( string name )
+    {
         _nickName = name;
     }
 
-    public void ChangeCurrentBall( PokeBallType ball ){
+    public void ChangeCurrentBall( PokeBallType ball )
+    {
         _currentBallType = ball;
         OnDisplayInfoChanged?.Invoke();
     }
 
-    public bool CheckTypes( PokemonType type ){
+    public bool CheckTypes( PokemonType type )
+    {
         if( PokeSO.Type1 == type || PokeSO.Type2 == type )
             return true;
 
@@ -372,10 +510,10 @@ public class Pokemon
 
     public void Evolve( Evolutions evo ){
         if( _nickName == _pokeSO.Species )
-            _nickName = evo.Evolution.Species;
+            _nickName = evo.Pokemon.Species;
 
         int previousMaxHP = MaxHP;
-        _pokeSO = evo.Evolution;
+        _pokeSO = evo.Pokemon;
         CalculateStats();
         UpdateHPOnLevelup( previousMaxHP );
         OnDisplayInfoChanged?.Invoke();
@@ -396,7 +534,8 @@ public class Pokemon
             return false;
     }
 
-    public void LearnLevelUpMove( MoveSO newMove ){
+    public void LearnLevelUpMove( MoveSO newMove )
+    {
         if( ActiveMoves.Count < PokemonSO.MAX_ACTIVE_MOVES )
             ActiveMoves.Add( new Move( newMove ) );
         else
@@ -561,46 +700,48 @@ public class Pokemon
         }
     }
 
-    private int GetStat( Stat stat ){
-        int statValue = Stats[stat];
+    private int GetStat( Stat stat )
+    {
+        float statValue = Stats[stat];
 
-        int stage = StatStage[stat];
-        var changeModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
+        int stage = StatStages[stat];
+        var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
         var directModifier = DirectStatModifiers[stat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm );
 
-        // Debug.Log( $"The Modifier value applied to {stat} is: {directModifier}" );
+        if( stage >= 0 )
+            statValue *= stageModifier[stage];
+        else
+            statValue /= stageModifier[-stage];
 
         //--Apply Direct Stat Change (Burn, Paralysis, Ruin Ability, Weather stat change, etc.)
-        // Debug.Log( $"Stat Value before direct modifier: {statValue}" );
-        statValue = Mathf.FloorToInt( statValue * directModifier );
-        // Debug.Log( $"Stat Value after direct modifier: {statValue}" );
+        statValue *= directModifier;
 
-        if( stage >= 0 )
-            statValue = Mathf.FloorToInt( statValue * changeModifier[stage] );
-        else
-            statValue = Mathf.FloorToInt( statValue / changeModifier[-stage] );
+        int final = Mathf.FloorToInt( statValue );
 
-        return statValue;
+        return final;
     }
 
-    public void ApplyStatStageChange( List<StatStage> statStages, Pokemon source ){
+    public void ApplyStatStageChange( List<StatStage> statStages, StageChangeSource source )
+    {
         for( int i = 0; i < statStages.Count; i++ )
             Debug.Log( $"Stat Stage Changed! Stat effected: {statStages[i].Stat}, Changed by: {statStages[i].Change}" );
         //--We convert our stat stages to a dictionary because the AbilityDB action takes in a dictionary that lets us remove a boost from it.
         //--We then use the modified dictionary, by looping through and providing the appropriate change in stat stages, which should never alter
         //--an ability-blocked stat. Abilities that utilize OnStatStageChange have their ability "activated" whenever, where ever we call ApplyStatChange() on a pokemon that has an appropriate ability.
         var stageDictionary = statStages.ToDictionary( x => x.Stat, x => x.Change );
-        Ability?.OnStatStageChange?.Invoke( stageDictionary, source, this );
-        // Debug.Log( $"{NickName}'s ability is: {Ability?.Name}. {source.NickName}'s ability is: {source.Ability?.Name}" );
+        Ability?.OnStatStageChange?.Invoke( stageDictionary, source.Pokemon, this );
+
+        if( MoveConditionDB.Conditions.ContainsKey( source.MoveName ) )
+            MoveConditionDB.Conditions[source.MoveName]?.OnStatStageChange?.Invoke( stageDictionary, source.Pokemon, this );
 
         foreach( var kvp in stageDictionary )
         {
             var stat = kvp.Key;
             var change = kvp.Value;
 
-            Debug.Log( $"{NickName}'s {stat} was {GetStat( stat )}!" );
-            StatStage[stat] = Mathf.Clamp( StatStage[stat] + change, -6, 6 );
-            Debug.Log( $"{NickName}'s {stat} is now {GetStat( stat )}!" );
+            // Debug.Log( $"{NickName}'s {stat} was {GetStat( stat )}!" );
+            StatStages[stat] = Mathf.Clamp( StatStages[stat] + change, -6, 6 );
+            // Debug.Log( $"{NickName}'s {stat} is now {GetStat( stat )}!" );
 
             if( change == 1 )
                 AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} rose by {Mathf.Abs( change )} stage!", change );
@@ -614,12 +755,41 @@ public class Pokemon
                 AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} sharply decreased by {Mathf.Abs( change )} stages!", change );
             if( change == -6 )
                 AddStatusEvent( StatusEventType.StatChange, $"{NickName}'s {stat} has bottomed out!", change );
+
+            if( BattleSystem.Instance != null )
+            {
+                if( change > 0 )
+                {
+                    var unit = BattleSystem.Instance.GetPokemonBattleUnit( this );
+                    unit.SetFlagActive( UnitFlags.IncreasedStatStage, true );
+                }
+                else if( change < 0 )
+                {
+                    var unit = BattleSystem.Instance.GetPokemonBattleUnit( this );
+                    unit.SetFlagActive( UnitFlags.LoweredStatStage, true );
+                }
+            }
         }
+
+        Ability?.OnAfterStatStageChange?.Invoke( stageDictionary, source.Pokemon, this );
     }
 
-    public void ApplyDirectStatModifier( Stat stat, DirectModifierCause cause, float modifier ){
+    public List<StatStage> GetStatStages()
+    {
+        List<StatStage> changes = new();
+
+        foreach( var kvp in StatStages )
+        {
+            StatStage ss = new() { Stat = kvp.Key, Change = kvp.Value };
+            changes.Add( ss );
+        }
+
+        return changes;
+    }
+
+    public void ApplyDirectStatModifier( Stat stat, DirectModifierCause cause, float modifier )
+    {
         Debug.Log( $"{NickName} received a Direct Stat Modifier {cause}: {stat} x {modifier}" );
-        
         if( !DirectStatModifiers.TryGetValue( stat, out var statDict ) )
         {
             statDict = new();
@@ -648,8 +818,9 @@ public class Pokemon
         }
     }
 
-    private void ResetStatChanges(){
-        StatStage = new Dictionary<Stat, int>()
+    public void ResetStatChanges()
+    {
+        StatStages = new Dictionary<Stat, int>()
         {
             { Stat.HP,          0 },
             { Stat.Attack,      0 },
@@ -741,6 +912,12 @@ public class Pokemon
         OnDisplayInfoChanged?.Invoke();
     }
 
+    public void SetHP( int value )
+    {
+        CurrentHP = Mathf.Clamp( value, 0, MaxHP );
+        OnDisplayInfoChanged?.Invoke();
+    }
+
     private void UpdateHPOnLevelup( int previousMaxHP ){
         bool isFainted = false;
         if( CurrentHP == 0 )
@@ -755,98 +932,212 @@ public class Pokemon
         CurrentHP = newCurrentHP;
     }
 
-    public void SetSevereStatus( StatusConditionID conditionID, EffectSource effectSource = EffectSource.Move ){
-        //--This lets Faint override a previous status, since statuses can't replace each other normally.
-        if( SevereStatus != null && conditionID == StatusConditionID.FNT ){
-            SevereStatus = StatusConditionsDB.Conditions[conditionID];
-        }
-        else if( SevereStatus != null )
+    public void SetSevereStatus( SevereConditionID id, StatusEffectSource source )
+    {
+        //--This lets Faint override a previous status, since statuses can't replace each other normally. //--Faint is now handled directly in SetFainted() --02/11/26
+        // if( SevereStatus != null && id == SevereConditionID.FNT )
+        // {
+        //     SevereStatus = SevereConditionsDB.Conditions[id];
+        // }
+        if( SevereStatus != null )
             return;
 
-        bool canApply = CanApplySevereStatus( conditionID, effectSource );
+        bool canApply = CanApplySevereStatus( id, source );
 
         if( !canApply )
             return;
 
-        SevereStatus = StatusConditionsDB.Conditions[conditionID];
+        SevereStatus = SevereConditionsDB.Conditions[id];
 
-        if( BattleSystem.BattleIsActive )
-        {
-            SevereStatus?.OnApplyStatus?.Invoke( this );
-            SevereStatus?.OnStart?.Invoke( this );
-            AddStatusEvent( $"{_pokeSO.Species} {SevereStatus.StartMessage}" );
-        }
+        SevereStatus?.OnApplyStatus?.Invoke( this );
+        SevereStatus?.OnStart?.Invoke( this );
+        AddStatusEvent( $"{_pokeSO.Species} {SevereStatus.StartMessage}" );
+
+        Ability?.OnSetSevereStatus?.Invoke( id, this, source );
 
         OnStatusChanged?.Invoke();
     }
 
-    private bool CanApplySevereStatus( StatusConditionID conditionID, EffectSource effectSource = EffectSource.Move )
+    public void SyncSevereStatus( SevereConditionID id )
     {
-        bool canApply = Ability?.OnTrySetSevereStatus?.Invoke( conditionID, this, effectSource ) ?? true;
+        SevereStatus = SevereConditionsDB.Conditions[id];
+    }
+
+    private bool CanApplySevereStatus( SevereConditionID id, StatusEffectSource source )
+    {
+        bool canApply = Ability?.OnTrySetSevereStatus?.Invoke( id, this, source ) ?? true;
         if( !canApply )
             return false;
 
-        if( conditionID == StatusConditionID.BRN && CheckTypes( PokemonType.Fire ) )
+        if( id == SevereConditionID.BRN && CheckTypes( PokemonType.Fire ) )
             return false;
 
-        if( conditionID == StatusConditionID.PAR && CheckTypes( PokemonType.Electric ) )
+        if( id == SevereConditionID.PAR && CheckTypes( PokemonType.Electric ) )
             return false;
 
-        if( conditionID == StatusConditionID.FBT && CheckTypes( PokemonType.Ice ) )
+        if( id == SevereConditionID.FBT && CheckTypes( PokemonType.Ice ) )
             return false;
 
-        if( ( conditionID == StatusConditionID.PSN || conditionID == StatusConditionID.TOX ) && CheckTypes( PokemonType.Steel ) )
+        if( ( id == SevereConditionID.PSN || id == SevereConditionID.TOX ) && CheckTypes( PokemonType.Steel ) )
             return false;
+
+        //--Safeguard
+        if( BattleSystem.Instance != null )
+        {
+            var bs = BattleSystem.Instance;
+            var unit = bs.GetPokemonBattleUnit( this );
+            var court = bs.Field.GetUnitCourt( unit );
+
+            if( court.Conditions.ContainsKey( CourtConditionID.SafeGuard ) && source.Pokemon != this && source.Pokemon.AbilityID != AbilityID.Infiltrator )
+            {
+                if( source.Source == EffectSource.Ability )
+                    return false;
+
+                if( source.Source == EffectSource.Move )
+                    return false;
+            }
+        }
 
         return true;
     }
 
-    public void CureSevereStatus(){
-        if( SevereStatus != null && SevereStatus.ID == StatusConditionID.BRN )
-            RemoveDirectStatModifier( Stat.Attack, DirectModifierCause.BRN );
+    public void CureSevereStatus()
+    {
+        // if( SevereStatus != null && SevereStatus.ID == SevereConditionID.BRN )
+            // RemoveDirectStatModifier( Stat.Attack, DirectModifierCause.BRN );
 
-        if( SevereStatus != null && SevereStatus.ID == StatusConditionID.FBT )
-            RemoveDirectStatModifier( Stat.SpAttack, DirectModifierCause.FBT );
+        // if( SevereStatus != null && SevereStatus.ID == SevereConditionID.FBT )
+            // RemoveDirectStatModifier( Stat.SpAttack, DirectModifierCause.FBT );
 
-        if( SevereStatus != null && SevereStatus.ID == StatusConditionID.PAR )
+        if( SevereStatus != null && SevereStatus.ID == SevereConditionID.PAR )
             RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.PAR );
 
         SevereStatus = null;
         OnStatusChanged?.Invoke(); //--For now this just sets the severe status icon in the battlehud
     }
 
-    public void SetVolatileStatus( StatusConditionID conditionID, EffectSource effectSource = EffectSource.Move ){
-        if( VolatileStatus != null )
-            return;
+    public void SetVolatileStatus( VolatileConditionID id, StatusEffectSource source, int duration = -1 ) //--consider adding the attacker or something as well
+    {
+        Debug.Log( $"[Volatile Status] Trying to set Volatile Status {id} on {NickName}!" );
+        if( VolatileStatuses == null )
+            VolatileStatuses = new();
 
-        bool canApply = Ability?.OnTrySetVolatileStatus?.Invoke( conditionID, this, effectSource ) ?? true;
+        bool canApply = CanApplyVolatileStatus( id, source );
 
         if( !canApply )
             return;
 
-        VolatileStatus = StatusConditionsDB.Conditions[conditionID];
-        VolatileStatus?.OnStart?.Invoke( this );
-        AddStatusEvent( $"{_pokeSO.Species} {VolatileStatus.StartMessage}" );
-        // Debug.Log( $"{_pokeSO.Species} has been afflicted with: {ConditionsDB.Conditions[conditionID].Name}" );
-        // OnStatusChanged?.Invoke(); -------will add some visual effect for volatile statuses eventually
+        Debug.Log( $"[Volatile Status] Can be applied! Checking if it's not already in the list..." );
+        var condition = VolatileConditionsDB.Conditions[id];
+
+        Debug.Log( $"[Volatile Status] Adding {id} to {NickName}'s Volatile Statuses!" );
+        VolatileStatuses.Add( id, ( condition, condition.Duration ) );
+
+        condition?.OnStart?.Invoke( this );
+        Ability?.OnSetVolatileStatus?.Invoke( id, this, source );
+
+        AddStatusEvent( $"{_pokeSO.Species} {condition.StartMessage}" );
     }
 
-    public void CureVolatileStatus(){
-        VolatileStatus = null;
-        // OnStatusChanged?.Invoke(); -------will add some visual effect for volatile statuses eventually
-    }
-
-    public void SetTransientStatus( StatusConditionID id )
+    private bool CanApplyVolatileStatus( VolatileConditionID id, StatusEffectSource source )
     {
+        if( VolatileStatuses.ContainsKey( id ) )
+            return false;
+
+        bool ability = Ability?.OnTrySetVolatileStatus?.Invoke( id, this, source ) ?? true;
+        if( !ability )
+            return false;
+
+        if( id == VolatileConditionID.Infatuation )
+        {
+            if( _gender == source.Pokemon.Gender)
+                return false;
+        }
+
+        //--Safeguard
+        if( id == VolatileConditionID.Confusion || id == VolatileConditionID.Yawn )
+        {
+            if( BattleSystem.Instance != null )
+            {
+                var bs = BattleSystem.Instance;
+                var unit = bs.GetPokemonBattleUnit( this );
+                var court = bs.Field.GetUnitCourt( unit );
+
+                if( court.Conditions.ContainsKey( CourtConditionID.SafeGuard ) && source.Pokemon != this && source.Pokemon.AbilityID != AbilityID.Infiltrator )
+                {
+                    if( source.Source == EffectSource.Ability )
+                        return false;
+
+                    if( source.Source == EffectSource.Move )
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public void CureVolatileStatus( VolatileConditionID id )
+    {
+        if( VolatileStatuses.ContainsKey( id ) )
+            VolatileStatuses.Remove( id );
+    }
+
+    public void SetVolatileStatusTime( VolatileConditionID id, int duration )
+    {
+        if( !VolatileStatuses.TryGetValue( id, out var status ) )
+            return;
+
+        status.Duration = duration;
+        VolatileStatuses[id] = status;
+    }
+
+    public Dictionary<VolatileConditionID, ( VolatileCondition Condition, int duration )> GetBatonPassStatuses()
+    {
+        Dictionary<VolatileConditionID, ( VolatileCondition Condition, int duration )> passStatuses = new();
+
+        foreach( var kvp in VolatileStatuses )
+        {
+            if( kvp.Value.Condition.Passable )
+                passStatuses.Add( kvp.Key, kvp.Value );
+            else
+                continue;
+        }
+
+        return passStatuses;
+    }
+
+    public void ClearAllVolatileStatus()
+    {
+        // VolatileStatus.Clear();
+        VolatileStatuses.Clear();
+    }
+
+    public void SetTransientStatus( TransientConditionID id, StatusEffectSource source )
+    {
+        if( !CanApplyTransientStatus( id ) )
+            return;
+            
         Debug.Log( $"SetTransientStatus()" );
         //--May need to limit to one transient status at a time
-        TransientStatus = StatusConditionsDB.Conditions[id];
+        TransientStatus = TransientConditionsDB.Conditions[id];
+        TransientStatusActive = true;
         TransientStatus?.OnStart?.Invoke( this );
 
         if( TransientStatus != null )
         {
             Debug.Log( $"{NickName} was Transiently affected by {TransientStatus.Name}! TransientStatusActive is: {TransientStatusActive}" );
         }
+
+        Ability?.OnSetTransientStatus?.Invoke( id, this, source );
+    }
+
+    private bool CanApplyTransientStatus( TransientConditionID id )
+    {
+        if( id == TransientConditionID.Flinch && AbilityID == AbilityID.InnerFocus )
+            return false;
+        else
+            return true;
     }
 
     public void CureTransientStatus()
@@ -854,42 +1145,99 @@ public class Pokemon
         if( TransientStatus != null )
             TransientStatus = null;
 
+        TransientStatus?.OnExit?.Invoke( this );
         TransientStatusActive = false;
     }
 
-    public Move GetRandomMove(){
+    public void SetBindingStatus( BindingConditionID id, StatusEffectSource source )
+    {
+        Debug.Log( $"Setting a binding status!" );
+        if( BindingStatuses == null )
+            BindingStatuses = new();
+
+        var status = BindingConditionsDB.Conditions[id];
+        if( BindingStatuses.ContainsKey( id ) )
+            return;
+
+        BindingStatuses.Add( id, ( status, status.Duration ) );
+        
+        status?.OnStart?.Invoke( this );
+        Ability?.OnSetBindingStatus?.Invoke( id, this, source );
+
+        AddStatusEvent( $"{_pokeSO.Species} {status.StartMessage}" );
+    }
+
+    public void CureBindingStatus()
+    {
+        if( BindingStatuses != null )
+            BindingStatuses = null;
+    }
+
+    public Move GetRandomMove()
+    {
         int r = UnityEngine.Random.Range( 0, ActiveMoves.Count );
         return ActiveMoves[r];
+    }
+
+    public Move GetRandomMoveExcluding( Move move )
+    {
+        List<Move> selection = new();
+        for( int i = 0; i < _activeMoves.Count; i++ )
+        {
+            if( _activeMoves[i] == move )
+                continue;
+            else
+                selection.Add( _activeMoves[i] );
+        }
+
+        int r = UnityEngine.Random.Range( 0, selection.Count );
+        return selection[r];
     }
 
     public void OnApplyStatus(){
         SevereStatus?.OnApplyStatus?.Invoke( this );
     }
 
-    public bool OnBeforeTurn(){
+    public bool OnBeforeTurn_Severe(){
         // Debug.Log( $"Severe Status is: {SevereStatus?.ID}, and has: {SevereStatusTime} turns left" );
         if( SevereStatus?.OnBeforeTurn != null )
             return SevereStatus.OnBeforeTurn( this );
 
-        //--Volatile Status
-        if( VolatileStatus?.OnBeforeTurn != null )
-            return VolatileStatus.OnBeforeTurn( this );
+        return true;
+    }
 
-        //--Transient Status
-        if( TransientStatus?.OnBeforeTurn != null )
-            return TransientStatus.OnBeforeTurn( this );
+    public bool OnBeforeTurn_Volatile()
+    {
+        //--Volatile Status
+        if( VolatileStatuses != null && VolatileStatuses.Count > 0 )
+        {
+            foreach( var kvp in VolatileStatuses )
+            {
+                bool success = kvp.Value.Condition?.OnBeforeTurn?.Invoke( this ) ?? true;
+                if( !success )
+                    return false;
+                else
+                    continue;
+            }
+        }
 
         return true;
     }
 
-    public void OnAfterTurn(){
-        SevereStatus?.OnAfterTurn?.Invoke( this );
-        VolatileStatus?.OnAfterTurn?.Invoke( this );
-        TransientStatus?.OnAfterTurn?.Invoke( this ); //--probably for enabling protect!
+    public bool OnBeforeTurn_Transient()
+    {
+        //--Transient Status
+        if( TransientStatus?.OnBeforeTurn != null )
+            return TransientStatus.OnBeforeTurn( this );
+        else
+            return true;
     }
 
-    public void OnBattleEnded(){
-        CureVolatileStatus();
+    public void OnBattleEnded()
+    {
+        ClearAllVolatileStatus();
+        CureTransientStatus();
+        CureBindingStatus();
         ResetStatChanges();
         CalculateStats();
     }
@@ -897,7 +1245,9 @@ public class Pokemon
     public void FullHeal()
     {
         CureSevereStatus();
-        CureVolatileStatus();
+        ClearAllVolatileStatus();
+        CureTransientStatus();
+        CureBindingStatus();
         ResetStatChanges();
         CalculateStats();
         CurrentHP = MaxHP;
@@ -908,9 +1258,15 @@ public class Pokemon
         CalculateStats();
     }
 
+    public void SetFainted()
+    {
+        SevereStatus = SevereConditionsDB.Conditions[SevereConditionID.FNT];
+        CurrentHP = 0;
+    }
+
     public bool IsFainted()
     {
-        return CurrentHP <= 0 || SevereStatus?.ID == StatusConditionID.FNT;
+        return CurrentHP <= 0 || SevereStatus?.ID == SevereConditionID.FNT;
     }
 
     public void AddStatusEvent( StatusEventType type, string message, int change = 0 )
@@ -920,11 +1276,47 @@ public class Pokemon
 
     public void AddStatusEvent( string message, int change = 0 )
     {
+        Debug.Log( $"[Status Event] Adding status event string {message}" );
         StatusChanges.Enqueue( new( StatusEventType.Text, message, change ) );
+    }
+
+    private string GeneratePID( int hpIV, int atkIV, int defIV, int spatkIV, int spdefIV, int speIV, int natureID, int abilityIndex, int formIndex )
+    {
+        int trainerID = PlayerReferences.Instance.PlayerTrainer.TrainerID;
+        int gender;
+
+        if( Gender == Gender.Male )
+            gender = 0;
+        else if( Gender == Gender.Female )
+            gender = 1;
+        else
+            gender = 2;
+
+        string pidString =
+        $"{gender:D2}" +
+        $"{hpIV:D2}" +
+        $"{atkIV:D2}" +
+        $"{defIV:D2}" +
+        $"{spatkIV:D2}" +
+        $"{spdefIV:D2}" +
+        $"{speIV:D2}" +
+        $"{natureID:D2}" +
+        $"{abilityIndex:D2}" +
+        $"{formIndex:D2}" +
+        $"{trainerID:D4}";
+
+        Debug.Log( $"{NickName}'s PID: {pidString}" );
+        return pidString;
+    }
+
+    public void CloneOverridePID( string id )
+    {
+        _pid = id;
     }
 
 }
 
+public enum Gender { Male, Female, None, }
 public enum NatureID { None, Neutral, Lonely, Brave, Adamant, Naughty, Bold, Relaxed, Impish, Lax, Timid, Hasty, Jolly, Naive, Modest, Mild, Quiet, Rash, Calm, Gentle, Sassy, Careful }
 public class Nature
 {
@@ -940,7 +1332,7 @@ public enum DirectModifierCause
     Tailwind, Reflect, LightScreen,
     ChoiceBand, ChoiceSpecs, ChoiceScarf,
     LightBall, Guts, MarvelScale,
-    SolarPower,
+    SolarPower, SandVeil, Hustle,
 
 }
 
@@ -955,6 +1347,7 @@ public class DamageDetails
 [Serializable]
 public class PokemonSaveData
 {
+    public string PID;
     public string Species;
     public int Form;
     public string NickName;
@@ -963,6 +1356,7 @@ public class PokemonSaveData
     public NatureID DefaultNature;
     public int CurrentAbilityIndex;
     public string HeldItem;
+    public int Friendship;
     public bool CanEvolveByLevelUp;
     public PokeBallType CurrentBall;
     public int CurrentHP;
@@ -975,14 +1369,12 @@ public class PokemonSaveData
     public int SPATK_EVs;
     public int SPDEF_EVs;
     public int SPE_EVs;
-    public StatusConditionID? SevereStatus;
+    public SevereConditionID? SevereStatus;
     public List<MoveSaveData> ActiveMoves;
     public List<MoveSaveData> LearnedMoves;
-    public bool IsPlayerUnit;
 }
 
 public enum StatusEventType { Text, Damage, StatChange, SevereStatusDamage, VolatileStatusDamage, SevereStatusPassive, VolatileStatusPassive, AbilityCutIn, Heal }
-
 public class StatusEvent
 {
     public StatusEventType Type { get; private set; }
@@ -995,4 +1387,19 @@ public class StatusEvent
         Message = message;
         StageChange = change;
     }
+}
+
+public enum StageChangeSourceType { Move, Ability, Weather, Court }
+public class StageChangeSource
+{
+    public Pokemon Pokemon { get; set; }
+    public string MoveName { get; set; }
+    public StageChangeSourceType Source { get; set; }
+}
+
+public enum EffectSource { Move, Ability, Item, Court, Phazed, Drowsy }
+public class StatusEffectSource
+{
+    public Pokemon Pokemon { get; set; }
+    public EffectSource Source { get; set; }
 }

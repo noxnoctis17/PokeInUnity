@@ -14,4 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _name: Kitsu
   _trainerClass: 6
+  _skillLevel: 80
   _portrait: {fileID: 21300000, guid: c2c7702f2cf71854f912a63d4a5300ab, type: 3}
+  _dialogueColor: {fileID: 11400000, guid: ad671d68783857748ac8c25caf995908, type: 2}
+  _battleTheme: 5
+  _party: []

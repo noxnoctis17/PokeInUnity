@@ -127,7 +127,7 @@ Transform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 4471171150365213618}
   - {fileID: 2148619039245115475}
@@ -478,7 +478,7 @@ GameObject:
   - component: {fileID: 8647949782049962077}
   - component: {fileID: 5710010954320444033}
   - component: {fileID: 37269934942262741}
-  - component: {fileID: 2978490516173425355}
+  - component: {fileID: 3319177255208663469}
   - component: {fileID: 5504983208346184905}
   - component: {fileID: 7972416213339437236}
   - component: {fileID: 2109925629408453506}
@@ -501,7 +501,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 3.5, y: 3.5, z: 3.5}
+  m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 8099696588271180299}
@@ -607,7 +607,8 @@ MonoBehaviour:
   _animator: {fileID: 2797354020689292116}
   _speed: 7
   _runMultiplier: 1.5
---- !u!114 &2978490516173425355
+  _rotationPerFrame: 5
+--- !u!114 &3319177255208663469
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -616,24 +617,33 @@ MonoBehaviour:
   m_GameObject: {fileID: 7993903386403970428}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f41f5ad83cc7f1643a4bbfb4554c410f, type: 3}
+  m_Script: {fileID: 11500000, guid: ebecb74abd79357489c784a8f350329a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _isPlayerParty: 1
-  _isEnemyParty: 0
-  _partyPokemon:
-  - _pokeSO: {fileID: 11400000, guid: 634ad68f5c0cc414683f8e161754da62, type: 2}
-    _level: 15
+  _activeParty:
+  - _pokeSO: {fileID: 11400000, guid: 8701d9a7f6d9b454299d897e84cbe8b0, type: 2}
     _nickName: 
-    CurrentBallType: 1
-  - _pokeSO: {fileID: 11400000, guid: 42fea52d1abeae7448a3c262cc9c23de, type: 2}
-    _level: 100
-    _nickName: 
-    CurrentBallType: 1
-  - _pokeSO: {fileID: 11400000, guid: 2e07951654110f2459460850d94c21fe, type: 2}
-    _level: 25
-    _nickName: 
-    CurrentBallType: 2
+    _level: 9
+    _currentNature: 4
+    _defaultNature: 0
+    _abilityID: 0
+    _currentAbilityIndex: 0
+    _heldItem: {fileID: 11400000, guid: f04ed53fb2be00649ba51ddac255c264, type: 2}
+    _gainedEffortPoints: 20
+    _hpEVs: 0
+    _atkEVs: 0
+    _defEVs: 0
+    _spatkEVs: 0
+    _spdefEVs: 0
+    _speEVs: 0
+    _currentBallType: 2
+    _activeMoves: []
+    _learnedMoves: []
+    _preSelectedMoves: []
+  _trainerClass: 9
+  _portrait: {fileID: 21300000, guid: 54a8c040590f5db4c88b5dd32e611670, type: 3}
+  _dialogueColor: {fileID: 11400000, guid: bf5ac1436ecaceb4e8b6b91a4b981553, type: 2}
+  TrainerName: Catch
 --- !u!114 &5504983208346184905
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -708,7 +718,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be11f40d2ba62064ab41c76c79082966, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  radius: 0.35
+  radius: 0.4
 --- !u!1 &8037339612433971862
 GameObject:
   m_ObjectHideFlags: 0
@@ -786,7 +796,7 @@ Transform:
   m_GameObject: {fileID: 8237588402114524832}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

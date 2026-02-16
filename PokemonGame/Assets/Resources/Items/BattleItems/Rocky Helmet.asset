@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dcba21b75f9344940866519711dadf08, type: 3}
+  m_Name: Rocky Helmet
+  m_EditorClassIdentifier: 
+  _itemCategory: 3
+  _itemName: Rocky Helmet
+  _itemDescription: "An item to be held by a Pok\xE9mon. If another Pok\xE9mon makes
+    direct contact with the holder, that Pok\xE9mon will be damaged."
+  _icon: {fileID: 21300000, guid: dc14e5dd757af1e47a0d65a0bcc0234c, type: 3}
+  _hasBattleEffect: 1
+  _battleEffectID: 19
+  _flingPower: 60

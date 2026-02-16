@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-using UnityEditor.Experimental.GraphView;
-using UnityEditor;
 using System.Linq;
 
 [CreateAssetMenu( menuName = "Pokemon/New Pokemon" )]
@@ -21,7 +19,6 @@ public class PokemonSO : ScriptableObject
     [SerializeField] private string _description;
     public string Description => _description;
 
-    //--Base Stats baaaaaaybbbeeeeeeeeeeeee
 #region Base Stats
 
     [Header("Base Stats")]
@@ -35,6 +32,12 @@ public class PokemonSO : ScriptableObject
     [SerializeField] int _expYield;
     [SerializeField] int _effortPointsYield;
     [SerializeField] GrowthRate _growthRate;
+    [SerializeField] private int _baseFriendship;
+    [SerializeField] private int _height;
+    [SerializeField] private int _weight;
+    [SerializeField] private int _maleRatio;
+    [SerializeField] private int _femaleRatio;
+
 
     //--Properties
     public int MaxHP                => _maxHP;
@@ -47,6 +50,11 @@ public class PokemonSO : ScriptableObject
     public int ExpYield             => _expYield;
     public int EffortYield          => _effortPointsYield;
     public GrowthRate GrowthRate    => _growthRate;
+    public int BaseFriendship => _baseFriendship;
+    public int Height => _height;
+    public int Weight => _weight;
+    public int MaleRatio => _maleRatio;
+    public int FemaleRatio => _femaleRatio;
 
 #endregion
 
@@ -134,6 +142,25 @@ public class PokemonSO : ScriptableObject
     public static int MAXLEVEL { get; set; } = 100;
     public static int MAX_ACTIVE_MOVES { get; set; } = 4;
 
+    public bool CanLearn( MoveSO move )
+    {
+        for( int i = 0; i < _learnableMoves.Count; i++ )
+        {
+            var levelUpMove = _learnableMoves[i];
+            if( levelUpMove.MoveSO == move )
+                return true;
+        }
+
+        for( int i = 0; i < TeachableMoves.Keys.Count; i++ )
+        {
+            var tmMove = TeachableMoves.Keys.ElementAt( i );
+            if( tmMove == move )
+                return true;
+        }
+
+        return false;
+    }
+
     public int GetExpForLevel( int level ){
 
         //--Fast
@@ -206,6 +233,20 @@ public class PokemonSO : ScriptableObject
 
         if( _tmDB != null )
             BuildTMDB();
+    }
+
+    public void InitFromEditor()
+    {
+        _species = name;
+        _learnableMoves = new();
+        _idleUpSprites = new();
+        _idleDownSprites = new();
+        _idleLeftSprites = new();
+        _idleRightSprites = new();
+        _idleUpLeftSprites = new();
+        _idleUpRightSprites = new();
+        _idleDownLeftSprites = new();
+        _idleDownRightSprites = new();
     }
 
     //--Dex Number
@@ -300,6 +341,31 @@ public class PokemonSO : ScriptableObject
         _growthRate = value;
     }
 
+    public void SetBaseFriendship( int friend )
+    {
+        _baseFriendship = friend;
+    }
+
+    public void SetHeight( int height )
+    {
+        _height = height;
+    }
+
+    public void SetWeight( int weight )
+    {
+        _weight = weight;
+    }
+
+    public void SetMaleRatio( int male )
+    {
+        _maleRatio = male;
+    }
+
+    public void SetFemaleRatio( int fem )
+    {
+        _femaleRatio = fem;
+    }
+
     //--Abilities
     public void AddAbility( AbilityID ability )
     {
@@ -340,6 +406,16 @@ public class PokemonSO : ScriptableObject
         _evolutions[index].SetEvolutionItem( item );
     }
 
+    public void SetEvolutionFriendship( int index, int friend )
+    {
+        _evolutions[index].SetEvolutionFriendship( friend );
+    }
+
+    public void SetEvolutionTime( int index, TimeOfDay time )
+    {
+        _evolutions[index].SetEvolutionTime( time );
+    }
+
     public void RemoveEvolution( int index )
     {
         if ( index < 0 || index >= _evolutions.Count )
@@ -352,6 +428,14 @@ public class PokemonSO : ScriptableObject
     public void AddLevelUpMove()
     {
         _learnableMoves.Add( new() );
+    }
+
+    public void AddLevelUpMove( LearnableMoves move )
+    {
+        if( _learnableMoves == null || _learnableMoves.Count == 0 )
+            _learnableMoves = new();
+            
+        _learnableMoves.Add( move );
     }
 
     public void SetLevelUpMove( int index, MoveSO move )
@@ -370,6 +454,21 @@ public class PokemonSO : ScriptableObject
             return;
 
         _learnableMoves.RemoveAt( index );
+    }
+
+    public void SortLevelUpMovesByLevel()
+    {
+        _learnableMoves.Sort( ( a, b ) =>
+        {
+            int levelComapre = a.LevelLearned.CompareTo( b.LevelLearned );
+            if( levelComapre != 0 )
+                return levelComapre;
+
+            if( a.MoveSO == null || b.MoveSO == null )
+                return 0;
+
+            return string.Compare( a.MoveSO.Name, b.MoveSO.Name, StringComparison.Ordinal );
+        });
     }
 
     //--Teachable Moves
@@ -511,6 +610,17 @@ public class LearnableMoves
     public MoveSO MoveSO => _moveSO;
     public int LevelLearned => _levelLearned;
 
+    public LearnableMoves()
+    {
+        
+    }
+
+    public LearnableMoves( LearnableMoves copyMove )
+    {
+        _moveSO = copyMove.MoveSO;
+        _levelLearned = copyMove.LevelLearned;
+    }
+
 #if UNITY_EDITOR
 
     public void SetMove( MoveSO move )
@@ -532,9 +642,13 @@ public class Evolutions
     [SerializeField] private PokemonSO _evolution;
     [SerializeField] private int _evolutionLevel;
     [SerializeField] private EvolutionItemsSO _evolutionItem;
-    public PokemonSO Evolution => _evolution;
+    [SerializeField] private int _friendship;
+    [SerializeField] private TimeOfDay _timeOfDay;
+    public PokemonSO Pokemon => _evolution;
     public int EvolutionLevel => _evolutionLevel;
     public EvolutionItemsSO EvolutionItem => _evolutionItem;
+    public int Friendship => _friendship;
+    public TimeOfDay TimeOfDay => _timeOfDay;
 
 #if UNITY_EDITOR
 
@@ -551,6 +665,16 @@ public class Evolutions
     public void SetEvolutionItem( EvolutionItemsSO item )
     {
         _evolutionItem = item;
+    }
+
+    public void SetEvolutionFriendship( int friend )
+    {
+        _friendship = friend;
+    }
+
+    public void SetEvolutionTime( TimeOfDay time )
+    {
+        _timeOfDay = time;
     }
 
 #endif

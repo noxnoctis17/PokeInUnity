@@ -50,7 +50,7 @@ public class DialogueManager : MonoBehaviour
         yield return _dialogueUI.StartSystemMessage( dialogue, skipButton );
     }
 
-    public IEnumerator PlayTrainerDialogueCR( string dialogue, Trainer trainer )
+    public IEnumerator PlayTrainerDialogueCR( string dialogue, BattleTrainer trainer )
     {
         if( GameStateController.Instance.GameStateMachine.StateStack.Peek() != DialogueState.Instance )
             GameStateController.Instance.GameStateMachine.Push( DialogueState.Instance );

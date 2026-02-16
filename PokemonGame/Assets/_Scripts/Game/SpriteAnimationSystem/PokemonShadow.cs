@@ -53,26 +53,26 @@ public class PokemonShadow : MonoBehaviour
     }
 
     private void Update(){
-        if( _initialized ){
-            var previousAnimSheet = _currentAnimSheet;
-            UpdateMovement();
-            CalcShadowFacingDirection(); //--need to get movement information from character controller or w/e for these
-            SetIdleShadowSprites();
+        // if( _initialized ){
+        //     var previousAnimSheet = _currentAnimSheet;
+        //     UpdateMovement();
+        //     CalcShadowFacingDirection(); //--need to get movement information from character controller or w/e for these
+        //     SetIdleShadowSprites();
 
-            if( _currentAnimSheet != previousAnimSheet || _pokemonAnimator.IsWalking != _wasWalking )
-                _spriteAnimator.Start();
+        //     if( _currentAnimSheet != previousAnimSheet || _pokemonAnimator.IsWalking != _wasWalking )
+        //         _spriteAnimator.Start();
 
-            if( _pokemonAnimator.IsWalking ){
-                _spriteAnimator.HandleUpdate();
-            }else{
-                // SetIdleSprites();
-                AssignAnimations( _currentAnimSheet );
-                _spriteAnimator.Start();
-                _spriteAnimator?.HandleUpdate();
-            }
+        //     if( _pokemonAnimator.IsWalking ){
+        //         _spriteAnimator.HandleUpdate();
+        //     }else{
+        //         // SetIdleSprites();
+        //         AssignAnimations( _currentAnimSheet );
+        //         _spriteAnimator.Start();
+        //         _spriteAnimator?.HandleUpdate();
+        //     }
 
-            _wasWalking = _pokemonAnimator.IsWalking;
-        }
+        //     _wasWalking = _pokemonAnimator.IsWalking;
+        // }
     }
 
     private void LateUpdate(){

@@ -24,4 +24,7 @@ public enum RoundEndPhaseType
     StatusDuration,
     CourtDuration,
     StatusOrbs,
+    BindingMoves,
+    AquaRing,
+    AfterNextRound,
 }

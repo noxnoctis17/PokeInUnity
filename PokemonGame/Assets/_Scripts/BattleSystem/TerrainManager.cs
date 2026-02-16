@@ -9,6 +9,7 @@ public class TerrainManager : MonoBehaviour
     [SerializeField] private Material _terrainMaterial;
     [SerializeField] private Color32 _grassyColor;
     [SerializeField] private Color32 _psychicColor;
+    [SerializeField] private Color32 _blightedColor;
 
     private void Start()
     {
@@ -21,17 +22,22 @@ public class TerrainManager : MonoBehaviour
         {
             case TerrainID.None:
                 _terrain.SetActive( false );
-            break;
+                break;
 
             case TerrainID.Grassy:
                 _terrainMaterial.color = _grassyColor;
                 _terrain.SetActive( true );
-            break;
+                break;
 
             case TerrainID.Psychic:
                 _terrainMaterial.color = _psychicColor;
                 _terrain.SetActive( true );
-            break;
+                break;
+            
+            case TerrainID.Blighted:
+                _terrainMaterial.color = _blightedColor;
+                _terrain.SetActive( true );
+                break;
         }
     }
 

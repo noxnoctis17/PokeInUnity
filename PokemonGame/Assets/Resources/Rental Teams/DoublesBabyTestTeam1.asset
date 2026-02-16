@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 304c8617ebf0f4b478be9c28916cfd77, type: 3}
+  m_Name: DoublesBabyTestTeam1
+  m_EditorClassIdentifier: 
+  _rentalTeam:
+  - _pokemon: {fileID: 11400000, guid: 8701d9a7f6d9b454299d897e84cbe8b0, type: 2}
+    _nickName: 
+    _level: 9
+    _nature: 4
+    _ability: 5
+    _heldItem: {fileID: 11400000, guid: f04ed53fb2be00649ba51ddac255c264, type: 2}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 2
+    _moves:
+    - {fileID: 11400000, guid: fe7367c3d4e90ec439c9601589eb29e3, type: 2}
+    - {fileID: 11400000, guid: 2d110f4ec549ce848bdb515b074bb81f, type: 2}
+    - {fileID: 11400000, guid: 93ca3556eefcf4a4cabadd9710400371, type: 2}
+    - {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 2a04fdc84e0e6824a93a3d9f05a5f3bf, type: 2}
+    _nickName: 
+    _level: 9
+    _nature: 14
+    _ability: 10
+    _heldItem: {fileID: 11400000, guid: be5a454f8ba97f440b47ca775145999e, type: 2}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: 78d1ef5200e64e94b8fd8669361d9d68, type: 2}
+    - {fileID: 11400000, guid: e9f20dde254f60e408e4bb958167ced6, type: 2}
+    - {fileID: 11400000, guid: 429664c7643b34941a57b30b201699cf, type: 2}
+    - {fileID: 11400000, guid: a253d40f424477e48a10c36258363b8b, type: 2}

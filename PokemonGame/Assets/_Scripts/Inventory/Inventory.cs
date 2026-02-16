@@ -56,10 +56,12 @@ public class Inventory : MonoBehaviour, ISavable
     }
 
     //--Use Item
-    public ItemSO UseItem( Item item, Pokemon pokemon ){
+    public ItemSO UseItem( Item item, Pokemon pokemon )
+    {
         var itemUsed = item.ItemSO.Use( pokemon );
 
-        if( itemUsed ){
+        if( itemUsed )
+        {
             RemoveItem( item );
             return item.ItemSO;
         }

@@ -161,10 +161,12 @@ public class PokemonButton_UseItemFromPause : MonoBehaviour, IPokemonButtonConte
     private IEnumerator UseItem(){
         var itemUsed = PlayerReferences.Instance.PlayerInventory.UseItem( _bagScreen.BagDisplay.ItemSelected, _pokemon );
 
-        if( itemUsed != null ){
+        if( itemUsed != null )
+        {
             yield return DialogueManager.Instance.PlaySystemMessageCoroutine( itemUsed.UseText( _pokemon ) );
 
-            if( _bagScreen.BagDisplay.ItemSelected == null || _bagScreen.BagDisplay.ItemSelected.ItemCount == 0 ){
+            if( _bagScreen.BagDisplay.ItemSelected == null || _bagScreen.BagDisplay.ItemSelected.ItemCount == 0 )
+            {
                 yield return new WaitForEndOfFrame();
                 _bagScreen.PauseMenuStateMachine.PopState();
             }

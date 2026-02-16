@@ -17,7 +17,7 @@ public class PostBattleSummary : MonoBehaviour
     private Sprite _portrait;
     private int ExpGain;
     private int EffortGain;
-    private PokemonParty _playerParty;
+    private PlayerTrainer _playerTrainer;
     private const float MOVE_EVENT_X_IN = 0f;
     private const float MOVE_EVENT_X_STARTPOS = -575f;
 
@@ -55,7 +55,7 @@ public class PostBattleSummary : MonoBehaviour
         _summaryEvents = new();
         _activeSummaryEvents = new();
 
-        _playerParty = PlayerReferences.Instance.PlayerParty;
+        _playerTrainer = PlayerReferences.Instance.PlayerTrainer;
         gameObject.SetActive( true );
 
         StartCoroutine( GivePartyExp() );
@@ -110,7 +110,7 @@ public class PostBattleSummary : MonoBehaviour
         _summaryEvents.Enqueue( summary );
 
         //--Give Exp to each Pokemon in player's party directly
-        foreach( Pokemon pokemon in _playerParty.Party )
+        foreach( Pokemon pokemon in _playerTrainer.ActiveParty )
         {
             //--Gain EXP
             pokemon.GainExp( ExpGain );
@@ -148,7 +148,7 @@ public class PostBattleSummary : MonoBehaviour
         yield return RunSummaryEventQueue();
 
         gameObject.SetActive( false );
-        _playerParty = null;
+        _playerTrainer = null;
         ExpGain = 0;
         EffortGain = 0;
         _summaryEvents.Clear();

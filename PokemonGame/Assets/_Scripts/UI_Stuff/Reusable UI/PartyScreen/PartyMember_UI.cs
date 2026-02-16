@@ -115,7 +115,7 @@ public class PartyMember_UI : MonoBehaviour
         // Debug.Log( "PartyMember_UI: UpdateStatus()" );
         if( _pokemon.SevereStatus != null ){
             var status = _pokemon.SevereStatus.ID;
-            _severeStatusIcon.sprite = StatusConditionsDB.Conditions[status].StatusIcon;
+            _severeStatusIcon.sprite = SevereConditionsDB.Conditions[status].StatusIcon;
             _severeStatusIcon.gameObject.SetActive( true );
         }
         else

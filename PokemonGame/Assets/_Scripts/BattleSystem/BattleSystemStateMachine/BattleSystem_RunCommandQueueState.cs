@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NoxNoctisDev.StateMachine;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class BattleSystem_RunCommandQueueState : State<BattleSystem>
@@ -67,31 +68,31 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         if( _battleSystem.CommandQueue.Peek() is UseMoveCommand )
             {
                 var moveCommand = _battleSystem.CommandQueue.Peek() as UseMoveCommand;
-                if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.SingleTarget.Pokemon == null )
+                if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null )
                 {
                     //--change target if current target is fainted. if the new target has also fainted, we remove the command from the queue.
                     if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[0] )
                     {
                         moveCommand.ChangeTarget( _battleSystem.EnemyUnits[1] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                             _battleSystem.CommandQueue.Dequeue();
                     }
                     else if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[1] )
                     {
                         moveCommand.ChangeTarget( _battleSystem.EnemyUnits[0] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                             _battleSystem.CommandQueue.Dequeue();
                     }
                     else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[0] )
                     {
                         moveCommand.ChangeTarget( _battleSystem.PlayerUnits[1] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                             _battleSystem.CommandQueue.Dequeue();
                     }
                     else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[1] )
                     {
                         moveCommand.ChangeTarget( _battleSystem.PlayerUnits[0] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                             _battleSystem.CommandQueue.Dequeue();
                     }
                 }
@@ -100,7 +101,17 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
 
     private IEnumerator AfterTurnUpdate( BattleUnit user )
     {
+        //--Increase charge count. Charging becomes active and has a count of 0 on using a move that needs to charge.
+        //--After the user's turn, here, we will increment the charge. i will gate it so that it only increments if charge is 0
+        //--but theoretically charge should be set to inactive by the charge move condition's OnMoveCompleted
+        if( user.Flags[UnitFlags.Charging].IsActive && user.Flags[UnitFlags.Charging].Count == 0 )
+        {
+            user.Flags[UnitFlags.Charging].Count++;
+        }
+
+        user.Pokemon.TransientStatus?.OnAfterTurn?.Invoke( user.Pokemon ); //--probably for enabling protect!
         user.Pokemon.BattleItemEffect?.OnItemAfterTurn?.Invoke( user );
+        
         _battleSystem.AddToEventQueue( () => _battleSystem.ShowStatusChanges( user ) );
         yield return null;
         yield return _battleSystem.WaitForEventQueue();
@@ -190,10 +201,10 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
 
                 if( unit.Pokemon.CurrentHP == 0 )
                 {
-                    if( _battleSystem.BottomTrainerParty.Party.Contains( unit.Pokemon ) )
+                    if( _battleSystem.BottomTrainer1.Party.Contains( unit.Pokemon ) )
                     {
                         var activePokemon = _battleSystem.PlayerUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
-                        var nextPokemon = _battleSystem.BottomTrainerParty.GetHealthyPokemon( dontInclude: activePokemon );
+                        var nextPokemon = _battleSystem.BottomTrainer1.GetHealthyPokemon( dontInclude: activePokemon );
 
                         if( _battleSystem.CheckForBattleOver( activePokemon, nextPokemon ) )
                             break;
@@ -201,10 +212,10 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
 
                     if( _battleSystem.BattleType != BattleType.WildBattle_1v1 )
                     {
-                        if( _battleSystem.TopTrainerParty != null && _battleSystem.TopTrainerParty.Party.Contains( unit.Pokemon ) )
+                        if( _battleSystem.TopTrainer1.Party != null && _battleSystem.TopTrainer1.Party.Contains( unit.Pokemon ) )
                         {
                             var activeEnemyPokemon = _battleSystem.EnemyUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
-                            var nextEnemyPokemon = _battleSystem.TopTrainerParty.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
+                            var nextEnemyPokemon = _battleSystem.TopTrainer1.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
 
                             if( _battleSystem.CheckForBattleOver( activeEnemyPokemon, nextEnemyPokemon ) )
                                 break;
@@ -226,9 +237,15 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         //--Handle fainted Pokemon after all other phases are complete
         foreach( var unit in afterRoundList )
         {
-            unit.SetFlagActive( UnitFlags.DidDamage, false );
-            unit.SetFlagActive( UnitFlags.Phased, false );
+            unit.ClearDidDamage();
+            unit.ClearTookDamage();
+            unit.SetFlagActive( UnitFlags.Phazed, false );
+            unit.SetFlagActive( UnitFlags.CompletedTurn, false );
+            unit.SetFlagActive( UnitFlags.IncreasedStatStage, false );
+            unit.SetFlagActive( UnitFlags.FaintedPreviousTurn, false );
             unit.Pokemon.CureTransientStatus();
+            _battleSystem.SetBattleFlag( BattleFlag.Redirect, false );
+            _battleSystem.SetLastUsedMove( null );
 
             if( unit.Pokemon.IsFainted() )
             {
@@ -306,7 +323,15 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
             //--We simply just reorder commands after every turn. with constant speed changes being fired off in an intense weather double battle, it's really not worth it to track a battle flag, or
             //--to give moves a flag to check for here. just do it anyway lol
             if( !_battleSystem.BattleOver )
+            {
                 yield return ReorderCommands();
+
+                if( moveCommand != null && MoveConditionDB.Conditions.ContainsKey( moveCommand.Move.MoveSO.Name ) && moveCommand.SingleTarget != null )
+                {
+                    var key = moveCommand.Move.MoveSO.Name;
+                    MoveConditionDB.Conditions[key].OnModifyCommandQueue?.Invoke( moveCommand.User, moveCommand.SingleTarget, moveCommand.Move, _battleSystem );
+                }
+            }
 
             yield return null;
         }

@@ -19,5 +19,5 @@ MonoBehaviour:
   _icon: {fileID: 21300000, guid: fba85a2ae52c4f34d99de83ba59d4c14, type: 3}
   _hasBattleEffect: 0
   _battleEffectID: 0
-  _ballType: 0
+  _ballType: 1
   _catchRate: 1

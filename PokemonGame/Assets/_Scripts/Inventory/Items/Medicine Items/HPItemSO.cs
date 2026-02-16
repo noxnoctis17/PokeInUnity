@@ -9,7 +9,7 @@ public class HPItemSO : ItemSO
     private int _previousHP;
 
     public override bool Use( Pokemon pokemon ){
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
             return false;
 
         //--Potion Item
@@ -33,7 +33,7 @@ public class HPItemSO : ItemSO
     }
 
     public override bool CheckIfUsable( Pokemon pokemon ){
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
             return false;
 
         //--Potion Item

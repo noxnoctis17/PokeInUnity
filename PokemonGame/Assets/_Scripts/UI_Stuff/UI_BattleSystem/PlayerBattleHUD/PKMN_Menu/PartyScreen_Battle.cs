@@ -13,7 +13,7 @@ public class PartyScreen_Battle : State<PlayerBattleMenu>, IPartyScreen
     [SerializeField] private SimpleAnimator _simpleAnimator;
 //=====================================================================
     [Header( "Pokemon Information" )]
-    [SerializeField] private TextMeshProUGUI _hpText, _atkText, _defText, _spatkText, _spdefText, _speText, _abilityText, _heldItemText;
+    [SerializeField] private TextMeshProUGUI _hpText, _atkText, _defText, _spatkText, _spdefText, _speText, _abilityText, _heldItemText, _natureText;
     [SerializeField] private List<MoveButton_Summary> _moveDispay;
     [SerializeField] private Image _pokemonSprite;
     [SerializeField] private Image _heldItemIcon;
@@ -105,6 +105,12 @@ public class PartyScreen_Battle : State<PlayerBattleMenu>, IPartyScreen
             _heldItemText.text = $"{pokemon.HeldItem.ItemName}";
             _heldItemIcon.sprite = pokemon.HeldItem.Icon;
             _heldItemIcon.gameObject.SetActive( true );
+        }
+        else
+        {
+            _heldItemText.text = $"-";
+            _heldItemIcon.sprite = null;
+            _heldItemIcon.gameObject.SetActive( false );
         }
 
         //--Set Moves

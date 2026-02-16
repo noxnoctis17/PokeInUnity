@@ -51,7 +51,7 @@ public class RoundEndPhase_CourtDuration : IRoundEndPhaseHandler
 
             if( courtConditionsToRemove.Count > 0 )
             {
-                foreach( var (location, conditionID) in courtConditionsToRemove )
+                foreach( var ( location, conditionID ) in courtConditionsToRemove )
                 {
                     battleSystem.Field.ActiveCourts[location].RemoveCondition( conditionID );
                 }

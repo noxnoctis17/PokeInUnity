@@ -22,7 +22,7 @@ public class Court
     {
         Debug.Log( $"Adding {condition} to the {Location} Conditions!" );
         if( !Conditions.ContainsKey( condition ) )
-            Conditions.Add( condition, CourtConditionDB.CourtConditions[condition] );
+            Conditions.Add( condition, CourtConditionDB.Conditions[condition] );
     }
 
     public void RemoveCondition( CourtConditionID condition )

@@ -4,7 +4,8 @@ using UnityEngine;
 public class StatusRecoveryItemSO : ItemSO
 {
     [Header( "Status" )]
-    [SerializeField] private StatusConditionID _status;
+    [SerializeField] private SevereConditionID _severeStatus;
+    [SerializeField] private VolatileConditionID _volatileStatus;
 
     [TextArea(3, 10)]
     [SerializeField] private string _recoverText;
@@ -14,7 +15,7 @@ public class StatusRecoveryItemSO : ItemSO
 
     public override bool Use( Pokemon pokemon ){
         //--Revive
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT ){
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT ){
             if( _revive ){
                 pokemon.CureSevereStatus();
                 pokemon.IncreaseHP( pokemon.MaxHP/2 );
@@ -31,19 +32,30 @@ public class StatusRecoveryItemSO : ItemSO
         }
 
         //--Status Item
-        if( _restoreAllStatus || _status != StatusConditionID.NONE ){
-            if( pokemon.SevereStatus == null && pokemon.VolatileStatus != null )
+        if( _restoreAllStatus || _severeStatus != SevereConditionID.None || _volatileStatus != VolatileConditionID.None )
+        {
+            if( pokemon.SevereStatus == null && pokemon.VolatileStatuses != null )
                 return false;
 
-            if( _restoreAllStatus ){
+            if( _restoreAllStatus )
+            {
                 pokemon.CureSevereStatus();
-                pokemon.CureVolatileStatus();
+                pokemon.ClearAllVolatileStatus();
             }
-            else{
-                if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == _status )
+            else
+            {
+                if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == _severeStatus )
+                {
                     pokemon.CureSevereStatus();
-                else if( pokemon.VolatileStatus != null && pokemon.VolatileStatus.ID == _status )
-                    pokemon.CureVolatileStatus();
+                }
+                else if( pokemon.VolatileStatuses != null )
+                {
+                    for( int i = 0; i < pokemon.VolatileStatuses.Count; i++ )
+                    {
+                        if( pokemon.VolatileStatuses.ContainsKey( _volatileStatus ) )
+                            pokemon.CureVolatileStatus( _volatileStatus );
+                    }
+                }
                 else
                     return false;
 
@@ -58,14 +70,14 @@ public class StatusRecoveryItemSO : ItemSO
             return false;
 
         //--Revive Item
-        if( _revive && pokemon.SevereStatus.ID == StatusConditionID.FNT || _maxRevive && pokemon.SevereStatus.ID == StatusConditionID.FNT )
+        if( _revive && pokemon.SevereStatus.ID == SevereConditionID.FNT || _maxRevive && pokemon.SevereStatus.ID == SevereConditionID.FNT )
             return true;
 
         //--Status Item
         if( _restoreAllStatus )
             return true;
 
-        if( _status != pokemon.SevereStatus.ID )
+        if( _severeStatus != pokemon.SevereStatus.ID )
             return false;
 
         return true;

@@ -5,6 +5,7 @@ MonoImporter:
   serializedVersion: 2
   defaultReferences:
   - m_ViewDataDictionary: {instanceID: 0}
+  - _missingNoSprite: {fileID: 21300000, guid: cf554f6d24d85a54ba3e823845b51b39, type: 3}
   - _tmDB: {fileID: 11400000, guid: 9fa80c7c32e1f7144b54ab27f9f16a7a, type: 2}
   executionOrder: 0
   icon: {instanceID: 0}

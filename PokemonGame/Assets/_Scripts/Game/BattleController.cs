@@ -20,29 +20,33 @@ public class BattleController : MonoBehaviour
         //--Push Game State
         GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
         
+        //--Make Player BattleTrainer
+        var playerTrainer = PlayerReferences.Instance.PlayerTrainer;
+        var playerBattleTrainer = playerTrainer.MakeBattleTrainer();
+        
         //--Assign Encountered Pokemon, Initialize Wild Battle
         _battleSystem.AssignWildPokemon( encounteredMon );
-        _battleSystem.InitializeWildBattle( battleType );
+        _battleSystem.InitializeWildBattle( playerBattleTrainer, battleType );
     }
 
-    public void InitTrainerBattle( Trainer trainer ){
+    public void InitTrainerBattle( BattleTrainer player, BattleTrainer cpu, BattleType battleType ){
         //--Push Game State
         GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
 
         //--Initialize Trainer Battle
-        if( trainer.BattleType == BattleType.TrainerSingles )
-            _battleSystem.InitializeTrainerSingles( trainer );
+        if( battleType == BattleType.TrainerSingles )
+            _battleSystem.InitializeTrainerSingles( player, cpu );
 
-        if( trainer.BattleType == BattleType.TrainerDoubles )
-            _battleSystem.InitializeTrainerDoubles( trainer );
+        if( battleType == BattleType.TrainerDoubles )
+            _battleSystem.InitializeTrainerDoubles( player, cpu );
     }
 
-    public void InitAITrainerBattle( Trainer topTrainer, Trainer bottomTrainer )
+    public void InitAITrainerBattle( BattleType battleType, BattleTrainer topTrainer, BattleTrainer bottomTrainer )
     {
         //--Push Game State
         GameStateController.Instance.GameStateMachine.Push( BattleState.Instance );
         
-        if( topTrainer.BattleType == BattleType.AI_Singles )
+        if( battleType == BattleType.AI_Singles )
             _battleSystem.InitializeAISingles( topTrainer, bottomTrainer );
     }
 }

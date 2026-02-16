@@ -4,8 +4,10 @@ using UnityEngine;
 using TMPro;
 using System;
 
+public enum TimeOfDay { None, Dawn, Day, Dusk, Night }
 public class TimeController : MonoBehaviour
 {
+    public static TimeController Instance;
     [SerializeField] private Light _sun;
     [SerializeField] private Light _moon;
     [SerializeField] private float _timeMultiplier;
@@ -13,13 +15,17 @@ public class TimeController : MonoBehaviour
     [SerializeField] private float _sunRiseHour;
     [SerializeField] private float _sunSetHour;
     [SerializeField] private TextMeshProUGUI _timeText;
-    private DateTime _currentTime;
+    public DateTime CurrentTime { get; private set; }
     private TimeSpan _sunRiseTime;
     private TimeSpan _sunSetTime;
     private bool _battleActive;
 
-    private void Start(){
-        _currentTime = DateTime.Now.Date + TimeSpan.FromHours( _startHour );
+    
+
+    private void Start()
+    {
+        Instance = this;
+        CurrentTime = DateTime.Now.Date + TimeSpan.FromHours( _startHour );
         _sunRiseTime = TimeSpan.FromHours( _sunRiseHour );
         _sunSetTime = TimeSpan.FromHours( _sunSetHour );
 
@@ -49,8 +55,8 @@ public class TimeController : MonoBehaviour
     }
 
     private void UpdateTimeOfDay(){
-        _currentTime = _currentTime.AddSeconds( Time.deltaTime * _timeMultiplier );
-        _timeText.text = _currentTime.ToString( "hh:mm" );
+        CurrentTime = CurrentTime.AddSeconds( Time.deltaTime * _timeMultiplier );
+        _timeText.text = CurrentTime.ToString( "hh:mm" );
     }
 
     private TimeSpan CalculateTimeDifference( TimeSpan fromTime, TimeSpan toTime ){
@@ -65,16 +71,16 @@ public class TimeController : MonoBehaviour
     private void RotateSun(){
         float sunRotation;
 
-        if( _currentTime.TimeOfDay > _sunRiseTime && _currentTime.TimeOfDay < _sunSetTime ){
+        if( CurrentTime.TimeOfDay > _sunRiseTime && CurrentTime.TimeOfDay < _sunSetTime ){
             TimeSpan sunRiseToSunSetDuration = CalculateTimeDifference( _sunRiseTime, _sunSetTime );
-            TimeSpan timeSinceSunRise = CalculateTimeDifference( _sunRiseTime, _currentTime.TimeOfDay );
+            TimeSpan timeSinceSunRise = CalculateTimeDifference( _sunRiseTime, CurrentTime.TimeOfDay );
 
             double percentage = ( timeSinceSunRise.TotalMinutes / sunRiseToSunSetDuration.TotalMinutes );
             sunRotation = Mathf.Lerp( 0, 180, (float)percentage );
 
         } else {
             TimeSpan sunSetToSunRiseDuration = CalculateTimeDifference( _sunSetTime, _sunRiseTime );
-            TimeSpan timeSinceSunSet = CalculateTimeDifference( _sunSetTime, _currentTime.TimeOfDay );
+            TimeSpan timeSinceSunSet = CalculateTimeDifference( _sunSetTime, CurrentTime.TimeOfDay );
 
             double percentage = ( timeSinceSunSet.TotalMinutes / sunSetToSunRiseDuration.TotalMinutes );
             sunRotation = Mathf.Lerp( 180, 360, (float)percentage );

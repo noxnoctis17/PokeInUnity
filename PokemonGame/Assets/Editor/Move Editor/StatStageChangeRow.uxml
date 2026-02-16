@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/Editor/Move%20Editor/MoveEditor.uss?fileID=7433441132597879392&amp;guid=bec930baaad6c034083ca92d20d86b96&amp;type=3#MoveEditor" />
+    <ui:VisualElement style="flex-grow: 1;">
+        <ui:Label tabindex="-1" text="Attack +2" parse-escape-sequences="true" display-tooltip-when-elided="true" name="StatStageChangeLabel" class="detailGroupLabels" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; height: 30px;" />
+        <ui:GroupBox style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0;">
+            <ui:EnumField type="UnityEngine.TextAlignment, UnityEngine.TextRenderingModule" value="Center" name="StatField" class="infoFieldOne" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; flex-direction: row-reverse;">
+                <ui:Label tabindex="-1" text="Stat" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="width: 75px;" />
+            </ui:EnumField>
+            <ui:SliderInt picking-mode="Ignore" value="0" high-value="6" low-value="-6" name="ChangeSlider" show-input-field="true" class="infoFieldTwo" style="flex-direction: row-reverse; background-color: rgb(77, 77, 77);">
+                <ui:Label tabindex="-1" text="+2" parse-escape-sequences="true" display-tooltip-when-elided="true" name="ChangeValueLabel" class="fieldLabels" style="width: 35px; -unity-text-align: middle-center; border-left-color: rgba(32, 32, 32, 0); border-right-color: rgba(32, 32, 32, 0); border-top-color: rgba(32, 32, 32, 0); border-bottom-color: rgba(32, 32, 32, 0); background-color: rgb(32, 32, 32);" />
+                <ui:Label tabindex="-1" text="Change" parse-escape-sequences="true" display-tooltip-when-elided="true" class="fieldLabels" style="width: 80px; background-color: rgb(188, 188, 188);" />
+            </ui:SliderInt>
+            <ui:Button text="Remove" parse-escape-sequences="true" display-tooltip-when-elided="true" name="RemoveButton" class="buttons button" style="height: 30px; width: auto;" />
+        </ui:GroupBox>
+    </ui:VisualElement>
+</ui:UXML>

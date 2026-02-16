@@ -14,4 +14,44 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _name: Catch
   _trainerClass: 9
+  _skillLevel: 95
   _portrait: {fileID: 21300000, guid: 54a8c040590f5db4c88b5dd32e611670, type: 3}
+  _dialogueColor: {fileID: 11400000, guid: bf5ac1436ecaceb4e8b6b91a4b981553, type: 2}
+  _battleTheme: 0
+  _party:
+  - _pokemon: {fileID: 11400000, guid: 8701d9a7f6d9b454299d897e84cbe8b0, type: 2}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 11400000, guid: fe7367c3d4e90ec439c9601589eb29e3, type: 2}
+    - {fileID: 11400000, guid: 5835900f02a36d3479f8dcda4de32654, type: 2}
+    - {fileID: 11400000, guid: 2f1a2fe7ff6cde147aa8157cbb706452, type: 2}
+    - {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 82db25fbe5391c144b8f8b4cd51ea17e, type: 2}
+    _nickName: 
+    _level: 0
+    _nature: 0
+    _ability: 0
+    _heldItem: {fileID: 0}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 0
+    _moves:
+    - {fileID: 11400000, guid: fe7367c3d4e90ec439c9601589eb29e3, type: 2}
+    - {fileID: 11400000, guid: 5835900f02a36d3479f8dcda4de32654, type: 2}
+    - {fileID: 11400000, guid: 2f1a2fe7ff6cde147aa8157cbb706452, type: 2}
+    - {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}

@@ -14,4 +14,116 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _name: Red
   _trainerClass: 8
+  _skillLevel: 95
   _portrait: {fileID: -935719284, guid: 6b1db2ab1eea3644cabc59c43c993953, type: 3}
+  _dialogueColor: {fileID: 11400000, guid: 32640eb4e7474c943890e60a7f76ff9c, type: 2}
+  _battleTheme: 2
+  _party:
+  - _pokemon: {fileID: 11400000, guid: 5aab544b879dd4542aef4fbbc5d344bc, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 14
+    _ability: 16
+    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
+    _hpEVs: 4
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 252
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: 462480866f3cbd3419a9f2b0cc76eca8, type: 2}
+    - {fileID: 11400000, guid: 10fd748a2c033fe4a8197478bca1dbaf, type: 2}
+    - {fileID: 11400000, guid: 76af3997ae8a32344a1c31f2faac18e4, type: 2}
+    - {fileID: 11400000, guid: 34b86dd1642d43b44ac3ebea22af4e34, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 36e2d923ef378d24694d22841cddb68a, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 8
+    _ability: 15
+    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    _hpEVs: 4
+    _attackEVs: 252
+    _defenseEVs: 252
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: e9ee2e069c067e64f89f375a9ea17473, type: 2}
+    - {fileID: 11400000, guid: 184f028f7c5a7ae4aaad58bca56c30d9, type: 2}
+    - {fileID: 11400000, guid: a6f9901dbf1962d4c994611663093fc9, type: 2}
+    - {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 4183d462e3bca1548876a52772d925ea, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 4
+    _ability: 33
+    _heldItem: {fileID: 11400000, guid: cb50558d6f82d884c8f59983d5d542a0, type: 2}
+    _hpEVs: 4
+    _attackEVs: 252
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: f38555f9b13a3344689db17d35781d21, type: 2}
+    - {fileID: 11400000, guid: b68b576a456f3c544b3769b08dd17450, type: 2}
+    - {fileID: 11400000, guid: 449a176030ca537418bca947f6556c53, type: 2}
+    - {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 1a07c48c49a9c134c999404d103a10e8, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 14
+    _ability: 40
+    _heldItem: {fileID: 11400000, guid: f7cdb5117198a254689e63af5f47d4b6, type: 2}
+    _hpEVs: 4
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 252
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: cb64ca34ed31be74eadb8f10598d3a64, type: 2}
+    - {fileID: 11400000, guid: 9a511c0bf97ee294ba3c15499c68d46e, type: 2}
+    - {fileID: 11400000, guid: 16a2349cd5dfe7f4b90b0c7d67c49f20, type: 2}
+    - {fileID: 11400000, guid: 260af45a2c0aae34fb8d01253992df28, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 186c2146785e5734e958898224dba4d2, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 14
+    _ability: 41
+    _heldItem: {fileID: 11400000, guid: be5a454f8ba97f440b47ca775145999e, type: 2}
+    _hpEVs: 4
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 252
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: c83c0173d55591d4d9866e24269a5ed3, type: 2}
+    - {fileID: 11400000, guid: cd860d2f9b510ff4dbd97b4f3842a188, type: 2}
+    - {fileID: 11400000, guid: 3d6337c650246f948a7f71d2e7e7eab3, type: 2}
+    - {fileID: 11400000, guid: 735c784f726ac1a4d867e8178819848e, type: 2}
+  - _pokemon: {fileID: 11400000, guid: a3a51f45ea4634b40b5cea9402193cf8, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 4
+    _ability: 42
+    _heldItem: {fileID: 11400000, guid: 63c541478a32a754d8c4424319d8e96d, type: 2}
+    _hpEVs: 252
+    _attackEVs: 252
+    _defenseEVs: 4
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 3
+    _moves:
+    - {fileID: 11400000, guid: 0c8c904e0d349764b97747c2b6379ddd, type: 2}
+    - {fileID: 11400000, guid: bfdbc36e23ce598469f9bd30f9817634, type: 2}
+    - {fileID: 11400000, guid: 068492a9fb2d5d34787f417aa307336e, type: 2}
+    - {fileID: 11400000, guid: 4095d344166f78f47a19679885bbd675, type: 2}

@@ -6,11 +6,11 @@ public class PlayerSaving : MonoBehaviour, ISavable
 {
     public object CaptureState(){
         var playerPosition = PlayerReferences.Instance.PlayerTransform.position;
-        var playerParty = PlayerReferences.Instance.PlayerParty;
+        var playerTrainer = PlayerReferences.Instance.PlayerTrainer;
 
         var saveData = new PlayerSaveData(){
             SavedPosition = new float[] { playerPosition.x, playerPosition.y, playerPosition.z },
-            PlayerParty = playerParty.Party.Select( p => p.CreateSaveData() ).ToList(),
+            PlayerParty = playerTrainer.ActiveParty.Select( p => p.CreateSaveData() ).ToList(),
         };
 
         return saveData;
@@ -20,7 +20,7 @@ public class PlayerSaving : MonoBehaviour, ISavable
         //--Nice, cute local variables
         var saveData = (PlayerSaveData)state;
         var savedPosition = saveData.SavedPosition;
-        var playerParty = PlayerReferences.Instance.PlayerParty;
+        var playerParty = PlayerReferences.Instance.PlayerTrainer;
         var restoredParty = saveData.PlayerParty.Select( p => new Pokemon( p ) ).ToList();
 
         //--Restore Player Position

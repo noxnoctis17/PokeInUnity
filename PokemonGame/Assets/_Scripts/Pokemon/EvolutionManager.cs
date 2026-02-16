@@ -20,11 +20,13 @@ public class EvolutionManager : State<GameStateController>
     public event Action OnEvolutionStateEntered;
     public event Action OnEvolutionStateExited;
 
-    private void Awake(){
+    private void Awake()
+    {
         Instance = this;
     }
 
-    public override void EnterState( GameStateController owner ){
+    public override void EnterState( GameStateController owner )
+    {
         StateMachine = owner;
         OnEvolutionStateEntered?.Invoke();
 
@@ -60,17 +62,18 @@ public class EvolutionManager : State<GameStateController>
         _evolutionUI.SetActive( false );
     }
 
-    public IEnumerator Evolve( Pokemon pokemon, Evolutions evolution ){
+    public IEnumerator Evolve( Pokemon pokemon, Evolutions evolution )
+    {
         //--Initialize Animator
         _pokeAnimator.Initialize( pokemon.PokeSO );
         
-        yield return _pokeAnimator.PlayBeginEvolutionAnimation( pokemon.PokeSO, evolution.Evolution );
+        yield return _pokeAnimator.PlayBeginEvolutionAnimation( pokemon.PokeSO, evolution.Pokemon );
         Evolving = true;
 
         //--Evolving Dialogue
         yield return DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} is evolving!", true );
         string prevoName = pokemon.NickName;
-        string evoSpecies = evolution.Evolution.Species;
+        string evoSpecies = evolution.Pokemon.Species;
 
         Debug.Log( $"[Evolution Manager] Playing evolution animation!" );
         //--Evolution Animation
@@ -99,6 +102,17 @@ public class EvolutionManager : State<GameStateController>
         else if( evolveAgain == null ){
             pokemon.SetCanEvolveByLevelUp( false );
             Debug.Log( $"[Evolution Manager] {pokemon.NickName} can NOT evolve again." );
+        }
+
+        //--Evolution moves. A move learned on evolution is "learned" at level 0. Pokemon moveset generation should start at 1 to handle this.
+        for( int i = 0; i < evolution.Pokemon.LearnableMoves.Count; i++ )
+        {
+            var learnable = evolution.Pokemon.LearnableMoves[i];
+            if( learnable.LevelLearned == 0 )
+            {
+                pokemon.LearnLevelUpMove( learnable.MoveSO );
+                yield return DialogueManager.Instance.PlaySystemMessageCoroutine( $"{pokemon.NickName} learned {learnable.MoveSO.Name}!" );
+            }
         }
 
         //--Leave Evolving State

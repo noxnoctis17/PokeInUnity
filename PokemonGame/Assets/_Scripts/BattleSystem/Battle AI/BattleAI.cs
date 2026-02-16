@@ -24,7 +24,7 @@ public class BattleAI : MonoBehaviour
         Pokemon = Unit.Pokemon;
 
         if( battleSystem.BattleType != BattleType.WildBattle_1v1 )
-            TrainerSkillModifier = Mathf.Clamp01( battleSystem.TopTrainerParty.GetComponent<Trainer>().TrainerSkillLevel / 100f );
+            TrainerSkillModifier = Mathf.Clamp01( battleSystem.TopTrainer1.TrainerSkillLevel / 100f );
 
         _moveCommand = new( this );
         _switchCommand = new( this );
@@ -58,13 +58,29 @@ public class BattleAI : MonoBehaviour
     public void ChooseCommand()
     {
         Debug.Log( $"[AI Scoring] {Unit.Pokemon.NickName} ChooseCommand()" );
-        if( Unit.Pokemon.SevereStatus?.ID == StatusConditionID.FNT || Unit.Pokemon.CurrentHP == 0 )
+        if( Unit.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || Unit.Pokemon.CurrentHP == 0 )
             return;
 
             var opposingUnits = BattleSystem.GetOpposingUnits( Unit );
             var damageThreat = GetThreat_ImmediateDamage( opposingUnits, Unit.Pokemon );
             var tempo = GetTempoState( Unit, opposingUnits[0] );
             int outgoingPressure = GetOutgoingPressure( Unit.Pokemon, damageThreat.Unit );
+
+            //--Handle Two Turn/Charge/Recharge Moves
+            if( Unit.Flags[UnitFlags.Charging].IsActive && Unit.Flags[UnitFlags.Charging].Count > 0 )
+            {
+                var move = Unit.Flags[UnitFlags.Charging].Move;
+                List<BattleUnit> targets = new() { Unit.Flags[UnitFlags.Charging].Target, };
+                BattleSystem.SetMoveCommand( Unit, targets, move , true );
+                return;
+            }
+
+            //--Recharging should simply skip the turn altogether. After ChooseCommand() completes, we increment command count in the AI turn state,
+            //--So there shouldn't be any hang ups, at least not in singles. --2/12/26, pre-doubles testing lol
+            if( Unit.Flags[UnitFlags.Recharging].IsActive )
+            {
+                return;
+            }
 
             if( BattleSystem.BattleType != BattleType.WildBattle_1v1 && _switchCommand.ShouldSwitch( damageThreat, outgoingPressure, tempo ) )
             {
@@ -109,7 +125,7 @@ public class BattleAI : MonoBehaviour
     private int GetUnitInferredSpeed( BattleUnit unit )
     {
         int unitSpeed = unit.Pokemon.PokeSO.Speed;
-        float stage = unit.Pokemon.StatStage[Stat.Speed];
+        float stage = unit.Pokemon.StatStages[Stat.Speed];
 
         if( stage > 0 )
             unitSpeed = Mathf.FloorToInt( unitSpeed * stage );
@@ -413,7 +429,7 @@ public class BattleAI : MonoBehaviour
             return true;
 
         var activeEnemyPokemon = BattleSystem.EnemyUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
-        var remainingPokemon = BattleSystem.TopTrainerParty.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
+        var remainingPokemon = BattleSystem.TopTrainer1.GetHealthyPokemon( dontInclude: activeEnemyPokemon );
 
         return remainingPokemon == null && activeEnemyPokemon.Count > 0;
     }

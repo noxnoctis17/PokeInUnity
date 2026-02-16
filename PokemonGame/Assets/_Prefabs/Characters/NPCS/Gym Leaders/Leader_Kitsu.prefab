@@ -264,7 +264,6 @@ GameObject:
   - component: {fileID: 2254997850878267763}
   - component: {fileID: 6082356655601560715}
   - component: {fileID: 6082356655601560721}
-  - component: {fileID: 2482589206662233048}
   - component: {fileID: 6082356655807927742}
   - component: {fileID: 6082356655807927743}
   - component: {fileID: 6082356655807927740}
@@ -306,13 +305,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af7f5ac3095797a49a5cd0b36f94d6f3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _trainerSO: {fileID: 0}
-  _trainerName: 
-  _trainerParty: {fileID: 2482589206662233048}
+  _trainerSO: {fileID: 11400000, guid: c5851f895724657459891ba829aea5d4, type: 2}
   _battleType: 2
   _dialogueSO: {fileID: 11400000, guid: 2da68cb1608af3e4b9f8696864b41420, type: 2}
   _postBattleDialogueSO: {fileID: 11400000, guid: 108d4db46aa8a944c8697bc5f4886695, type: 2}
   _trainerCenter: {fileID: 0}
+  _partnerTrainer: {fileID: 0}
+  _opposingTrainer: {fileID: 0}
   _isDefeated: 0
   _isRematchable: 0
   _allow2v1: 0
@@ -396,48 +395,6 @@ MonoBehaviour:
             m_StringArgument: 
             m_BoolArgument: 0
           m_CallState: 2
---- !u!114 &2482589206662233048
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6082356655807927738}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f41f5ad83cc7f1643a4bbfb4554c410f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _isPlayerParty: 0
-  _isEnemyParty: 0
-  _partyPokemon:
-  - _pokeSO: {fileID: 11400000, guid: 8bd2be014fea6a94b9fffcc0e4f50fdc, type: 2}
-    _level: 100
-    _nickName: 
-    _abilityID: 0
-    _currentAbilityIndex: 0
-    _gainedEffortPoints: 0
-    _currentBallType: 0
-    _activeMoves: []
-    _learnedMoves: []
-  - _pokeSO: {fileID: 11400000, guid: ebf27d1674e5292418a8fa692f72e5bc, type: 2}
-    _level: 100
-    _nickName: 
-    _abilityID: 0
-    _currentAbilityIndex: 0
-    _gainedEffortPoints: 0
-    _currentBallType: 0
-    _activeMoves: []
-    _learnedMoves: []
-  - _pokeSO: {fileID: 11400000, guid: 907fa4e48c5f417459b9eec223f7b8c5, type: 2}
-    _level: 100
-    _nickName: 
-    _abilityID: 0
-    _currentAbilityIndex: 0
-    _gainedEffortPoints: 0
-    _currentBallType: 0
-    _activeMoves: []
-    _learnedMoves: []
 --- !u!143 &6082356655807927742
 CharacterController:
   m_ObjectHideFlags: 0

@@ -107,7 +107,7 @@ public class PokemonOptionButton : MonoBehaviour, ISubmitHandler, ISelectHandler
         yield return null;
 
         _partyDisplay.SetPartyButtons_Interactable( false );
-        _partyDisplay.PlayerParty.SwitchPokemonPosition( _optionMenu.ContextPokemon, _optionMenu.SwitchToPokemon );
+        _partyDisplay.PlayerTrainer.SwitchPokemonPosition( _optionMenu.ContextPokemon, _optionMenu.SwitchToPokemon );
         yield return null;
 
         _optionMenu.SetButtons_Interactable( true );

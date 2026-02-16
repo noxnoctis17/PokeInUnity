@@ -12,6 +12,8 @@ public class ItemSO : ScriptableObject
     [SerializeField] private Sprite _icon;
     [SerializeField] private bool _hasBattleEffect;
     [SerializeField] private BattleItemEffectID _battleEffectID;
+    [SerializeField] private int _flingPower;
+    [SerializeField] private bool _canNotSteal;
     
     public ItemCategory ItemCategory => _itemCategory;
     public string ItemName => _itemName;
@@ -19,6 +21,8 @@ public class ItemSO : ScriptableObject
     public Sprite Icon => _icon;
     public bool HasBattleEffect => _hasBattleEffect;
     public BattleItemEffectID BattleEffectID => _battleEffectID;
+    public int FlingPower => _flingPower;
+    public bool CanNotSteal => _canNotSteal;
 
     public virtual bool Use( Pokemon pokemon ){
         return false;

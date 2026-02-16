@@ -8,13 +8,15 @@ public class ComboRecoveryItemSO : ItemSO
     [SerializeField] private bool _restoreMaxHP;
 
     [Header( "Status" )]
-    [SerializeField] private StatusConditionID _status;
+    [SerializeField] private SevereConditionID _severeStatus;
+    [SerializeField] private VolatileConditionID _volatileStatus;
     [SerializeField] private bool _restoreAllStatus; //--Excluding FNT
     [SerializeField] private bool _revive; //--Cure FNT status + heal max hp
     [SerializeField] private bool _maxRevive; //--Cure FNT status + heal max hp
 
-    public override bool Use( Pokemon pokemon ){
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
+    public override bool Use( Pokemon pokemon )
+    {
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
             return false;
         
         //--Potion Item
@@ -24,43 +26,48 @@ public class ComboRecoveryItemSO : ItemSO
             return false;
 
         //--Status Item
-        if( pokemon.SevereStatus == null && pokemon.VolatileStatus == null )
+        if( pokemon.SevereStatus == null && pokemon.VolatileStatuses == null )
             return false;
 
-        if( _restoreAllStatus ){
+        if( _restoreAllStatus )
+        {
             pokemon.CureSevereStatus();
-            pokemon.CureVolatileStatus();
+            pokemon.ClearAllVolatileStatus();
         }
 
         return true;
     }
 
-    public override bool CheckIfUsable( Pokemon pokemon ){
+    public override bool CheckIfUsable( Pokemon pokemon )
+    {
         //--Revive Item
         if( _revive || _maxRevive )
-            if( pokemon.SevereStatus.ID != StatusConditionID.FNT )
+            if( pokemon.SevereStatus.ID != SevereConditionID.FNT )
                 return false;
         
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == StatusConditionID.FNT )
+        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
             return false;
 
         //--Potion Item
-        if( _hpHealAmnt > 0 ){
-            if( pokemon.CurrentHP == pokemon.MaxHP ){
+        if( _hpHealAmnt > 0 )
+        {
+            if( pokemon.CurrentHP == pokemon.MaxHP )
+            {
                 //--HP is already full!
                 return false;
             }
         }
 
         //--Status Item
-        if( _restoreAllStatus || _status != StatusConditionID.NONE )
-            if( pokemon.SevereStatus == null && pokemon.VolatileStatus == null )
-                return false;  
+        if( _restoreAllStatus || _severeStatus != SevereConditionID.None || _volatileStatus != VolatileConditionID.None )
+            if( pokemon.SevereStatus == null && pokemon.VolatileStatuses == null )
+                return false;
         
         return true;
     }
 
-    public override string UseText( Pokemon pokemon ){
+    public override string UseText( Pokemon pokemon )
+    {
         return $"You used a {ItemName}! {pokemon.NickName} was fully restored!";
     }
 

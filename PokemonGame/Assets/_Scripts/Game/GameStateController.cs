@@ -45,7 +45,10 @@ public class GameStateController : MonoBehaviour
     private void Awake(){
         //--Initialize Databases
         TypeColorsDB.Init();
-        StatusConditionsDB.Init();
+        SevereConditionsDB.Init();
+        VolatileConditionsDB.Init();
+        TransientConditionsDB.Init();
+        BindingConditionsDB.Init();
         WeatherConditionsDB.Init();
         TerrainDB.Init();
         PokemonDB.Init();

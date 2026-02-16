@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b7600c31e1ae6d4bb41f45a6fd300d3, type: 3}
+  m_Name: Dream Eater
+  m_EditorClassIdentifier: 
+  _moveName: Dream Eater
+  _hasTM: 1
+  _description: The user eats the dreams of a sleeping target. The user's HP is restored
+    by up to half the damage taken by the target.
+  _moveCategory: 0
+  _moveTarget: 0
+  _moveType: 11
+  _animationType: 2
+  _statOverride: 0
+  _power: 100
+  _accuracy: 100
+  _accuracyType: 0
+  _pp: 15
+  _movePriority: 7
+  _critBehavior: 0
+  _recoil:
+    RecoilType: 0
+    RecoilDamage: 0
+  _drainPercentage: 50
+  _healType: 0
+  _healAmount: 0
+  _hitRange: {x: 0, y: 0}
+  _flags: 
+  _moveEffects:
+    _target: 0
+    _trigger: 0
+    _statChangeList: []
+    _severeStatus: 0
+    _volatileStatus: 0
+    _transientStatus: 0
+    _bindingStatus: 0
+    _weather: 0
+    _terrain: 0
+    _courtCondition: 0
+    _switchType: 0
+  _secondaryMoveEffects: []

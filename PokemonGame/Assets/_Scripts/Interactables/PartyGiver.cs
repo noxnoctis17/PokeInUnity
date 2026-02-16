@@ -6,22 +6,19 @@ public class PartyGiver : MonoBehaviour, IInteractable
 {
     [SerializeField] private List<Pokemon> _partyToGive;
 
-    private void Start(){
-        Init();
-    }
-
-    public void Init(){
-        foreach( Pokemon pokemon in _partyToGive ){
-            pokemon.Init();
-            pokemon.SetAsPlayerUnit();
+    private void Start()
+    {
+        for( int i = 0; i < _partyToGive.Count; i++ )
+        {
+            _partyToGive[i].Init();
         }
     }
 
     public void Interact()
     {
-        var party = PlayerReferences.Instance.PlayerParty;
+        var playerTrainer = PlayerReferences.Instance.PlayerTrainer;
 
-        party.GiveParty( _partyToGive );
+        playerTrainer.GiveParty( _partyToGive );
         DialogueManager.Instance.PlaySystemMessage( $"You received a new party!" );
     }
 }
