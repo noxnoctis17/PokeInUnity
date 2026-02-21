@@ -19,6 +19,7 @@ public class AudioController : MonoBehaviour
     [SerializeField] private AudioClip _gen3_TrainerTheme;
     [SerializeField] private AudioClip _gen3_GymLeaderTheme;
     [SerializeField] private AudioClip _gen1_ChampionTheme;
+    [SerializeField] private AudioClip _cynthiaTheme;
     [SerializeField] private AudioClip _battleThemeDefault;
     [SerializeField] private AudioClip _routeMainThemeCalm;
     [SerializeField] private AudioClip _ledgeHop;
@@ -67,27 +68,32 @@ public class AudioController : MonoBehaviour
             case MusicTheme.BattleThemeDefault:
                 sound = _battleThemeDefault;
                 _currentBattleTheme = sound;
-            break;
+                break;
 
             case MusicTheme.RouteMainTheme_Calm:
                 sound = _routeMainThemeCalm;
                 _lastOverworldTheme = MusicTheme.RouteMainTheme_Calm;
-            break;
+                break;
 
             case MusicTheme.Gen1_ChampionTheme:
                 sound = _gen1_ChampionTheme;
                 _currentBattleTheme = sound;
-            break;
+                break;
 
             case MusicTheme.Gen3_TrainerTheme:
                 sound = _gen3_TrainerTheme;
                 _currentBattleTheme = sound;
-            break;
+                break;
 
             case MusicTheme.Gen3_GymLeaderTheme:
                 sound = _gen3_GymLeaderTheme;
                 _currentBattleTheme = sound;
-            break;
+                break;
+
+            case MusicTheme.CynthiaTheme:
+                sound = _cynthiaTheme;
+                _currentBattleTheme = sound;
+                break;
         }
 
         if( sound == _currentBattleTheme && _overworldTheme.isPlaying )
@@ -269,5 +275,6 @@ public enum MusicTheme
     Gen3_WildBattleTheme,
     Gen3_TrainerTheme,
     Gen3_GymLeaderTheme,
+    CynthiaTheme,
 
  }

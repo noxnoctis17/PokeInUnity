@@ -245,7 +245,7 @@ public class BattleUnit : MonoBehaviour
 
     public void SetSubstitute()
     {
-        int hp = Mathf.FloorToInt( Pokemon.MaxHP / 4 );
+        int hp = Mathf.FloorToInt( Pokemon.MaxHP * 0.25f );
         Flags[UnitFlags.Substitute].IsActive = true;
         Flags[UnitFlags.Substitute].SubstituteHP = hp;
     }
@@ -398,7 +398,7 @@ public class BattleUnit : MonoBehaviour
         Debug.Log( $"[Take Damage] Weather Modifier: {weatherModifier}" );
 
         //--Terrain damage modifier
-        float terrainModifier = terrain?.OnDamageModify?.Invoke( attacker, this, move ) ?? 1f;
+        float terrainModifier = terrain?.OnDamageModify?.Invoke( attacker, Pokemon, move ) ?? 1f;
         Debug.Log( $"[Take Damage] Terrain Modifier: {terrainModifier}" );
 
         //--Screens damage modifiers

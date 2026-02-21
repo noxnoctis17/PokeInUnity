@@ -20,48 +20,75 @@ public class BattleAI_SwitchCommand
         _ai.BattleSystem.SetSwitchPokemonCommand( incomingPokemon, _ai.Unit, true );
     }
 
-    public bool ShouldSwitch( ThreatResult damageThreat, int outgoingPressure, TempoStateResult tempo )
+    public int SwitchScore( TempoStateResult tempo, ExchangeEvaluation eval, SwitchCandidateResult switchCandidate, BoardContext context )
     {
-        if( _ai.Check_IsLastPokemon() )
-            return false;
-        
-        var attacker = damageThreat.Unit.Pokemon;
-        var target = _ai.Unit.Pokemon;
+        //--Tank score if unable to switch
+        if( _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon() )
+            return -999;
 
-        float hpRatio = _ai.Get_HPRatio( target );
-        int wallingScore = _ai.Get_WallingScore( attacker, target );
-        MoveThreatResult moveThreat = _ai.Get_MostThreateningMove( attacker, target );
+        if( switchCandidate.PTKOResult.PotentialKO == PotentialToKO.LikelyOHKO )
+            return -999;
 
-        PotentialToKOResult potentialToKO = _ai.Get_PotentialToKOResult( wallingScore, moveThreat.Modifier, hpRatio );
-
-        int dangerScore = DangerScore( damageThreat, outgoingPressure, potentialToKO );
-        Debug.Log( $"[AI Scoring][Should Switch] Threat and Switch scores for AI {_ai.Unit.Pokemon.NickName}! Incoming Damage: {damageThreat.Score} from {damageThreat.Unit.Pokemon.NickName}, Outgoing Pressure: {outgoingPressure}, Danger Score: {dangerScore}" );
-
-        dangerScore += _ai.Get_ConsecutiveSwitchPenalty();
-        Debug.Log( $"[AI Scoring][Should Switch] Applying Consecutive Switching Penalty for {_ai.Unit.Pokemon.NickName}! Danger Score: {dangerScore}" );   
-
-        //--If the Danger Score is higher than the threshold, we return true. We should switch based on score.
-        //--IsLegitimate will determine if the scored switch is legitimate, however.
-        if( dangerScore >= BattleAI.HARD_SWITCH_THRESHOLD )
-            return true;
-        else
-            return false;
-    }
-
-    public int DangerScore( ThreatResult incomingThreat, int outgoingPressure, PotentialToKOResult potentialToKO )
-    {
-        Debug.Log( $"[AI Scoring][Danger Gap] Beginning Danger Gap Scoring. Threat Score: {incomingThreat}, Outgoing Pressure: {outgoingPressure}, Potential to KO Score: {potentialToKO}" );
         int score = 0;
-        int pressureGap = incomingThreat.Score - outgoingPressure;
 
-        score += pressureGap;
-        Debug.Log( $"[AI Scoring][Danger Gap] Checked Pressure Gap. Score: {score}" );
+        var attackerName = eval.AttackerName;
+        var targetName = eval.TargetName;
+        var switchName = "no switch available!";
 
-        //--KO Class is "signed", a Higher score is a more survivable KO class. Since DangerScore needs to increase with increased danger, we need to invert KO Score.
-        int dangerfromKOClass = -potentialToKO.Score;
+        if( switchCandidate.Pokemon != null )
+            switchName = switchCandidate.Pokemon.NickName;
 
-        score += dangerfromKOClass;
-        Debug.Log( $"[AI Scoring][Danger Gap] Checked Inversed Potential to KO Score: {dangerfromKOClass}. Final Score: {score}" );
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] Beginning Switch Scoring for {attackerName} vs {targetName}. Switch Candidate: {switchName}. Tempo: {tempo.TempoState}" );
+        
+        var currentPTKO = eval.TargetPTKO_onAttacker.PotentialKO;
+        var currentScore = eval.TargetPTKO_onAttacker.Score;
+        var switchPTKO = switchCandidate.PTKOResult;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] {targetName}'s Current PTKO {currentPTKO} on me ({attackerName}) and their PTKO Score: {currentScore}. {targetName}'s PTKO on Switch in ({switchName}): {switchCandidate.PTKOResult.PotentialKO}" );
+
+        int improvement = currentScore - switchPTKO.Score;
+        score += improvement;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] Improvement: {improvement}, Score: {score}" );
+
+        bool iDieBeforeActing = !eval.AttackerMovesFirst && eval.TargetThreatensKO;
+
+        if( iDieBeforeActing )
+            score += 50;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] Die before Act: {iDieBeforeActing}, Score: {score}" );
+
+        bool switchThreatensKO = switchCandidate.PTKOResult.PotentialKO >= PotentialToKO.Dangerous;
+        bool switchThreatensBigDamage = switchCandidate.PTKOResult.PotentialKO > PotentialToKO.Neutral2HK0;
+
+        if( !switchThreatensKO && !switchThreatensBigDamage )
+            score -= 30;
+
+        bool losingExchange = eval.TargetThreatensKO && !eval.AttackerThreatensKO;
+
+        if( losingExchange )
+            score += 35;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] Losing Exchange: {losingExchange}, Score: {score}" );
+
+        if( !switchCandidate.IsLegitimate )
+            score -= 70;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] Legit Switch: {switchCandidate.IsLegitimate}, Score: {score}" );
+
+        score += _ai.Get_ConsecutiveSwitchPenalty();
+
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] Consecutive switch penalty: Score: {score}" );
+
+        score += _ai.TempoSwitchModifier( tempo );
+
+        Debug.Log( $"[AI Scoring][Choose Command][Switch Score] Tempo Switch Modifier: Score: {score}" );
+
+        if( context.IsForcedTrade )
+            score -= 50;
+
+        //--Switch tax
+        score -= 15;
 
         return score;
     }
@@ -70,8 +97,9 @@ public class BattleAI_SwitchCommand
     {
         int bestScore = int.MinValue;
         Pokemon bestSwitch = null;
+        float bestHPRatio = 0f;
         ThreatResult biggestThreat = _ai.GetThreat_ImmediateDamage( opponents, _ai.Unit.Pokemon ); //--The biggest threat will start as the biggest threat to the current pokemon thinking of switching. It will get overwritten if there's a viable switch candidate. this prevents it from being null in the case there are no more viable switch ins.
-        PotentialToKO bestSwitchInKOClass = PotentialToKO.Neutral2HK0;
+        PotentialToKOResult bestSwitchInPTKO = new() { PotentialKO = PotentialToKO.Neutral2HK0 };
         float mostThreateningMoveModifier = 1f;
         bool islegit = true;
 
@@ -113,7 +141,10 @@ public class BattleAI_SwitchCommand
 
             //--Speed check. Not as important in a defensive switch-in.
             if( threat.Unit != null && pokemon.PokeSO.Speed < threat.Unit.Pokemon.PokeSO.Speed )
-                score -= 5;
+                score -= 15;
+            else
+                score += 5;
+
             Debug.Log( $"[AI Scoring][Defensive Switch Candidate] {pokemon.NickName}'s Speed Comparison checked. Score: {score}" );
 
             //--Tier of the targeted defensive stat's Base Stat
@@ -121,26 +152,35 @@ public class BattleAI_SwitchCommand
             else if( ourDefense >= 125f )          score += 15;
             else if( ourDefense >= 100f )          score += 10;
             else if( ourDefense >= 80f )           score += 0;
-            else if( ourDefense >= 65f )           score -= 10;
-            else if( ourDefense >= 50f )           score -= 15;
-            else if( ourDefense < 50f )            score -= 25;
+            else if( ourDefense >= 65f )           score -= 5;
+            else if( ourDefense >= 50f )           score -= 10;
+            else if( ourDefense < 50f )            score -= 15;
             Debug.Log( $"[AI Scoring][Defensive Switch Candidate] {pokemon.NickName}'s Defense checked. Score: {score}" );
 
             //--Aggregate bulk based on hp, def, and spdef base stats
             if( bulk >= 400 )           score += 15;
             else if( bulk >= 300 )      score += 10;
             else if( bulk >= 200 )      score += 0;
-            else if( bulk >= 150 )      score -= 10;
-            else if( bulk <= 100 )      score -= 15;
+            else if( bulk >= 150 )      score -= 5;
+            else if( bulk <= 100 )      score -= 10;
             Debug.Log( $"[AI Scoring][Defensive Switch Candidate] {pokemon.NickName}'s Overall Bulk checked. Score: {score}" );
 
             //--Walling capability vs the threat's highest attacking stat
             int wallingScore = _ai.Get_WallingScore( threat.Unit.Pokemon, pokemon );
-            var threatMoveModifier = _ai.Get_MostThreateningMove( threat.Unit.Pokemon, pokemon ).Modifier;
+            var threatMoveModifier = _ai.Get_MostThreateningMove( threat.Unit, pokemon ).Modifier;
+
+            //--Modifier influence. Higher modifiers likely mean super effective damage and switching a mon into a super effective hit is lunacy.
+            if( threatMoveModifier >= 4f )          score -= 50; //--4x damage is almost always certain death. Ideally never pick this candidate.
+            else if( threatMoveModifier >= 2f )     score -= 25; //--Discourage super effective damage.
+            else if( threatMoveModifier <= 0.5f )   score += 10; //--reward resist, but not too much.
+
 
             PotentialToKOResult potentialToKO = _ai.Get_PotentialToKOResult( wallingScore, threatMoveModifier, hpRatio );
 
-            score += potentialToKO.Score;
+            if( potentialToKO.PotentialKO <= PotentialToKO.Neutral2HK0 )
+                score += 15;
+            else
+                score += potentialToKO.Score;
             Debug.Log( $"[AI Scoring][Defensive Switch Candidate] {pokemon.NickName}'s Potential to be KO'd: {potentialToKO.PotentialKO}, {potentialToKO.Score}. Checked vs HP Ratio. Score: {score}" );
 
             //--Immediate danger override
@@ -156,7 +196,8 @@ public class BattleAI_SwitchCommand
             {
                 bestScore = score;
                 bestSwitch = pokemon;
-                bestSwitchInKOClass = potentialToKO.PotentialKO;
+                bestHPRatio = hpRatio;
+                bestSwitchInPTKO = potentialToKO;
                 biggestThreat = threat;
                 mostThreateningMoveModifier = threatMoveModifier;
             }
@@ -177,8 +218,8 @@ public class BattleAI_SwitchCommand
             PotentialToKOResult currentMonPotentialToKO = _ai.Get_PotentialToKOResult( currentMonWallingScore, mostThreateningMoveModifier, currentMonHPRatio );
 
             //--Gate switch by KO Class improvement. If the KO Class doesn't improve significantly, don't switch.
-            bool improvesKOClass = bestSwitchInKOClass < currentMonPotentialToKO.PotentialKO;
-            bool isStillDying = bestSwitchInKOClass >= PotentialToKO.Risky;
+            bool improvesKOClass = bestSwitchInPTKO.PotentialKO < currentMonPotentialToKO.PotentialKO;
+            bool isStillDying = bestSwitchInPTKO.PotentialKO > PotentialToKO.Risky;
 
             Debug.Log( $"[AI Scoring][Defensive Switch Candidate] KO Class Improved: {improvesKOClass}, The Switch will still die: {isStillDying}, IsLegit Switch: {islegit}" );
             if ( isStillDying && !improvesKOClass )
@@ -189,7 +230,7 @@ public class BattleAI_SwitchCommand
 
             //--HP/Sacrifice Gate
             bool currentPokemonIsLowHP = currentMonHPRatio < 0.25f;
-            bool switchCanSurviveHit = bestSwitchInKOClass <= PotentialToKO.Neutral2HK0;
+            bool switchCanSurviveHit = bestSwitchInPTKO.PotentialKO <= PotentialToKO.Neutral2HK0;
 
             Debug.Log( $"[AI Scoring][Defensive Switch Candidate] Current Pokemon has low HP: {currentPokemonIsLowHP}, The Switch will still die: {switchCanSurviveHit}, IsLegit Switch: {islegit}" );
 
@@ -201,11 +242,15 @@ public class BattleAI_SwitchCommand
         }
 
         if( bestSwitch != null )
-            Debug.Log( $"[AI Scoring][Defensive Switch Candidate] Chosen Candidate: {bestSwitch.NickName}, Score: {bestScore}, KO_Class: {bestSwitchInKOClass}" );
+            Debug.Log( $"[AI Scoring][Defensive Switch Candidate] Chosen Candidate: {bestSwitch.NickName}, Score: {bestScore}, KO_Class: {bestSwitchInPTKO}" );
         else
             Debug.Log( $"[AI Scoring][Defensive Switch Candidate] No Switch available!" );
 
-        return new(){ Score = bestScore, Pokemon = bestSwitch, KOClass = bestSwitchInKOClass, IsLegitimate = islegit };
+        //--Flat penalty for undoing a pivot for probably no reason
+        if( bestSwitch != null && _ai.LastSentInPokemon != null && bestSwitch == _ai.LastSentInPokemon )
+            bestScore -= 20;
+
+        return new(){ Score = bestScore, Pokemon = bestSwitch, HPRatio = bestHPRatio, PTKOResult = bestSwitchInPTKO, IsLegitimate = islegit };
     }
 
 }

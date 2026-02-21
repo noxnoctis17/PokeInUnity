@@ -50,7 +50,7 @@ public class TerrainDB : MonoBehaviour
                         }
                     },
 
-                    OnDamageModify = ( BattleUnit source, BattleUnit target, Move move ) =>
+                    OnDamageModify = ( BattleUnit source, Pokemon target, Move move ) =>
                     {
                         if( source.Flags[UnitFlags.Grounded].IsActive && move.MoveSO.Type == PokemonType.Grass )
                             return 1.3f;
@@ -79,7 +79,7 @@ public class TerrainDB : MonoBehaviour
                         }
                     },
 
-                    OnDamageModify = ( BattleUnit source, BattleUnit target, Move move ) =>
+                    OnDamageModify = ( BattleUnit source, Pokemon target, Move move ) =>
                     {
                         if( source.Flags[UnitFlags.Grounded].IsActive && move.MoveSO.Type == PokemonType.Psychic )
                             return 1.3f;
@@ -111,7 +111,7 @@ public class TerrainDB : MonoBehaviour
                         }
                     },
 
-                    OnDamageModify = ( BattleUnit source, BattleUnit target, Move move ) =>
+                    OnDamageModify = ( BattleUnit source, Pokemon target, Move move ) =>
                     {
                         if( source.Flags[UnitFlags.Grounded].IsActive && ( move.MoveSO.Type == PokemonType.Ghost || move.MoveSO.Type == PokemonType.Dark ) )
                             return 1.3f;

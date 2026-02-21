@@ -11,7 +11,8 @@ public class BattleAI_MoveCommand
         _ai = ai;
     }
 
-    public void SubmitMoveCommand( BattleUnit target ){
+    public void SubmitMoveCommand( BattleUnit target )
+    {
         Debug.Log( "[AI Scoring] SubmitMoveCommand()" );
 
         var move = ChooseAMove( target );
@@ -30,40 +31,82 @@ public class BattleAI_MoveCommand
             Debug.LogError( $"{_ai.Unit.Pokemon.NickName} has not chosen a move even though it was supposed to! Battle will now hang!" );
     }
 
-    public bool ShouldAttackInstead( ThreatResult damageThreat, TempoStateResult tempo )
+    public int AttackScore( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context )
     {
-        var target = damageThreat.Unit.Pokemon;
-        var attacker = _ai.Unit.Pokemon;
-        
-        float targetHPRatio = _ai.Get_HPRatio( target );
-        int threatWallingScore = _ai.Get_WallingScore( attacker, target );
-        var mostThreateningMoveModifier = _ai.Get_MostThreateningMove( attacker, target ).Modifier;
+        int score = 0;
 
-        PotentialToKOResult potentialToKOTarget  = _ai.Get_PotentialToKOResult( threatWallingScore, mostThreateningMoveModifier, targetHPRatio );
+        var attackerName = eval.AttackerName;
+        var targetName = eval.TargetName;
 
-        bool isFaster = _ai.Unit.Pokemon.PokeSO.Speed > damageThreat.Unit.Pokemon.PokeSO.Speed || _ai.Check_UnitHasPriority( attacker ); //--this function needs to consider fake out and whether it can be used! it should also ignore status moves so it doesn't count protect, follow me, etc.
-        bool targetIsKillable  = potentialToKOTarget.PotentialKO >= PotentialToKO.Risky;
+        var myPTKO_onTarget = eval.AttackerPTKO_onTarget;
+        var theirPTKO_onMe = eval.TargetPTKO_onAttacker;
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] Beginning Attack Scoring for {attackerName} vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {myPTKO_onTarget.PotentialKO}, their PTKO on me: {theirPTKO_onMe.PotentialKO}" );
 
-        Debug.Log( $"[AI Scoring][Should Attack] {attacker.NickName} has chosen whether it will attack {target.NickName}! Target's HP Ratio: {targetHPRatio}, Potential to KO: {potentialToKOTarget.PotentialKO}, Faster: {isFaster}, Target is Kill: {targetIsKillable}" );
+        //--KO Class Advantage
+        score += _ai.Get_OffensivePTKOScore( myPTKO_onTarget.Score );
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] My ({attackerName}) PTKO Score {myPTKO_onTarget.Score}. Score: {score}" );
 
-        Debug.Log( $"[AI Scoring][Should Attack] Checking against Tempo State!" );
+        score += theirPTKO_onMe.Score;
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] Their ({targetName}) PTKO Score {theirPTKO_onMe.Score}. Score: {score}" );
 
-        switch( tempo.TempoState )
+        bool iAmFaster = eval.AttackerMovesFirst;
+        bool iThreatenKO = eval.AttackerThreatensKO;
+        bool theyThreatenKO = eval.TargetThreatensKO;
+
+        if( iThreatenKO )
         {
-            case TempoState.WinningHard:
-            case TempoState.Winning:
-                return true;
-
-            case TempoState.LosingHard:
-                return _ai.Check_IsLastPokemon();
-
-            case TempoState.Losing:
-                return isFaster && targetIsKillable;
-
-            case TempoState.Neutral:
-            default:
-                return ( isFaster && targetIsKillable ) || _ai.Check_IsLastPokemon();
+            if( iAmFaster )
+                score += 135; //--Commit hard
+            else
+                score += 75; //--Probably commit
         }
+
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] I Threaten a KO: {iThreatenKO} & I am faster: {iAmFaster}. Score: {score}" );
+
+        if( theyThreatenKO )
+        {
+            float hp = eval.AttackerHPRatio;
+            int deathPenalty;
+
+            if( hp > 0.6f )
+                deathPenalty = 120;
+            else if( hp > 0.3f )
+                deathPenalty = 80;
+            else
+                deathPenalty = 40;
+
+            if( !iAmFaster )
+                score -= deathPenalty;
+            else
+                score -= deathPenalty / 2;
+        }
+
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] They Threaten a KO: {theyThreatenKO} & I am faster: {iAmFaster}. Score: {score}" );
+
+        float myHPRatio = eval.AttackerHPRatio;
+
+        if( myHPRatio < 0.2f )
+            score -= 20;
+        else if( myHPRatio < 0.4f )
+            score -= 10;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] HP Ratio Check. Score: {score}" );
+
+        score += _ai.TempoAttackModifier( tempo );
+
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] Tempo check. Score: {score}" );
+
+        if( context.IsForcedTrade )
+            score += 40;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] Forced Trade: {context.IsForcedTrade}. Score: {score}" );
+
+        if( context.IsBehind )
+            score += 20;
+
+        Debug.Log( $"[AI Scoring][Choose Command][Attack Score] Is Behind: {context.IsBehind}. Score: {score}" );
+
+        return score;
     }
 
     private AIDecisionType ChooseAttackStyle()
@@ -90,7 +133,8 @@ public class BattleAI_MoveCommand
         }
     }
 
-    private Move GetRandomMove( BattleUnit target ){
+    private Move GetRandomMove( BattleUnit target )
+    {
         Debug.Log( $"[AI Scoring] Getting Random Move vs {target.Pokemon.NickName}" );
         List<Move> usableMoves = new();
 
@@ -181,8 +225,16 @@ public class BattleAI_MoveCommand
             float weather = _ai.BattleSystem.Field.Weather?.OnDamageModify?.Invoke( _ai.Unit.Pokemon, target.Pokemon, move ) ?? 1f;
             Debug.Log( $"[AI Scoring][Strongest Attack] Finding {_ai.Unit.Pokemon.NickName}'s Strongest Attacking Move. Weather Modifier: {weather}" );
 
+            //--Assign a bonus for a terrain damage boost
+            float terrain = _ai.BattleSystem.Field.Terrain?.OnDamageModify?.Invoke( _ai.Unit, target.Pokemon, move ) ?? 1f;
+            Debug.Log( $"[AI Scoring][Strongest Attack] Finding {_ai.Unit.Pokemon.NickName}'s Strongest Attacking Move. Terrain Modifier: {terrain}" );
+
+            //--Assign a bonus for held item boost
+            float item = _ai.Unit.Pokemon.BattleItemEffect?.OnDamageModify?.Invoke( _ai.Unit, target.Pokemon, move ) ?? 1f;
+            Debug.Log( $"[AI Scoring][Strongest Attack] Finding {_ai.Unit.Pokemon.NickName}'s Strongest Attacking Move. Item Modifier: {item}" );
+
             //--Calculate final score
-            float score = power * effectiveness * stat * stab * weather;
+            float score = power * effectiveness * stat * stab * weather * terrain * item;
             Debug.Log( $"[AI Scoring][Strongest Attack] Finding {_ai.Unit.Pokemon.NickName}'s Strongest Attacking Move. Final Score: {score}" );
 
             //--If this move's score is the highest, set it as the current best score and best move
@@ -201,7 +253,7 @@ public class BattleAI_MoveCommand
             return new(){ Score = bestScore, Move = _ai.Unit.LastUsedMove };
         }
         
-        if( fakeout != null && ShouldUseFakeOut( target ) )
+        if( fakeout != null && _ai.CanUseFakeOut( _ai.Unit, target ) )
         {
             if( Random.value < _ai.TrainerSkillModifier )
             {
@@ -211,22 +263,4 @@ public class BattleAI_MoveCommand
 
         return new(){ Score = bestScore, Move = bestMove };
     }
-
-    private bool ShouldUseFakeOut( BattleUnit target )
-    {
-        if( !_ai.Pokemon.CheckHasMove( "Fake Out" ) )
-            return false;
-
-        if( _ai.Unit.Flags[UnitFlags.TurnsTaken].Count > 0 )
-        {
-            Debug.Log( $"[AI Scoring] Fake Out user {_ai.Unit.Pokemon.NickName}'s Turn Count: {_ai.Unit.Flags[UnitFlags.TurnsTaken].Count}" );
-            return false;
-        }
-
-        if( target.Pokemon.CheckTypes( PokemonType.Ghost ) )
-            return false;
-
-        return true;
-    }
-
 }

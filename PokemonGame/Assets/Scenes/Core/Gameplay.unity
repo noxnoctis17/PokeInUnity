@@ -4529,7 +4529,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 146765293}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.21345285, y: -0.000000008404914, z: 0.0000000018363752, w: 0.9769534}
+  m_LocalRotation: {x: 0.21345285, y: 0.000000008404918, z: -0.0000000018363763, w: 0.9769534}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -16938,6 +16938,7 @@ MonoBehaviour:
   _gen3_TrainerTheme: {fileID: 8300000, guid: 5d51dbd9f7359644ab697cbcbc627f84, type: 3}
   _gen3_GymLeaderTheme: {fileID: 8300000, guid: 2eaa6b4f5c62c8a41b6cb255d091806a, type: 3}
   _gen1_ChampionTheme: {fileID: 8300000, guid: 5031a708d48bfd04ea646a5191ba66c9, type: 3}
+  _cynthiaTheme: {fileID: 8300000, guid: dca79012d5ef0f14ea256e28260c6cf9, type: 3}
   _battleThemeDefault: {fileID: 8300000, guid: f6b98c96de3364b45984f468623977b8, type: 3}
   _routeMainThemeCalm: {fileID: 8300000, guid: 99e1a53440728ec46ae5ce1179ec677e, type: 3}
   _ledgeHop: {fileID: 8300000, guid: 8f7cc23f1fa5d854f937678182133bbb, type: 3}
@@ -36006,7 +36007,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1015433911}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.24253564, y: -0.0000000119759545, z: 0.0000000029939882, w: 0.97014254}
+  m_LocalRotation: {x: 0.24253562, y: -1.6858226e-15, z: 3.8335885e-16, w: 0.97014254}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -41277,7 +41278,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1170984981}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.24253567, y: -0.000000031294668, z: 0.000000007823668, w: 0.97014254}
+  m_LocalRotation: {x: 0.2425356, y: -0.000000028912504, z: 0.000000007228125, w: 0.97014254}
   m_LocalPosition: {x: -60.078636, y: -92.806404, z: -48.998394}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -68577,7 +68578,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1899367338}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.24253562, y: 1.6858226e-15, z: -3.8335885e-16, w: 0.97014254}
+  m_LocalRotation: {x: 0.2425356, y: -0.000000028912504, z: 0.000000007228125, w: 0.97014254}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -76477,7 +76478,7 @@ PrefabInstance:
     - target: {fileID: 3319177255208663469, guid: d5849076cabc26f40b8dfb83c7ff1566, type: 3}
       propertyPath: _rentalTeam
       value: 
-      objectReference: {fileID: 11400000, guid: c2596a7d23961b544827fdef672a758a, type: 2}
+      objectReference: {fileID: 11400000, guid: effe273f2dfe6a64aa07871fb7e8bae3, type: 2}
     - target: {fileID: 3319177255208663469, guid: d5849076cabc26f40b8dfb83c7ff1566, type: 3}
       propertyPath: _useRentalTeam
       value: 1

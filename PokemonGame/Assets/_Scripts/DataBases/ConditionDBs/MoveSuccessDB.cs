@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -349,8 +350,16 @@ public class MoveSuccessDB
                     {
                         if( attacker.Flags[UnitFlags.Substitute].IsActive )
                             return false;
-                        else
-                            return true;
+
+                        int subDamage = Mathf.FloorToInt( attacker.Pokemon.MaxHP * 0.25f );
+                        int hp = attacker.Pokemon.CurrentHP;
+
+                        if( hp - subDamage <= 0 )
+                            return false;
+
+                        attacker.Pokemon.DecreaseHP( subDamage );
+                        attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, string.Empty );
+                        return true;
                     }
                 }
             },
@@ -706,6 +715,23 @@ public class MoveSuccessDB
 
                         move.PP++;
                         return true;
+                    }
+                }
+            },
+            {
+                "Baton Pass", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        var activePokemon = bs.PlayerUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+                        var remainingPokemon = bs.BottomTrainer1.GetHealthyPokemon( dontInclude: activePokemon );
+
+                        if( remainingPokemon == null )
+                            return false;
+                        else
+                            return true;
                     }
                 }
             }

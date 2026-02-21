@@ -582,7 +582,9 @@ public class BattleSystem : MonoBehaviour
         _bottomTrainer1 = bottomTrainer;
         TrainerCenter_Bottom1 = _bottomTrainer1.TrainerCenter;
 
-        AudioController.Instance.PlayMusic( topTrainer.BattleTheme, 10f );
+        int coin = UnityEngine.Random.Range( 0, 2 );
+        MusicTheme theme = coin == 0 ? topTrainer.BattleTheme : bottomTrainer.BattleTheme;
+        AudioController.Instance.PlayMusic( theme, 5f );
 
         Action activateCanvasesCallback = () =>
         {

@@ -648,6 +648,7 @@ public class BattleCommandCenter : MonoBehaviour
 
         if( effects.SwitchType != SwitchEffectType.None )
         {
+            Debug.Log( $"[Switch Effect] Switch effect is: {effects.SwitchType}, from move: {move.MoveSO.Name}." );
             var activePokemon = BattleSystem.PlayerUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
             var remainingPokemon = BattleSystem.BottomTrainer1.GetHealthyPokemon( dontInclude: activePokemon );
 
@@ -678,6 +679,7 @@ public class BattleCommandCenter : MonoBehaviour
                 }
                 else if( BattleSystem.PlayerUnits.Contains( attacker ) && remainingPokemon != null )
                 {
+                    Debug.Log( $"Pivot move was used by a player unit, {attacker.Pokemon.NickName}!" );
                     if( attacker.IsAI )
                     {
                         BattleSystem.SetForcedSwitch( true );

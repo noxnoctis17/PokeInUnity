@@ -49,3 +49,21 @@ MonoBehaviour:
     - {fileID: 11400000, guid: e9f20dde254f60e408e4bb958167ced6, type: 2}
     - {fileID: 11400000, guid: 429664c7643b34941a57b30b201699cf, type: 2}
     - {fileID: 11400000, guid: a253d40f424477e48a10c36258363b8b, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 634ad68f5c0cc414683f8e161754da62, type: 2}
+    _nickName: 
+    _level: 9
+    _nature: 4
+    _ability: 15
+    _heldItem: {fileID: 11400000, guid: 16a2c6dadc3ee49429effd19cd0216ce, type: 2}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: 447507f70d65b32489bced1ea8e59884, type: 2}
+    - {fileID: 11400000, guid: 33e08a90f9f48884082050af86741d3d, type: 2}
+    - {fileID: 11400000, guid: a3a36782229d22d448d139524a694b4f, type: 2}
+    - {fileID: 11400000, guid: ece227f82cb22de4aa20b6f96c58259d, type: 2}

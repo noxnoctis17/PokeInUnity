@@ -775,7 +775,8 @@ public class TypeChart
 
     };
 
-    public static float GetEffectiveness( PokemonType attackType, PokemonType defenseType ){
+    public static float GetEffectiveness( PokemonType attackType, PokemonType defenseType )
+    {
         if ( attackType == PokemonType.None || defenseType == PokemonType.None )
          return 1;
 

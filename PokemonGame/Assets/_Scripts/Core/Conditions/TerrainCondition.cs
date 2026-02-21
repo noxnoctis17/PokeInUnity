@@ -16,5 +16,5 @@ public class TerrainCondition
     public Action<BattleUnit> OnEnterTerrain { get; set; }
     public Action<BattleUnit> OnExitTerrain { get ; set;}
     public Action<BattleUnit, BattleUnit, Move> OnMoveModify { get; set; }
-    public Func<BattleUnit, BattleUnit, Move, float> OnDamageModify { get; set; }
+    public Func<BattleUnit, Pokemon, Move, float> OnDamageModify { get; set; }
 }
