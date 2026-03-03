@@ -28,10 +28,8 @@ public class BattleHUD : MonoBehaviour
 
     public void SetData( Pokemon pokemon, BattleUnit battleUnit )
     {
-        if( _pokemon != null ){
+        if( _pokemon != null )
             _pokemon.OnStatusChanged        -= SetSevereStatus;
-            // _pokemon.OnDisplayInfoChanged   -= UpdateHP;
-        }
 
         _pokemon = pokemon;
         _battleUnit = battleUnit;
@@ -55,13 +53,16 @@ public class BattleHUD : MonoBehaviour
 
         SetSevereStatus();
         _pokemon.OnStatusChanged        += SetSevereStatus;
-        // _pokemon.OnDisplayInfoChanged   += UpdateHP;
         BattleSystem.OnBattleEnded      += ClearData;
     }
 
     public IEnumerator UpdateHPCoroutine()
     {
-        _battlePortrait.sprite = _pokemon.PokeSO.Portrait_Hurt;
+        if( _hpBar.RedHPSlider.value < _pokemon.CurrentHP )
+            _battlePortrait.sprite = _pokemon.PokeSO.Portrait_Happy;
+        else
+            _battlePortrait.sprite = _pokemon.PokeSO.Portrait_Hurt;
+
         yield return _hpBar.AnimateHP( _pokemon.CurrentHP );
         yield return null;
 

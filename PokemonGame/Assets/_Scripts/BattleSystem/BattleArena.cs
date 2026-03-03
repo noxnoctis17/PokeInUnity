@@ -279,11 +279,11 @@ public class BattleArena : MonoBehaviour
 
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
-        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
+        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
 
         var enemyUnit = _battleSystem.EncounteredPokemon.gameObject.GetComponent<BattleUnit>();
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        enemyUnit.Setup( _battleSystem.WildPokemon, _battleSystem.WildPokemonHUD, _battleSystem ); //--REMEMBER!!!!! _singlesUnit2 is not actually being assigned to, it's only here for its position!!
+        enemyUnit.Setup( _battleSystem.WildPokemon, null, _battleSystem.WildPokemonHUD, _battleSystem ); //--REMEMBER!!!!! _singlesUnit2 is not actually being assigned to, it's only here for its position!!
         yield return null;
 
         //--Make everyone face the arena center
@@ -355,10 +355,10 @@ public class BattleArena : MonoBehaviour
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
         
-        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
+        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
         
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.EnemyHUDs[0], _battleSystem );
+        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit
@@ -464,12 +464,12 @@ public class BattleArena : MonoBehaviour
 
         //--Setup each unit, all indicies should be the same! unit 0 should have hud 0!
         for( int i = 0; i < playerMons.Count; i++)
-            playerUnits[i].Setup( playerMons[i], _battleSystem.PlayerHUDs[i], _battleSystem );
+            playerUnits[i].Setup( playerMons[i], _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[i], _battleSystem );
 
         for( int i = 0; i < enemyMons.Count; i++)
         {
             enemyUnits[i].SetAI( true );
-            enemyUnits[i].Setup( enemyMons[i], _battleSystem.EnemyHUDs[i], _battleSystem );
+            enemyUnits[i].Setup( enemyMons[i], _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[i], _battleSystem );
         }
 
         //--Make everyone face the arena center
@@ -559,10 +559,10 @@ public class BattleArena : MonoBehaviour
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
         
         playerUnit.SetAI( true ); //--enable AI for this unit
-        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.PlayerHUDs[0], _battleSystem );
+        playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
         
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.EnemyHUDs[0], _battleSystem );
+        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit

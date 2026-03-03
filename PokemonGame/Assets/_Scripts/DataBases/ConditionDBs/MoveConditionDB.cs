@@ -857,20 +857,20 @@ public class MoveConditionDB
 
                     OnAfterNextRound = ( unit, move, bs ) =>
                     {
-                        var wish = unit.Flags[UnitFlags.Wish];
-                        if( wish.Count > 0 )
+                        var fs = unit.Flags[UnitFlags.FutureSight];
+                        if( fs.Count > 0 )
                         {
-                            wish.Count--;
+                            fs.Count--;
                             return;
                         }
                         else
                         {
-                            var cacheAttacker = wish.Attacker.Pokemon;
-                            wish.Attacker.TempSetup( wish.User );
-                            unit.TakeDamage( wish.Move, wish.Attacker, bs.Field.Weather, bs.Field.Terrain, 1, 1 );
-                            unit.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{ wish.User.NickName} was hurt by the predicited attack!" );
+                            var cacheAttacker = fs.Attacker.Pokemon;
+                            fs.Attacker.TempUsage( fs.User );
+                            unit.TakeDamage( fs.Move, fs.Attacker, bs.Field.Weather, bs.Field.Terrain, 1, 1 );
+                            unit.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{ fs.User.NickName} was hurt by the predicited attack!" );
                             unit.ClearWish();
-                            wish.Attacker.TempSetup( cacheAttacker );
+                            fs.Attacker.TempUsage( cacheAttacker );
                         }
                     }
                 }

@@ -170,7 +170,8 @@ public class BattleSystem : MonoBehaviour
 //============================================================================================================
 //============================================================================================================
 
-    private void OnEnable(){
+    private void OnEnable()
+    {
         Instance = this;
         StateMachine = new( this );
         CommandCenter.Setup( this );
@@ -202,7 +203,8 @@ public class BattleSystem : MonoBehaviour
         OnBattleStarted?.Invoke();
     }
 
-    private void OnDisable(){
+    private void OnDisable()
+    {
         _roundEndPhaseState.Clear();
         Instance = null;
     }
@@ -608,26 +610,28 @@ public class BattleSystem : MonoBehaviour
         yield return BeginBattle();
     }
 
-    public void AssignUnits_1v1( BattleUnit playerUnit, BattleUnit enemyUnit ){
+    public void AssignUnits_1v1( BattleUnit playerUnit, BattleUnit enemyUnit )
+    {
         _playerUnits.Add( playerUnit );
         _enemyUnits.Add( enemyUnit );
-        Field.AddCourts( CourtLocation.TopCourt, _enemyUnits );
-        Field.AddCourts( CourtLocation.BottomCourt, _playerUnits );
+        Field.AddCourts( CourtLocation.TopCourt, _enemyUnits, _topTrainer1 );
+        Field.AddCourts( CourtLocation.BottomCourt, _playerUnits, _bottomTrainer1 );
     }
 
     public void AssignUnits_2v2( List<BattleUnit> playerUnits, List<BattleUnit> enemyUnits )
     {
         _playerUnits = playerUnits;
         _enemyUnits = enemyUnits;
-        Field.AddCourts( CourtLocation.TopCourt, _enemyUnits );
-        Field.AddCourts( CourtLocation.BottomCourt, _playerUnits );
+        Field.AddCourts( CourtLocation.TopCourt, _enemyUnits, _topTrainer1 );
+        Field.AddCourts( CourtLocation.BottomCourt, _playerUnits, _bottomTrainer1 );
     }
 
     //--When a Wild Battle is triggered by WildPokemonEvents.OnPlayerEncounter (a player runs into a wild mon),
     //--the BattleController's InitWildBattle() is called. That method eventually passes the Encounter's reference
     //--to the BattleSystem so that BattleState_Setup can properly call Setup() on the EnemyUnit to properly add the
     //--Wild Encounter as the EnemyUnit's Pokemon
-    public void AssignWildPokemon( WildPokemon wildPokemon ){
+    public void AssignWildPokemon( WildPokemon wildPokemon )
+    {
         _wildPokemon = wildPokemon.Pokemon;
         _encounteredPokemon = wildPokemon;
     }
@@ -757,7 +761,11 @@ public class BattleSystem : MonoBehaviour
                 unit = activePokemon[i];
         }
 
-        Debug.Log( $"[Get BattleUnit] Get Battle Unit {unit.Pokemon.NickName} ({pokemon.PID})" );
+        if( unit != null )
+            Debug.Log( $"[Get BattleUnit] Get Battle Unit {unit.Pokemon.NickName} ({pokemon.PID})" );
+        else
+            Debug.Log( $"[Get BattleUnit] Unit not in battle or not found!" );
+            
         return unit;
     }
 
@@ -777,17 +785,17 @@ public class BattleSystem : MonoBehaviour
             return _playerUnits;
     }
 
-    public List<Pokemon> GetAllyParty( BattleUnit unit )
+    public List<Pokemon> GetAllyParty( Pokemon pokemon )
     {
-        if( TopTrainer1.Party.Contains( unit.Pokemon ) )
+        if( TopTrainer1.Party.Contains( pokemon ) )
             return TopTrainer1.Party;
         else
             return BottomTrainer1.Party;
     }
 
-    public List<Pokemon> GetOpposingParty( BattleUnit unit )
+    public List<Pokemon> GetOpposingParty( Pokemon pokemon )
     {
-        if( TopTrainer1.Party.Contains( unit.Pokemon ) )
+        if( TopTrainer1.Party.Contains( pokemon ) )
             return BottomTrainer1.Party;
         else
             return TopTrainer1.Party;
@@ -848,6 +856,18 @@ public class BattleSystem : MonoBehaviour
 
     public bool MoveSuccess( BattleUnit attacker, BattleUnit target, Move move, bool aiCheck = false )
     {
+        //--Move Success DB Key
+        var key = move.MoveSO.Name;
+
+        if( ( move.MoveSO.Flags.Contains( MoveFlags.Charge ) || move.MoveSO.Flags.Contains( MoveFlags.TwoTurnMove ) ) && MoveSuccessDB.MoveSuccess.ContainsKey( key ) )
+        {
+            bool needsToCharge = MoveSuccessDB.MoveSuccess[key].OnCheckChargeSuccessSkip?.Invoke( attacker, target, move, this ) ?? false;
+
+            //--If a 2 turn/charge move needs to go through their charge turn, return true success, and skip all other checks.
+            if( needsToCharge )
+                return true;
+        }
+
         //--This checks if the target of a move is currently protecting itself.
         if( !MoveTargetSelfSide( move ) )
         {
@@ -925,7 +945,6 @@ public class BattleSystem : MonoBehaviour
         }
 
         //--Move Success Database Check
-        var key = move.MoveSO.Name;
         if( MoveSuccessDB.MoveSuccess.ContainsKey( key ) )
         {
             var moveSuccess = MoveSuccessDB.MoveSuccess[key];
@@ -1149,6 +1168,7 @@ public class BattleSystem : MonoBehaviour
             {
                 if( faintedUnit.IsAI )
                 {
+                    faintedUnit.UpdateAITeamPieceValue();
                     SetForcedSwitch( true );
                     var switchIn = faintedUnit.BattleAI.RequestedForcedSwitch();
                     yield return CommandCenter.PerformSwitchPokemonCommand( switchIn, faintedUnit, true );
@@ -1188,6 +1208,7 @@ public class BattleSystem : MonoBehaviour
                 }
                 else if( remainingPokemon != null )
                 {
+                    faintedUnit.UpdateAITeamPieceValue();
                     SetForcedSwitch( true );
                     var switchIn = faintedUnit.BattleAI.RequestedForcedSwitch();
                     yield return CommandCenter.PerformSwitchPokemonCommand( switchIn, faintedUnit, true );

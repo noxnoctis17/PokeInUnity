@@ -45,7 +45,7 @@ public class SevereConditionsDB
                     StatusIcon = StatusIconAtlas.StatusIcons[SevereConditionID.PSN].Icon,
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
-                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.MaxHP / 8 ) );
+                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.MaxHP / 8f ) );
                         pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by poison!" );
                     }}
             },
@@ -63,7 +63,7 @@ public class SevereConditionsDB
 
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     { 
-                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.SevereStatusTime * ( pokemon.MaxHP / 16 ) ) );
+                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.SevereStatusTime * ( pokemon.MaxHP / 16f ) ) );
                         pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by its horrible poisoning!" );
                         pokemon.SevereStatusTime++;
                     },
@@ -125,7 +125,7 @@ public class SevereConditionsDB
 
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
-                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.MaxHP / 16 ) );
+                        pokemon.DecreaseHP( Mathf.FloorToInt( pokemon.MaxHP / 16f ) );
                         pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by its frostbite!" );
                     }}
             },

@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Build.Player;
 using UnityEngine;
 
 public class BattleItemDB
@@ -8,7 +7,7 @@ public class BattleItemDB
     public static Dictionary<BattleItemEffectID, BattleItemEffect> BattleItemEffects = new()
     {
         {
-            BattleItemEffectID.NONE, new()
+            BattleItemEffectID.None, new()
             {
                 //--None
             }
@@ -256,7 +255,7 @@ public class BattleItemDB
                     if( unit.Pokemon.IsBelowHPPercent( 50 ) && unit.Pokemon.CurrentHP > 0 )
                     {
                         // Debug.Log( $"{unit.Pokemon.NickName} previous hp: {unit.Pokemon.CurrentHP}" );
-                        int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 4 );
+                        int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 4f );
                         unit.Pokemon.IncreaseHP( healBy );
                         // unit.SetFlagActive( UnitFlags.SitrusBerry, false );
                         // unit.SetFlagCount( UnitFlags.SitrusBerry, 0 );
@@ -288,13 +287,36 @@ public class BattleItemDB
             }
         },
         {
+            BattleItemEffectID.BlackSludge, new()
+            {
+                ID = BattleItemEffectID.BlackSludge,
+
+                OnItemRoundEnd = ( Pokemon pokemon ) =>
+                {
+                    Debug.Log( $"Leftovers Triggered!" );
+                    if( pokemon.CheckTypes( PokemonType.Poison ) )
+                    {
+                        int healBy = Mathf.FloorToInt( pokemon.MaxHP / 16 );
+                        pokemon.IncreaseHP( healBy );
+                        pokemon.AddStatusEvent( StatusEventType.Heal, $"{pokemon.NickName} ate some leftovers to restore its HP!" );
+                    }
+                    else
+                    {
+                        int damage = Mathf.FloorToInt( pokemon.MaxHP / 16 );
+                        pokemon.DecreaseHP( damage );
+                        pokemon.AddStatusEvent( StatusEventType.Heal, $"{pokemon.NickName} ate some leftovers to restore its HP!" );
+                    }
+                }
+            }
+        },
+        {
             BattleItemEffectID.MysticWater, new()
             {
                 ID = BattleItemEffectID.MysticWater,
                 
                 OnDamageModify = ( BattleUnit attacker, Pokemon target, Move move ) =>
                 {
-                    if( move.MoveSO.Type == PokemonType.Water )
+                    if( move.MoveType == PokemonType.Water )
                     {
                         Debug.Log( $"{attacker.Pokemon.NickName} is holding a Mystic Water! 1.2x water move damage baybeee!" );
                         return 1.2f;
@@ -311,7 +333,7 @@ public class BattleItemDB
                 
                 OnDamageModify = ( BattleUnit attacker, Pokemon target, Move move ) =>
                 {
-                    if( move.MoveSO.Type == PokemonType.Fire )
+                    if( move.MoveType == PokemonType.Fire )
                     {
                         Debug.Log( $"{attacker.Pokemon.NickName} is holding a Charcoal! 1.2x fire move damage baybeee!" );
                         return 1.2f;
@@ -356,7 +378,7 @@ public class BattleItemDB
                 {
                     if( move.MoveSO.HasFlag( MoveFlags.Contact ) )
                     {
-                        int damage = Mathf.FloorToInt( attacker.Pokemon.MaxHP / 6 );
+                        int damage = Mathf.FloorToInt( attacker.Pokemon.MaxHP / 6f );
                         attacker.Pokemon.DecreaseHP( damage );
                         attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} is hurt by {target.Pokemon.NickName}'s Rocky Helmet!" );
                     }
@@ -372,7 +394,7 @@ public class BattleItemDB
                 {
                     var effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
                     if( effectiveness > 1 )
-                        return 4915/4096;
+                        return 4915f/4096f;
                     else
                         return 1f;
                 }
@@ -383,7 +405,7 @@ public class BattleItemDB
 
 public enum BattleItemEffectID
 {
-    NONE,
+    None,
     FlameOrb,
     ToxicOrb,
     StaticOrb,
@@ -404,4 +426,6 @@ public enum BattleItemEffectID
     LightBall,
     RockyHelmet,
     ExpertBelt,
+    HeavyDutyBoots,
+    BlackSludge,
 }

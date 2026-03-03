@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 
 [RequireComponent( typeof( BattleAI ) )]
@@ -13,6 +15,7 @@ public class BattleUnit : MonoBehaviour
     private BattleAI _battleAI;
     public BattleAI BattleAI => _battleAI;
     public int Level => _level;
+    public BattleTrainer Trainer { get; private set; }
     public BattleHUD BattleHUD { get; set; }
     public PokemonSO PokeSO { get; private set; } //--why the fuck is this public //--03/26/24 still don't know why this is public lol //--04/08/24 decided to just make it into a property finally lol //--11/25/25 pretty sure we actually use it now
     public Pokemon Pokemon { get; set; }
@@ -50,13 +53,38 @@ public class BattleUnit : MonoBehaviour
         _init = false;
     }
 
-    public void Setup( Pokemon pokemon, BattleHUD battleHUD, BattleSystem battleSystem )
+    public void Setup( Pokemon pokemon, BattleTrainer trainer, BattleHUD battleHUD, BattleSystem battleSystem )
     {
         _battleSystem = battleSystem;
         _battleAI = GetComponent<BattleAI>();
+        BattleHUD = battleHUD;
+        Trainer = trainer;
 
         AfterNextRoundQueue = new();
 
+        InitFlags();
+
+        UpdateUnit( pokemon );
+        
+        PokeAnimator.SetBattleSystem( battleSystem );
+        PokeTransform = PokeAnimator.PokemonTransform;
+
+        Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
+
+        if( _isAI )
+        {
+            _battleAI.enabled = true;
+            GetComponent<BattleAI>().InitializeAI( _battleSystem, this );
+            UpdateAITeamPieceValue();
+        }
+        else
+        {
+            _battleAI.enabled = false;
+        }
+    }
+
+    public void UpdateUnit( Pokemon pokemon )
+    {
         Pokemon = pokemon;
         _level = pokemon.Level;
         PokeSO = pokemon.PokeSO;
@@ -64,38 +92,20 @@ public class BattleUnit : MonoBehaviour
         if( !Pokemon.Equals( _battleSystem.WildPokemon ) )
             PokeAnimator.Initialize( PokeSO );
 
-        if( !_init )
-            InitFlags();
-        
-        PokeAnimator.SetBattleSystem( battleSystem );
-        PokeTransform = PokeAnimator.PokemonTransform;
-
-        BattleHUD = battleHUD;
         BattleHUD.SetData( Pokemon, this );
 
-        Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
-
-        if( _isAI )
-        {
-            _battleAI.enabled = true;
-            SetupAI();
-        }
-        else
-        {
-            _battleAI.enabled = false;
-        }
-
-        _init = true;
+        DecideIfGrounded();
     }
 
-    public void TempSetup( Pokemon pokemon )
+    public void UpdateAITeamPieceValue()
+    {
+        var allyTeam = _battleSystem.GetAllyParty( Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+        _battleAI.RefreshTeamPieceValues( allyTeam );
+    }
+
+    public void TempUsage( Pokemon pokemon )
     {
         Pokemon = pokemon;
-    }
-
-    private void SetupAI()
-    {
-        GetComponent<BattleAI>().SetupAI( _battleSystem, this );
     }
 
     private void InitFlags()
@@ -131,24 +141,6 @@ public class BattleUnit : MonoBehaviour
             { UnitFlags.DoomDesire,             new() },
             { UnitFlags.FaintedPreviousTurn,    new() },
         };
-
-        //--Right now these will restore sash and sitrus berry if you swap out and swap back in.
-        //--We need to change held item functions so that a consumed item is placed in the "RemovedHeldItem" slot
-        //--And then restored from that slot after battle. Also, that slot.... actually, no that's not what we do
-        //--This was maybe true when we were directly using pokemon in battle. but we now generate ai teams per encounter
-        //--and we clone the player's current team, we don't directly use it. simply removing an item that is consumed
-        //--or knocked off is perfectly valid now. the only case where this is wrong will be when we implement stuff
-        //--like harvest or recycle, that retreive lost/consumed items. i'll look into it soon, after cynthia. --02/09/26
-        // if( Pokemon.HeldItem != null && Pokemon.HeldItem.BattleEffectID == BattleItemEffectID.FocusSash )
-        //     Flags[UnitFlags.FocusSash].Count = 1;
-
-        // if( Pokemon.HeldItem != null && Pokemon.HeldItem.BattleEffectID == BattleItemEffectID.SitrusBerry )
-        //     Flags[UnitFlags.SitrusBerry].Count = 1;
-
-        //--02/15/26 everything seems to be working after removing these and implementing direct item removal from consumable items.
-
-        if( !Pokemon.CheckTypes( PokemonType.Flying ) && Pokemon.Ability?.ID != AbilityID.Levitate )
-            SetFlagActive( UnitFlags.Grounded, true );
     }
 
     public void SetFlagCount( UnitFlags flag, int count )
@@ -241,6 +233,14 @@ public class BattleUnit : MonoBehaviour
         Flags[UnitFlags.TookDamage].Attacker = null;
         Flags[UnitFlags.TookDamage].Move = null;
         Flags[UnitFlags.TookDamage].Count = 0;
+    }
+
+    public void DecideIfGrounded()
+    {
+        if( Pokemon.CheckTypes( PokemonType.Flying ) || Pokemon.AbilityID == AbilityID.Levitate )
+            SetFlagActive( UnitFlags.Grounded, false );
+        else
+            SetFlagActive( UnitFlags.Grounded, true );
     }
 
     public void SetSubstitute()
@@ -512,12 +512,13 @@ public class BattleUnit : MonoBehaviour
         return damageDetails;
     }
 
-    public void TakeRecoilDamage( int damage ){
+    public void TakeRecoilDamage( int damage )
+    {
         if( damage < 1 )
             damage = 1;
 
         Pokemon.DecreaseHP( damage );
-        Pokemon.AddStatusEvent( StatusEventType.Damage, $"{Pokemon.NickName} is damaged by recoil!" );
+        Pokemon.AddStatusEvent( StatusEventType.Damage, $"{Pokemon.NickName} was hurt by recoil!" );
     }
 }
 

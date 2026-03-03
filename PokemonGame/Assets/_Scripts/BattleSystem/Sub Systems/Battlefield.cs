@@ -105,9 +105,9 @@ public class Battlefield
         }
     }
 
-    public void AddCourts( CourtLocation location, List<BattleUnit> units )
+    public void AddCourts( CourtLocation location, List<BattleUnit> units, BattleTrainer trainer )
     {
-        ActiveCourts.Add( location, new( location, units ) );
+        ActiveCourts.Add( location, new( location, units, trainer ) );
     }
 
     public Court GetUnitCourt( BattleUnit unit )
@@ -165,4 +165,31 @@ public class Battlefield
 
         return null;
     }
+
+    public Court GetPokemonCourtFromTrainer( Pokemon pokemon )
+    {
+        foreach( var court in ActiveCourts )
+        {
+            if( court.Value.Trainer != null && court.Value.Trainer.Party.Contains( pokemon ) )
+                return court.Value;
+            else
+                continue;
+        }
+
+        return null;
+    }
+
+    public CourtLocation GetPokemonCourtLocationFromTrainer( Pokemon pokemon )
+    {
+        foreach( var court in ActiveCourts )
+        {
+            if( court.Value.Trainer != null && court.Value.Trainer.Party.Contains( pokemon ) )
+                return court.Value.Location;
+            else
+                continue;
+        }
+
+        return CourtLocation.TopCourt; //--Default to top court. if no trainer is found or the trainer for some reason doesn't have the mon, it's likely an npc/wild battle or something
+    }
+
 }

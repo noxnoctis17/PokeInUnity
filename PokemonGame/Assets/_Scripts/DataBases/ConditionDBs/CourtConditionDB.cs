@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.Rendering;
 using UnityEngine;
 
 public class CourtConditionDB
@@ -220,73 +221,28 @@ public class CourtConditionDB
                     BattleUnit healedUnit;
                     int stolenHP = 0;
 
-                    //--we need to un-hard code units positions!!
+                    CourtLocation drainedSide = location;
+                    CourtLocation healedSide = location == CourtLocation.TopCourt ? CourtLocation.BottomCourt : CourtLocation.TopCourt;
 
-                    //--Leech seed drains hp from the effected court! it's correctly applied to the opposing court when used.
-                    //--Here we check to see if the currently effected unit is in the top court. if it is, we have to drain its hp and give it to the
-                    //--opposing unit on the bottom court.
-                    if( field.GetUnitCourt( unit ).Location == CourtLocation.TopCourt )
+                    var drainedCourt = field.ActiveCourts[drainedSide];
+                    var healedCourt  = field.ActiveCourts[healedSide];
+
+                    for( int i = 0; i < drainedCourt.Units.Count; i++ )
                     {
-                        int unitIndex = field.ActiveCourts[CourtLocation.TopCourt].GetUnitIndex( unit );
-                        drainedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[unitIndex];
-                        stolenHP = drainedUnit.Pokemon.MaxHP / 8;
+                        drainedUnit = drainedCourt.Units[i];
+                        healedUnit = healedCourt.Units[i];
 
-                        if( unitIndex == 0 )
+                        if( drainedUnit == null || healedUnit == null )
+                            continue;
+
+                        if( drainedUnit == unit )
                         {
-                            if( field.ActiveCourts[CourtLocation.BottomCourt].Units[1] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1];
-                            
-                            else if( field.ActiveCourts[CourtLocation.BottomCourt].Units[1] == null && field.ActiveCourts[CourtLocation.BottomCourt].Units[0] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0];
-
-                            else
-                                healedUnit = null;
+                            stolenHP = drainedUnit.Pokemon.MaxHP / 8;
+                            battleSystem.AddToEventQueue( () => battleSystem.CreateLifeStealEvent( drainedUnit, healedUnit, stolenHP ) );
+                            break;
                         }
                         else
-                        {
-                            if( field.ActiveCourts[CourtLocation.BottomCourt].Units[0] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[0];
-
-                            else if( field.ActiveCourts[CourtLocation.BottomCourt].Units[0] == null && field.ActiveCourts[CourtLocation.BottomCourt].Units[1] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[1];
-
-                            else
-                                healedUnit = null;
-                        }
-                    }
-                    else
-                    {
-                        int unitIndex = field.ActiveCourts[CourtLocation.BottomCourt].GetUnitIndex( unit );
-                        drainedUnit = field.ActiveCourts[CourtLocation.BottomCourt].Units[unitIndex];
-                        stolenHP = drainedUnit.Pokemon.MaxHP / 8;
-
-                        if( unitIndex == 0 )
-                        {
-                            if( field.ActiveCourts[CourtLocation.TopCourt].Units[1] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1];
-                            
-                            else if( field.ActiveCourts[CourtLocation.TopCourt].Units[1] == null && field.ActiveCourts[CourtLocation.TopCourt].Units[0] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0];
-
-                            else
-                                healedUnit = null;
-                        }
-                        else
-                        {
-                            if( field.ActiveCourts[CourtLocation.TopCourt].Units[0] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[0];
-
-                            else if( field.ActiveCourts[CourtLocation.TopCourt].Units[0] == null && field.ActiveCourts[CourtLocation.TopCourt].Units[1] != null )
-                                healedUnit = field.ActiveCourts[CourtLocation.TopCourt].Units[1];
-
-                            else
-                                healedUnit = null;
-                        }
-                    }
-
-                    if( healedUnit != null )
-                    {
-                        battleSystem.AddToEventQueue( () => battleSystem.CreateLifeStealEvent( drainedUnit, healedUnit, stolenHP ) );
+                            continue;
                     }
                 },
 
@@ -310,7 +266,7 @@ public class CourtConditionDB
                 OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
                 {
                     float effectiveness = TypeChart.GetEffectiveness( PokemonType.Rock, unit.Pokemon.PokeSO.Type1 ) * TypeChart.GetEffectiveness( PokemonType.Rock, unit.Pokemon.PokeSO.Type2 );
-                    float damage = ( unit.Pokemon.MaxHP / 8 ) * effectiveness;
+                    float damage = ( unit.Pokemon.MaxHP / 8f ) * effectiveness;
                     unit.Pokemon.DecreaseHP( Mathf.FloorToInt( damage ) );
                     unit.Pokemon.AddStatusEvent( StatusEventType.Damage, $"Pointed stones dig into {unit.Pokemon.NickName}!" );
                 },
@@ -348,11 +304,11 @@ public class CourtConditionDB
                         float damage = 0;
 
                         if( layers == 1 )
-                            damage = unit.Pokemon.MaxHP / 8;
+                            damage = unit.Pokemon.MaxHP / 8f;
                         else if( layers == 2 )
-                            damage = unit.Pokemon.MaxHP / 6;
+                            damage = unit.Pokemon.MaxHP / 6f;
                         else if( layers >= 3 )
-                            damage = unit.Pokemon.MaxHP / 4;
+                            damage = unit.Pokemon.MaxHP / 4f;
 
                         unit.Pokemon.DecreaseHP( Mathf.FloorToInt( damage ) );
                         unit.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{unit.Pokemon.NickName} is hurt by spikes!" );

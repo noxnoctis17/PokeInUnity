@@ -59,13 +59,11 @@ public class Pokemon
     public NatureID CurrentNature => _currentNature;
     public NatureID DefaultNature => _defaultNature;
     public SevereCondition SevereStatus { get; private set; }
-    // public List<VolatileCondition> VolatileStatus { get; private set; }
     public Dictionary<VolatileConditionID, ( VolatileCondition Condition, int Duration )> VolatileStatuses { get; private set; }
     public TransientCondition TransientStatus { get; private set; }
     public Dictionary<BindingConditionID, ( BindingCondition Condition, int Duration )> BindingStatuses { get; private set; }
     public int SevereStatusTime { get; set; }
     public bool TransientStatusActive { get; set; }
-    // public int BindingStatusDuration { get; set; }
     public Queue<StatusEvent> StatusChanges { get; private set; }
 //==================[ Events ]===========================================
     public event Action OnStatusChanged;
@@ -133,8 +131,7 @@ public class Pokemon
         AssignAbilityFromID( trainerPokemon.AbilityID );
 
         //--Held Item
-        _heldItem = trainerPokemon.HeldItem;
-        SetupBattleItem();
+        SetupBattleItem( trainerPokemon.HeldItem );
 
         //--Effort Points
         _hpEVs      = trainerPokemon.HP_EVs;
@@ -401,6 +398,13 @@ public class Pokemon
             BattleItemEffect = BattleItemDB.BattleItemEffects[_heldItem.BattleEffectID];
     }
 
+    public void SetupBattleItem( ItemSO item )
+    {
+        _heldItem = item;
+        if( _heldItem != null && _heldItem.HasBattleEffect )
+            BattleItemEffect = BattleItemDB.BattleItemEffects[_heldItem.BattleEffectID];
+    }
+
     public void GiveHeldItem( ItemSO item )
     {
         if( item == null )
@@ -554,7 +558,8 @@ public class Pokemon
         bagScreen.PauseMenuStateMachine.PushState( bagScreen.LearnMoveMenu );
     }
 
-    public void ReplaceWithNewMove( MoveSO replacedMove, MoveSO newMove ){
+    public void ReplaceWithNewMove( MoveSO replacedMove, MoveSO newMove )
+    {
         for( int i = 0; i < ActiveMoves.Count; i++ ){
             if( ActiveMoves[i].MoveSO == replacedMove ){
                 ActiveMoves[i] = new Move ( newMove );
@@ -562,12 +567,29 @@ public class Pokemon
             }
         }
     }
-    public bool CheckHasMove( MoveSO move ){
+    public bool CheckHasMove( MoveSO move )
+    {
         return ActiveMoves.Count( m => m.MoveSO == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO == move ) > 0;
     }
 
-    public bool CheckHasMove( string move ){
+    public bool CheckHasMove( string move )
+    {
         return ActiveMoves.Count( m => m.MoveSO.Name == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO.Name == move ) > 0;
+    }
+
+    public bool CheckHasAttackingMoveOfType( PokemonType type )
+    {
+        for( int i = 0; i < _activeMoves.Count; i++ )
+        {
+            var move = _activeMoves[i];
+
+            if( move.MoveType == type && move.MoveSO.MoveCategory != MoveCategory.Status )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
     }
 
     public bool CheckCanLearnTM( MoveSO move ){
@@ -1282,7 +1304,6 @@ public class Pokemon
 
     private string GeneratePID( int hpIV, int atkIV, int defIV, int spatkIV, int spdefIV, int speIV, int natureID, int abilityIndex, int formIndex )
     {
-        int trainerID = PlayerReferences.Instance.PlayerTrainer.TrainerID;
         int gender;
 
         if( Gender == Gender.Male )
@@ -1291,6 +1312,9 @@ public class Pokemon
             gender = 1;
         else
             gender = 2;
+
+        int trainerID = UnityEngine.Random.Range( 1, 9999 );
+        int dexNO = PokeSO.DexNO;
 
         string pidString =
         $"{gender:D2}" +
@@ -1303,7 +1327,8 @@ public class Pokemon
         $"{natureID:D2}" +
         $"{abilityIndex:D2}" +
         $"{formIndex:D2}" +
-        $"{trainerID:D4}";
+        $"{trainerID:D4}" +
+        $"{dexNO:D3}";
 
         Debug.Log( $"{NickName}'s PID: {pidString}" );
         return pidString;

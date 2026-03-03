@@ -7,14 +7,16 @@ public enum CourtLocation { TopCourt, BottomCourt }
 
 public class Court
 {
+    public BattleTrainer Trainer { get; private set; }
     public CourtLocation Location { get; private set; }
     public List<BattleUnit> Units { get; private set; }
     public Dictionary<CourtConditionID, CourtCondition> Conditions { get; private set; }
 
-    public Court ( CourtLocation location, List<BattleUnit> units )
+    public Court ( CourtLocation location, List<BattleUnit> units, BattleTrainer trainer )
     {
         Location = location;
         Units = units;
+        Trainer = trainer;
         Conditions = new();
     }
 

@@ -361,7 +361,7 @@ public class BattleCommandCenter : MonoBehaviour
         if( MoveSuccessDB.MoveSuccess.ContainsKey( move.MoveSO.Name ) )
             MoveSuccessDB.MoveSuccess[move.MoveSO.Name].OnCheckAccuracy?.Invoke( attacker, target, move, BattleSystem );
 
-        if( move.MoveSO.AccuracyType == AccuracyType.AlwaysHits )
+        if( move.AccuracyType == AccuracyType.AlwaysHits )
             return true;
 
         if( move.MoveSO.Flags.Count > 0 && ( move.MoveSO.Flags.Contains( MoveFlags.Charge ) || move.MoveSO.Flags.Contains( MoveFlags.TwoTurnMove ) ) )
@@ -773,20 +773,17 @@ public class BattleCommandCenter : MonoBehaviour
                     int maxHP = attacker.Pokemon.MaxHP;
                     damage = Mathf.FloorToInt( maxHP * ( move.Recoil.RecoilDamage / 100f ) );
                     attacker.TakeRecoilDamage( damage );
-                    attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} was hurt by recoil!" );
                 break;
 
                 case RecoilType.RecoilByDamage:
                     damage = Mathf.FloorToInt( details.DamageDealt * ( move.Recoil.RecoilDamage / 100f ) );
                     attacker.TakeRecoilDamage( damage );
-                    attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} was hurt by recoil!" );
                 break;
 
                 case RecoilType.RecoilByCurrentHP:
                     int currentHP = attacker.Pokemon.CurrentHP;
                     damage = Mathf.FloorToInt( currentHP * ( move.Recoil.RecoilDamage / 100f ) );
                     attacker.TakeRecoilDamage( damage );
-                    attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} was hurt by recoil!" );
                 break;
 
                 default:
@@ -930,7 +927,7 @@ public class BattleCommandCenter : MonoBehaviour
         {
             if( allyUnits[i].Pokemon == unit.Pokemon )
             {
-                unit.Setup( pokemon, allyUnits[i].BattleHUD, BattleSystem ); //--Assign and setup the new pokemon
+                unit.UpdateUnit( pokemon ); //--Assign and setup the new pokemon
                 unit.ResetTurnsTakenInBattle(); //--Sets turns taken to -1, so they may be incremented to 0 during RoundEndUpdate()
                 unit.Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
             }

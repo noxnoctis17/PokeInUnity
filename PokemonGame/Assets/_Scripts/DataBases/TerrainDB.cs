@@ -44,7 +44,7 @@ public class TerrainDB : MonoBehaviour
                     {
                         if( unit.Flags[UnitFlags.Grounded].IsActive )
                         {
-                            int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16 );
+                            int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16f );
                             unit.Pokemon.IncreaseHP( healBy );
                             unit.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{unit.Pokemon.NickName} was healed by the Grassy Terrain!" );
                         }
@@ -104,7 +104,7 @@ public class TerrainDB : MonoBehaviour
                         {
                             if( !unit.Pokemon.CheckTypes( PokemonType.Ghost ) && !unit.Pokemon.CheckTypes( PokemonType.Dark ) )
                             {
-                                int damage = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16 );
+                                int damage = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16f );
                                 unit.Pokemon.DecreaseHP( damage );
                                 unit.Pokemon.AddStatusEvent( StatusEventType.Damage, $"The desecration harms {unit.Pokemon.NickName}!" );
                             }

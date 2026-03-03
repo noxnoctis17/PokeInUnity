@@ -463,6 +463,14 @@ public class MoveSuccessDB
             {
                 "Phantom Force", new()
                 {
+                    OnCheckChargeSuccessSkip = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
+                    {
+                        if( !attacker.Flags[UnitFlags.Charging].IsActive )
+                            return true;
+                        else
+                            return false;
+                    },
+
                     OnCheckNeedsToCharge = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
                         if( !attacker.Flags[UnitFlags.Charging].IsActive )

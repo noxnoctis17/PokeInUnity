@@ -5,10 +5,12 @@ public class WeatherConditionsDB
 {
     public static Dictionary<WeatherConditionID, WeatherCondition> Conditions { get; private set; }
 
-    public static void Init(){
+    public static void Init()
+    {
         SetDictionary();
 
-        foreach( var kvp in Conditions ){
+        foreach( var kvp in Conditions )
+        {
             var conditionID = kvp.Key;
             var condition = kvp.Value;
 
@@ -16,11 +18,13 @@ public class WeatherConditionsDB
         }
     }
 
-    public static void Clear(){
+    public static void Clear()
+    {
         Conditions = null;
     }
 
-    private static void SetDictionary(){
+    private static void SetDictionary()
+    {
         Conditions = new Dictionary<WeatherConditionID, WeatherCondition>()
         {
             {
@@ -30,7 +34,6 @@ public class WeatherConditionsDB
                   Name = "None Weather, left beef"
               }  
             },
-
             {   //--Harsh Sunlight
                 WeatherConditionID.SUNNY, new WeatherCondition()
                 {
@@ -169,7 +172,7 @@ public class WeatherConditionsDB
                         if( pokemon.AbilityID == AbilityID.SandVeil )
                         {
                             Debug.Log( $"[Ability] Sand Veil in Sandstorm detected! Adding evasion modifier..." );
-                            float mod = 4096f/3277;
+                            float mod = 4096f/3277f;
                             pokemon.ApplyDirectStatModifier( Stat.Evasion, DirectModifierCause.SandVeil, mod );
                         }
                     },
@@ -181,7 +184,7 @@ public class WeatherConditionsDB
                             return;
                         else
                         {
-                            var damage = Mathf.RoundToInt( pokemon.MaxHP / 16f );
+                            var damage = Mathf.FloorToInt( pokemon.MaxHP / 16f );
                             pokemon.DecreaseHP( damage );
                             pokemon.AddStatusEvent( StatusEventType.Damage, $"{pokemon.NickName} is buffeted by the sandstorm!" );
                         }

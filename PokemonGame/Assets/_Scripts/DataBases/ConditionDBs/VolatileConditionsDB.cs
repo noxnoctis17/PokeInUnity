@@ -82,7 +82,7 @@ public class VolatileConditionsDB : MonoBehaviour
                     OnRoundEndPhase = ( BattleUnit unit ) =>
                     {
                         Debug.Log( $"[Volatile Status] {unit.Pokemon.NickName} is being healed by Aqua Ring!" );
-                        int heal = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16 );
+                        int heal = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16f );
                         unit.Pokemon.IncreaseHP( heal );
                         unit.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{unit.Pokemon.NickName}'s hp was restored by Aqua Ring!" );
                     },

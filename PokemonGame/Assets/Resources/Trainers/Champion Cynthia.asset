@@ -23,7 +23,7 @@ MonoBehaviour:
     _nickName: 
     _level: 100
     _nature: 21
-    _ability: 61
+    _ability: 59
     _heldItem: {fileID: 11400000, guid: 0a920a696a04d5c459d7af6f90c8d33f, type: 2}
     _hpEVs: 252
     _attackEVs: 4
@@ -33,7 +33,7 @@ MonoBehaviour:
     _speedEVs: 0
     _ball: 3
     _moves:
-    - {fileID: 11400000, guid: 144e3c29fa4ce194baa6f3927e5d9568, type: 2}
+    - {fileID: 11400000, guid: 8c717781a6dbf0a45a073fb55fb8952e, type: 2}
     - {fileID: 11400000, guid: 5835900f02a36d3479f8dcda4de32654, type: 2}
     - {fileID: 11400000, guid: c0175a377b8e8654594fe6631f4aeea0, type: 2}
     - {fileID: 11400000, guid: 5f58dd3e77c70f942be5670a19904b02, type: 2}
@@ -96,7 +96,7 @@ MonoBehaviour:
     _level: 100
     _nature: 4
     _ability: 64
-    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
+    _heldItem: {fileID: 11400000, guid: 16a2c6dadc3ee49429effd19cd0216ce, type: 2}
     _hpEVs: 0
     _attackEVs: 252
     _defenseEVs: 0

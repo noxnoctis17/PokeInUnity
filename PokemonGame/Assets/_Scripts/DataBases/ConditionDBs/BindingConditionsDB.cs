@@ -50,7 +50,7 @@ public class BindingConditionsDB
         }
         else
         {
-            float damage = pokemon.MaxHP / 8;
+            float damage = pokemon.MaxHP / 8f;
 
             if( id == BindingConditionID.AcidTrap )
             {
