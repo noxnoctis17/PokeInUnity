@@ -10,13 +10,14 @@ public enum TempoState { WinningHard, Winning, Neutral, Losing, LosingHard }
 public class BattleAI : MonoBehaviour
 {
     private const int WALLINGSCORE_NORMALIZATION_OFFSET = 30;
-    private const float WALLINGSCORE_LOGSCALING_FACTOR = 42;
+    private const float WALLINGSCORE_LOGSCALING_FACTOR = 40;
     private const float MOVE_POWER_BASELINE = 75;
     private int _round;
-    private BattleAI_MoveCommand _moveCommand;
-    private BattleAI_SwitchCommand _switchCommand;
+    private BattleAI_ActionEvaluation _actionEval;
     public BattleSystem BattleSystem { get; private set; }
     public BattleTrainer Trainer { get; private set; }
+    public BattleAI_MoveCommand MoveCommand { get; private set; }
+    public BattleAI_SwitchCommand SwitchCommand { get; private set; }
     public BattleAI_Projection Projection { get; private set; }
     public BattleAI_UnitSim UnitSim { get; private set; }
     public BattleUnit Unit { get; private set; }
@@ -38,8 +39,9 @@ public class BattleAI : MonoBehaviour
 
         UnitSim = new( this );
         Projection = new( this );
-        _moveCommand = new( this );
-        _switchCommand = new( this );
+        MoveCommand = new( this );
+        SwitchCommand = new( this );
+        _actionEval = new( this );
 
         _round = 0;
 
@@ -48,8 +50,8 @@ public class BattleAI : MonoBehaviour
 
     public void CleanupAI()
     {
-        _moveCommand = null;
-        _switchCommand = null;
+        MoveCommand = null;
+        SwitchCommand = null;
     }
 
     public int Get_ConsecutiveSwitchPenalty()
@@ -109,46 +111,91 @@ public class BattleAI : MonoBehaviour
         //--Recharging should simply skip the turn altogether. After ChooseCommand() completes, we increment command count in the AI turn state,
         //--So there shouldn't be any hang ups, at least not in singles. --2/12/26, pre-doubles testing lol
         if( Unit.Flags[UnitFlags.Recharging].IsActive )
-        {
             return;
-        }
 
+        //--Opposing Threats
         var opposingUnits = BattleSystem.GetOpposingUnits( Unit );
         var damageThreat = GetThreat_ImmediateDamage( opposingUnits, Unit.Pokemon );
-        var exchangeEval = EvaluateExchange( Unit, damageThreat.Unit );
-        var tempo = GetTempoState( Unit, damageThreat.Unit, exchangeEval );
-        var boardContext = GetBoardContext( damageThreat.Unit, exchangeEval );
-        var defensiveSwitchCandidate = _switchCommand.GetSwitch_Defensive( opposingUnits );
-        var offensiveSwitchCandidate = _switchCommand.GetSwitch_Offensive( opposingUnits );
+        
+        //--Get Best Action based on high level heuristics, turn outcome simulation, flat board analysis, and simulaiton result adjustments.
+        var bestAction = GetBestAction( damageThreat, opposingUnits );
 
-        //--Get Attack Score
-        int attackScore = _moveCommand.AttackScore( tempo, exchangeEval, boardContext );
-        CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Attack Score: {attackScore}" );
-
-        //--Get Switch Score
-        int switchScore = _switchCommand.SwitchScore( tempo, exchangeEval, defensiveSwitchCandidate, boardContext );
-        CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Switch Score: {switchScore}" );
-
-        CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Final comparison for {Unit.Pokemon.NickName} vs {damageThreat.Unit.Pokemon.NickName}: Attack Score: {attackScore}, Switch Score: {switchScore}" );
-        if( switchScore > attackScore )
-        {
-            CurrentLog.Add( $"FINAL DECISION: {Unit.Pokemon.NickName} is switching with {defensiveSwitchCandidate.Pokemon.NickName}! Switch Amount: {SwitchAmount}. Switch Score: {switchScore}" );
-            CurrentLog.Add( "===========================================================" );
-            IncreaseSwitchAmount();
-            SetLastSentInPokemon( defensiveSwitchCandidate.Pokemon );
-            _switchCommand.SubmitSwitchCommand( defensiveSwitchCandidate.Pokemon );
-        }
-        else
-        {
-            CurrentLog.Add( $"FINAL DECISION: {Unit.Pokemon.NickName} is attacking! Attack Score: {attackScore}" );
-            CurrentLog.Add( "===========================================================" );
-            ResetSwitchAmount();
-            _moveCommand.SubmitMoveCommand( damageThreat.Unit, boardContext );
-        }
+        CurrentLog.Add( $"FINAL DECISION: {Unit.Pokemon.NickName} chose the {bestAction.Type} Action! Final Score: {bestAction.Score}" );
+        CurrentLog.Add( "===========================================================" );
 
         Debug.Log( CurrentLog.ToString() );
         string path = Application.persistentDataPath + "/BattleAI_ChooseCommandLog.txt";
         System.IO.File.AppendAllText( path, CurrentLog.ToString() + "\n" );
+        CurrentLog.Clear();
+
+        switch( bestAction.Type )
+        {
+            case ActionType.Attack: MoveCommand.SubmitMoveCommand( damageThreat.Unit, bestAction );
+                break;
+
+            case ActionType.DefensiveSwitch: SwitchCommand.SubmitSwitchCommand( bestAction.SwitchPayload );
+                break;
+
+            case ActionType.OffensiveSwitch: SwitchCommand.SubmitSwitchCommand( bestAction.SwitchPayload );
+                break;
+        }
+    }
+
+    private ActionEvaluation GetBestAction( ThreatResult damageThreat, List<BattleUnit> opposingUnits )
+    {
+        //--High level Heuristic Evaluations
+        var exchangeEval = EvaluateExchange( Unit, damageThreat.Unit );
+        var tempo = GetTempoState( Unit, damageThreat.Unit, exchangeEval );
+        var boardContext = GetBoardContext( damageThreat.Unit, exchangeEval );
+
+        //--Action Scoring & Simulations
+        var bestSimulatedMove = MoveCommand.Get_BestSimulatedMove( Unit.Pokemon, damageThreat.Unit.Pokemon );
+        var defensiveSwitchCandidate = SwitchCommand.GetSwitch_Defensive( opposingUnits );
+        var offensiveSwitchCandidate = SwitchCommand.GetSwitch_Offensive( opposingUnits );
+
+        //--Material Status
+        var materialStatus = GetMaterialStatus( Unit.Pokemon );
+
+        List<ActionEvaluation> actions = new();
+
+        //--Attack
+        int attackScore = MoveCommand.AttackScore( tempo, exchangeEval, boardContext );
+        CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Attack Score: {attackScore}" );
+        CurrentLog.Add( $"===[Building Projected Board State for Attack]===" );
+        var attackPBS = Projection.BuildProjectedBoardState( bestSimulatedMove.Top, materialStatus.MyRemainingPieces, materialStatus.OppRemainingPieces );
+        var attackActionEval = _actionEval.BuildActionEvaluation( ActionType.Attack, attackScore, attackPBS, bestSimulatedMove.Move, bestSimulatedMove.Top );
+        actions.Add( attackActionEval );
+
+        //--Defensive Switch
+        int defSwitchScore = SwitchCommand.DefensiveSwitchScore( tempo, exchangeEval, defensiveSwitchCandidate, boardContext );
+        CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Defensive Switch Score: {defSwitchScore} via Candidate: {defensiveSwitchCandidate.Pokemon.NickName}" );
+        CurrentLog.Add( $"===[Building Projected Board State for Defensive Switch]===" );
+        var defSwitchPBS = Projection.BuildProjectedBoardState( defensiveSwitchCandidate.Top, materialStatus.MyRemainingPieces, materialStatus.OppRemainingPieces );
+        var defSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.DefensiveSwitch, defSwitchScore, defSwitchPBS, defensiveSwitchCandidate.Pokemon, defensiveSwitchCandidate.Top );
+        actions.Add( defSwitchActionEval );
+
+        //--Offensive Switch
+        int offSwitchScore = SwitchCommand.OffensiveSwitchScore( tempo, exchangeEval, offensiveSwitchCandidate, boardContext );
+        CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Offensive Switch Score: {offSwitchScore} via Candidate: {offensiveSwitchCandidate.Pokemon.NickName}" );
+        CurrentLog.Add( $"===[Building Projected Board State for Offensive Switch]===" );
+        var offSwitchPBS = Projection.BuildProjectedBoardState( offensiveSwitchCandidate.Top, materialStatus.MyRemainingPieces, materialStatus.OppRemainingPieces );
+        var offSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveSwitch, offSwitchScore, offSwitchPBS, offensiveSwitchCandidate.Pokemon, offensiveSwitchCandidate.Top );
+        actions.Add( offSwitchActionEval );
+
+        //--Setup
+        //-- swords dance and iron defense and dragon dance
+
+        //--Support
+        //-- screens, manual weather, redirection, trick room
+
+        //--Evaluate All Actions Here
+        for( int i = 0; i < actions.Count; i++ )
+        {
+            actions[i] = _actionEval.EvaluateAction( actions[i] );
+        }
+
+        //--Select highest scored ActionEvaluation
+        return actions.OrderByDescending( a => a.Score ).FirstOrDefault();        
     }
 
     public int TempoAttackModifier( TempoStateResult tempo )
@@ -164,7 +211,7 @@ public class BattleAI : MonoBehaviour
         };
     }
 
-    public int TempoSwitchModifier( TempoStateResult tempo )
+    public int TempoDefensiveSwitchModifier( TempoStateResult tempo )
     {
         return tempo.TempoState switch
         {
@@ -177,21 +224,44 @@ public class BattleAI : MonoBehaviour
         };
     }
 
+    public int TempoOffensiveSwitchModifier( TempoStateResult tempo )
+    {
+        return tempo.TempoState switch
+        {
+            TempoState.WinningHard  => -30,
+            TempoState.Winning      => -15,
+            TempoState.Neutral      => +0,
+            TempoState.Losing       => -15,
+            TempoState.LosingHard   => +-35,
+            _ => 0
+        };
+    }
+
     public Pokemon RequestedForcedSwitch()
     {
         var opposingUnits = BattleSystem.GetOpposingUnits( Unit );
+        int oppPokemon = 0;
 
-        if( opposingUnits == null || opposingUnits.Count <= 0 )
-            return _switchCommand.GetSwitch_Vacuum();
+        for( int i = 0; i < opposingUnits.Count; i++ )
+        {
+            var opp = opposingUnits[i];
+            if( opp.Pokemon != null )
+                oppPokemon++;
+            else
+                continue;
+        }
+
+        if( oppPokemon <= 0 )
+            return SwitchCommand.GetSwitch_Vacuum();
         else
-            return _switchCommand.GetSwitch_Offensive( opposingUnits ).Pokemon;
+            return SwitchCommand.GetSwitch_Revenge( opposingUnits ).Pokemon;
     }
 
     public int GetUnitInferredStat( Pokemon pokemon, Stat stat )
     {
-        Debug.Log( $"[AI Scoring][Get Walling Score] Getting {pokemon.NickName}'s inferred {stat}" );
+        // Debug.Log( $"[AI Scoring][Get Walling Score] Getting {pokemon.NickName}'s inferred {stat}" );
         float statValue = GetBaseStat( pokemon, stat );
-        Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.NickName}'s base {stat} value is: {statValue}" );
+        // Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.NickName}'s base {stat} value is: {statValue}" );
 
         int stage = pokemon.StatStages[stat];
         var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
@@ -207,7 +277,7 @@ public class BattleAI : MonoBehaviour
 
         int final = Mathf.FloorToInt( statValue );
 
-        Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.NickName}'s Final Inferred {stat} value is: {final}" );
+        // Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.NickName}'s Final Inferred {stat} value is: {final}" );
 
         return final;
     }
@@ -250,13 +320,13 @@ public class BattleAI : MonoBehaviour
 
     public TempoStateResult GetTempoState( BattleUnit attacker, BattleUnit target, ExchangeEvaluation eval )
     {
-        Debug.Log( $"[AI Scoring][Get Tempo] Starting Tempo State Check for Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
+        // Debug.Log( $"[AI Scoring][Get Tempo] Starting Tempo State Check for Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
         var tempo = ClassifyTempo( eval );
 
         bool attackerHasPriorityAdvantage = eval.AttackerMovesFirst && !eval.OpponentMovesFirst;
         bool targetHasPriorityAdvantage = eval.OpponentMovesFirst && !eval.AttackerMovesFirst;
 
-        Debug.Log( $"[AI Scoring][Get Tempo] Final Tempo State: {tempo}, Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
+        // Debug.Log( $"[AI Scoring][Get Tempo] Final Tempo State: {tempo}, Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
 
         return CreateTempoStateResult( tempo, attackerHasPriorityAdvantage, targetHasPriorityAdvantage );
     }
@@ -264,38 +334,38 @@ public class BattleAI : MonoBehaviour
     private ExchangeEvaluation EvaluateExchange( BattleUnit attacker, BattleUnit target )
     {
         //--Speed Check
-        int attackerSpeed = GetUnitInferredStat( attacker.Pokemon, Stat.Speed );
-        int targetSpeed = GetUnitInferredStat( target.Pokemon, Stat.Speed );
+        int attackerSpeed = GetUnitContextualSpeed( attacker.Pokemon );
+        int targetSpeed = GetUnitContextualSpeed( target.Pokemon );
         bool attackerHasPriorityAdvantage = Check_UnitHasPriority( attacker, target ) && !Check_UnitHasPriority( target, attacker );
         bool targetHasPriorityAdvantage = Check_UnitHasPriority( target, attacker ) && !Check_UnitHasPriority( attacker, target );
         bool attackerMovesFirst = attackerSpeed > targetSpeed /*|| attackerHasPriorityAdvantage*/;
         bool targetMovesFirst = targetSpeed > attackerSpeed /*|| targetHasPriorityAdvantage*/;
 
-        Debug.Log( $"[AI Scoring][Get Tempo] Made speed comparisons! Results: Attacker Speed: {attackerSpeed}, Target Speed: {targetSpeed}, Attacker Priority: {attackerHasPriorityAdvantage}, Target Priority: {targetHasPriorityAdvantage}, Attacker Moves First: {attackerMovesFirst}, Target Moves First: {targetMovesFirst}" );
+        // Debug.Log( $"[AI Scoring][Get Tempo] Made speed comparisons! Results: Attacker Speed: {attackerSpeed}, Target Speed: {targetSpeed}, Attacker Priority: {attackerHasPriorityAdvantage}, Target Priority: {targetHasPriorityAdvantage}, Attacker Moves First: {attackerMovesFirst}, Target Moves First: {targetMovesFirst}" );
 
         //--Potential to KO
         //--Attacker PTKO Target
-        var attackerThreateningMove = Get_MostThreateningMove( attacker.Pokemon, target.Pokemon );
+        var attackerThreateningMove = MoveCommand.Get_BestSimulatedMove( attacker.Pokemon, target.Pokemon );
         var targetWSR = Get_WallingScoreResult( attacker.Pokemon, target.Pokemon, attackerThreateningMove );
         float targetHP = Get_HPRatio( target.Pokemon );
 
         PotentialToKOResult attackerPTKO_target = Get_PotentialToKOResult( targetWSR, attackerThreateningMove.Modifier, targetHP );
 
         //--Target PTKO Attacker
-        var targetThreatingMove = Get_MostThreateningMove( target.Pokemon, attacker.Pokemon );
+        var targetThreatingMove = MoveCommand.Get_BestSimulatedMove( target.Pokemon, attacker.Pokemon );
         var attackerWSR = Get_WallingScoreResult( target.Pokemon, attacker.Pokemon, targetThreatingMove );
         float attackerHP = Get_HPRatio( attacker.Pokemon );
 
         PotentialToKOResult targetPTKO_attacker = Get_PotentialToKOResult( attackerWSR, targetThreatingMove.Modifier, attackerHP );
 
-        Debug.Log( $"[AI Scoring][Get Tempo] PTKO's Checked! Results: Attacker PTKO Target: {attackerPTKO_target.PTKO}, Target PTKO Attacker: {targetPTKO_attacker.PTKO}" );
+        // Debug.Log( $"[AI Scoring][Get Tempo] PTKO's Checked! Results: Attacker PTKO Target: {attackerPTKO_target.PTKO}, Target PTKO Attacker: {targetPTKO_attacker.PTKO}" );
 
         bool attackerThreatensKO_onTarget       = attackerPTKO_target.PTKO > PotentialToKO.Risky; //--revert back to >= if not good
         bool targetThreatensKO_onAttacker       = targetPTKO_attacker.PTKO > PotentialToKO.Risky; //--revert back to >= if not good
         bool attackerSurvives_targetAttack      = targetPTKO_attacker.PTKO <= PotentialToKO.Risky;
         bool targetSurvives_attackerAttack      = attackerPTKO_target.PTKO <= PotentialToKO.Risky;
 
-        Debug.Log( $"[AI Scoring][Get Tempo] Final Comparisons Made! Results: Attacker Threatens KO: {attackerThreatensKO_onTarget}, Target Threatens KO: {targetThreatensKO_onAttacker}, Attacker Survives: {attackerSurvives_targetAttack}, Target Survives: {targetSurvives_attackerAttack}" );
+        // Debug.Log( $"[AI Scoring][Get Tempo] Final Comparisons Made! Results: Attacker Threatens KO: {attackerThreatensKO_onTarget}, Target Threatens KO: {targetThreatensKO_onAttacker}, Attacker Survives: {attackerSurvives_targetAttack}, Target Survives: {targetSurvives_attackerAttack}" );
         
         ExchangeEvaluation eval = new()
         {
@@ -324,7 +394,22 @@ public class BattleAI : MonoBehaviour
         return eval;
     }
 
-    private TempoState ClassifyTempo( ExchangeEvaluation eval )
+    public ExchangeEvaluation EvaluateExchange( SimulatedUnit attacker, SimulatedUnit opponent, TurnOutcomeProjection top )
+    {
+        return new()
+        {
+            AttackerMovesFirst = attacker.Speed > opponent.Speed,
+            OpponentMovesFirst = opponent.Speed < attacker.Speed,
+
+            AttackerKillsFirst = top.Opponent_DiesBeforeActing,
+            OpponentKillsFirst = top.Attacker_DiesBeforeActing,
+
+            AttackerSurvives = attacker.CurrentHPR > 0,
+            OpponentSurvives = opponent.CurrentHPR > 0,
+        };
+    }
+
+    public TempoState ClassifyTempo( ExchangeEvaluation eval )
     {
         //--Immediate Kill control
         if( eval.AttackerKillsFirst )
@@ -349,101 +434,10 @@ public class BattleAI : MonoBehaviour
         return new(){ TempoState = state, AttackerHasPriority = attackerHasPriority, TargetHasPriority = targetHasPriority };
     }
 
-    public int GetOutgoingPressure( Pokemon me, BattleUnit target )
-    {
-        int score = 50;
-        float bestMoveThreat = float.MinValue;
-        float hpRatio = Get_HPRatio( me );
-        float defense;
-
-        if( target.Pokemon.PokeSO.Attack > target.Pokemon.PokeSO.SpAttack )
-            defense = me.PokeSO.Defense;
-        else
-            defense = me.PokeSO.SpDefense;
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] Starting Outgoing Pressure check on {me.NickName}. Starting Score: {score}" );
-
-        //--Move Threat
-        foreach( var move in me.ActiveMoves )
-        {
-            if( move.MoveSO.MoveCategory == MoveCategory.Status )
-                continue;
-                
-            float effectiveness     = TypeChart.GetEffectiveness( move.MoveType, target.Pokemon.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.Pokemon.PokeSO.Type2 );
-            float stab              = move.MoveSO.Type == Unit.Pokemon.PokeSO.Type1 || move.MoveSO.Type == Unit.Pokemon.PokeSO.Type2 ? 1.5f : 1f;
-            float weather           = BattleSystem.Field.Weather?.OnDamageModify?.Invoke( Unit.Pokemon, target.Pokemon, move ) ?? 1f;
-            float terrain           = BattleSystem.Field.Terrain?.OnDamageModify?.Invoke( Unit, target.Pokemon, move ) ?? 1f;
-            float item              = Unit.Pokemon.BattleItemEffect?.OnDamageModify?.Invoke( Unit, target.Pokemon, move ) ?? 1f;
-
-            Debug.Log( $"[AI Scoring][Outgoing Pressure Check] Score-ing {me.NickName}'s move {move.MoveSO.Name}. Effectiveness Modifier: {effectiveness}, STAB Modifier: {stab}, Weather Modifier: {weather}" );
-
-            float currentMoveThreat = effectiveness * stab * weather * terrain * item;
-            bestMoveThreat = Mathf.Max( bestMoveThreat, currentMoveThreat );
-
-            Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s move {move.MoveSO.Name} checked. Move's Score: {bestMoveThreat}" );
-        }
-
-             if( bestMoveThreat >= 9f )             score += 90; //--Upper bounds, this move is 4x effective, has STAB, and benefits from weather.
-        else if( bestMoveThreat >= 6f )             score += 60; //--This move is 4x effective, and either has STAB OR benefits from weather.
-        else if( bestMoveThreat >= 4f )             score += 40; //--This move is 4x effective, or has some combination of 2x effective, stab, and weather.
-        else if( bestMoveThreat >= 2f )             score += 20;
-        else if( bestMoveThreat >= 1.5f )           score += 15;
-        else if( bestMoveThreat >= 1f )             score += 0;
-        else if( bestMoveThreat >= 0.5f )           score -= 15;
-        else if( bestMoveThreat >= 0.25f )          score -= 25;
-        else if( bestMoveThreat == 0f )             score = 0;
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s Moves have all been checked. Score: {score}" );
-        //--Speed comparison
-        var meSpeed = GetUnitInferredStat( me, Stat.Speed );
-        var targetSpeed = GetUnitInferredStat( target.Pokemon, Stat.Speed );
-
-        if( meSpeed > targetSpeed )
-            score += 20;
-        else if( meSpeed < targetSpeed )
-            score -= 20;
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s Speed comparison checked. Score: {score}" );
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s Defense is: {defense}" );
-
-        if ( defense >= 150f )              score += 40;
-        else if( defense >= 125f )          score += 25;
-        else if( defense >= 100f )          score += 10;
-        else if( defense >= 80f )           score += 0;
-        else if( defense >= 65f )           score -= 10;
-        else if( defense >= 50f )           score -= 25;
-        else if( defense < 50f )            score -= 40;
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s Defense checked. Score: {score}" );
-
-        int bulk = me.PokeSO.MaxHP + me.PokeSO.Defense + me.PokeSO.SpDefense;
-
-        if( bulk >= 400 )           score += 25;
-        else if( bulk >= 300 )      score += 10;
-        else if( bulk >= 200 )      score += 0;
-        else if( bulk >= 150 )      score -= 10;
-        else if( bulk <= 100 )      score -= 20;
-
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s Overall Bulk checked. Score: {score}" );
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s HP Ratio is: {hpRatio}" );
-        if( hpRatio < 0.25f )           score -= 30;
-        else if( hpRatio < 0.5f )       score -= 15;
-        ///00
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s HP checked for low percentage. Score: {score}" );
-
-        Debug.Log( $"[AI Scoring][Outgoing Pressure Check] {me.NickName}'s Final Score: {score}" );
-        
-        return Mathf.Clamp( score, 0, 250 );
-    }
-
     public BoardContext GetBoardContext( BattleUnit target, ExchangeEvaluation eval )
     {
         var safePivot = GetSafePivot( target );
-        var materialStatus = GetMaterialStatus( Unit );
+        var materialStatus = GetMaterialStatus( Unit.Pokemon );
 
         bool lowHP = eval.AttackerHPR < 0.3f;
         bool likelyDying = eval.OpponentPTKOR.PTKO >= PotentialToKO.Dangerous;
@@ -465,11 +459,11 @@ public class BattleAI : MonoBehaviour
             HasSafePivot = safePivot.Exists,
             SafePivots = safePivot.pivots,
 
-            IsAhead = materialStatus.ahead,
-            IsBehind = materialStatus.behind,
+            IsAhead = materialStatus.IsAhead,
+            IsBehind = materialStatus.IsBehind,
 
-            MyTeamHPPercent = materialStatus.myHP,
-            OppTeamHPPercent = materialStatus.oppHP,
+            MyTeamHPPercent = materialStatus.MyTeamHPPercent,
+            OppTeamHPPercent = materialStatus.OppTeamHPPercent,
 
             MyAliveCount = myAlive,
             OppAliveCount = oppAlive,
@@ -495,7 +489,7 @@ public class BattleAI : MonoBehaviour
                 var pivotHP = Get_HPRatio( mon );
                 if( !mon.IsFainted() && pivotHP > 0.35f )
                 {
-                    var targetThreateningMove = Get_MostThreateningMove( opponent.Pokemon, mon );
+                    var targetThreateningMove = MoveCommand.Get_BestSimulatedMove( opponent.Pokemon, mon );
                     var attackerWSR = Get_WallingScoreResult( opponent.Pokemon, mon, targetThreateningMove );
                     float targetHP = Get_HPRatio( opponent.Pokemon );
                     PotentialToKOResult pivotPTKO_target = Get_PotentialToKOResult( attackerWSR, targetThreateningMove.Modifier, targetHP );
@@ -513,15 +507,15 @@ public class BattleAI : MonoBehaviour
         return ( exists, pivots );
     }
 
-    private ( bool ahead, bool behind, float myHP, float oppHP ) GetMaterialStatus( BattleUnit me )
+    public MaterialStatus GetMaterialStatus( Pokemon pokemon )
     {
         //--My team & amount of pokemon alive
-        var myTeam = BattleSystem.GetAllyParty( me.Pokemon );
-        int myAlive = BattleSystem.GetAllyParty( me.Pokemon ).Select( p => p ).Where( p => p.CurrentHP > 0 ).ToList().Count;
+        var myTeam = BattleSystem.GetAllyParty( pokemon );
+        int myAlive = BattleSystem.GetAllyParty( pokemon ).Where( p => p.CurrentHP > 0 ).ToList().Count;
 
         //--Opposing team & amount of their pokemon alive
-        var oppTeam = BattleSystem.GetOpposingParty( me.Pokemon );
-        int oppAlive = BattleSystem.GetOpposingParty( me.Pokemon ).Select( p => p ).Where( p => p.CurrentHP > 0 ).ToList().Count;
+        var oppTeam = BattleSystem.GetOpposingParty( pokemon );
+        int oppAlive = BattleSystem.GetOpposingParty( pokemon ).Where( p => p.CurrentHP > 0 ).ToList().Count;
 
         float myTeamHPPercent = GetRemainingTeamHP( myTeam );
         float oppTeamHPPercent = GetRemainingTeamHP( oppTeam );
@@ -552,7 +546,15 @@ public class BattleAI : MonoBehaviour
                 isBehind = true;
         }
 
-        return ( isAhead, isBehind, myTeamHPPercent, oppTeamHPPercent );
+        return new()
+        {
+            MyRemainingPieces = myAlive,
+            OppRemainingPieces = oppAlive,
+            MyTeamHPPercent = myTeamHPPercent,
+            OppTeamHPPercent = oppTeamHPPercent,
+            IsAhead = isAhead,
+            IsBehind = isBehind,
+        };
     }
 
     private float GetRemainingTeamHP( List<Pokemon> team )
@@ -572,7 +574,7 @@ public class BattleAI : MonoBehaviour
 
     public float GetExpendability( Pokemon mon, float hp )
     {
-        Debug.Log( $"===[Getting Expendability for {mon.NickName}]===" );
+        // Debug.Log( $"===[Getting Expendability for {mon.NickName}]===" );
 
         float score = 0.5f;
 
@@ -580,17 +582,17 @@ public class BattleAI : MonoBehaviour
         if( hp < 0.25f )    score += 0.2f;
         if( hp < 0.1f )     score += 0.2f;
 
-        Debug.Log( $"HP Ratio: {hp}, Score: {score}" );
+        // Debug.Log( $"HP Ratio: {hp}, Score: {score}" );
 
         float offensiveWeight = TeamPieceValues[mon].OffensiveValue / 100f;
 
         score -= offensiveWeight * 0.4f;
 
-        Debug.Log( $"Offensive Weight: {offensiveWeight}. Score: {score}" );
+        // Debug.Log( $"Offensive Weight: {offensiveWeight}. Score: {score}" );
 
         float expendability = Mathf.Clamp01( score );
 
-        Debug.Log( $"===[{mon.NickName}'s Final clamped Expendability Score: {expendability}]===" );
+        // Debug.Log( $"===[{mon.NickName}'s Final clamped Expendability Score: {expendability}]===" );
 
         return expendability;
     }
@@ -600,7 +602,7 @@ public class BattleAI : MonoBehaviour
         float currentHP = pokemon.CurrentHP;
         float maxHP = pokemon.MaxHP;
 
-        Debug.Log( $"[AI Scoring][Getting HP Ratio] {pokemon.NickName}'s HP Ratio is: {currentHP/maxHP}" );
+        // Debug.Log( $"[AI Scoring][Getting HP Ratio] {pokemon.NickName}'s HP Ratio is: {currentHP/maxHP}" );
         return currentHP / maxHP;
     }
 
@@ -614,7 +616,7 @@ public class BattleAI : MonoBehaviour
             int threatScore = 100;
             float moveThreat = float.MinValue;
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] Starting threat check on {threat.Pokemon.NickName}. Starting Score: {threatScore}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] Starting threat check on {threat.Pokemon.NickName}. Starting Score: {threatScore}" );
 
             //--Offensive Pressure
             float offensivePressure;
@@ -623,7 +625,7 @@ public class BattleAI : MonoBehaviour
             else
                 offensivePressure = threat.Pokemon.SpAttack;
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Offensive Pressure is: {offensivePressure}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Offensive Pressure is: {offensivePressure}" );
             
             if( offensivePressure >= 150f )             threatScore += 40;
             else if( offensivePressure >= 125f )        threatScore += 25;
@@ -633,7 +635,7 @@ public class BattleAI : MonoBehaviour
             else if( offensivePressure >= 50f )         threatScore -= 25;
             else if( offensivePressure < 50f )          threatScore -= 40;
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Offensive Pressure checked. Score: {threatScore}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Offensive Pressure checked. Score: {threatScore}" );
 
             //--Move Threat
             foreach( var move in threat.Pokemon.ActiveMoves )
@@ -671,12 +673,12 @@ public class BattleAI : MonoBehaviour
                         item = mod( ourPokemon, threat.Pokemon, move );
                 }
 
-                Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] Score-ing {threat.Pokemon.NickName}'s move {move.MoveSO.Name}. Effectiveness Modifier: {effectiveness}, STAB Modifier: {stab}, Weather Modifier: {weather}" );
+                // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] Score-ing {threat.Pokemon.NickName}'s move {move.MoveSO.Name}. Effectiveness Modifier: {effectiveness}, STAB Modifier: {stab}, Weather Modifier: {weather}" );
 
                 float currentMoveThreat = effectiveness * stab * weather * terrain * item;
                 moveThreat = Mathf.Max( moveThreat, currentMoveThreat );
 
-                Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s move {move.MoveSO.Name} checked. Move's Score: {moveThreat}" );
+                // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s move {move.MoveSO.Name} checked. Move's Score: {moveThreat}" );
             }
 
                  if( moveThreat >= 9f )             threatScore += 90; //--Upper bounds, this move is 4x effective, has STAB, and benefits from weather.
@@ -690,7 +692,7 @@ public class BattleAI : MonoBehaviour
             else if( moveThreat >= 0.25f )          threatScore -= 25;
             else if( moveThreat == 0f )             threatScore = 0;
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Moves have all been checked. Score: {threatScore}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Moves have all been checked. Score: {threatScore}" );
             var ourSpeed = GetUnitInferredStat( ourPokemon, Stat.Speed );
             var threatSpeed = GetUnitInferredStat( threat.Pokemon, Stat.Speed );
             //--Higher speed means the target is more threatening
@@ -699,18 +701,18 @@ public class BattleAI : MonoBehaviour
             else if( threatSpeed < ourSpeed )
                 threatScore -= 20;
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Speed comparison checked. Score: {threatScore}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Speed comparison checked. Score: {threatScore}" );
 
             //--Current HP Ratio. Lower HP means we're more threatened
             float hpRatio = Get_HPRatio( ourPokemon );
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Current HP Ratio is: {hpRatio}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Current HP Ratio is: {hpRatio}" );
 
             if( hpRatio < 0.25f )           threatScore += 30;
             else if( hpRatio < 0.5f )       threatScore += 15;
             else if( hpRatio < 0.75f )      threatScore += 5;
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Current HP Ratio checked. Score: {threatScore}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Current HP Ratio checked. Score: {threatScore}" );
 
             threatScore = Mathf.Clamp( threatScore, 0, 300 );
 
@@ -720,11 +722,11 @@ public class BattleAI : MonoBehaviour
                 highestUnit = threat;
             }
 
-            Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] The current most threatening Pokemon is: {highestUnit.Pokemon.NickName}, with a Score of: {highestThreat}" );
+            // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] The current most threatening Pokemon is: {highestUnit.Pokemon.NickName}, with a Score of: {highestThreat}" );
 
         }
 
-        Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] The most threatening Pokemon is: {highestUnit.Pokemon.NickName}, with a Score of: {highestThreat}" );
+        // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] The most threatening Pokemon is: {highestUnit.Pokemon.NickName}, with a Score of: {highestThreat}" );
 
         return new(){ Score = highestThreat, Unit = highestUnit };
     }
@@ -757,7 +759,7 @@ public class BattleAI : MonoBehaviour
 
         if( attacker.Flags[UnitFlags.TurnsTaken].Count > 0 )
         {
-            Debug.Log( $"[AI Scoring] Fake Out user {attacker.Pokemon.NickName}'s Turn Count: {attacker.Flags[UnitFlags.TurnsTaken].Count}" );
+            // Debug.Log( $"[AI Scoring] Fake Out user {attacker.Pokemon.NickName}'s Turn Count: {attacker.Flags[UnitFlags.TurnsTaken].Count}" );
             return false;
         }
 
@@ -780,9 +782,8 @@ public class BattleAI : MonoBehaviour
 
     public MoveThreatResult Get_MostThreateningMove( Pokemon attacker, Pokemon target, bool preview = false )
     {
-        int score = 100;
         int bestMoveScore = 0;
-        float modifier = float.MinValue;
+        float bestModifier = float.MinValue;
         Move bestMove = null;
 
         //--Move Threat
@@ -794,6 +795,10 @@ public class BattleAI : MonoBehaviour
             int currentMoveScore = 0;
 
             float effectiveness     = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
+
+            if( effectiveness == 0 )
+                continue;
+
             float stab              = attacker.CheckTypes( move.MoveType ) ? 1.5f : 1f;
             float weather           = 1f;
             float terrain           = 1f;
@@ -819,12 +824,9 @@ public class BattleAI : MonoBehaviour
                     item = mod( attacker, target, move );
             }
 
-            if( effectiveness == 0 )
-                continue;
+            // Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}][{move.MoveSO.Name}] Effectiveness: {effectiveness}, STAB: {stab}, Weather: {weather}, Terrain: {terrain}, Item: {item}" );
 
-            Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}][{move.MoveSO.Name}] Effectiveness: {effectiveness}, STAB: {stab}, Weather: {weather}, Terrain: {terrain}, Item: {item}" );
-
-            float currentMoveThreat = effectiveness * stab * weather * terrain * item;
+            float currentModifier = effectiveness * stab * weather * terrain * item;
 
             int movePower = move.MovePower;
 
@@ -838,29 +840,37 @@ public class BattleAI : MonoBehaviour
 
                 movePower *= expectedHits;
             }
-            
-            if( move.MoveSO.HitRange.x >= 2 && move.MoveSO.HitRange.y == 0 )
+            else if( move.MoveSO.HitRange.x >= 2 && move.MoveSO.HitRange.y == 0 )
             {
-                for( int i = 0; i < move.MoveSO.HitRange.x; i++ )
-                {
-                    movePower += movePower;
-                }
+                movePower *= move.MoveSO.HitRange.x;
             }
 
-            if( movePower >= 90 )              currentMoveScore += 30;
-            else if( movePower >= 60 )         currentMoveScore += 20;
-            else if( movePower >= 45 )         currentMoveScore += 15;
-            else if( movePower >= 30 )         currentMoveScore += 10;
-            else if( movePower >= 15 )         currentMoveScore += 5;
+            if( movePower >= 90 )                       currentMoveScore += 30;
+            else if( movePower >= 60 )                  currentMoveScore += 20;
+            else if( movePower >= 45 )                  currentMoveScore += 15;
+            else if( movePower >= 30 )                  currentMoveScore += 10;
+            else if( movePower >= 15 )                  currentMoveScore += 5;
+
+            if( currentModifier >= 9f )                 currentMoveScore += 90; //--Upper bounds, this move is 4x effective, has STAB, and benefits from weather.
+            else if( currentModifier >= 6f )            currentMoveScore += 60; //--This move is 4x effective, and either has STAB OR benefits from weather.
+            else if( currentModifier >= 4f )            currentMoveScore += 40; //--This move is 4x effective, or has some combination of 2x effective, stab, and weather.
+            else if( currentModifier >= 3f )            currentMoveScore += 30; //--This move is 3x effective. It likely has 2x type effectiveness + stab.
+            else if( currentModifier >= 2f )            currentMoveScore += 20;
+            else if( currentModifier >= 1.5f )          currentMoveScore += 15;
+            else if( currentModifier >= 1f )            currentMoveScore += 0;
+            else if( currentModifier >= 0.5f )          currentMoveScore -= 20;
+            else if( currentModifier >= 0.25f )         currentMoveScore -= 40;
+            else if( currentModifier == 0f )            currentMoveScore = 0;
 
             int accuracy = move.MoveSO.Accuracy;
-            if( accuracy < 100 )                    currentMoveScore -= 5;
-            else if( accuracy < 90 )                currentMoveScore -= 10;
+            if( accuracy < 70 )                         currentMoveScore -= 35;
+            else if( accuracy < 80 )                    currentMoveScore -= 20;
+            else if( accuracy < 90 )                    currentMoveScore -= 10;
+            else if( accuracy < 100 )                   currentMoveScore -= 5;
 
-
-            if( currentMoveThreat > modifier )
+            if( currentMoveScore > bestMoveScore )
             {
-                modifier = currentMoveThreat;
+                bestModifier = currentModifier;
                 bestMove = move;
                 bestMoveScore = currentMoveScore;
             }
@@ -874,7 +884,7 @@ public class BattleAI : MonoBehaviour
                 {
                     if( attUnit.LastUsedMove != null && attUnit.LastUsedMove == move )
                     {
-                        modifier = currentMoveThreat;
+                        bestModifier = currentModifier;
                         bestMove = move;
                         bestMoveScore = currentMoveScore;
                         break;
@@ -882,31 +892,18 @@ public class BattleAI : MonoBehaviour
                 }
             }
 
-            Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}][{move.MoveSO.Name}] Modifier: {currentMoveThreat}" );
+            // Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}][{move.MoveSO.Name}] Modifier: {currentModifier}" );
         }
 
-        if( modifier >= 9f )                  score += 90; //--Upper bounds, this move is 4x effective, has STAB, and benefits from weather.
-        else if( modifier >= 6f )             score += 60; //--This move is 4x effective, and either has STAB OR benefits from weather.
-        else if( modifier >= 4f )             score += 40; //--This move is 4x effective, or has some combination of 2x effective, stab, and weather.
-        else if( modifier >= 3f )             score += 30; //--This move is 3x effective. It likely has 2x type effectiveness + stab.
-        else if( modifier >= 2f )             score += 20;
-        else if( modifier >= 1.5f )           score += 15;
-        else if( modifier >= 1f )             score += 0;
-        else if( modifier >= 0.5f )           score -= 20;
-        else if( modifier >= 0.25f )          score -= 40;
-        else if( modifier == 0f )             score = 0;
-
-        score += bestMoveScore;
-
-        if( bestMove != null )
-            Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}] Most Threatening Move is: {bestMove.MoveSO.Name}. Modifier: {modifier}, Score: {score}" );
-        else
+        if( bestMove == null )
+            // Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}] Most Threatening Move is: {bestMove.MoveSO.Name}. Modifier: {bestModifier}, Score: {bestMoveScore}" );
+        // else
         {
-            Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}] No threatening move found! Score should be 0. Score: {score}. Assigning a random move..." );
+            // Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}] No threatening move found! Score should be 0. Score: {bestMoveScore}. Assigning a random move..." );
             bestMove = attacker.GetRandomMove();
         }
 
-        return new(){ Score = score, Modifier = modifier, Move = bestMove };
+        return new(){ Score = bestMoveScore, Modifier = bestModifier, Move = bestMove };
     }
 
     public WallingScoreResult Get_WallingScoreResult( Pokemon attacker, Pokemon target, MoveThreatResult moveThreat )
@@ -916,20 +913,36 @@ public class BattleAI : MonoBehaviour
         Stat offStat = Stat.Attack;
         Stat defStat = Stat.Defense;
         string key = "none";
+        var moveSO = moveThreat.Move.MoveSO;
         float movePower = moveThreat.Move.MovePower;
 
+        //--Unique Wallscore Key check
         if( moveThreat.Move != null )
             key = moveThreat.Move.MoveSO.Name;
 
+        //--Multi hit move power projection
+        if( moveSO.HitRange.x >= 2 && moveSO.HitRange.y != 0 )
+        {
+            int minHits = moveSO.HitRange.x;
+            int maxHits = moveSO.HitRange.y;
+
+            int expectedHits = Mathf.FloorToInt( ( minHits + maxHits ) * 0.5f );
+
+            movePower *= expectedHits;
+        }
+        else if( moveSO.HitRange.x >= 2 && moveSO.HitRange.y == 0 )
+        {
+            movePower *= moveSO.HitRange.x;
+        }
+
+        //--Get Stats used
         if( UniqueWallScores.ContainsKey( key ) )
         {
-            // do stuff
             off = GetBaseStat( attacker, UniqueWallScores[key].AttackingStat );
-            def = GetBaseStat( attacker, UniqueWallScores[key].DefendingStat );
+            def = GetBaseStat( target, UniqueWallScores[key].DefendingStat );
         }
         else
         {
-            // do everything else
             //--Right now MoveThreatResult has scenarios where it isn't returning a move. I need to iron this out asap!!!
             MoveCategory cat;
             if( moveThreat.Move != null )
@@ -959,9 +972,8 @@ public class BattleAI : MonoBehaviour
             }
         }
 
-        // int score = ( def - off ) + WALLINGSCORE_NORMALIZATION_OFFSET; //--30 is the normalization offset;
-        // int score = Mathf.FloorToInt( Mathf.Log( ( (float)Mathf.Max( 1f, def ) / Mathf.Max( 1f, off ) ) ) * WALLINGSCORE_LOGSCALING_FACTOR + WALLINGSCORE_NORMALIZATION_OFFSET );
-        float statRatio = (float)Mathf.Max( 1f, def ) / (float)Mathf.Max( 1f, off );
+        float statRatio = Mathf.Sqrt( (float)Mathf.Max( 1f, def ) / (float)Mathf.Max( 1f, off ) );
+        // float statRatio = (float)Mathf.Max( 1f, def ) / (float)Mathf.Max( 1f, off );
 
         float statComponent = MathF.Log( statRatio );
         float powerComponent = Mathf.Log( (float)Mathf.Max( 1f, movePower ) / MOVE_POWER_BASELINE );
@@ -970,7 +982,7 @@ public class BattleAI : MonoBehaviour
 
         int score = Mathf.FloorToInt( rawScore );
 
-        Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Target {target.NickName}'s Defense: {def}, Attacker {attacker.NickName}'s Offense: {off}. Move's Power: {movePower}. Stat Component: {statComponent}. Power Component: {powerComponent}. Raw Score: {rawScore}. Final Score: {score}" );
+        // Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Target {target.NickName}'s Defense: {def}, Attacker {attacker.NickName}'s Offense: {off}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}. Stat Component: {statComponent}. Power Component: {powerComponent}. Raw Score: {rawScore}. Final Score: {score}" );
 
         WallingScoreResult wsr = new()
         {
@@ -994,7 +1006,7 @@ public class BattleAI : MonoBehaviour
         int moveShift = Get_MoveModifierPTKOShift( moveModifier );
 
         //--HP Ratio shift
-        int hpShift = Get_HPRatioPTKOShift( targetHPRatio );
+        int hpShift = Get_HPRatioPTKOShift( basePotentialKO, targetHPRatio );
 
         int tacticalShift = 0;
 
@@ -1079,24 +1091,11 @@ public class BattleAI : MonoBehaviour
         //--A higher modifier shifts positively because the enum starts and 0 and increases. HardWall is 0, while LikelyOHKO is 6
         //--A higher modifier means increased damage, therefore the likelyhood of a KO increases.
 
-        int shift = 0;
-
-        // if( moveModifier == 0 )                 shift = -7;
-        // else if( moveModifier <= 0.25f )        shift = -4;
-        // else if( moveModifier <= 0.5f )         shift = -3;
-        // else if( moveModifier <= 0.75f )        shift = -2;
-        // else if( moveModifier <= 1.5f )         shift = +0;
-        // else if( moveModifier <= 2f )           shift = +1;
-        // else if( moveModifier <= 3f )           shift = +2;
-        // else if( moveModifier <= 4f )           shift = +3;
-        // else if( moveModifier <= 6f )           shift = +5;
-        // else if( moveModifier <= 8f )           shift = +7;
-
         float log = Mathf.Log( moveModifier, 1.5f );
 
-        shift = Mathf.RoundToInt( log ); //--maybe add a small * 1.1 or something here.
+        int shift = Mathf.RoundToInt( log ); //--maybe add a small * 1.1 or something here.
         
-        Debug.Log( $"[AI Scoring][Shift Potential To KO] Move modifier shifting KO Potential by: {shift}" );
+        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Move modifier shifting KO Potential by: {shift}" );
 
         return shift;
     }
@@ -1111,7 +1110,28 @@ public class BattleAI : MonoBehaviour
         else if( targetHPratio < 0.5f )         shift = +3;
         else if( targetHPratio < 0.75f )        shift = +1;
 
-        Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's HP Ratio shifting KO Potential by: {shift}" );
+        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's HP Ratio shifting KO Potential by: {shift}" );
+
+        return shift;
+    }
+
+    private int Get_HPRatioPTKOShift( PotentialToKO basePTKO, float targetHPratio )
+    {
+        int shift = 0;
+
+        float expectedDamage = Get_PTKODamagePercent( basePTKO );
+
+        Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Shifting PTKO based on hp (cascading). Base PTKO: {basePTKO}. Expected Damage: {expectedDamage}. Target's HP Ratio: {targetHPratio}." );
+
+        if( targetHPratio < Get_PTKODamagePercent( PotentialToKO.HardWall ) )       shift += 1;
+        if( targetHPratio < Get_PTKODamagePercent( PotentialToKO.Sturdy ) )         shift += 1;
+        if( targetHPratio < Get_PTKODamagePercent( PotentialToKO.Safe ) )           shift += 1;
+        if( targetHPratio < Get_PTKODamagePercent( PotentialToKO.TwoHKO ) )         shift += 1;
+        if( targetHPratio < Get_PTKODamagePercent( PotentialToKO.Risky ) )          shift += 1;
+        if( targetHPratio < Get_PTKODamagePercent( PotentialToKO.Dangerous ) )      shift += 1;
+        if( targetHPratio < Get_PTKODamagePercent( PotentialToKO.OHKO ) )           shift += 1;
+
+        Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Target's HP Ratio shifting KO Potential by: {shift}" );
 
         return shift;
     }
@@ -1127,7 +1147,7 @@ public class BattleAI : MonoBehaviour
         else if( stage <= 4 )   shift = +2;
         else if( stage > 4 )    shift = +2;
 
-        Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Stat Stage for its defending stat shifting KO Potential by: {shift}" );
+        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Stat Stage for its defending stat shifting KO Potential by: {shift}" );
 
         return shift;
     }
@@ -1143,7 +1163,7 @@ public class BattleAI : MonoBehaviour
         else if( totalMod <= 2f )          shift += 2;
         else if( totalMod > 2f )           shift += 3;
 
-        Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Direct Modifier to its defending stat shifting KO Potential by: {shift}" );
+        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Direct Modifier to its defending stat shifting KO Potential by: {shift}" );
 
         return shift;
     }
@@ -1182,7 +1202,7 @@ public class BattleAI : MonoBehaviour
 
     public void RefreshTeamPieceValues( List<Pokemon> team )
     {
-        Debug.Log( $"[AI Scoring][Piece Value] Refreshing Team Piece Values!" );
+        // Debug.Log( $"[AI Scoring][Piece Value] Refreshing Team Piece Values!" );
         TeamPieceValues = new();
 
         var attackingTiers = PV_GetRankBonuses( team, mon => Mathf.Max( GetUnitInferredStat( mon, Stat.Attack ), GetUnitInferredStat( mon, Stat.SpAttack ) ) );
@@ -1202,7 +1222,7 @@ public class BattleAI : MonoBehaviour
             };
 
             TeamPieceValues.Add( mon, value );
-            Debug.Log( $"[AI Scoring][Piece Value] {mon.NickName} value assigned! Offensive Value: {value.OffensiveValue}, Speed Score: {value.SpeedScore}" );
+            // Debug.Log( $"[AI Scoring][Piece Value] {mon.NickName} value assigned! Offensive Value: {value.OffensiveValue}, Speed Score: {value.SpeedScore}" );
         }
     }
 
@@ -1235,9 +1255,6 @@ public class BattleAI : MonoBehaviour
         }
 
         if( threatCount > 2 )          score += 5;
-        // if( threatCount >= 3 )          score += 15;
-        // else if( threatCount == 2 )     score += 10;
-        // else if( threatCount == 1 )     score += 5;
 
         return ( score, threatCount, speedRanks[pokemon] );
     }
@@ -1272,12 +1289,12 @@ public class BattleAI : MonoBehaviour
 
     public float Get_HPRatio_AfterEntryHazards( Pokemon pokemon )
     {
-        Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Getting HP Ratio for {pokemon.NickName} after taking entry hazard damage!" );
+        // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Getting HP Ratio for {pokemon.NickName} after taking entry hazard damage!" );
         float hpR = Get_HPRatio( pokemon );
         float damage = Get_EntryHazardDamage( pokemon );
 
         float finalHPR = Mathf.Max( 0f, hpR - damage );
-        Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName}'s Raw HPR: {hpR}, HPR after Hazards: {finalHPR}" );
+        // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName}'s Raw HPR: {hpR}, HPR after Hazards: {finalHPR}" );
 
         return finalHPR;
     }
@@ -1287,12 +1304,12 @@ public class BattleAI : MonoBehaviour
         float damage = 0;
         var myCourtLoc = BattleSystem.Field.GetPokemonCourtLocationFromTrainer( pokemon );
 
-        Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} was found in the {myCourtLoc}!" );
+        // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} was found in the {myCourtLoc}!" );
 
         //--Heavy duty boots prevents hazard damage.
         if( pokemon.HeldItem != null && pokemon.BattleItemEffect?.ID == BattleItemEffectID.HeavyDutyBoots )
         {
-            Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} is holding Heavy Duty Boots! No hazard damage should be taken! Damage: {damage}" );
+            // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} is holding Heavy Duty Boots! No hazard damage should be taken! Damage: {damage}" );
             return damage;
         }
 
@@ -1301,7 +1318,7 @@ public class BattleAI : MonoBehaviour
         {
             float effectiveness = TypeChart.GetEffectiveness( PokemonType.Rock, pokemon.PokeSO.Type1 ) * TypeChart.GetEffectiveness( PokemonType.Rock, pokemon.PokeSO.Type2 );
             damage += ( 1f / 8f ) * effectiveness;
-            Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Stealth Rock was found in the {myCourtLoc}! Damage: {damage}" );
+            // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Stealth Rock was found in the {myCourtLoc}! Damage: {damage}" );
         }
 
         if( court.Conditions.ContainsKey( CourtConditionID.Spikes ) )
@@ -1316,7 +1333,7 @@ public class BattleAI : MonoBehaviour
             else if( layers >= 3 )
                 damage += 1f / 4f;
 
-            Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Spikes ({layers}) were found in the {myCourtLoc}! Damage: {damage}" );
+            // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Spikes ({layers}) were found in the {myCourtLoc}! Damage: {damage}" );
         }
 
         return damage;
@@ -1334,6 +1351,7 @@ public struct MoveThreatResult
     public float Score { get; set; }
     public float Modifier { get; set; }
     public Move Move { get; set; }
+    public TurnOutcomeProjection Top { get; set; }
 }
 
 public struct SwitchCandidateResult
@@ -1345,6 +1363,7 @@ public struct SwitchCandidateResult
     public float HPRatio { get; set; }
     public bool IsLegitimate { get; set; }
     public bool MovesFirst { get; set; }
+    public TurnOutcomeProjection Top { get; set; }
 }
 
 public struct WallingScoreResult
@@ -1411,12 +1430,6 @@ public struct BoardContext
     public float MyExpendability;
 }
 
-public struct UniqueWallingScoreMove
-{
-    public Stat AttackingStat;
-    public Stat DefendingStat;
-}
-
 public struct PieceValue
 {
     public int OffensiveValue;
@@ -1427,7 +1440,29 @@ public struct PieceValue
     public int SupportValue;
 }
 
-public struct SideHazards
+public struct UniqueWallingScoreMove
 {
-    
+    public Stat AttackingStat;
+    public Stat DefendingStat;
+}
+
+public class ActionEvaluation
+{
+    public ActionType Type;
+    public int Score;
+    public Move MovePayload;
+    public Pokemon SwitchPayload;
+    public TurnOutcomeProjection Top;
+}
+
+public struct MaterialStatus
+{
+    public int MyRemainingPieces;
+    public int OppRemainingPieces;
+
+    public float MyTeamHPPercent;
+    public float OppTeamHPPercent;
+
+    public bool IsAhead;
+    public bool IsBehind;
 }

@@ -11,7 +11,7 @@ public class BattleAI_UnitSim
     public Dictionary<WeatherConditionID, Func<Move, float>> WeatherDMGModifiers { get; private set; }
     public Dictionary<TerrainID, Func<Move, float>> TerrainDMGModifiers { get; private set; }
     public Dictionary<BattleItemEffectID, Func<Pokemon, Pokemon, Move, float>> ItemDMGModifiers { get; private set; }
-    public CustomLogSession TurnSimLog { get; private set; }
+    // public CustomLogSession TurnSimLog { get; private set; }
 
     public BattleAI_UnitSim( BattleAI ai )
     {
@@ -19,7 +19,7 @@ public class BattleAI_UnitSim
         _bs = _ai.BattleSystem;
         _field = _bs.Field;
 
-        TurnSimLog = new();
+        // TurnSimLog = new();
 
         DicsInit();
     }
@@ -31,41 +31,41 @@ public class BattleAI_UnitSim
         ItemDicInit();
     }
 
-    private void LogSimUnit( SimulatedUnit unit )
-    {
-        TurnSimLog.Add( $"===[Logging Sim Unit: {unit.Name}]===" );
-        TurnSimLog.Add( $"Name: {unit.Name}" );
-        TurnSimLog.Add( $"HPR: {unit.CurrentHPR}" );
-        TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
-        TurnSimLog.Add( $"Speed: {unit.Speed}" );
-        TurnSimLog.Add( $"Move: {unit.MTR.Move.MoveSO.Name}" );
-        TurnSimLog.Add( $"Ungrounded: {unit.IsUngrounded}" );
-        TurnSimLog.Add( $"Ability: {unit.Ability}" );
-        TurnSimLog.Add( $"Item: {unit.Item}" );
-        TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
-        TurnSimLog.Add( $"Toxic Counter: {unit.ToxicCounter}" );
-        TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
-        TurnSimLog.Add( $"Court Seeded: {unit.CourtSeeded}" );
-        TurnSimLog.Add( $"Binding Condition Count: {unit.Bindings.Count}" );
-    }
+    // private void LogSimUnit( SimulatedUnit unit )
+    // {
+    //     TurnSimLog.Add( $"===[Logging Sim Unit: {unit.Name}]===" );
+    //     TurnSimLog.Add( $"Name: {unit.Name}" );
+    //     TurnSimLog.Add( $"HPR: {unit.CurrentHPR}" );
+    //     TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
+    //     TurnSimLog.Add( $"Speed: {unit.Speed}" );
+    //     TurnSimLog.Add( $"Move: {unit.MTR.Move.MoveSO.Name}" );
+    //     TurnSimLog.Add( $"Ungrounded: {unit.IsUngrounded}" );
+    //     TurnSimLog.Add( $"Ability: {unit.Ability}" );
+    //     TurnSimLog.Add( $"Item: {unit.Item}" );
+    //     TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
+    //     TurnSimLog.Add( $"Toxic Counter: {unit.ToxicCounter}" );
+    //     TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
+    //     TurnSimLog.Add( $"Court Seeded: {unit.CourtSeeded}" );
+    //     TurnSimLog.Add( $"Binding Condition Count: {unit.Bindings.Count}" );
+    // }
 
-    private void LogSimField( SimulatedField field )
-    {
-        TurnSimLog.Add( $"===[Turn Simulation][Beginning Turn Simulation. Getting Sim Field]===" );
-        TurnSimLog.Add( $"Weather: {field.Weather}" );
-        TurnSimLog.Add( $"Terrain: {field.Terrain}" );
-        TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
-        TurnSimLog.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
-    }
+    // private void LogSimField( SimulatedField field )
+    // {
+    //     TurnSimLog.Add( $"===[Turn Simulation][Beginning Turn Simulation. Getting Sim Field]===" );
+    //     TurnSimLog.Add( $"Weather: {field.Weather}" );
+    //     TurnSimLog.Add( $"Terrain: {field.Terrain}" );
+    //     TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
+    //     TurnSimLog.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
+    // }
 
-    public void LogTop( TurnOutcomeProjection top )
-    {
-        TurnSimLog.Add( $"Attacker End HP: {top.Attacker_EndOfTurnHP}" );
-        TurnSimLog.Add( $"Opponent End HP: {top.Opponent_EndOfTurnHP}" );
-        TurnSimLog.Add( $"Attacker Dies Before Acting: {top.Attacker_DiesBeforeActing}" );
-        TurnSimLog.Add( $"Opponent Dies Before Acting: {top.Opponent_DiesBeforeActing}" );
-        TurnSimLog.Add( $"Mutual KO: {top.MutualKO}" );
-    }
+    // public void LogTop( TurnOutcomeProjection top )
+    // {
+    //     TurnSimLog.Add( $"Attacker End HP: {top.Attacker_EndOfTurnHP}" );
+    //     TurnSimLog.Add( $"Opponent End HP: {top.Opponent_EndOfTurnHP}" );
+    //     TurnSimLog.Add( $"Attacker Dies Before Acting: {top.Attacker_DiesBeforeActing}" );
+    //     TurnSimLog.Add( $"Opponent Dies Before Acting: {top.Opponent_DiesBeforeActing}" );
+    //     TurnSimLog.Add( $"Mutual KO: {top.MutualKO}" );
+    // }
 
     public SimulatedUnit BuildSimUnit( Pokemon pokemon, float hpr, MoveThreatResult mtr, SimulatedField field )
     {
@@ -81,6 +81,7 @@ public class BattleAI_UnitSim
         foreach( var kvp in pokemon.BindingStatuses )
             binds.Add( kvp.Key );
 
+        var courtLocation = _ai.BattleSystem.Field.GetPokemonCourtLocationFromTrainer( pokemon );
         var court = _ai.BattleSystem.Field.GetPokemonCourtFromTrainer( pokemon );
         bool leechseed = court.Conditions.ContainsKey( CourtConditionID.LeechSeed );
 
@@ -97,11 +98,13 @@ public class BattleAI_UnitSim
             SevereStatus = severe,
             ToxicCounter = toxic,
             VolatileStatuses = vol,
-            CourtSeeded = leechseed,
             Bindings = binds,
+            CourtLocation = courtLocation,
+            Court = court,
+            CourtSeeded = leechseed,
         };
 
-        LogSimUnit( unit );
+        // LogSimUnit( unit );
 
         return unit;
     }
@@ -111,24 +114,24 @@ public class BattleAI_UnitSim
         WeatherConditionID weather = _field.Weather != null ? _field.Weather.ID : WeatherConditionID.None;
         TerrainID terrain = _field.Terrain != null ? _field.Terrain.ID : TerrainID.None;
 
-        List<CourtConditionID> topCourtConditins = new();
-        List<CourtConditionID> bottomCourtConditins = new();
+        List<CourtConditionID> topCourtConditions = new();
+        List<CourtConditionID> bottomCourtConditions = new();
 
         foreach( var kvp in _field.ActiveCourts[CourtLocation.TopCourt].Conditions )
-            topCourtConditins.Add( kvp.Key );
+            topCourtConditions.Add( kvp.Key );
 
         foreach( var kvp in _field.ActiveCourts[CourtLocation.BottomCourt].Conditions )
-            bottomCourtConditins.Add( kvp.Key );
+            bottomCourtConditions.Add( kvp.Key );
 
         SimulatedField field = new()
         {
             Weather = weather,
             Terrain = terrain,
-            TopCourtConditions = topCourtConditins,
-            BottomCourtConditions = bottomCourtConditins,
+            TopCourtConditions = topCourtConditions,
+            BottomCourtConditions = bottomCourtConditions,
         };
 
-        LogSimField( field );
+        // LogSimField( field );
 
         return field;
     }
@@ -155,6 +158,39 @@ public class BattleAI_UnitSim
             return true;
         else
             return false;
+    }
+
+    public bool WeForceSwitch( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster )
+    {
+        bool weThreatenKO = offensePTKO <= PotentialToKO.TwoHKO;
+        bool theyThreatenKO = defensePTKO <= PotentialToKO.TwoHKO;
+
+        if( weThreatenKO && !theyThreatenKO )
+            return true;
+
+        if( weThreatenKO && weAreFaster )
+            return true;
+
+        return false;
+    }
+
+    public int Get_ExpectedMoveHits( Move move )
+    {
+        int expectedHits = 1;
+
+        if( move.MoveSO.HitRange.x >= 2 && move.MoveSO.HitRange.y != 0 )
+        {
+            int minHits = move.MoveSO.HitRange.x;
+            int maxHits = move.MoveSO.HitRange.y;
+
+            expectedHits = Mathf.FloorToInt( ( minHits + maxHits ) * 0.5f );
+        }
+        else if( move.MoveSO.HitRange.x >= 2 && move.MoveSO.HitRange.y == 0 )
+        {
+            expectedHits = move.MoveSO.HitRange.x;
+        }
+
+        return expectedHits;
     }
 
     public float Get_MoveModifier( Pokemon attacker, Pokemon target, Move move )
@@ -452,6 +488,7 @@ public class SimulatedUnit
     public ( PokemonType One, PokemonType Two ) Type;
     public int Speed;
     public MoveThreatResult MTR;
+    public bool HasPriority;
     public bool IsUngrounded;
 
     public AbilityID Ability;
@@ -459,15 +496,12 @@ public class SimulatedUnit
 
     public SevereConditionID SevereStatus;
     public int ToxicCounter;
-    
     public List<VolatileConditionID> VolatileStatuses;
-
-    public bool HasSandstormSPDEF;
-    public bool HasSnowDEF;
-
-    public bool CourtSeeded;
-
     public List<BindingConditionID> Bindings;
+
+    public CourtLocation CourtLocation;
+    public Court Court;
+    public bool CourtSeeded;
 }
 
 public class SimulatedField

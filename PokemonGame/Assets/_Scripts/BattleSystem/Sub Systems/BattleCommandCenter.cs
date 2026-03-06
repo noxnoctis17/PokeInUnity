@@ -186,7 +186,7 @@ public class BattleCommandCenter : MonoBehaviour
 
             foreach( var target in targetsHit )
             {
-                Debug.Log( $"[Perform Move Command] {attacker.Pokemon.NickName} is attacking with {move.MoveSO.Name}! Current Target: {target.Pokemon.NickName}" );
+                // Debug.Log( $"[Perform Move Command] {attacker.Pokemon.NickName} is attacking with {move.MoveSO.Name}! Current Target: {target.Pokemon.NickName}" );
 
                 //--Move Use Abilities, such as Technician -- 02/08/26
                 attacker.Pokemon.Ability?.OnMoveUsed?.Invoke( attacker, target, move, BattleSystem );
@@ -343,7 +343,7 @@ public class BattleCommandCenter : MonoBehaviour
                     yield return BattleSystem.WaitForUIQueue();
                 }
 
-                Debug.Log( $"[Move Command] Finished {attacker.Pokemon.NickName}'s full attack loop! Running After Move!" );
+                // Debug.Log( $"[Move Command] Finished {attacker.Pokemon.NickName}'s full attack loop! Running After Move!" );
 
                 yield return RunAfterMove( damageDetails, move.MoveSO, attacker, target );
 
@@ -369,7 +369,7 @@ public class BattleCommandCenter : MonoBehaviour
             if( MoveSuccessDB.MoveSuccess.ContainsKey( move.MoveSO.Name ) )
             {
                 bool needsToCharge = MoveSuccessDB.MoveSuccess[move.MoveSO.Name].OnCheckNeedsToCharge( attacker, target, move, BattleSystem );
-                Debug.Log( $"[Charge] Checking if a move needs to be charged: {needsToCharge}" );
+                // Debug.Log( $"[Charge] Checking if a move needs to be charged: {needsToCharge}" );
                 
                 if( needsToCharge )
                     return true;
@@ -401,7 +401,7 @@ public class BattleCommandCenter : MonoBehaviour
     //--If a Move has secondary effects, apply them appropriately
     //--Command Level
     private IEnumerator RunMoveEffects( Move move, MoveEffects effects, EffectTarget effectTarget, BattleUnit attacker, BattleUnit target ){
-        Debug.Log( $"Running Move Effects! Move: {move}, effects: {effects}, move target: {effectTarget}, attacker: {attacker.Pokemon.NickName}, target: {target.Pokemon.NickName}" );
+        // Debug.Log( $"Running Move Effects! Move: {move}, effects: {effects}, move target: {effectTarget}, attacker: {attacker.Pokemon.NickName}, target: {target.Pokemon.NickName}" );
         if( move.MoveSO.MoveCategory != MoveCategory.Status && effectTarget == EffectTarget.Enemy && target.Pokemon.IsFainted() )
             yield break;
 
@@ -610,7 +610,7 @@ public class BattleCommandCenter : MonoBehaviour
         {
             CourtLocation location;
 
-            Debug.Log( $"Running effect: {effects.CourtCondition}!" );
+            // Debug.Log( $"Running effect: {effects.CourtCondition}!" );
 
             if( effectTarget == EffectTarget.Enemy || effectTarget == EffectTarget.OpposingSide )
                 location = BattleSystem.Field.GetUnitCourt( target ).Location;
@@ -648,7 +648,7 @@ public class BattleCommandCenter : MonoBehaviour
 
         if( effects.SwitchType != SwitchEffectType.None )
         {
-            Debug.Log( $"[Switch Effect] Switch effect is: {effects.SwitchType}, from move: {move.MoveSO.Name}." );
+            // Debug.Log( $"[Switch Effect] Switch effect is: {effects.SwitchType}, from move: {move.MoveSO.Name}." );
             var activePokemon = BattleSystem.PlayerUnits.Select( u => u.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
             var remainingPokemon = BattleSystem.BottomTrainer1.GetHealthyPokemon( dontInclude: activePokemon );
 
@@ -660,7 +660,7 @@ public class BattleCommandCenter : MonoBehaviour
 
             if( effects.SwitchType == SwitchEffectType.SelfPivot )
             {
-                Debug.Log( $"{attacker.Pokemon.NickName} is trying to Pivot out!" );
+                // Debug.Log( $"{attacker.Pokemon.NickName} is trying to Pivot out!" );
 
                 if( BattleSystem.EnemyUnits.Contains( attacker ) && remainingEnemyPokemon != null )
                 {
@@ -679,7 +679,7 @@ public class BattleCommandCenter : MonoBehaviour
                 }
                 else if( BattleSystem.PlayerUnits.Contains( attacker ) && remainingPokemon != null )
                 {
-                    Debug.Log( $"Pivot move was used by a player unit, {attacker.Pokemon.NickName}!" );
+                    // Debug.Log( $"Pivot move was used by a player unit, {attacker.Pokemon.NickName}!" );
                     if( attacker.IsAI )
                     {
                         BattleSystem.SetForcedSwitch( true );
@@ -697,7 +697,7 @@ public class BattleCommandCenter : MonoBehaviour
             
             if( effects.SwitchType == SwitchEffectType.ForceOpponentOut )
             {
-                Debug.Log( $"{attacker.Pokemon.NickName} is trying to force its opponent, {target.Pokemon.NickName}, out!" );
+                // Debug.Log( $"{attacker.Pokemon.NickName} is trying to force its opponent, {target.Pokemon.NickName}, out!" );
 
                 if( remainingEnemyPokemon != null )
                 {
@@ -732,7 +732,7 @@ public class BattleCommandCenter : MonoBehaviour
 
     private IEnumerator RunAfterMove( DamageDetails details, MoveSO move, BattleUnit attacker, BattleUnit target )
     {
-        Debug.Log( $"[Move Command][Run After Move] Beginning RunAfterMove(): Damage Details: {details}, Move: {move.Name}, Attacker: {attacker.Pokemon.NickName}, Target: {target.Pokemon.NickName}" );
+        // Debug.Log( $"[Move Command][Run After Move] Beginning RunAfterMove(): Damage Details: {details}, Move: {move.Name}, Attacker: {attacker.Pokemon.NickName}, Target: {target.Pokemon.NickName}" );
 
         if( details == null )
             yield break;
@@ -869,7 +869,7 @@ public class BattleCommandCenter : MonoBehaviour
         {
             if( BattleSystem.PlayerUnits.Contains( unit ) )
             {
-                Debug.Log( $"Swapping pokemon on the party screen!" );
+                // Debug.Log( $"Swapping pokemon on the party screen!" );
                 var a = unit.Pokemon;
                 var b = pokemon;
                 BattleSystem.BottomTrainer1.SwitchPokemonPosition( a, b );
@@ -902,7 +902,7 @@ public class BattleCommandCenter : MonoBehaviour
             yield return unit.PokeAnimator.PlayExitBattleAnimation( BattleSystem.TrainerCenter_Bottom1.transform );
 
         //--Check for phase-out
-        Debug.Log( $"AI {unit.Pokemon.NickName}'s Phased flag is: {unit.Flags[UnitFlags.Phazed].IsActive}" );
+        // Debug.Log( $"AI {unit.Pokemon.NickName}'s Phased flag is: {unit.Flags[UnitFlags.Phazed].IsActive}" );
         var isPhasedSwitch = unit.Flags[UnitFlags.Phazed].IsActive;
 
         //--Raise OnExit for ability, weather, and held item conditions on the returning Pokemon

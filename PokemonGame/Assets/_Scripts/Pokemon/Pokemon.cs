@@ -160,7 +160,6 @@ public class Pokemon
 
         //--Status
         SevereStatus = null;
-        // VolatileStatus = new();
         VolatileStatuses = new();
         TransientStatus = null;
         BindingStatuses = new();
@@ -238,7 +237,7 @@ public class Pokemon
             _nickName = PokeSO.Species;
 
         InitializeNatures();
-        Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
+        // Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
         if( _defaultNature == NatureID.None )
             GetRandomNature();
 
@@ -707,17 +706,17 @@ public class Pokemon
 
         if( stat == nature.PositiveStat )
         {
-            Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 1.1f modifier!");
+            // Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 1.1f modifier!");
             return 1.1f;
         }
         else if( stat == nature.NegativeStat )
         {
-            Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 0.9f modifier!");
+            // Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 0.9f modifier!");
             return 0.9f;
         }
         else
         {
-            Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 1f modifier!");
+            // Debug.Log( $"[Pokemon][Nature] Calculating {NickName}'s {stat}! Their Nature is: {_currentNature}, giving their {stat} a 1f modifier!");
             return 1f;
         }
     }
@@ -1131,8 +1130,7 @@ public class Pokemon
 
     public void ClearAllVolatileStatus()
     {
-        // VolatileStatus.Clear();
-        VolatileStatuses.Clear();
+        VolatileStatuses?.Clear();
     }
 
     public void SetTransientStatus( TransientConditionID id, StatusEffectSource source )
@@ -1191,8 +1189,7 @@ public class Pokemon
 
     public void CureBindingStatus()
     {
-        if( BindingStatuses != null )
-            BindingStatuses = null;
+        BindingStatuses?.Clear();
     }
 
     public Move GetRandomMove()

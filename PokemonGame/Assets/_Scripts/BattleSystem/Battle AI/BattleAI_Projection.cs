@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class BattleAI_Projection
@@ -19,9 +20,96 @@ public class BattleAI_Projection
         _rounds = 0;
     }
 
+    public ProjectedBoardState BuildProjectedBoardState( TurnOutcomeProjection top, int myRemainingPieces, int oppRemainingPieces )
+    {
+        bool iAmKO = false;
+        bool oppIsKO = false;
+
+        bool tempoAdvantage;
+
+        if( top.Attacker_EndOfTurnHP <= 0 )
+        {
+            myRemainingPieces--;
+            iAmKO = true;
+            _ai.CurrentLog.Add( $"Attacker Fainted! My remaining pieces reduced from {myRemainingPieces + 1} to {myRemainingPieces}! I am KO is {iAmKO}." );
+        }
+
+        if( top.Opponent_EndOfTurnHP <= 0 )
+        {
+            oppRemainingPieces--;
+            oppIsKO = true;
+            _ai.CurrentLog.Add( $"Opponent Fainted! Opponent's remaining pieces reduced from {oppRemainingPieces + 1} to {oppRemainingPieces}! I am KO is {oppIsKO}." );
+        }
+
+        if( oppIsKO && !iAmKO )
+        {
+            tempoAdvantage = true;
+            _ai.CurrentLog.Add( $"Opponent Fainted! We have tempo advantage: {tempoAdvantage}" );
+        }
+        else if( iAmKO && oppIsKO )
+        {
+            tempoAdvantage = false;
+            _ai.CurrentLog.Add( $"Attacker Fainted! We have tempo advantage: {tempoAdvantage}" );
+        }
+        else if( !iAmKO && !oppIsKO )
+        {
+            tempoAdvantage = top.Attacker.Speed > top.Opponent.Speed;
+            _ai.CurrentLog.Add( $"No Faint! We have tempo advantage: {tempoAdvantage}" );
+        }
+        else
+        {
+            tempoAdvantage = false;
+            _ai.CurrentLog.Add( $"Mutual KO? We have tempo advantage: {tempoAdvantage}" );
+        }
+
+        return new()
+        {
+            MyHP_AfterTurn = top.Attacker_EndOfTurnHP,
+            OppHP_AfterTurn = top.Opponent_EndOfTurnHP,
+            IAmKO = iAmKO,
+            OppIsKO = oppIsKO,
+            MutualKO = top.MutualKO,
+            IHaveTempoAdvantageNextTurn = tempoAdvantage,
+            MyRemainingPieces = myRemainingPieces,
+            OppRemainingPieces = oppRemainingPieces,
+            MaterialDelta = myRemainingPieces - oppRemainingPieces,
+        };
+    }
+
+    private const int MATERIAL_WEIGHT = 100;
+    private const int TEMPO_WEIGHT = 10;
+    private const int HP_WEIGHT = 2;
+
+    public int EvaluatePBS( ProjectedBoardState pbs )
+    {
+        int score = 0;
+
+        //--Material. Material is currently considered the most important resource.
+        score += pbs.MaterialDelta * MATERIAL_WEIGHT;
+        _ai.CurrentLog.Add( $"[Evaluate PBS] Material Delta: {pbs.MaterialDelta}. Score: {score}" );
+
+        //--Tempo judges when no ko happens on either side. I have to wonder what happens to scoring when there is a ko.
+        if( !pbs.IAmKO && !pbs.OppIsKO )
+            score += pbs.IHaveTempoAdvantageNextTurn ? TEMPO_WEIGHT : -TEMPO_WEIGHT;
+
+        _ai.CurrentLog.Add( $"[Evaluate PBS] I am KO: {pbs.IAmKO}. Opp is KO: {pbs.OppIsKO}. Score: {score}" );
+
+        //--Remaining HP judgement.
+        int myHPPercent = Mathf.RoundToInt( pbs.MyHP_AfterTurn * 100f );
+        int oppHPPercent = Mathf.RoundToInt( pbs.OppHP_AfterTurn * 100f );
+
+        int hpDelta = myHPPercent - oppHPPercent;
+        hpDelta = Mathf.Clamp( hpDelta, -50, 50 );
+        score += hpDelta * HP_WEIGHT;
+
+        _ai.CurrentLog.Add( $"[Evaluate PBS] My HP Percent: {myHPPercent}. Opp HP Percent: {oppHPPercent}. HP Delta: {hpDelta}. Score: {score}" );
+
+        return score;
+    }
+
     public BattleSimContext Get_BattleSimContext( PotentialToKO attPTKO, PotentialToKO oppPTKO, SimulatedUnit attacker, SimulatedUnit opponent, SimulatedField field, bool attMovesFirst )
     {
-        _sim.TurnSimLog.Add( $"===[Turn Simulation][Getting Sim Context]===" );
+        // _sim.TurnSimLog.Add( $"===[Turn Simulation][Getting Sim Context]===" );
         var units = new List<SimulatedUnit> { attacker, opponent };
         units.Sort( ( a, b ) => b.Speed.CompareTo( a.Speed ) );
 
@@ -39,27 +127,23 @@ public class BattleAI_Projection
             AttackerMovesFirst = attMovesFirst,
         };
 
-        _sim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} PTKO: {ctx.AttackerPTKO}" );
-        _sim.TurnSimLog.Add( $"Opponent {ctx.Opponent.Name} PTKO: {ctx.OpponentPTKO}" );
-        _sim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} Moves first: {ctx.AttackerMovesFirst}" );
+        // _sim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} PTKO: {ctx.AttackerPTKO}" );
+        // _sim.TurnSimLog.Add( $"Opponent {ctx.Opponent.Name} PTKO: {ctx.OpponentPTKO}" );
+        // _sim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} Moves first: {ctx.AttackerMovesFirst}" );
 
         return ctx;
-    }
-
-    public TurnOutcomeProjection SimulateRound( BattleSimContext ctx, string reason = "Simulation Reasons" )
-    {
-        _rounds++;
-        _sim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
-        ResolveMovePhase( ctx );
-        ResolveRoundEndPhases( ctx );
-
-        return BuildTOP( ctx );
     }
 
     private TurnOutcomeProjection BuildTOP( BattleSimContext ctx )
     {
         TurnOutcomeProjection top = new()
         {
+            Attacker = ctx.Attacker,
+            Opponent = ctx.Opponent,
+
+            AttackerPTKO = ctx.AttackerPTKO,
+            OpponentPTKO = ctx.OpponentPTKO,
+
             Attacker_EndOfTurnHP = ctx.Attacker.CurrentHPR,
             Opponent_EndOfTurnHP = ctx.Opponent.CurrentHPR,
 
@@ -69,68 +153,173 @@ public class BattleAI_Projection
             MutualKO = ctx.Attacker.CurrentHPR <= 0f && ctx.Opponent.CurrentHPR <= 0f,
         };
 
-        _sim.LogTop( top );
-        Debug.Log( _sim.TurnSimLog.ToString() );
-        string path = Application.persistentDataPath + "/BattleAI_TurnOutcomeProjectionLog.txt";
-        System.IO.File.AppendAllText( path, _sim.TurnSimLog.ToString() + "\n" );
-        _sim.TurnSimLog.Clear();
+        // _sim.LogTop( top );
+        // Debug.Log( _sim.TurnSimLog.ToString() );
+//         string path = Application.persistentDataPath + "/BattleAI_TurnOutcomeProjectionLog.txt";
+        // System.IO.File.AppendAllText( path, _sim.TurnSimLog.ToString() + "\n" );
+        // _sim.TurnSimLog.Clear();
         _rounds = 0;
 
         return top;
     }
 
+    public TurnOutcomeProjection SimulateAttackRound( BattleSimContext ctx, string reason = "Attack Simulation Reasons" )
+    {
+        _rounds++;
+        // _sim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
+
+        ResolveMovePhase( ctx );
+        ResolveRoundEndPhases( ctx );
+
+        return BuildTOP( ctx );
+    }
+
+    public TurnOutcomeProjection SimulateSwitchRound( BattleSimContext ctx, bool attackerIsSwitch, bool opponentIsSwitch, string reason = "Switch Simulation Reasons" )
+    {
+        _rounds++;
+        // _sim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
+
+        ctx.AttackerIsSwitch = attackerIsSwitch;
+        ctx.OpponentIsSwitch = opponentIsSwitch;
+
+        ResolveSwitchPhase( ctx );
+        ResolveRoundEndPhases( ctx );
+
+        return BuildTOP( ctx );
+    }
+
     private void ResolveMovePhase( BattleSimContext ctx )
     {
-        _sim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Move Phase]===" );
-        _sim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
+        // _sim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Move Phase]===" );
+        // _sim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
 
-        float damageDone;
-        if( ctx.AttackerMovesFirst )
+        string attMove = ctx.Attacker.MTR.Move.MoveSO.Name;
+        string oppMove = ctx.Opponent.MTR.Move.MoveSO.Name;
+
+        int attackerHitCount = _sim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
+        int opponentHitCount = _sim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
+
+        float damageDone = 0f;
+        if( ctx.AttackerMovesFirst && !ctx.AttackerIsSwitch )
         {
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
             //--Attacker does damage to opponent
-            damageDone = ApplyDamage( ctx.Opponent, ctx.AttackerPTKO );
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Damage Done: {damageDone}" );
-            ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+            for( int i = 0; i < attackerHitCount; i++ )
+            {
+                damageDone = ApplyDamage( ctx.Opponent, ctx.AttackerPTKO );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove}, Expected Hits: {attackerHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+                if( ctx.Opponent.CurrentHPR <= 0f )
+                    break;
+            }
 
             if( ctx.Opponent.CurrentHPR <= 0f )
             {
                 ctx.Opponent_DiesBeforeActing = true;
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent before it could act! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent before it could act! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
             }
             else
             {
                 //--Opponent does damage to Attacker
-                damageDone = ApplyDamage( ctx.Attacker, ctx.OpponentPTKO );
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Damage Done: {damageDone}" );
-                ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                for( int i = 0; i < opponentHitCount; i++ )
+                {
+                    damageDone = ApplyDamage( ctx.Attacker, ctx.OpponentPTKO );
+                    // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove}, Expected Hits: {opponentHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                    if( ctx.Attacker.CurrentHPR <= 0f )
+                        break;
+                }
             }
+
         }
         else
         {
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
             //--Opponent does damage to Attacker
-            damageDone = ApplyDamage( ctx.Attacker, ctx.OpponentPTKO );
-            ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+            for( int i = 0; i < opponentHitCount; i++ )
+            {
+                damageDone = ApplyDamage( ctx.Attacker, ctx.OpponentPTKO );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove}, Expected Hits: {opponentHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                if( ctx.Attacker.CurrentHPR <= 0f )
+                    break;
+            }
 
             if( ctx.Attacker.CurrentHPR <= 0f )
             {
                 ctx.Attacker_DiesBeforeActing = true;
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent before it could act! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent before it could act! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
             }
             else
             {
                 //--Attacker does damage to opponent
+                for( int i = 0; i < attackerHitCount; i++ )
+                {
+                    damageDone = ApplyDamage( ctx.Opponent, ctx.AttackerPTKO );
+                    // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove}, Expected Hits: {attackerHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+                    if( ctx.Opponent.CurrentHPR <= 0f )
+                        break;
+                }
+            }
+
+        }
+    }
+
+    private void ResolveSwitchPhase( BattleSimContext ctx )
+    {
+        // _sim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Switch Phase]===" );
+        // _sim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
+
+        string attMove = ctx.Attacker.MTR.Move.MoveSO.Name;
+        string oppMove = ctx.Opponent.MTR.Move.MoveSO.Name;
+
+        int attackerHitCount = _sim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
+        int opponentHitCount = _sim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
+
+        float damageDone = 0f;
+        if( ctx.OpponentIsSwitch && !ctx.AttackerIsSwitch )
+        {
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
+            //--Attacker does damage to opponent
+            for( int i = 0; i < attackerHitCount; i++ )
+            {
                 damageDone = ApplyDamage( ctx.Opponent, ctx.AttackerPTKO );
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Damage Done: {damageDone}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove}, Expected Hits: {attackerHitCount}, Hit: {i}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
             }
+
+            if( ctx.Opponent.CurrentHPR <= 0f )
+            {
+                ctx.Opponent_DiesBeforeActing = true;
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent on entry! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
+            }
         }
+        else if( !ctx.OpponentIsSwitch && ctx.AttackerIsSwitch )
+        {
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
+            //--Opponent does damage to Attacker
+            for( int i = 0; i < opponentHitCount; i++ )
+            {
+                damageDone = ApplyDamage( ctx.Attacker, ctx.OpponentPTKO );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove}, Expected Hits: {opponentHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+            }
+
+            if( ctx.Attacker.CurrentHPR <= 0f )
+            {
+                ctx.Attacker_DiesBeforeActing = true;
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent on entry! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
+            }
+        }
+
+        ctx.OpponentIsSwitch = false;
+        ctx.AttackerIsSwitch = false;
     }
 
     private void ResolvePostMoveEffects( SimulatedUnit attacker, SimulatedUnit target, float damageDone )
     {
-        _sim.TurnSimLog.Add( $"(Round: {_rounds}) Resolving Post Move Effects for {attacker.Name} (HP {attacker.CurrentHPR}) attacking {target.Name} (HP {target.CurrentHPR})!" );
+        // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Resolving Post Move Effects for {attacker.Name} (HP {attacker.CurrentHPR}) attacking {target.Name} (HP {target.CurrentHPR})!" );
 
         bool attackerMakesContact = attacker.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Contact );
         float attackDrainPercent = attacker.MTR.Move.MoveSO.DrainPercentage;
@@ -154,7 +343,7 @@ public class BattleAI_Projection
             if( _sim.IsFainted( attacker ) )
                 return;
 
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} Made contact. HP: {attacker.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} Made contact. HP: {attacker.CurrentHPR}" );
         }
 
         //--Sitrus Berry
@@ -162,7 +351,7 @@ public class BattleAI_Projection
         {
             IncreaseHP( attacker, 0.25f );
             target.Item = BattleItemEffectID.None; //--eat da berry
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {target.Name} Had a sitrus berry! HP: {target.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {target.Name} Had a sitrus berry! HP: {target.CurrentHPR}" );
         }
 
         //--Move Effects such as drain healing and recoil happen after contact/hp change effects.
@@ -170,7 +359,7 @@ public class BattleAI_Projection
         {
             float drain = attackDrainPercent / 100f;
             IncreaseHP( attacker, drain * damageDone );
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} Used a draining move! HP: {attacker.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} Used a draining move! HP: {attacker.CurrentHPR}" );
         }
 
         if( healType != HealType.None )
@@ -180,7 +369,7 @@ public class BattleAI_Projection
                 float healAmount = attacker.MTR.Move.MoveSO.HealAmount; //--Just in case to avoid integer division resulting in 0 or 100
                 float heal = healAmount / 100f;
                 IncreaseHP( attacker, heal );
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} Used a self-healing move! HP: {attacker.CurrentHPR}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} Used a self-healing move! HP: {attacker.CurrentHPR}" );
             }
         }
 
@@ -210,7 +399,7 @@ public class BattleAI_Projection
                     break;
             }
 
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} took move recoil! HP: {attacker.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} took move recoil! HP: {attacker.CurrentHPR}" );
 
             if( _sim.IsFainted( attacker ) )
                 return;
@@ -221,7 +410,7 @@ public class BattleAI_Projection
         {
             DecreaseHP( attacker, ( 1f/10f ) );
 
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} took Life Orb recoil! HP: {attacker.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {attacker.Name} took Life Orb recoil! HP: {attacker.CurrentHPR}" );
 
             if( _sim.IsFainted( attacker ) )
                 return;
@@ -230,7 +419,7 @@ public class BattleAI_Projection
 
     private void ResolveRoundEndPhases( BattleSimContext ctx )
     {
-        _sim.TurnSimLog.Add( $"(Round: {_rounds}) Resolving Round End Phases!" );
+        // _sim.TurnSimLog.Add( $"(Round: {_rounds}) Resolving Round End Phases!" );
         ctx.ActiveUnits.Sort( ( a, b ) => b.Speed.CompareTo( a.Speed ) );
 
         foreach( var phase in _roundEndPhases )
@@ -287,7 +476,7 @@ public class BattleAI_Projection
 
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
 
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} took Sandstorm Damage! HP: {unit.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} took Sandstorm Damage! HP: {unit.CurrentHPR}" );
         }
 
         //--Other weathers may heal pokemon with certain abilities
@@ -307,7 +496,7 @@ public class BattleAI_Projection
                 {
                     DecreaseHP( unit, ( 1f/16f ) );
                     unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-                    _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} took Blighted Terrain Damage! HP: {unit.CurrentHPR}" );
+                    // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} took Blighted Terrain Damage! HP: {unit.CurrentHPR}" );
                 }
             }
         }
@@ -318,7 +507,7 @@ public class BattleAI_Projection
             {
                 IncreaseHP( unit, ( 1f/16f ) );
                 unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Grassy Terrain! HP: {unit.CurrentHPR}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Grassy Terrain! HP: {unit.CurrentHPR}" );
             }
         }
     }
@@ -329,7 +518,7 @@ public class BattleAI_Projection
         {
             IncreaseHP( unit, ( 1f/16f ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Leftovers! HP: {unit.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Leftovers! HP: {unit.CurrentHPR}" );
         }
 
         if( unit.Item == BattleItemEffectID.BlackSludge )
@@ -338,13 +527,13 @@ public class BattleAI_Projection
             {
                 IncreaseHP( unit, ( 1f/16f ) );
                 unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Black Sludge! HP: {unit.CurrentHPR}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Black Sludge! HP: {unit.CurrentHPR}" );
             }
             else
             {
                 DecreaseHP( unit, ( 1f/16f ) );
                 unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Black Sludge! HP: {unit.CurrentHPR}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Black Sludge! HP: {unit.CurrentHPR}" );
             }
 
             
@@ -357,7 +546,7 @@ public class BattleAI_Projection
         {
             IncreaseHP( unit, ( 1f/16f ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Aqua Ring! HP: {unit.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was healed by Aqua Ring! HP: {unit.CurrentHPR}" );
         }
     }
 
@@ -372,7 +561,7 @@ public class BattleAI_Projection
         {
             DecreaseHP( unit, ( 1f/8f ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Poison! HP: {unit.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Poison! HP: {unit.CurrentHPR}" );
         }
 
         if( unit.SevereStatus == SevereConditionID.TOX )
@@ -380,14 +569,14 @@ public class BattleAI_Projection
             DecreaseHP( unit, ( unit.ToxicCounter * ( 1f/16f ) ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
             unit.ToxicCounter++;
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Toxic! HP: {unit.CurrentHPR}, Toxic Counter: {unit.ToxicCounter}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Toxic! HP: {unit.CurrentHPR}, Toxic Counter: {unit.ToxicCounter}" );
         }
 
         if( unit.SevereStatus == SevereConditionID.BRN || unit.SevereStatus == SevereConditionID.FBT )
         {
             DecreaseHP( unit, ( 1f/16f ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Burn or Frostbite! HP: {unit.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Burn or Frostbite! HP: {unit.CurrentHPR}" );
         }
     }
 
@@ -397,7 +586,7 @@ public class BattleAI_Projection
         {
             DecreaseHP( unit, ( 1f/4f ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-            _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Curse! HP: {unit.CurrentHPR}" );
+            // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Curse! HP: {unit.CurrentHPR}" );
         }
     }
 
@@ -417,7 +606,7 @@ public class BattleAI_Projection
 
                 DecreaseHP( unit, damage );
                 unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-                _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by a Binding Condition! HP: {unit.CurrentHPR}" );
+                // _sim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by a Binding Condition! HP: {unit.CurrentHPR}" );
             }
         }
     }
@@ -440,6 +629,12 @@ public class BattleAI_Projection
 
 public struct TurnOutcomeProjection
 {
+    public SimulatedUnit Attacker;
+    public SimulatedUnit Opponent;
+
+    public PotentialToKO AttackerPTKO;
+    public PotentialToKO OpponentPTKO;
+
     public float Attacker_EndOfTurnHP;
     public float Opponent_EndOfTurnHP;
 
@@ -461,7 +656,29 @@ public class BattleSimContext
     public PotentialToKO OpponentPTKO;
 
     public bool AttackerMovesFirst;
+    public bool AttackerIsSwitch;
+    public bool OpponentIsSwitch;
 
     public bool Attacker_DiesBeforeActing;
     public bool Opponent_DiesBeforeActing;
+}
+
+public struct ProjectedBoardState
+{
+    //-Raw Results
+    public float MyHP_AfterTurn;
+    public float OppHP_AfterTurn;
+
+    public bool IAmKO;
+    public bool OppIsKO;
+    public bool MutualKO;
+
+    //--Tempo Next Turn
+    public bool IHaveTempoAdvantageNextTurn;
+
+    //--Material
+    public int MyRemainingPieces;
+    public int OppRemainingPieces;
+
+    public int MaterialDelta;
 }

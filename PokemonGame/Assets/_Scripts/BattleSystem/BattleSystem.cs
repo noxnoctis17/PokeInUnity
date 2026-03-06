@@ -258,12 +258,12 @@ public class BattleSystem : MonoBehaviour
 
     public void HandleTwoTurnMoves( BattleUnit unit )
     {
-        Debug.Log( $"[Charge] Handling Two Turn Moves!" );
+        // Debug.Log( $"[Charge] Handling Two Turn Moves!" );
         if( unit.Flags[UnitFlags.Charging].IsActive && unit.Flags[UnitFlags.Charging].Count > 0 )
         {
             var move = unit.Flags[UnitFlags.Charging].Move;
             List<BattleUnit> targets = new() { unit.Flags[UnitFlags.Charging].Target, };
-            Debug.Log( $"[Charge] {unit.Pokemon.NickName} was charging {move.MoveSO.Name}! Adding it to the command list...!" );
+            // Debug.Log( $"[Charge] {unit.Pokemon.NickName} was charging {move.MoveSO.Name}! Adding it to the command list...!" );
             SetMoveCommand( unit, targets, move );
         }
         
@@ -321,7 +321,7 @@ public class BattleSystem : MonoBehaviour
 
     public void SetBattleFlag( BattleFlag flag, bool value )
     {
-        Debug.Log( $"Setting BattleFlag: {flag} to {value}" );
+        // Debug.Log( $"Setting BattleFlag: {flag} to {value}" );
         if( _battleFlags.ContainsKey( flag ) )
             _battleFlags[flag] = value;
         else
@@ -338,7 +338,7 @@ public class BattleSystem : MonoBehaviour
         if( move.MoveTarget == MoveTarget.Self || move.MoveTarget == MoveTarget.Ally || move.MoveTarget == MoveTarget.AllySide || move.MoveTarget == MoveTarget.All || move.MoveTarget == MoveTarget.AllField )
             return target;
 
-        Debug.Log( $"[Battle System] Redirection set! Handling Redirection..." );
+        // Debug.Log( $"[Battle System] Redirection set! Handling Redirection..." );
         var opponents = GetOpposingUnits( attacker );
         BattleUnit newTarget = target;
 
@@ -347,7 +347,7 @@ public class BattleSystem : MonoBehaviour
             var opp = opponents[i];
             if( opp.Pokemon.TransientStatus?.ID == TransientConditionID.CenterOfAttention )
             {
-                Debug.Log( $"[Battle System] Redirection target found! Setting new target to: {opp.Pokemon.NickName}" );
+                // Debug.Log( $"[Battle System] Redirection target found! Setting new target to: {opp.Pokemon.NickName}" );
                 newTarget = opp;
             }
             else
@@ -384,7 +384,7 @@ public class BattleSystem : MonoBehaviour
     public void AddToEventQueue( Func<IEnumerator> cr, [System.Runtime.CompilerServices.CallerFilePath] string file = "", [System.Runtime.CompilerServices.CallerLineNumber] int line = 0 )
     {
         _eventQueue.Enqueue( cr );
-        Debug.Log( $"[Event Queue] {_eventQueue.Peek()} was Enqueued from {System.IO.Path.GetFileName( file )}:{line}" );
+        // Debug.Log( $"[Event Queue] {_eventQueue.Peek()} was Enqueued from {System.IO.Path.GetFileName( file )}:{line}" );
     }
 
     private IEnumerator EventQueueRunner()
@@ -426,7 +426,7 @@ public class BattleSystem : MonoBehaviour
     public void AddToUIQueue( Func<IEnumerator> cr, [System.Runtime.CompilerServices.CallerFilePath] string file = "", [System.Runtime.CompilerServices.CallerLineNumber] int line = 0 )
     {
         _uiQueue.Enqueue( cr );
-        Debug.Log( $"[UI Queue] {_uiQueue.Peek()} was Enqueued from {System.IO.Path.GetFileName( file )}:{line}" );
+        // Debug.Log( $"[UI Queue] {_uiQueue.Peek()} was Enqueued from {System.IO.Path.GetFileName( file )}:{line}" );
     }
 
     private IEnumerator UIQueueRunner()
@@ -708,7 +708,7 @@ public class BattleSystem : MonoBehaviour
 
     public bool IsPokemonSelectedToShift( Pokemon pokemon )
     {
-        Debug.Log( "Checking if Pokemon is already selected" );
+        // Debug.Log( "Checking if Pokemon is already selected" );
         //--We need to use the _commandList instead of the _commandQueue, because the queue doesn't get filled until all commands are added to the list
         //--The list then sorts itself appropriately, and feeds everything into the queue for the queue to run or dequeue accordingly.
         foreach( IBattleCommand command in CommandList )
@@ -717,8 +717,8 @@ public class BattleSystem : MonoBehaviour
             if( command is SwitchPokemonCommand )
             {
                 var switchCommand = command as SwitchPokemonCommand;
-                Debug.Log( $"Command is a SwitchPokemonCommand to switch in: {switchCommand.GetPokemon().NickName}" );
-                Debug.Log( $"The Selected Pokemon to shift is: {pokemon.NickName}" );
+                // Debug.Log( $"Command is a SwitchPokemonCommand to switch in: {switchCommand.GetPokemon().NickName}" );
+                // Debug.Log( $"The Selected Pokemon to shift is: {pokemon.NickName}" );
                 if( switchCommand.GetPokemon() == pokemon )
                 {
                     return true;
@@ -752,19 +752,19 @@ public class BattleSystem : MonoBehaviour
         var activePokemon = GetActivePokemon();
         BattleUnit unit = null;
 
-        Debug.Log( $"[Get BattleUnit] Looking for {pokemon.NickName}'s ({pokemon.PID}) BattleUnit" );
+        // Debug.Log( $"[Get BattleUnit] Looking for {pokemon.NickName}'s ({pokemon.PID}) BattleUnit" );
         for( int i = 0; i < activePokemon.Count; i++ )
         {
-            Debug.Log( $"[Get BattleUnit] Checking {activePokemon[i]}, pokemon is: {activePokemon[i].Pokemon.NickName} ({pokemon.PID})" );
+            // Debug.Log( $"[Get BattleUnit] Checking {activePokemon[i]}, pokemon is: {activePokemon[i].Pokemon.NickName} ({pokemon.PID})" );
             
-            if( pokemon.PID == activePokemon[i].Pokemon.PID )
+        if( pokemon.PID == activePokemon[i].Pokemon.PID )
                 unit = activePokemon[i];
         }
 
-        if( unit != null )
-            Debug.Log( $"[Get BattleUnit] Get Battle Unit {unit.Pokemon.NickName} ({pokemon.PID})" );
-        else
-            Debug.Log( $"[Get BattleUnit] Unit not in battle or not found!" );
+        // if( unit != null )
+            // Debug.Log( $"[Get BattleUnit] Get Battle Unit {unit.Pokemon.NickName} ({pokemon.PID})" );
+        // else
+            // Debug.Log( $"[Get BattleUnit] Unit not in battle or not found!" );
             
         return unit;
     }
@@ -827,7 +827,7 @@ public class BattleSystem : MonoBehaviour
         TotalPartyExpGain += expGain;
         TotalPartyEffortGain += effortYield;
 
-        Debug.Log( $"[Battle System][Handle Exp Gain] {faintedUnit.Pokemon.NickName} has fainted! Exp: {TotalPartyExpGain}, EP: {TotalPartyEffortGain}" );
+        // Debug.Log( $"[Battle System][Handle Exp Gain] {faintedUnit.Pokemon.NickName} has fainted! Exp: {TotalPartyExpGain}, EP: {TotalPartyEffortGain}" );
 
         yield return null;
     }
@@ -971,7 +971,7 @@ public class BattleSystem : MonoBehaviour
     }
 
     public IEnumerator ShowStatusChanges( BattleUnit unit ){
-        Debug.Log( $"[Show Status Changes] Unit: {unit}, {unit.Pokemon.NickName}" );
+        // Debug.Log( $"[Show Status Changes] Unit: {unit}, {unit.Pokemon.NickName}" );
         var pokemon = unit.Pokemon;
 
         if( pokemon.StatusChanges.Count == 0 )
@@ -995,34 +995,34 @@ public class BattleSystem : MonoBehaviour
                     AudioController.Instance.PlaySFX( SoundEffect.StatDown );
                 }
 
-                Debug.Log( $"[Show Status Changes] Stat Change Event" );
+                // Debug.Log( $"[Show Status Changes] Stat Change Event" );
                 yield return unit.PokeAnimator.PlayStatChangeAnimation( tex, statusEvent.StageChange );
-                Debug.Log( $"[Show Status Changes] Stat Change Event Complete" );
+                // Debug.Log( $"[Show Status Changes] Stat Change Event Complete" );
             }
 
             if( statusEvent.Type == StatusEventType.Damage )
             {
-                Debug.Log( $"[Show Status Changes] Damage Event" );
+                // Debug.Log( $"[Show Status Changes] Damage Event" );
                 AudioController.Instance.PlaySFX( SoundEffect.DamageEffective );
                 yield return unit.PokeAnimator.PlayTakeDamageAnimation();
                 yield return unit.BattleHUD.UpdateHPCoroutine();
                 yield return unit.BattleHUD.WaitForHPUpdate();
-                Debug.Log( $"[Show Status Changes] Damage Event Complete" );
+                // Debug.Log( $"[Show Status Changes] Damage Event Complete" );
             }
 
             if( statusEvent.Type == StatusEventType.Heal )
             {
-                Debug.Log( $"[Show Status Changes] Heal Event" );
+                // Debug.Log( $"[Show Status Changes] Heal Event" );
                 AudioController.Instance.PlaySFX( SoundEffect.HPRestore );
                 yield return unit.PokeAnimator.PlayHealAnimation();
                 yield return unit.BattleHUD.UpdateHPCoroutine();
                 yield return unit.BattleHUD.WaitForHPUpdate();
-                Debug.Log( $"[Show Status Changes] Heal Event Complete" );
+                // Debug.Log( $"[Show Status Changes] Heal Event Complete" );
             }
 
             if( statusEvent.Type == StatusEventType.SevereStatusDamage )
             {
-                Debug.Log( $"[Show Status Changes] Severe Status Damage Event" );
+                // Debug.Log( $"[Show Status Changes] Severe Status Damage Event" );
                 if( pokemon.SevereStatus != null && StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX != null )
                 {
                     var vfxObj = Instantiate( StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX );
@@ -1034,25 +1034,25 @@ public class BattleSystem : MonoBehaviour
                 yield return unit.PokeAnimator.PlayTakeDamageAnimation();
                 yield return unit.BattleHUD.UpdateHPCoroutine();
                 yield return unit.BattleHUD.WaitForHPUpdate();
-                Debug.Log( $"[Show Status Changes] Severe Status Damage Event Complete" );
+                // Debug.Log( $"[Show Status Changes] Severe Status Damage Event Complete" );
             }
 
             if( statusEvent.Type == StatusEventType.SevereStatusPassive )
             {
-                Debug.Log( $"[Show Status Changes] Severe Status Passive Event" );
+                // Debug.Log( $"[Show Status Changes] Severe Status Passive Event" );
                 if( pokemon.SevereStatus != null && StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX != null )
                 {
                     var vfxObj = Instantiate( StatusIconAtlas.StatusIcons[pokemon.SevereStatus.ID].VFX );
                     vfxObj.transform.SetPositionAndRotation( unit.PokeTransform.position, unit.PokeTransform.rotation );
                     Destroy( vfxObj, 2f );
                 }
-                Debug.Log( $"[Show Status Changes] Severe Status Passive Event Complete" );
+                // Debug.Log( $"[Show Status Changes] Severe Status Passive Event Complete" );
             }
 
-            Debug.Log( $"[Show Status Changes] Checking if there's a message to add" );
+            // Debug.Log( $"[Show Status Changes] Checking if there's a message to add" );
             if( !string.IsNullOrEmpty( statusEvent.Message ) )
             {
-                Debug.Log( $"[Show Status Changes] Message isn't null! Message: {statusEvent.Message}" );
+                // Debug.Log( $"[Show Status Changes] Message isn't null! Message: {statusEvent.Message}" );
                 AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( statusEvent.Message ) );
             }
 
@@ -1078,7 +1078,7 @@ public class BattleSystem : MonoBehaviour
     //--and then once after game board update in the case of statuses like BRN, FRST, PSN, TOX
     public IEnumerator CheckForFaint( BattleUnit checkUnit )
     {
-        Debug.Log( $"[Move Command][UI Queue][Check For Faint] Checking for faint on {checkUnit.Pokemon.NickName}" );
+        // Debug.Log( $"[Move Command][UI Queue][Check For Faint] Checking for faint on {checkUnit.Pokemon.NickName}" );
         if( checkUnit.Pokemon.CurrentHP > 0 || checkUnit.Pokemon.SevereStatus?.ID == SevereConditionID.FNT )
             yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet. If the pokemon has already fainted from an earlier phase check, we also leave
 
@@ -1256,7 +1256,7 @@ public class BattleSystem : MonoBehaviour
 
         int shakeCount = TryToCatchPokemon( _enemyUnits[0].Pokemon, (PokeballItemSO)ball.ItemSO );
         // Debug.Log( _enemyUnit.PokeSO.CatchRate );
-        Debug.Log( $"Shake Count: {shakeCount}" );
+        // Debug.Log( $"Shake Count: {shakeCount}" );
 
         for( int i = 0; i < Mathf.Min( shakeCount, 3 ); i++ ){
             yield return new WaitForSeconds( 0.5f );
@@ -1301,7 +1301,7 @@ public class BattleSystem : MonoBehaviour
     }
 
     private int TryToCatchPokemon( Pokemon pokemon, PokeballItemSO pokeball ){
-        Debug.Log( $"Ball Catchrate: {pokeball.CatchRate}" );
+        // Debug.Log( $"Ball Catchrate: {pokeball.CatchRate}" );
         float a = ( 3 * pokemon.MaxHP - 2 * pokemon.CurrentHP ) * pokemon.PokeSO.CatchRate * pokeball.CatchRate * SevereConditionsDB.GetStatusBonus( pokemon.SevereStatus ) / ( 3 * pokemon.MaxHP );
 
         if( a >= 255 )
@@ -1359,7 +1359,7 @@ public class BattleSystem : MonoBehaviour
 
     private int _endBattleCount = 0;
     public void EndBattle(){
-        Debug.Log( $"[Battle System][End Battle] End Battle Count: {_endBattleCount}" );
+        // Debug.Log( $"[Battle System][End Battle] End Battle Count: {_endBattleCount}" );
         if( _endBattleCount > 0 )
             return;
 
@@ -1429,7 +1429,7 @@ public class BattleSystem : MonoBehaviour
         //--these things might as well be coroutines since there'll be tweening involved, so the delay can be built into the general duration of them
         yield return new WaitForSeconds( 0.5f );
 
-        Debug.Log( $"[Move Command] Current unit index in selection: {_unitInSelectionState}" );
+        // Debug.Log( $"[Move Command] Current unit index in selection: {_unitInSelectionState}" );
 
         if( ActivePlayerUnitsCount == _playerUnits.Count )
         {
@@ -1451,7 +1451,7 @@ public class BattleSystem : MonoBehaviour
                 HandleTwoTurnMoves( _playerUnits[_unitInSelectionState] );
         }
 
-        Debug.Log( $"[Move Command] Next unit index in selection: {_unitInSelectionState}" );
+        // Debug.Log( $"[Move Command] Next unit index in selection: {_unitInSelectionState}" );
 
         yield return null;
     }
