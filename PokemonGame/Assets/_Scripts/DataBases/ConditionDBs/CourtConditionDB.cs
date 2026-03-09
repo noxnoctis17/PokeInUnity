@@ -293,7 +293,7 @@ public class CourtConditionDB
 
                     OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
                     {
-                        if( unit.Pokemon.CheckTypes( PokemonType.Flying ) && !unit.Flags[UnitFlags.Grounded].IsActive || unit.Pokemon.AbilityID == AbilityID.Levitate && !unit.Flags[UnitFlags.Grounded].IsActive )
+                        if( unit.Pokemon.CheckTypes( PokemonType.Flying ) && !unit.Flags[UnitFlags.Ungrounded].IsActive || unit.Pokemon.AbilityID == AbilityID.Levitate && !unit.Flags[UnitFlags.Ungrounded].IsActive )
                             return;
 
                         var location = field.GetUnitCourt( unit ).Location;
@@ -335,7 +335,7 @@ public class CourtConditionDB
 
                     OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
                     {
-                        if( unit.Pokemon.CheckTypes( PokemonType.Flying ) && !unit.Flags[UnitFlags.Grounded].IsActive || unit.Pokemon.AbilityID == AbilityID.Levitate && !unit.Flags[UnitFlags.Grounded].IsActive )
+                        if( unit.Pokemon.CheckTypes( PokemonType.Flying ) && !unit.Flags[UnitFlags.Ungrounded].IsActive || unit.Pokemon.AbilityID == AbilityID.Levitate && !unit.Flags[UnitFlags.Ungrounded].IsActive )
                             return;
 
                         if( unit.Pokemon.CheckTypes( PokemonType.Steel ) )

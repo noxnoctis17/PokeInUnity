@@ -5,10 +5,16 @@ using UnityEngine;
 public class BattleAI_MoveCommand
 {
     private BattleAI _ai;
+    private BattleAI_UnitSim _unitSim;
+    private BattleAI_BattleSim _battleSim;
+    private BattleAI_Projection _proj;
 
     public BattleAI_MoveCommand( BattleAI ai )
     {
         _ai = ai;
+        _unitSim = _ai.UnitSim;
+        _battleSim = _ai.BattleSim;
+        _proj = _ai.Projection;
     }
 
     public void SubmitMoveCommand( BattleUnit target, ActionEvaluation action )
@@ -42,7 +48,7 @@ public class BattleAI_MoveCommand
             Debug.LogError( $"{_ai.Unit.Pokemon.NickName} has not chosen a move even though it was supposed to! Battle will now hang!" );
     }
 
-    public int AttackScore( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context )
+    public int AttackScore( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult move )
     {
         int score = 0;
 
@@ -51,10 +57,21 @@ public class BattleAI_MoveCommand
 
         var myPTKO_onTarget = eval.AttackerPTKOR;
         var theirPTKO_onMe = eval.OpponentPTKOR;
-        _ai.CurrentLog.Add( $"===[Beginning Attack Scoring for {attackerName} vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {myPTKO_onTarget.PTKO}, their PTKO on me: {theirPTKO_onMe.PTKO}]===" );
+
+        string moveName = "NONE";
+
+        if( move.Move != null )
+            moveName = move.Move.MoveSO.Name;
+        else
+        {
+            _ai.CurrentLog.Add( $"({attackerName}) Had no viable attacking move! Tanking Score!" );
+            return -999;
+        }
+
+        _ai.CurrentLog.Add( $"===[Beginning Attack Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {myPTKO_onTarget.PTKO}, their PTKO on me: {theirPTKO_onMe.PTKO}]===" );
 
         //--KO Class Advantage
-        score += _ai.Get_OffensivePTKOScore( myPTKO_onTarget.Score );
+        score += _proj.Get_OffensivePTKOScore( myPTKO_onTarget.Score );
         _ai.CurrentLog.Add( $"My ({attackerName}) PTKO Score {myPTKO_onTarget.Score}. Score: {score}" );
 
         score += theirPTKO_onMe.Score;
@@ -72,7 +89,7 @@ public class BattleAI_MoveCommand
                 score += 75; //--Probably commit
         }
 
-        _ai.CurrentLog.Add( $"I Threaten a KO: {iThreatenKO}, I am faster: {iAmFaster}. Score: {score}" );
+        _ai.CurrentLog.Add( $"I Threaten a KO: {iThreatenKO}. I am faster: {iAmFaster}. Score: {score}" );
 
         float hp = eval.AttackerHPR;
         if( theyThreatenKO )
@@ -122,10 +139,20 @@ public class BattleAI_MoveCommand
         if( context.IsBehind )
             score += 20;
 
-        //--Attacking Weight
-        score += 5;
-
         _ai.CurrentLog.Add( $"===[Is Behind: {context.IsBehind}. Final Attack Score: {score}]===" );
+
+        //--Attacking Based on Switch Pressure (replaced flat weight bonus simply for attacking)
+
+        if( eval.AttackerForcesSwitch )
+        {
+            score += 15;
+            _ai.CurrentLog.Add( $"Opponent likey forced to switch. Score: {score}" );
+        }
+        else if( eval.ExchangeState == ExchangeState.Pressure )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"The pressure is on! Score: {score}" );
+        }
 
         return score;
     }
@@ -133,26 +160,6 @@ public class BattleAI_MoveCommand
     private AIDecisionType ChooseAttackStyle()
     {
         return Random.value < _ai.TrainerSkillModifier ? AIDecisionType.StrongestMove : AIDecisionType.RandomMove;
-    }
-
-    private Move ChooseAMove( BattleUnit target )
-    {
-        // Debug.Log( $"[AI Scoring] ChooseAMove()" );
-        var decision = ChooseAttackStyle();
-        switch( decision )
-        {
-            case AIDecisionType.StrongestMove:
-                var bestMove = Get_BestSimulatedMove( _ai.Unit.Pokemon, target.Pokemon ).Move;
-                // var bestMove = FindStrongestAttack( target ).Move;
-                if( bestMove != null )
-                    return bestMove;
-
-                return GetRandomMove( target );
-
-            case AIDecisionType.RandomMove:
-            default:
-                return GetRandomMove( target );
-        }
     }
 
     private Move GetRandomMove( BattleUnit target )
@@ -185,150 +192,27 @@ public class BattleAI_MoveCommand
         return randMove;
     }
 
-    // private MoveThreatResult FindStrongestAttack( BattleUnit target )
-    // {
-    //     Debug.Log( $"[AI Scoring] Getting Strongest Attack vs {target.Pokemon.NickName}" );
-    //     var attacker = _ai.Unit.Pokemon;
-    //     Move bestMove = null;
-    //     Move fakeout = null;
-    //     float bestScore = float.MinValue;
-
-    //     foreach( var move in _ai.Unit.Pokemon.ActiveMoves )
-    //     {
-    //         //--If the move has 0 pp, we can't use it
-    //         if( move.PP == 0 )
-    //             continue;
-
-    //         //--Check if the Move will not have an effect, such as using tailwind while it is already active, or fake out after the first turn, and if so, skip it
-    //         if( !_ai.BattleSystem.MoveSuccess( _ai.Unit, target, move, true ) )
-    //             continue;
-
-    //         //--If the move has 0 power, or is a status move, we skip it. We're looking for damaging moves only!
-    //         if( move.MovePower <= 0 || move.MoveSO.MoveCategory == MoveCategory.Status )
-    //             continue;
-
-    //         //--Move type effectiveness
-    //         float effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.Pokemon.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.Pokemon.PokeSO.Type2 );
-
-    //         Debug.Log( $"[AI Scoring][Strongest Attack] Finding {_ai.Unit.Pokemon.NickName}'s Strongest Attacking Move. Effectiveness: {effectiveness}" );
-
-    //         //--If there a type immunity, skip this move
-    //         if( effectiveness == 0f )
-    //             continue;
-
-    //         //--Check if move uses preferred attacking stat. In some cases things like move power, stab, effectiveness, or weather damage boost
-    //         //--may make a move more preferable despite not using the higher attacking stat
-    //         float stat = 1f;
-
-    //         if( move.MoveSO.MoveCategory == MoveCategory.Physical )
-    //             stat = _ai.GetUnitInferredStat( _ai.Unit.Pokemon, Stat.Attack );
-
-    //         if( move.MoveSO.MoveCategory == MoveCategory.Special )
-    //             stat = _ai.GetUnitInferredStat( _ai.Unit.Pokemon, Stat.SpAttack );
-
-    //         Debug.Log( $"[AI Scoring][Strongest Attack] Finding {_ai.Unit.Pokemon.NickName}'s Strongest Attacking Move. Inferred Stat: {stat}" );
-
-    //         int power = move.MovePower;
-
-    //         //--Multi hit move power expectation
-    //         if( move.MoveSO.HitRange.x >= 2 && move.MoveSO.HitRange.y != 0 )
-    //         {
-    //             int minHits = move.MoveSO.HitRange.x;
-    //             int maxHits = move.MoveSO.HitRange.y;
-
-    //             int expectedHits = Mathf.FloorToInt( ( minHits + maxHits ) * 0.5f );
-
-    //             power *= expectedHits;
-    //         }
-            
-    //         //--Set-multi hit true power
-    //         if( move.MoveSO.HitRange.x >= 2 && move.MoveSO.HitRange.y == 0 )
-    //         {
-    //             for( int i = 0; i < move.MoveSO.HitRange.x; i++ )
-    //             {
-    //                 power += power;
-    //             }
-    //         }
-
-    //         float stab              = attacker.CheckTypes( move.MoveType ) ? 1.5f : 1f;
-    //         float weather           = 1f;
-    //         float terrain           = 1f;
-    //         float item              = 1f;
-
-    //         var field = _ai.BattleSystem.Field;
-
-    //         if( field.Weather != null )
-    //         {
-    //             if( _ai.UnitSim.WeatherDMGModifiers.TryGetValue( field.Weather.ID, out var mod ) )
-    //                 weather = mod( move );
-    //         }
-
-    //         if( field.Terrain != null )
-    //         {
-    //             if( _ai.UnitSim.TerrainDMGModifiers.TryGetValue( field.Terrain.ID, out var mod ) )
-    //                 terrain = mod( move );
-    //         }
-
-    //         if( attacker.BattleItemEffect != null )
-    //         {
-    //             if( _ai.UnitSim.ItemDMGModifiers.TryGetValue( attacker.BattleItemEffect.ID, out var mod ) )
-    //                 item = mod( attacker, target.Pokemon, move );
-    //         }
-
-    //         Debug.Log( $"[AI Scoring][Strongest Attack][{attacker.NickName}][{move.MoveSO.Name}] Effectiveness: {effectiveness}, STAB: {stab}, Weather: {weather}, Terrain: {terrain}, Item: {item}" );
-
-    //         //--Calculate final score
-    //         float score = power * effectiveness * stat * stab * weather * terrain * item;
-    //         Debug.Log( $"[AI Scoring][Strongest Attack] Finding {_ai.Unit.Pokemon.NickName}'s Strongest Attacking Move. Final Score: {score}" );
-
-    //         //--If this move's score is the highest, set it as the current best score and best move
-    //         if( score > bestScore )
-    //         {
-    //             bestScore = score;
-    //             bestMove = move;
-    //         }
-
-    //         if( move.MoveSO.Name == "Fake Out" )
-    //             fakeout = move;
-    //     }
-
-    //     if( _ai.Unit.Flags[UnitFlags.ChoiceItem].IsActive && _ai.Unit.LastUsedMove != null )
-    //     {
-    //         return new(){ Score = bestScore, Move = _ai.Unit.LastUsedMove };
-    //     }
-        
-    //     if( fakeout != null && _ai.CanUseFakeOut( _ai.Unit, target ) )
-    //     {
-    //         if( Random.value < _ai.TrainerSkillModifier )
-    //         {
-    //             return new(){ Score = bestScore * 2f, Move = fakeout };
-    //         }
-    //     }
-
-    //     return new(){ Score = bestScore, Move = bestMove };
-    // }
-
-    public MoveThreatResult Get_BestSimulatedMove( Pokemon attacker, Pokemon target )
+    public MoveThreatResult Get_BestSimulatedAttack( Pokemon attacker, Pokemon target )
     {
         // CustomLogSession moveLog = new();
         int bestScore = int.MinValue;
         float bestModifier = 1f;
         Move bestMove = null;
         TurnOutcomeProjection bestTop = new();
-        var materialStatus = _ai.GetMaterialStatus( attacker );
+        var materialStatus = _proj.GetMaterialStatus( attacker );
 
         //--Create Target's PTKO on attacker & target's sim unit once for use in each attacker's move's simulation
         float attHPR                    = _ai.Get_HPRatio( attacker );
         float tarHPR                    = _ai.Get_HPRatio( target );
         var tarMTR                      = _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
         var tarMoveMod                  = tarMTR.Modifier;
-        var tarWSR                      = _ai.Get_WallingScoreResult( target, attacker, tarMTR );
-        PotentialToKOResult tarPTKOR    = _ai.Get_PotentialToKOResult( tarWSR, tarMoveMod, attHPR );
+        var tarWSR                      = _proj.Get_WallingScoreResult( target, attacker, tarMTR );
+        PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarWSR, tarMoveMod, attHPR );
         
         var fieldSim                    = _ai.UnitSim.BuildSimField();
         var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
 
-        bool isFaster = _ai.GetUnitInferredStat( attacker, Stat.Speed ) > _ai.GetUnitInferredStat( target, Stat.Speed );
+        bool isFaster = _ai.GetUnitContextualSpeed( attacker ) > _ai.GetUnitContextualSpeed( target );
 
         foreach( var move in attacker.ActiveMoves )
         {
@@ -340,6 +224,9 @@ public class BattleAI_MoveCommand
             if( move.MovePower <= 0 || move.MoveSO.MoveCategory == MoveCategory.Status )
                 continue;
 
+            // if( _ai.BattleSimulation.MoveSuccess() ) //--Do this soon!!! --03/06/26
+                // continue;
+
             //--Move type effectiveness
             float effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
 
@@ -349,16 +236,17 @@ public class BattleAI_MoveCommand
 
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, move );
             MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move };
-            var attWSR                      = _ai.Get_WallingScoreResult( attacker, target, mtr );
-            PotentialToKOResult attPTKOR    = _ai.Get_PotentialToKOResult( attWSR, modifier, tarHPR );
+            var attWSR                      = _proj.Get_WallingScoreResult( attacker, target, mtr );
+            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attWSR, modifier, tarHPR );
 
-            bool movesFirst = isFaster || move.MoveSO.MovePriority > MovePriority.Zero;
+            // bool movesFirst = isFaster || move.MoveSO.MovePriority > MovePriority.Zero;
 
-            targetSimUnit.CurrentHPR = tarHPR; //--Because we create this sim unit only once, we need to make sure we heal its hp to where it currently is before we run the attack sim!
-            var attackerSimUnit     = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
-            var battleSimContext    = _ai.Projection.Get_BattleSimContext( attPTKOR.PTKO, tarPTKOR.PTKO, attackerSimUnit, targetSimUnit, fieldSim, movesFirst );
+            targetSimUnit.CurrentHPR        = tarHPR; //--Because we create this sim unit only once, we need to make sure we heal its hp to where it currently is before we run the attack sim!
+            Debug.Log( $"[Best Simulated Move] Target's pre-sim HPR: {tarHPR}. Target's Sim Unit HRP: {targetSimUnit.CurrentHPR}" );
+            var attackerSimUnit             = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
+            var battleSimContext            = _battleSim.Get_BattleSimContext( attPTKOR.PTKO, tarPTKOR.PTKO, attackerSimUnit, targetSimUnit, fieldSim );
             
-            var top                 = _ai.Projection.SimulateAttackRound( battleSimContext, $"Get Best Simulated Move ({attacker.NickName}, {move.MoveSO.Name})" );
+            var top                         = _battleSim.SimulateAttackRound( battleSimContext, $"Get Best Simulated Move ({attacker.NickName}, {move.MoveSO.Name})" );
 
             //--Begin Scoring
             int score = 0;
@@ -399,16 +287,17 @@ public class BattleAI_MoveCommand
             float effectiveness             = TypeChart.GetEffectiveness( fallbackMove.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( fallbackMove.MoveType, target.PokeSO.Type2 );
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, fallbackMove );
             MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = fallbackMove };
-            var attWSR                      = _ai.Get_WallingScoreResult( attacker, target, mtr );
-            PotentialToKOResult attPTKOR    = _ai.Get_PotentialToKOResult( attWSR, modifier, tarHPR );
+            var attWSR                      = _proj.Get_WallingScoreResult( attacker, target, mtr );
+            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attWSR, modifier, tarHPR );
 
-            bool movesFirst = isFaster || fallbackMove.MoveSO.MovePriority > MovePriority.Zero;
+            // bool movesFirst = isFaster || fallbackMove.MoveSO.MovePriority > MovePriority.Zero;
 
             targetSimUnit.CurrentHPR    = tarHPR; //--Because we create this sim unit only once, we need to make sure we heal its hp to where it currently is before we run the attack sim!
+            Debug.Log( $"[Best Simulated Move] Target's pre-sim HPR: {tarHPR}. Target's Sim Unit HRP: {targetSimUnit.CurrentHPR}" );
             var attackerSimUnit         = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
-            var battleSimContext        = _ai.Projection.Get_BattleSimContext( attPTKOR.PTKO, tarPTKOR.PTKO, attackerSimUnit, targetSimUnit, fieldSim, movesFirst );
+            var battleSimContext        = _battleSim.Get_BattleSimContext( attPTKOR.PTKO, tarPTKOR.PTKO, attackerSimUnit, targetSimUnit, fieldSim );
             
-            var top                     = _ai.Projection.SimulateAttackRound( battleSimContext, $"Get Best Simulated Move ({attacker.NickName}, {fallbackMove.MoveSO.Name})" );
+            var top                     = _battleSim.SimulateAttackRound( battleSimContext, $"Get Best Simulated Move ({attacker.NickName}, {fallbackMove.MoveSO.Name})" );
 
             bestScore       = 0;
             bestModifier    = modifier;
@@ -422,6 +311,28 @@ public class BattleAI_MoveCommand
             Modifier = bestModifier,
             Move = bestMove,
             Top = bestTop,
+        };
+    }
+
+    public SetupThreatResult Get_BestSimulatedSetup( Pokemon attacker, Pokemon target )
+    {
+        var setupMoves = _ai.UnitSim.GetSetupMoves( attacker.ActiveMoves );
+        SetupThreatResult best = new();
+        int bestValue = int.MinValue;
+
+        var bestAttackBefore = Get_BestSimulatedAttack( attacker, target );
+
+        if( setupMoves.Count <= 0 )
+            return best;
+
+        foreach( var move in setupMoves )
+        {
+            
+        }
+
+        return new()
+        {
+            
         };
     }
 }

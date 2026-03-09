@@ -42,7 +42,7 @@ public class TerrainDB : MonoBehaviour
 
                     OnTerrainEffect = ( BattleUnit unit ) =>
                     {
-                        if( unit.Flags[UnitFlags.Grounded].IsActive )
+                        if( unit.Flags[UnitFlags.Ungrounded].IsActive )
                         {
                             int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16f );
                             unit.Pokemon.IncreaseHP( healBy );
@@ -52,7 +52,7 @@ public class TerrainDB : MonoBehaviour
 
                     OnDamageModify = ( BattleUnit source, Pokemon target, Move move ) =>
                     {
-                        if( source.Flags[UnitFlags.Grounded].IsActive && move.MoveSO.Type == PokemonType.Grass )
+                        if( source.Flags[UnitFlags.Ungrounded].IsActive && move.MoveSO.Type == PokemonType.Grass )
                             return 1.3f;
                         else
                             return 1f;
@@ -81,7 +81,7 @@ public class TerrainDB : MonoBehaviour
 
                     OnDamageModify = ( BattleUnit source, Pokemon target, Move move ) =>
                     {
-                        if( source.Flags[UnitFlags.Grounded].IsActive && move.MoveSO.Type == PokemonType.Psychic )
+                        if( source.Flags[UnitFlags.Ungrounded].IsActive && move.MoveSO.Type == PokemonType.Psychic )
                             return 1.3f;
                         else
                             return 1f;
@@ -100,7 +100,7 @@ public class TerrainDB : MonoBehaviour
 
                     OnTerrainEffect = ( BattleUnit unit ) =>
                     {
-                        if( unit.Flags[UnitFlags.Grounded].IsActive )
+                        if( unit.Flags[UnitFlags.Ungrounded].IsActive )
                         {
                             if( !unit.Pokemon.CheckTypes( PokemonType.Ghost ) && !unit.Pokemon.CheckTypes( PokemonType.Dark ) )
                             {
@@ -113,7 +113,7 @@ public class TerrainDB : MonoBehaviour
 
                     OnDamageModify = ( BattleUnit source, Pokemon target, Move move ) =>
                     {
-                        if( source.Flags[UnitFlags.Grounded].IsActive && ( move.MoveSO.Type == PokemonType.Ghost || move.MoveSO.Type == PokemonType.Dark ) )
+                        if( source.Flags[UnitFlags.Ungrounded].IsActive && ( move.MoveSO.Type == PokemonType.Ghost || move.MoveSO.Type == PokemonType.Dark ) )
                             return 1.3f;
                         else
                             return 1f;

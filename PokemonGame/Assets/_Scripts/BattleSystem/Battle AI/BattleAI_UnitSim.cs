@@ -67,6 +67,14 @@ public class BattleAI_UnitSim
     //     TurnSimLog.Add( $"Mutual KO: {top.MutualKO}" );
     // }
 
+    public SimulatedUnit BuildSimUnit( Pokemon pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, StatStageDelta statStages )
+    {
+        var unit = BuildSimUnit( pokemon, hpr, mtr, field );
+        unit.StatStages = statStages;
+
+        return unit;
+    }
+
     public SimulatedUnit BuildSimUnit( Pokemon pokemon, float hpr, MoveThreatResult mtr, SimulatedField field )
     {
         BattleItemEffectID item = pokemon.BattleItemEffect != null ? pokemon.BattleItemEffect.ID : BattleItemEffectID.None;
@@ -85,28 +93,106 @@ public class BattleAI_UnitSim
         var court = _ai.BattleSystem.Field.GetPokemonCourtFromTrainer( pokemon );
         bool leechseed = court.Conditions.ContainsKey( CourtConditionID.LeechSeed );
 
+        var statStages = BuildStatStageDelta( pokemon );
+
         SimulatedUnit unit = new()
         {
             Name = pokemon.NickName,
             CurrentHPR = hpr,
             Type = ( pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 ),
-            Speed = _ai.GetUnitInferredStat( pokemon, Stat.Speed ),
+            Speed = _ai.GetUnitContextualSpeed( pokemon ),
             MTR = mtr,
             IsUngrounded = IsUngrounded( pokemon, field ),
             Ability = pokemon.AbilityID,
             Item = item,
             SevereStatus = severe,
-            ToxicCounter = toxic,
+            SevereStatusDuration = toxic,
             VolatileStatuses = vol,
             Bindings = binds,
             CourtLocation = courtLocation,
             Court = court,
             CourtSeeded = leechseed,
+            StatStages = statStages,
         };
 
         // LogSimUnit( unit );
 
         return unit;
+    }
+
+    public StatStageDelta BuildStatStageDelta( Pokemon pokemon )
+    {
+        var changes = pokemon.GetStatStages();
+        int attack = 0;
+        int defense = 0;
+        int spAttack = 0;
+        int spDefense = 0;
+        int speed = 0;
+
+        foreach( var change in changes )
+        {
+            switch( change.Stat )
+            {
+                case Stat.Attack:       attack = change.Change;
+                    break;
+                case Stat.Defense:      defense = change.Change;
+                    break;
+                case Stat.SpAttack:     spAttack = change.Change;
+                    break;
+                case Stat.SpDefense:    spDefense = change.Change;
+                    break;
+                case Stat.Speed:        speed = change.Change;
+                    break;
+            };
+        }
+
+        return new()
+        {
+            Attack = attack,
+            Defense = defense,
+            SpAttack = spAttack,
+            SpDefense = spDefense,
+            Speed = speed,
+        };
+    }
+
+    public StatStageDelta BuildStatStageDelta( Move move )
+    {
+        if( move.MoveSO.MoveEffects.StatChangeList == null || move.MoveSO.MoveEffects.StatChangeList.Count <= 0 )
+            return default;
+
+        var changes = move.MoveSO.MoveEffects.StatChangeList;
+        int attack = 0;
+        int defense = 0;
+        int spAttack = 0;
+        int spDefense = 0;
+        int speed = 0;
+
+        foreach( var change in changes )
+        {
+            switch( change.Stat )
+            {
+                case Stat.Attack:       attack = change.Change;
+                    break;
+                case Stat.Defense:      defense = change.Change;
+                    break;
+                case Stat.SpAttack:     spAttack = change.Change;
+                    break;
+                case Stat.SpDefense:    spDefense = change.Change;
+                    break;
+                case Stat.Speed:        speed = change.Change;
+                    break;
+            };
+        }
+
+        return new()
+        {
+            Attack = attack,
+            Defense = defense,
+            SpAttack = spAttack,
+            SpDefense = spDefense,
+            Speed = speed,
+        };
     }
 
     public SimulatedField BuildSimField()
@@ -160,18 +246,81 @@ public class BattleAI_UnitSim
             return false;
     }
 
-    public bool WeForceSwitch( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster )
+    public bool PredictForcedSwitch( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster )
     {
-        bool weThreatenKO = offensePTKO <= PotentialToKO.TwoHKO;
-        bool theyThreatenKO = defensePTKO <= PotentialToKO.TwoHKO;
+        bool weThreatenKO = offensePTKO >= PotentialToKO.Risky;
+        bool theyThreatenKO = defensePTKO >= PotentialToKO.Risky;
 
         if( weThreatenKO && !theyThreatenKO )
             return true;
 
-        if( weThreatenKO && weAreFaster )
+        if( weThreatenKO && weAreFaster && defensePTKO > PotentialToKO.Dangerous )
             return true;
 
         return false;
+    }
+
+    public List<Move> GetSetupMoves( List<Move> moves )
+    {
+        List<Move> setupMoves = new();
+
+        foreach( var move in moves )
+        {
+            if( move.MoveSO.MoveCategory != MoveCategory.Status )
+                continue;
+            else
+            {
+                if( move.MoveSO.MoveEffects.StatChangeList?.Count > 0 )
+                    setupMoves.Add( move );
+                else
+                    continue;
+            }
+        }
+
+        return setupMoves;
+    }
+
+    public int ComputeSetupValue( PotentialToKOResult before, PotentialToKOResult after, StatStageDelta delta )
+    {
+        int value = 0;
+
+        int beforeScore = before.Score;
+        int afterScore = after.Score;
+
+        value += ( afterScore - beforeScore ) * 2;
+
+        if( delta.Speed > 0 )
+            value += 25;
+
+        if( delta.Defense > 0 || delta.SpDefense > 0 )
+            value += 15;
+
+        if( delta.Attack > 1 || delta.SpAttack > 1 )
+            value += 40;
+        
+        if( delta.Attack == 1 || delta.SpAttack == 1 )
+            value += 15;
+
+        return value;
+    }
+
+    public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR )
+    {
+        float prob = 0.0f;
+        bool weThreaten_OHKO = offensePTKO >= PotentialToKO.Dangerous;
+        bool theyDoNotThreaten = defensePTKO < PotentialToKO.TwoHKO;
+        int theirRemaining = _ai.GetRemainingOpposingPokemon( _ai.Unit.Pokemon ).Count;
+
+        if( PredictForcedSwitch( offensePTKO, defensePTKO, weAreFaster ) )      prob += 0.6f;
+        if( weThreaten_OHKO )                                                   prob += 0.2f;
+        if( theyDoNotThreaten )                                                 prob += 0.1f;
+        if( opponentHPR < 0.35f )                                               prob += 0.1f;
+        if( theirRemaining > 2 )                                                prob += 0.1f;
+        if( theirRemaining == 1 )                                               prob -= 0.4f;
+
+        prob = Mathf.Clamp01( prob );
+
+        return prob;
     }
 
     public int Get_ExpectedMoveHits( Move move )
@@ -481,27 +630,34 @@ public class BattleAI_UnitSim
     }
 }
 
-public class SimulatedUnit
+public class SimulatedUnit : IBattleAIUnit
 {
-    public string Name;
-    public float CurrentHPR;
-    public ( PokemonType One, PokemonType Two ) Type;
-    public int Speed;
-    public MoveThreatResult MTR;
-    public bool HasPriority;
-    public bool IsUngrounded;
+    public string Name { get; set; }
+    public float CurrentHPR { get; set; }
+    public ( PokemonType One, PokemonType Two ) Type { get; set; }
+    public int Attack { get; set; }
+    public int Defense { get; set; }
+    public int SpAttack { get; set; }
+    public int SpDefense { get; set; }
+    public int Speed { get; set; }
+    public MoveThreatResult MTR { get; set; }
+    public List<Move> ActiveMoves { get; set; }
+    public bool HasPriority { get; set; }
+    public bool IsUngrounded { get; set; }
 
-    public AbilityID Ability;
-    public BattleItemEffectID Item;
+    public AbilityID Ability { get; set; }
+    public BattleItemEffectID Item { get; set; }
 
-    public SevereConditionID SevereStatus;
-    public int ToxicCounter;
-    public List<VolatileConditionID> VolatileStatuses;
-    public List<BindingConditionID> Bindings;
+    public SevereConditionID SevereStatus { get; set; }
+    public int SevereStatusDuration { get; set; }
+    public List<VolatileConditionID> VolatileStatuses { get; set; }
+    public List<BindingConditionID> Bindings { get; set; }
 
-    public CourtLocation CourtLocation;
-    public Court Court;
-    public bool CourtSeeded;
+    public CourtLocation CourtLocation { get; set; }
+    public Court Court { get; set; }
+    public bool CourtSeeded { get; set; }
+
+    public StatStageDelta StatStages { get; set; }
 }
 
 public class SimulatedField

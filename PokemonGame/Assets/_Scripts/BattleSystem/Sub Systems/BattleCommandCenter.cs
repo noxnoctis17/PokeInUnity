@@ -262,54 +262,28 @@ public class BattleCommandCenter : MonoBehaviour
 
                         BattleSystem.AddToEventQueue( () => target.BattleHUD.UpdateHPCoroutine() );
                         BattleSystem.AddToEventQueue( () => target.BattleHUD.WaitForHPUpdate() );
-                        BattleSystem.AddToEventQueue( () => ShowDamageDetails( damageDetails ) );
+                        BattleSystem.AddToEventQueue( () => ShowCriticalHit( damageDetails ) );
                         yield return null;
                         yield return BattleSystem.WaitForEventQueue();
 
-                        if( move.MoveSO.MoveEffects.Trigger == MoveEffectTrigger.LastHit && hits == totalHits ) //--Fucking Scale Shot lol. --01/16/26
-                            yield return RunMoveEffects( move, move.MoveSO.MoveEffects, move.MoveSO.MoveEffects.Target, attacker, target );
-                        else if( move.MoveSO.MoveEffects.Trigger == MoveEffectTrigger.PerHit )
-                            yield return RunMoveEffects( move, move.MoveSO.MoveEffects, move.MoveSO.MoveEffects.Target, attacker, target );
+                        //--Immediately after doing damage checks. Should handle appropriate timing for things like rocky helmet, rough skin, and flame body.
+                        target.Pokemon.BattleItemEffect?.OnAfterTakeDamage?.Invoke( target );
+                        yield return null;
+                        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+
+                        target.Pokemon.BattleItemEffect?.OnMoveContact?.Invoke( attacker, target, move );
+                        yield return null;
+                        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+                        
+                        target.Pokemon.Ability?.OnMoveContact?.Invoke( attacker, target, move );
+                        yield return null;
+                        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
 
                         yield return null;
                         yield return BattleSystem.WaitForEventQueue();
                     }
 
-                    if( move.MoveSO.SecondaryMoveEffects != null && move.MoveSO.SecondaryMoveEffects.Count > 0 && target.Pokemon.CurrentHP > 0 )
-                    {
-                        foreach( var secondary in move.MoveSO.SecondaryMoveEffects )
-                        {
-                            var rand = UnityEngine.Random.Range( 1, 101 );
-                            float chanceModifier = attacker.Pokemon.Ability?.OnSecondaryEffectChanceModify?.Invoke() ?? 1f;
-                            float chance = secondary.Chance * chanceModifier;
-                            if( rand <= secondary.Chance )
-                            {
-                                if( secondary.Trigger == MoveEffectTrigger.LastHit && hits == totalHits ) //--Fucking Scale Shot lol. --01/16/26
-                                    yield return RunMoveEffects( move, secondary, secondary.Target, attacker, target );
-                                else if( secondary.Trigger == MoveEffectTrigger.PerHit )
-                                    yield return RunMoveEffects( move, secondary, secondary.Target, attacker, target );
-
-                                yield return null;
-                                yield return BattleSystem.WaitForEventQueue();
-                            }
-                        }
-                    }
-
-                    target.Pokemon.BattleItemEffect?.OnAfterTakeDamage?.Invoke( target );
-                    yield return null;
-                    BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-
-                    target.Pokemon.BattleItemEffect?.OnMoveContact?.Invoke( attacker, target, move ); //--Nothing implemented yet. This will be for something like Rocky Helmet. --01/09/26
-                    yield return null;
-                    BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-                    
-                    target.Pokemon.Ability?.OnMoveContact?.Invoke( attacker, target, move ); //--Does the target have an ability that activates on the attacker's move making contact, such as Flame Body or Static?
-                    yield return null;
-                    BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-
-                    yield return null;
-                    yield return BattleSystem.WaitForEventQueue();
-
+                    //--Multi hit move checks
                     if( move.MoveSO.AccuracyType == AccuracyType.PerHit && target.Pokemon.CurrentHP > 0 )
                     {
                          bool hitAgain = CheckMoveAccuracy( move, attacker, target );
@@ -341,6 +315,38 @@ public class BattleCommandCenter : MonoBehaviour
                 {
                     BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The Pokemon was hit {hits} times!" ) );
                     yield return BattleSystem.WaitForUIQueue();
+                }
+
+                //--Handle post attacking move effects and secondary effects. Are there any attacking move effects that are reflected by Magic Bounce? --03/07/26
+                if(  move.MoveSO.MoveCategory != MoveCategory.Status )
+                {
+                    if( move.MoveSO.MoveEffects.Trigger == MoveEffectTrigger.LastHit && hits == totalHits ) //--Fucking Scale Shot lol. --01/16/26
+                        yield return RunMoveEffects( move, move.MoveSO.MoveEffects, move.MoveSO.MoveEffects.Target, attacker, target );
+                    else if( move.MoveSO.MoveEffects.Trigger == MoveEffectTrigger.PerHit )
+                        yield return RunMoveEffects( move, move.MoveSO.MoveEffects, move.MoveSO.MoveEffects.Target, attacker, target );
+
+                    yield return null;
+                    yield return BattleSystem.WaitForEventQueue();
+
+                    if( move.MoveSO.SecondaryMoveEffects != null && move.MoveSO.SecondaryMoveEffects.Count > 0 && target.Pokemon.CurrentHP > 0 )
+                    {
+                        foreach( var secondary in move.MoveSO.SecondaryMoveEffects )
+                        {
+                            var rand = UnityEngine.Random.Range( 1, 101 );
+                            float chanceModifier = attacker.Pokemon.Ability?.OnSecondaryEffectChanceModify?.Invoke() ?? 1f;
+                            float chance = secondary.Chance * chanceModifier;
+                            if( rand <= secondary.Chance )
+                            {
+                                if( secondary.Trigger == MoveEffectTrigger.LastHit && hits == totalHits ) //--Fucking Scale Shot lol. --01/16/26
+                                    yield return RunMoveEffects( move, secondary, secondary.Target, attacker, target );
+                                else if( secondary.Trigger == MoveEffectTrigger.PerHit )
+                                    yield return RunMoveEffects( move, secondary, secondary.Target, attacker, target );
+
+                                yield return null;
+                                yield return BattleSystem.WaitForEventQueue();
+                            }
+                        }
+                    }
                 }
 
                 // Debug.Log( $"[Move Command] Finished {attacker.Pokemon.NickName}'s full attack loop! Running After Move!" );
@@ -799,7 +805,7 @@ public class BattleCommandCenter : MonoBehaviour
     }
 
     //--Display text update based on damage done
-    private IEnumerator ShowDamageDetails( DamageDetails damageDetails ){
+    private IEnumerator ShowCriticalHit( DamageDetails damageDetails ){
         //--critical hit dialogue
         if( damageDetails.Critical > 1 )
         {

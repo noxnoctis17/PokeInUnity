@@ -11,13 +11,6 @@ public class BattleAI_ActionEvaluation
     private const int SWITCH_DIES_PENALTY = 80;
     private const int CRITICAL_ENTRY_PENALTY = 30;
     private BattleAI _ai;
-    public ActionType Type { get; set; }
-    public Pokemon ActingMon { get; set; }
-    public Move SelectedMove { get; set; }
-    public Pokemon SwitchTarget { get; set; }
-    public int HeuristicScore { get; set; }
-    public int PBSScore { get; set; }
-    public int FinalScore { get; set; }
 
     public BattleAI_ActionEvaluation( BattleAI ai )
     {
@@ -51,12 +44,12 @@ public class BattleAI_ActionEvaluation
 
     public ActionEvaluation EvaluateAction( ActionEvaluation eval )
     {
-        switch( eval.Type )
+        return eval.Type switch
         {
-            case ActionType.Attack:             return EvaluateAttackAction( eval );
-            case ActionType.DefensiveSwitch:    return EvaluateDefensiveSwitchAction( eval );
-            case ActionType.OffensiveSwitch:     return EvaluateOffensiveSwitchAction( eval );
-            default: return eval;
+            ActionType.Attack           => EvaluateAttackAction(eval),
+            ActionType.DefensiveSwitch  => EvaluateDefensiveSwitchAction(eval),
+            ActionType.OffensiveSwitch  => EvaluateOffensiveSwitchAction(eval),
+            _ => eval,
         };
     }
 
@@ -66,6 +59,12 @@ public class BattleAI_ActionEvaluation
         var top = eval.Top;
 
         _ai.CurrentLog.Add( $"===[Evaluating Attack Action (Score: {score})]===" );
+
+        if( eval.MovePayload == null )
+        {
+            _ai.CurrentLog.Add( $"No Attacking move was picked! Returning hopefully tanked score! {score}" );
+            return eval;
+        }
 
         //--Tactical disaster: we die before acting
         if( top.Attacker_DiesBeforeActing )
@@ -91,7 +90,7 @@ public class BattleAI_ActionEvaluation
         bool movesFirst = top.Attacker.Speed > top.Opponent.Speed;
 
         //--We potentially force a switch, punish the switch in!
-        if( _ai.UnitSim.WeForceSwitch( top.AttackerPTKO, top.OpponentPTKO, movesFirst ) )
+        if( _ai.UnitSim.PredictForcedSwitch( top.AttackerPTKO, top.OpponentPTKO, movesFirst ) )
         {
             score += 25;
             _ai.CurrentLog.Add( $"We threaten to force a switch! Score: {score}" );
@@ -109,6 +108,12 @@ public class BattleAI_ActionEvaluation
         int score = eval.Score;
 
         _ai.CurrentLog.Add( $"===[Evaluating Defensive Switch Action (Score: {score})]===" );
+        
+        if( eval.SwitchPayload == null )
+        {
+            _ai.CurrentLog.Add( $"No defensive switch was picked! Returning hopefully tanked score! {score}" );
+            return eval;
+        }
 
         //--Switched mon dies on entry
         if( top.Attacker_EndOfTurnHP <= 0f )
@@ -135,6 +140,12 @@ public class BattleAI_ActionEvaluation
         int score = eval.Score;
 
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Switch Action (Score: {score})]===" );
+
+        if( eval.SwitchPayload == null )
+        {
+            _ai.CurrentLog.Add( $"No offensive switch was picked! Returning hopefully tanked score! {score}" );
+            return eval;
+        }
 
         float entryDamage = 1 - eval.Top.Attacker_EndOfTurnHP;
 

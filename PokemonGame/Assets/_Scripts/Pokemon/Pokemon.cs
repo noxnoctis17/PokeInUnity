@@ -956,10 +956,6 @@ public class Pokemon
     public void SetSevereStatus( SevereConditionID id, StatusEffectSource source )
     {
         //--This lets Faint override a previous status, since statuses can't replace each other normally. //--Faint is now handled directly in SetFainted() --02/11/26
-        // if( SevereStatus != null && id == SevereConditionID.FNT )
-        // {
-        //     SevereStatus = SevereConditionsDB.Conditions[id];
-        // }
         if( SevereStatus != null )
             return;
 

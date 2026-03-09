@@ -10,7 +10,6 @@ public class BattleUnit : MonoBehaviour
 {
     [SerializeField] private int _level;
     [SerializeField] private bool _isAI;
-    private bool _init;
     private BattleSystem _battleSystem;
     private BattleAI _battleAI;
     public BattleAI BattleAI => _battleAI;
@@ -35,22 +34,11 @@ public class BattleUnit : MonoBehaviour
     private void OnEnable()
     {
         PokeAnimator = GetComponentInChildren<PokemonAnimator>();
-        BattleSystem.OnBattleEnded += ResetInit;
-    }
-
-    private void OnDisable()
-    {
-        BattleSystem.OnBattleEnded -= ResetInit;
     }
 
     public void SetAI( bool value )
     {
         _isAI = value;
-    }
-
-    private void ResetInit()
-    {
-        _init = false;
     }
 
     public void Setup( Pokemon pokemon, BattleTrainer trainer, BattleHUD battleHUD, BattleSystem battleSystem )
@@ -121,7 +109,7 @@ public class BattleUnit : MonoBehaviour
             { UnitFlags.ChoiceItem,             new() },
             { UnitFlags.Phazed,                 new() },
             { UnitFlags.Trapped,                new() },
-            { UnitFlags.Grounded,               new() },
+            { UnitFlags.Ungrounded,             new() },
             { UnitFlags.Prankster,              new() },
             { UnitFlags.Imprisoned,             new() },
             { UnitFlags.Substitute,             new() },
@@ -237,10 +225,10 @@ public class BattleUnit : MonoBehaviour
 
     public void DecideIfGrounded()
     {
-        if( Pokemon.CheckTypes( PokemonType.Flying ) || Pokemon.AbilityID == AbilityID.Levitate )
-            SetFlagActive( UnitFlags.Grounded, false );
+        if( Pokemon.CheckTypes( PokemonType.Flying ) || Pokemon.AbilityID == AbilityID.Levitate || Pokemon.BattleItemEffect?.ID == BattleItemEffectID.AirBalloon )
+            SetFlagActive( UnitFlags.Ungrounded, true );
         else
-            SetFlagActive( UnitFlags.Grounded, true );
+            SetFlagActive( UnitFlags.Ungrounded, false );
     }
 
     public void SetSubstitute()
@@ -533,7 +521,7 @@ public enum UnitFlags
     ChoiceItem,
     Phazed,
     Trapped,
-    Grounded,
+    Ungrounded,
     Prankster,
     Imprisoned,
     Substitute,

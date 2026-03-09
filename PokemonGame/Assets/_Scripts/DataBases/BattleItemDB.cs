@@ -428,4 +428,5 @@ public enum BattleItemEffectID
     ExpertBelt,
     HeavyDutyBoots,
     BlackSludge,
+    AirBalloon,
 }

@@ -886,7 +886,23 @@ public class BattleSystem : MonoBehaviour
             return false;
         }
 
-        if( move.MoveType == PokemonType.Ground && target.Pokemon.Ability?.ID == AbilityID.Levitate )
+        if( move.MoveType == PokemonType.Ground && ( target.Pokemon.Ability?.ID == AbilityID.Levitate || target.Flags[UnitFlags.Ungrounded].IsActive ) )
+        {
+            if( !aiCheck )
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It doesn't effect {target.Pokemon.NickName}..." ) );
+
+            return false;
+        }
+
+        if( move.MoveSO.MoveCategory == MoveCategory.Status && move.MoveSO.MoveEffects.SevereStatus == SevereConditionID.PAR && target.Pokemon.CheckTypes( PokemonType.Electric ) )
+        {
+            if( !aiCheck )
+                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It doesn't effect {target.Pokemon.NickName}..." ) );
+
+            return false;
+        }
+
+        if( move.MoveSO.Flags.Contains( MoveFlags.Powder ) && target.Pokemon.CheckTypes( PokemonType.Grass ) )
         {
             if( !aiCheck )
                 AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It doesn't effect {target.Pokemon.NickName}..." ) );
