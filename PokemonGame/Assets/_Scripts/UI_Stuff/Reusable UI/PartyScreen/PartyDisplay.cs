@@ -61,7 +61,7 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
         {
             if( i < party.Count )
             {
-                Debug.Log( $"[Party Display] Button index {i} has Pokemon {party[i].NickName}" );
+                // Debug.Log( $"[Party Display] Button index {i} has Pokemon {party[i].NickName}" );
                 _memberSlots[i].gameObject.SetActive( true );
                 _memberSlots[i].Init( party[i] );
             }
@@ -97,7 +97,7 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
     }
 
     public void SetPartyButtons_Interactable( bool isInteractable ){
-        Debug.Log( $"SetPartyButtons_Interactable: {isInteractable}" );
+        // Debug.Log( $"SetPartyButtons_Interactable: {isInteractable}" );
         foreach( PokemonButton button in _pkmnButtons ){
             button.ThisButton.interactable = isInteractable;
         }
@@ -105,7 +105,7 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
 
     private void SetHPBarActive( bool show )
     {
-        Debug.Log( "SetHPBarActive" );
+        // Debug.Log( "SetHPBarActive" );
         foreach( PartyMember_UI icon in _memberSlots ){
             icon.ShowHPBar( show );
         }
@@ -113,7 +113,7 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
 
     private void SetStatusText_EvoItem( Item item, bool show = false )
     {
-        Debug.Log( "SetStatusText_TM" );
+        // Debug.Log( "SetStatusText_TM" );
         foreach( PartyMember_UI icon in _memberSlots ){
             icon.UpdateStatusText_EvoItem( item, show );
         }
@@ -121,7 +121,7 @@ public class PartyDisplay : MonoBehaviour, IInitializeMeDaddy
 
     private void SetStatusText_TM( Item item, bool show = false )
     {
-        Debug.Log( "SetStatusText_TM" );
+        // Debug.Log( "SetStatusText_TM" );
         foreach( PartyMember_UI icon in _memberSlots ){
             icon.UpdateStatusText_TM( item, show );
         }

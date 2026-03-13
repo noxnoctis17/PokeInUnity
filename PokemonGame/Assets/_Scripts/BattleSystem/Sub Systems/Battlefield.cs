@@ -192,4 +192,24 @@ public class Battlefield
         return CourtLocation.TopCourt; //--Default to top court. if no trainer is found or the trainer for some reason doesn't have the mon, it's likely an npc/wild battle or something
     }
 
+    public CourtLocation GetPokemonCourtLocationFromTrainer( string PID )
+    {
+        foreach( var court in ActiveCourts )
+        {
+            if( court.Value.Trainer != null )
+            {
+                for( int i = 0; i < court.Value.Trainer.Party.Count; i++ )
+                {
+                    var mon = court.Value.Trainer.Party[i];
+                    if( mon.PID == PID )
+                        return court.Value.Location;
+                    else
+                        continue;
+                }
+            }
+        }
+
+        return CourtLocation.TopCourt; //--Default to top court. if no trainer is found or the trainer for some reason doesn't have the mon, it's likely an npc/wild battle or something
+    }
+
 }

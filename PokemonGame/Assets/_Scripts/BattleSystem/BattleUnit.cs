@@ -83,6 +83,9 @@ public class BattleUnit : MonoBehaviour
         BattleHUD.SetData( Pokemon, this );
 
         DecideIfGrounded();
+
+        if( _isAI )
+            _battleAI.ResetSetupAmount();
     }
 
     public void UpdateAITeamPieceValue()
@@ -460,7 +463,7 @@ public class BattleUnit : MonoBehaviour
         float modifiers = targets * random * STAB * effectiveness * critical * weatherModifier * terrainModifier * reflectModifier * lightScreenModifier * auroraVeilModifier
                             * itemOnDamageModify * helpingHand * brnORfbt;
 
-        float damageCalc = Mathf.Floor( ( 2 * attacker.Level / 5 + 2 ) * power * attackStat / defenseStat / 50 + 2 ) * modifiers;
+        float damageCalc = Mathf.Floor( ( 2f * attacker.Level / 5f + 2f ) * power * attackStat / defenseStat / 50f + 2f ) * modifiers;
         int rawDamage = (int)Mathf.Max( damageCalc, 1f );
         int damage = Mathf.Clamp( rawDamage, 1, Pokemon.CurrentHP );
 

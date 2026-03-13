@@ -5,11 +5,6 @@ using UnityEngine;
 public enum ActionType { Attack, OffensiveSwitch, DefensiveSwitch, Setup, Support }
 public class BattleAI_ActionEvaluation
 {
-    private const int DIE_BEFORE_ACTING_PENALTY = 60;
-    private const int CLEAN_KO_BONUS = 35;
-    private const int MUTUAL_KO_PENALTY = 10;
-    private const int SWITCH_DIES_PENALTY = 80;
-    private const int CRITICAL_ENTRY_PENALTY = 30;
     private BattleAI _ai;
 
     public BattleAI_ActionEvaluation( BattleAI ai )
@@ -17,7 +12,7 @@ public class BattleAI_ActionEvaluation
         _ai = ai;
     }
 
-    public ActionEvaluation BuildActionEvaluation( ActionType type, int baseScore, ProjectedBoardState pbs, object payload, TurnOutcomeProjection top )
+    public ActionEvaluation BuildActionEvaluation( ActionType type, int baseScore, ProjectedBoardState pbs, IBattleAIUnit target, object payload, TurnOutcomeProjection top )
     {
         int pbsScore = _ai.Projection.EvaluatePBS( pbs );
         ActionEvaluation eval = new()
@@ -27,13 +22,21 @@ public class BattleAI_ActionEvaluation
             Top = top,
         };
 
+        BattleUnit targetUnit = null;
+        if( target != null )
+            targetUnit = _ai.GetBattleUnit( target.PID );
+
         switch( type )
         {
-            case ActionType.Attack: eval.MovePayload = (Move)payload;
+            case ActionType.Attack: //--and--//
+            case ActionType.Setup:
+                eval.Target = targetUnit;
+                eval.MovePayload = (Move)payload;
                 break;
 
             case ActionType.DefensiveSwitch: //--and--//
-            case ActionType.OffensiveSwitch: eval.SwitchPayload = (Pokemon)payload;
+            case ActionType.OffensiveSwitch:
+                eval.SwitchPayload = (Pokemon)payload;
                 break;
         }
 
@@ -49,12 +52,17 @@ public class BattleAI_ActionEvaluation
             ActionType.Attack           => EvaluateAttackAction(eval),
             ActionType.DefensiveSwitch  => EvaluateDefensiveSwitchAction(eval),
             ActionType.OffensiveSwitch  => EvaluateOffensiveSwitchAction(eval),
+            ActionType.Setup            => EvaluateSetupAction(eval),
             _ => eval,
         };
     }
 
     private ActionEvaluation EvaluateAttackAction( ActionEvaluation eval )
     {
+        const int DIE_BEFORE_ACTING_PENALTY = 60;
+        const int CLEAN_KO_BONUS = 35;
+        const int MUTUAL_KO_PENALTY = 10;
+
         int score = eval.Score;
         var top = eval.Top;
 
@@ -104,6 +112,9 @@ public class BattleAI_ActionEvaluation
 
     private ActionEvaluation EvaluateDefensiveSwitchAction( ActionEvaluation eval )
     {
+        const int SWITCH_DIES_PENALTY = 80;
+        const int CRITICAL_ENTRY_PENALTY = 30;
+
         var top = eval.Top;
         int score = eval.Score;
 
@@ -112,6 +123,12 @@ public class BattleAI_ActionEvaluation
         if( eval.SwitchPayload == null )
         {
             _ai.CurrentLog.Add( $"No defensive switch was picked! Returning hopefully tanked score! {score}" );
+            return eval;
+        }
+
+        if( score == -999 )
+        {
+            _ai.CurrentLog.Add( $"Score was tanked at the heuristic level! Skipping! Score: {score}" );
             return eval;
         }
 
@@ -147,6 +164,12 @@ public class BattleAI_ActionEvaluation
             return eval;
         }
 
+        if( score == -999 )
+        {
+            _ai.CurrentLog.Add( $"Score was tanked at the heuristic level! Skipping! Score: {score}" );
+            return eval;
+        }
+
         float entryDamage = 1 - eval.Top.Attacker_EndOfTurnHP;
 
         if( entryDamage > 0.6f )
@@ -166,6 +189,145 @@ public class BattleAI_ActionEvaluation
             score += 25;
 
         _ai.CurrentLog.Add( $"Attacker threatens Opponent next turn: {opponentThreatenedNextTurn}. Score: {score}" );
+
+        eval.Score = score;
+        return eval;
+    }
+
+    private ActionEvaluation EvaluateSetupAction( ActionEvaluation eval )
+    {
+        const int DIE_BEFORE_ACTING_PENALTY        = 150;
+        const int SETUP_DIES_AFTER_ACTING_PENALTY  = 100;
+        const int HEAVY_SETUP_DAMAGE_PENALTY       = 50;
+        const int SETUP_THREATEN_KO_NEXT_TURN      = +30;
+        const int SETUP_FORCE_SWITCH_BONUS         = +30;
+
+        int score = eval.Score;
+        var top = eval.Top;
+
+        _ai.CurrentLog.Add( $"===[Evaluating Setup Action (Score: {score})]===" );
+
+        if( eval.MovePayload == null )
+        {
+            _ai.CurrentLog.Add( $"No setup move selected! Returning hopefully tanked score! Score: {score}" );
+            return eval;
+        }
+
+        if( score == -999 )
+        {
+            _ai.CurrentLog.Add( $"Score was tanked at the heuristic level! Skipping! Score: {score}" );
+            return eval;
+        }
+
+        //--We died before the setup completed
+        if( top.Attacker_DiesBeforeActing )
+        {
+            score -= DIE_BEFORE_ACTING_PENALTY;
+            eval.Score = score;
+            _ai.CurrentLog.Add( $"Attacker dies before setup completes! Score: {score}" );
+            return eval;
+        }
+
+        //--We get KOd even if we setup
+        if( top.Attacker_EndOfTurnHP <= 0 )
+        {
+            score -= SETUP_DIES_AFTER_ACTING_PENALTY;
+            eval.Score = score;
+            _ai.CurrentLog.Add( $"Attacker faints after setting up! Score: {score}" );
+            return eval;
+        }
+
+        //--Severe damage taken while setting up
+        if( top.Attacker_EndOfTurnHP <= 0.3f )
+        {
+            score -= HEAVY_SETUP_DAMAGE_PENALTY;
+            _ai.CurrentLog.Add( $"Took big damage! Score: {score}" );
+        }
+
+        //--"Slight Look ahead"
+
+        var nextRoundMTR = _ai.MoveCommand.Get_BestSimulatedAttack( top.Attacker, top.Opponent, "Evaluate Setup Action" );
+        var nextTOP = nextRoundMTR.Top;
+
+        if( nextTOP.Attacker_DiesBeforeActing )
+        {
+            score -= DIE_BEFORE_ACTING_PENALTY;
+            eval.Score = score;
+            _ai.CurrentLog.Add( $"Attacker dies before setup completes! Score: {score}" );
+            return eval;
+        }
+
+        if( nextTOP.Attacker_EndOfTurnHP <= 0f )
+        {
+            score -= SETUP_DIES_AFTER_ACTING_PENALTY;
+            eval.Score = score;
+            _ai.CurrentLog.Add( $"Attacker faints after setting up! Score: {score}" );
+            return eval;
+        }
+
+        if( nextTOP.Opponent_DiesBeforeActing )
+        {
+            score += SETUP_THREATEN_KO_NEXT_TURN + 15;
+            _ai.CurrentLog.Add( $"Setup likely KO without taking damage next turn! Score: {score}" );
+        }
+        else if( nextTOP.Opponent_EndOfTurnHP <= 0f )
+        {
+            score += SETUP_THREATEN_KO_NEXT_TURN;
+            _ai.CurrentLog.Add( $"Setup likely KO next turn! Score: {score}" );
+        }
+
+        if( nextTOP.OpponentPTKO < top.OpponentPTKO )
+        {
+            score += 15;
+            _ai.CurrentLog.Add( $"Setup is more defensive next turn! Score: {score}" );
+        }
+        
+        if( (int)nextTOP.OpponentPTKO - 1 < (int)top.OpponentPTKO )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"Setup walls hard next turn! Score: {score}" );
+        }
+
+        float damageDone = nextTOP.Attacker.CurrentHPR - nextTOP.Attacker_EndOfTurnHP;
+        if( damageDone <= 0.25f )
+        {
+            score += 15;
+            _ai.CurrentLog.Add( $"Setup takes minimal damage next turn! Score: {score}" );
+        }
+        else if( damageDone >= 0.45f )
+        {
+            score -= 20;
+            _ai.CurrentLog.Add( $"Setup takes decent damage next turn! Score: {score}" );
+        }
+
+        //--Opponent is now in KO range next turn
+        bool movesFirst = nextTOP.Attacker.Speed > nextTOP.Opponent.Speed;
+        bool weForceSwitch = _ai.UnitSim.PredictSwitchProbability( nextTOP.AttackerPTKO, nextTOP.OpponentPTKO, movesFirst, nextTOP.Attacker.CurrentHPR, nextTOP.Opponent.CurrentHPR ) >= 0.8f;
+
+        if( weForceSwitch )
+        {
+            score += SETUP_FORCE_SWITCH_BONUS;
+            _ai.CurrentLog.Add( $"Setup forces opponent to switch! {score}" );
+        }
+
+        var oppTeam = _ai.GetRemainingOpposingPokemon( nextTOP.Attacker.PID );
+        int fasterBonus = 0;
+        bool weKO = nextTOP.Opponent_DiesBeforeActing || nextTOP.Opponent_EndOfTurnHP <= 0f;
+        bool sweepBeginning = weKO || weForceSwitch;
+
+        if( sweepBeginning )
+        {
+            foreach( var opp in oppTeam )
+            {
+                int oppSpeed = _ai.GetUnitContextualSpeed( opp );
+
+                if( nextTOP.Attacker.Speed > oppSpeed )
+                    fasterBonus += 5;
+            }
+
+            score += fasterBonus;
+            _ai.CurrentLog.Add( $"Outspeeds {fasterBonus / 5} opposing Pokémon after setup! {score}" );
+        }
 
         eval.Score = score;
         return eval;

@@ -480,19 +480,6 @@ public class BattleSystem : MonoBehaviour
         AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{drainedUnit.Pokemon.NickName} had its health drained by Leech Seed and given to {healedUnit.Pokemon.NickName}!") );
     }
 
-    private List<Pokemon> GetCopyOfParty( List<Pokemon> party )
-    {
-        Debug.Log( $"Copying party!" );
-        List<Pokemon> copyParty = new();
-
-        for( int i = 0; i < party.Count; i++)
-        {
-            copyParty.Add( party[i] );
-        }
-
-        return copyParty;
-    }
-
     //--Start setting up a battle. Anything that starts a battle needs to set the Battle Type. The Battle Type is responsible
     //--for HOW the Battle Stage will set itself up. From there, it will add all necessary unit positions to a list
     //--SOMEHOW, we will then assign all necessary Battle Unit objects from the Stage to their correct references here
@@ -799,6 +786,54 @@ public class BattleSystem : MonoBehaviour
             return BottomTrainer1.Party;
         else
             return TopTrainer1.Party;
+    }
+
+    public List<Pokemon> GetAllyParty( string pid )
+    {
+        for( int i = 0; i < TopTrainer1.Party.Count; i++ )
+        {
+            var mon = TopTrainer1.Party[i];
+            if( mon.PID == pid )
+                return TopTrainer1.Party;
+            else
+                continue;
+        }
+
+        for( int i = 0; i < BottomTrainer1.Party.Count; i++ )
+        {
+            var mon = BottomTrainer1.Party[i];
+            if( mon.PID == pid )
+                return BottomTrainer1.Party;
+            else
+                continue;
+        }
+
+        Debug.LogError( $"Pokemon PID not found in either party! You're fucked!" );
+        return null;
+    }
+
+    public List<Pokemon> GetOpposingParty( string pid )
+    {
+        for( int i = 0; i < TopTrainer1.Party.Count; i++ )
+        {
+            var mon = TopTrainer1.Party[i];
+            if( mon.PID == pid )
+                return BottomTrainer1.Party;
+            else
+                continue;
+        }
+
+        for( int i = 0; i < BottomTrainer1.Party.Count; i++ )
+        {
+            var mon = BottomTrainer1.Party[i];
+            if( mon.PID == pid )
+                return TopTrainer1.Party;
+            else
+                continue;
+        }
+
+        Debug.LogError( $"Pokemon PID not found in either party! You're fucked!" );
+        return null;
     }
 
     //--Will call this where necessary in HandleFaintedPokemon()

@@ -279,9 +279,13 @@ public class BattleArena : MonoBehaviour
 
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
+        var enemyUnit = _battleSystem.EncounteredPokemon.gameObject.GetComponent<BattleUnit>();
+
+        //--Assign relevant Battle Units
+        _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
+
         playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
 
-        var enemyUnit = _battleSystem.EncounteredPokemon.gameObject.GetComponent<BattleUnit>();
         enemyUnit.SetAI( true ); //--enable AI for this unit
         enemyUnit.Setup( _battleSystem.WildPokemon, null, _battleSystem.WildPokemonHUD, _battleSystem ); //--REMEMBER!!!!! _singlesUnit2 is not actually being assigned to, it's only here for its position!!
         yield return null;
@@ -297,8 +301,6 @@ public class BattleArena : MonoBehaviour
         StartCoroutine( AnimatePokemon_In( _singlesPokemon1 ) );
         StartCoroutine( AnimateCircle_In( _singlesCircle1, 0.75f ) );
 
-        //--Assign relevant Battle Units
-        _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         yield return null;
 
         yield return DialogueManager.Instance.PlaySystemMessageCoroutine( $"You encountered a wild {_battleSystem.EnemyUnits[0].Pokemon.NickName}!" );
@@ -354,11 +356,15 @@ public class BattleArena : MonoBehaviour
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
+
+        //--Assign relevant Battle Units
+        _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         
         playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
         
         enemyUnit.SetAI( true ); //--enable AI for this unit
         enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
+        enemyUnit.UpdateUnit( enemyUnit.BattleAI.RequestLead() );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit
@@ -382,8 +388,6 @@ public class BattleArena : MonoBehaviour
         StartCoroutine( AnimatePokemon_In( _singlesPokemon1 ) );
         StartCoroutine( AnimateCircle_In( _singlesCircle1, 0.75f ) );
 
-        //--Assign relevant Battle Units
-        _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         yield return null;
 
     }
@@ -458,6 +462,9 @@ public class BattleArena : MonoBehaviour
             _doublesUnit4.GetComponent<BattleUnit>()
         };
 
+        //--Assign Battle Units in BattleSystem
+        _battleSystem.AssignUnits_2v2( playerUnits, enemyUnits );
+
         //--Get top 2 mons off each player's party.
         var playerMons = _battleSystem.BottomTrainer1.GetHealthyPokemon( DOUBLES_COUNT );
         var enemyMons = _battleSystem.TopTrainer1.GetHealthyPokemon( DOUBLES_COUNT );
@@ -500,9 +507,7 @@ public class BattleArena : MonoBehaviour
         yield return new WaitForSeconds( 0.1f );
         StartCoroutine( AnimateCircle_In( _doublesCircle2, 0.75f ) );
         yield return new WaitForSeconds( 0.25f );
-
-        //--Assign Battle Units in BattleSystem
-        _battleSystem.AssignUnits_2v2( playerUnits, enemyUnits );
+        
         yield return null;
     }
 
@@ -557,6 +562,9 @@ public class BattleArena : MonoBehaviour
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
+
+        //--Assign relevant Battle Units
+        _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         
         playerUnit.SetAI( true ); //--enable AI for this unit
         playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
@@ -587,8 +595,9 @@ public class BattleArena : MonoBehaviour
         StartCoroutine( AnimatePokemon_In( _singlesPokemon1 ) );
         StartCoroutine( AnimateCircle_In( _singlesCircle1, 0.75f ) );
 
-        //--Assign relevant Battle Units
-        _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
+        
+        // playerUnit.BattleAI.SetBattleAIUnitCourt();
+        // enemyUnit.BattleAI.SetBattleAIUnitCourt();
         yield return null;
     }
 

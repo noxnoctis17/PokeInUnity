@@ -24,7 +24,6 @@ MonoBehaviour:
   _power: 0
   _accuracy: 100
   _accuracyType: 2
-  _alwaysHits: 1
   _pp: 15
   _movePriority: 7
   _critBehavior: 0

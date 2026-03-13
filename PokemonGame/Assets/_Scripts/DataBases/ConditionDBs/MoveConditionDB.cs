@@ -377,7 +377,7 @@ public class MoveConditionDB
                     OnModifyMovePower = ( BattleUnit attacker, BattleUnit target, Move move, int hit ) =>
                     {
                         if( target.Pokemon.HeldItem != null )
-                            return Mathf.FloorToInt( move.MovePower * 1.5f);
+                            return Mathf.FloorToInt( move.MovePower * 1.5f );
                         else
                             return move.MovePower;
                     },
@@ -500,6 +500,7 @@ public class MoveConditionDB
                 {
                     OnOverrideAttackingStat = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                     {
+                        Debug.Log( $"Body Press detected, using defense!" );
                         return attacker.Pokemon.Defense;
                     }
                 }

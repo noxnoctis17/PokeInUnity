@@ -9,6 +9,7 @@ public class BattleAI_Projection
     private readonly BattleAI _ai;
     private readonly BattleAI_UnitSim _unitSim;
     
+    
     public BattleAI_Projection( BattleAI ai )
     {
         _ai = ai;
@@ -115,33 +116,32 @@ public class BattleAI_Projection
         return CreateTempoStateResult( tempo, attackerHasPriorityAdvantage, targetHasPriorityAdvantage );
     }
 
-    public ExchangeEvaluation EvaluateExchange( BattleUnit attacker, BattleUnit target )
+    public ExchangeEvaluation EvaluateExchange( IBattleAIUnit attacker, IBattleAIUnit target )
     {
-
         //--Potential to KO
         //--Attacker PTKO Target
-        var attackerThreateningMove = _ai.MoveCommand.Get_BestSimulatedAttack( attacker.Pokemon, target.Pokemon );
-        var targetWSR = Get_WallingScoreResult( attacker.Pokemon, target.Pokemon, attackerThreateningMove );
-        float targetHP = _ai.Get_HPRatio( target.Pokemon );
+        var attackerMTR = _ai.MoveCommand.Get_BestSimulatedAttack( attacker, target, "Evaluate Exchange (attacker vs target)" );
+        var targetWSR = Get_WallingScoreResult( attacker, target, attackerMTR );
+        float targetHP = _ai.Get_HPRatio( target );
 
-        PotentialToKOResult attackerPTKO_target = Get_PotentialToKOResult( targetWSR, attackerThreateningMove.Modifier, targetHP );
+        PotentialToKOResult attackerPTKO_target = Get_PotentialToKOResult( targetWSR, attackerMTR, targetHP );
 
         //--Target PTKO Attacker
-        var targetThreatingMove = _ai.MoveCommand.Get_BestSimulatedAttack( target.Pokemon, attacker.Pokemon );
-        var attackerWSR = Get_WallingScoreResult( target.Pokemon, attacker.Pokemon, targetThreatingMove );
-        float attackerHP = _ai.Get_HPRatio( attacker.Pokemon );
+        var targetMTR = _ai.MoveCommand.Get_BestSimulatedAttack( target, attacker, "Evaluate Exchange (target vs attacker)" );
+        var attackerWSR = Get_WallingScoreResult( target, attacker, targetMTR );
+        float attackerHP = _ai.Get_HPRatio( attacker );
 
-        PotentialToKOResult targetPTKO_attacker = Get_PotentialToKOResult( attackerWSR, targetThreatingMove.Modifier, attackerHP );
+        PotentialToKOResult targetPTKO_attacker = Get_PotentialToKOResult( attackerWSR, targetMTR, attackerHP );
 
         // Debug.Log( $"[AI Scoring][Get Tempo] PTKO's Checked! Results: Attacker PTKO Target: {attackerPTKO_target.PTKO}, Target PTKO Attacker: {targetPTKO_attacker.PTKO}" );
 
         //--Speed Check
-        int attackerSpeed = _ai.GetUnitContextualSpeed( attacker.Pokemon );
-        int targetSpeed = _ai.GetUnitContextualSpeed( target.Pokemon );
+        int attackerSpeed = _ai.GetUnitContextualSpeed( attacker );
+        int targetSpeed = _ai.GetUnitContextualSpeed( target );
         bool attackerMovesFirst;
         bool targetMovesFirst;
-        var attMovePrio = attackerThreateningMove.Move.Priority;
-        var tarMovePrio = targetThreatingMove.Move.Priority;
+        var attMovePrio = attackerMTR.Move.Priority;
+        var tarMovePrio = targetMTR.Move.Priority;
 
         //--Move priority handling
         if( attackerSpeed > targetSpeed )
@@ -204,8 +204,8 @@ public class BattleAI_Projection
 
         ExchangeEvaluation eval = new()
         {
-            AttackerName = attacker.Pokemon.NickName,
-            OpponentName = target.Pokemon.NickName,
+            AttackerName = attacker.Name,
+            OpponentName = target.Name,
 
             AttackerMovesFirst = attackerMovesFirst,
             OpponentMovesFirst = targetMovesFirst,
@@ -274,30 +274,31 @@ public class BattleAI_Projection
         return new(){ TempoState = state, AttackerHasPriority = attackerHasPriority, TargetHasPriority = targetHasPriority };
     }
 
-    public BoardContext GetBoardContext( BattleUnit target, ExchangeEvaluation eval )
+    public BoardContext GetBoardContext( IBattleAIUnit target, ExchangeEvaluation eval )
     {
-        var safePivot = GetSafePivot( target );
-        var materialStatus = GetMaterialStatus( _ai.Unit.Pokemon );
+        BattleAI_PokemonAdapter ourAdapter = new( _ai.Unit.Pokemon, _ai );
+        var ( Exists, pivots ) = GetSafePivot( target );
+        var materialStatus = GetMaterialStatus( ourAdapter );
 
         bool lowHP = eval.AttackerHPR < 0.3f;
         bool likelyDying = eval.OpponentPTKOR.PTKO >= PotentialToKO.Dangerous;
 
-        bool isForced = ( likelyDying && !safePivot.Exists ) || ( lowHP && eval.OpponentPTKOR.PTKO >= PotentialToKO.Risky );
+        bool isForced = ( likelyDying && !Exists ) || ( lowHP && eval.OpponentPTKOR.PTKO >= PotentialToKO.Risky );
 
-        int myAlive = _ai.GetRemainingAllyPokemon( _ai.Unit.Pokemon ).Count;
-        int oppAlive = _ai.GetRemainingOpposingPokemon( target.Pokemon ).Count;
+        int myAlive = _ai.GetRemainingAllyPokemon( ourAdapter.PID ).Count;
+        int oppAlive = _ai.GetRemainingOpposingPokemon( target.PID ).Count;
 
         bool isTerminal = myAlive <= 2;
 
         float hp = _ai.Get_HPRatio( _ai.Unit.Pokemon );
-        float expendability = GetExpendability( _ai.Unit.Pokemon, hp );
+        float expendability = GetExpendability( _ai.ThisUnitAdapter, hp );
 
         BoardContext context = new()
         {
             IsForcedTrade = isForced,
 
-            HasSafePivot = safePivot.Exists,
-            SafePivots = safePivot.pivots,
+            HasSafePivot = Exists,
+            SafePivots = pivots,
 
             IsAhead = materialStatus.IsAhead,
             IsBehind = materialStatus.IsBehind,
@@ -315,7 +316,7 @@ public class BattleAI_Projection
         return context;
     }
 
-    private ( bool Exists, List<Pokemon> pivots ) GetSafePivot( BattleUnit opponent )
+    private ( bool Exists, List<Pokemon> pivots ) GetSafePivot( IBattleAIUnit opponent )
     {
         bool exists;
         List<Pokemon> pivots = new();
@@ -329,10 +330,11 @@ public class BattleAI_Projection
                 var pivotHP = _ai.Get_HPRatio( mon );
                 if( !mon.IsFainted() && pivotHP > 0.35f )
                 {
-                    var targetThreateningMove = _ai.MoveCommand.Get_BestSimulatedAttack( opponent.Pokemon, mon );
-                    var attackerWSR = Get_WallingScoreResult( opponent.Pokemon, mon, targetThreateningMove );
-                    float targetHP = _ai.Get_HPRatio( opponent.Pokemon );
-                    PotentialToKOResult pivotPTKO_target = Get_PotentialToKOResult( attackerWSR, targetThreateningMove.Modifier, targetHP );
+                    BattleAI_PokemonAdapter monAdapter = new( mon, _ai );
+                    var targetThreateningMove = _ai.MoveCommand.Get_BestSimulatedAttack( opponent, monAdapter, "Get Safe Pivot" );
+                    var attackerWSR = Get_WallingScoreResult( opponent, monAdapter, targetThreateningMove );
+                    float targetHP = _ai.Get_HPRatio( opponent );
+                    PotentialToKOResult pivotPTKO_target = Get_PotentialToKOResult( attackerWSR, targetThreateningMove, targetHP );
 
                     if( pivotPTKO_target.PTKO < PotentialToKO.Dangerous )
                         pivots.Add( mon );
@@ -347,15 +349,15 @@ public class BattleAI_Projection
         return ( exists, pivots );
     }
 
-    public MaterialStatus GetMaterialStatus( Pokemon pokemon )
+    public MaterialStatus GetMaterialStatus( IBattleAIUnit pokemon )
     {
         //--My team & amount of pokemon alive
-        var myTeam = _ai.BattleSystem.GetAllyParty( pokemon );
-        int myAlive = _ai.BattleSystem.GetAllyParty( pokemon ).Where( p => p.CurrentHP > 0 ).ToList().Count;
+        var myTeam = _ai.BattleSystem.GetAllyParty( pokemon.PID );
+        int myAlive = _ai.GetRemainingAllyPokemon( pokemon.PID ).Count;
 
         //--Opposing team & amount of their pokemon alive
-        var oppTeam = _ai.BattleSystem.GetOpposingParty( pokemon );
-        int oppAlive = _ai.BattleSystem.GetOpposingParty( pokemon ).Where( p => p.CurrentHP > 0 ).ToList().Count;
+        var oppTeam = _ai.BattleSystem.GetOpposingParty( pokemon.PID );
+        int oppAlive = _ai.GetRemainingOpposingPokemon( pokemon.PID ).Count;
 
         float myTeamHPPercent = GetRemainingTeamHP( myTeam );
         float oppTeamHPPercent = GetRemainingTeamHP( oppTeam );
@@ -412,7 +414,7 @@ public class BattleAI_Projection
         return currentHPTotal / maxHPTotal;
     }
 
-    public float GetExpendability( Pokemon mon, float hp )
+    public float GetExpendability( IBattleAIUnit mon, float hp )
     {
         // Debug.Log( $"===[Getting Expendability for {mon.NickName}]===" );
 
@@ -424,7 +426,7 @@ public class BattleAI_Projection
 
         // Debug.Log( $"HP Ratio: {hp}, Score: {score}" );
 
-        float offensiveWeight = _ai.TeamPieceValues[mon].OffensiveValue / 100f;
+        float offensiveWeight = _ai.TeamPieceValues[mon.PID].OffensiveValue / 100f;
 
         score -= offensiveWeight * 0.4f;
 
@@ -437,22 +439,27 @@ public class BattleAI_Projection
         return expendability;
     }
 
-    public WallingScoreResult Get_WallingScoreResult( Pokemon attacker, Pokemon target, MoveThreatResult moveThreat )
+    public WallingScoreResult Get_WallingScoreResult( IBattleAIUnit attacker, IBattleAIUnit target, MoveThreatResult moveThreat )
     {
-        const int WALLINGSCORE_NORMALIZATION_OFFSET = 30;
-        const float WALLINGSCORE_LOGSCALING_FACTOR = 30;
-        const float MOVE_POWER_BASELINE = 75;
-        int off = 1;
-        int def = 1;
-        Stat offStat = Stat.Attack;
-        Stat defStat = Stat.Defense;
+        const float STAT_SCALAR = 0.28f;
+        const float DAMAGE_ROLL = 0.925f;
+        float attack = 1f;
+        float defense = 1f;
+        Stat attackingStat = Stat.Attack;
+        Stat defendingStat = Stat.Defense;
         string key = "none";
         var moveSO = moveThreat.Move.MoveSO;
         float movePower = moveThreat.Move.MovePower;
+        float modifier = moveThreat.Modifier;
 
         //--Unique Wallscore Key check
         if( moveThreat.Move != null )
+        {
             key = moveThreat.Move.MoveSO.Name;
+
+            if( _unitSim.MovePowerConditions.TryGetValue( key, out var mod ) )
+                movePower = mod( attacker, target, moveThreat.Move );
+        }
 
         //--Multi hit move power projection
         if( moveSO.HitRange.x >= 2 && moveSO.HitRange.y != 0 )
@@ -472,8 +479,10 @@ public class BattleAI_Projection
         //--Get Stats used
         if( _ai.UniqueWallScores.ContainsKey( key ) )
         {
-            off = _ai.GetBaseStat( attacker, _ai.UniqueWallScores[key].AttackingStat );
-            def = _ai.GetBaseStat( target, _ai.UniqueWallScores[key].DefendingStat );
+            attackingStat = _ai.UniqueWallScores[key].AttackingStat;
+            defendingStat = _ai.UniqueWallScores[key].DefendingStat;
+            attack = _ai.GetUnitInferredStat( attacker, attackingStat );
+            defense = _ai.GetUnitInferredStat( target, defendingStat );
         }
         else
         {
@@ -486,108 +495,292 @@ public class BattleAI_Projection
 
             if( cat == MoveCategory.Physical )
             {
-                offStat = Stat.Attack;
-                defStat = Stat.Defense;
-                off = _ai.GetBaseStat( attacker, offStat );
-                def = _ai.GetBaseStat( target, defStat );
+                attackingStat = Stat.Attack;
+                defendingStat = Stat.Defense;
+                attack = _ai.GetUnitInferredStat( attacker, attackingStat );
+                defense = _ai.GetUnitInferredStat( target, defendingStat );
             }
             else if( cat == MoveCategory.Special )
             {
-                offStat = Stat.SpAttack;
-                defStat = Stat.SpDefense;
-                off = _ai.GetBaseStat( attacker, offStat );
-                def = _ai.GetBaseStat( target, defStat );
+                attackingStat = Stat.SpAttack;
+                defendingStat = Stat.SpDefense;
+                attack = _ai.GetUnitInferredStat( attacker, attackingStat );
+                defense = _ai.GetUnitInferredStat( target, defendingStat );
             }
             else
             {
                 //--Status move used, we may need to alter this somehow
-                off = 1;
-                def = 1;
+                attack = 1f;
+                defense = 1f;
             }
         }
 
-        float statRatio = Mathf.Sqrt( (float)Mathf.Max( 1f, def ) / (float)Mathf.Max( 1f, off ) );
-        // float statRatio = (float)Mathf.Max( 1f, def ) / (float)Mathf.Max( 1f, off );
+        float targetMHP = _ai.GetBaseStat( target, Stat.HP );
+        float levelFactor = ( 2f * attacker.Level / 5f + 2f );
 
-        float statComponent = MathF.Log( statRatio );
-        float powerComponent = Mathf.Log( (float)Mathf.Max( 1f, movePower ) / MOVE_POWER_BASELINE );
+        float damage = ( ( levelFactor * movePower * attack / defense / 50 ) + 2 ) * modifier * DAMAGE_ROLL;
+        float normalizedDamage = ( damage / targetMHP ) * STAT_SCALAR;
 
-        float rawScore = ( statComponent - powerComponent ) * WALLINGSCORE_LOGSCALING_FACTOR + WALLINGSCORE_NORMALIZATION_OFFSET;
-
-        int score = Mathf.FloorToInt( rawScore );
-
-        // Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Target {target.NickName}'s Defense: {def}, Attacker {attacker.NickName}'s Offense: {off}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}. Stat Component: {statComponent}. Power Component: {powerComponent}. Raw Score: {rawScore}. Final Score: {score}" );
-
+        Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Target {target.Name}'s Defending Stat: {defendingStat}, {defense}, Base HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Attacking stat {attackingStat}, {attack}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}. Final Damage Estimate: {damage}, Normalized: {normalizedDamage}" );
+        
         WallingScoreResult wsr = new()
         {
-            Score = score,
+            // Score = score,
+            DamageEstimate = normalizedDamage,
+            AttackingStatStage = attacker.StatStages[attackingStat],
+            DefendingStatStage = target.StatStages[defendingStat],
 
-            AttackingStatStage = attacker.StatStages[offStat],
-            DefendingStatStage = target.StatStages[defStat],
+            AttackingDirectModifier = attacker.DirectStatModifiers[attackingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+            DefendingDirectModifier = target.DirectStatModifiers[defendingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
 
-            AttackingDirectModifier = attacker.DirectStatModifiers[offStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
-            DefendingDirectModifier = target.DirectStatModifiers[defStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+            Attacker = attacker,
+            Target = target,
         };
 
         return wsr;
     }
 
-    public PotentialToKOResult Get_PotentialToKOResult( WallingScoreResult wsr, float moveModifier, float targetHPRatio )
+    // public WallingScoreResult Get_WallingScoreResult( IBattleAIUnit attacker, IBattleAIUnit target, MoveThreatResult moveThreat )
+    // {
+    //     const int WALLINGSCORE_NORMALIZATION_OFFSET = 30;
+    //     const float WALLINGSCORE_LOGSCALING_FACTOR = 40;
+    //     const float MOVE_POWER_BASELINE = 75;
+    //     int off = 1;
+    //     int def = 1;
+    //     Stat offStat = Stat.Attack;
+    //     Stat defStat = Stat.Defense;
+    //     string key = "none";
+    //     var moveSO = moveThreat.Move.MoveSO;
+    //     int movePower = moveThreat.Move.MovePower;
+
+    //     //--Unique Wallscore Key check
+    //     if( moveThreat.Move != null )
+    //     {
+    //         key = moveThreat.Move.MoveSO.Name;
+
+    //         if( _unitSim.MovePowerConditions.TryGetValue( key, out var mod ) )
+    //             movePower = mod( attacker, target, moveThreat.Move );
+    //     }
+
+    //     //--Multi hit move power projection
+    //     if( moveSO.HitRange.x >= 2 && moveSO.HitRange.y != 0 )
+    //     {
+    //         int minHits = moveSO.HitRange.x;
+    //         int maxHits = moveSO.HitRange.y;
+
+    //         int expectedHits = Mathf.FloorToInt( ( minHits + maxHits ) * 0.5f );
+
+    //         movePower *= expectedHits;
+    //     }
+    //     else if( moveSO.HitRange.x >= 2 && moveSO.HitRange.y == 0 )
+    //     {
+    //         movePower *= moveSO.HitRange.x;
+    //     }
+
+    //     //--Get Stats used
+    //     if( _ai.UniqueWallScores.ContainsKey( key ) )
+    //     {
+    //         offStat = _ai.UniqueWallScores[key].AttackingStat;
+    //         defStat = _ai.UniqueWallScores[key].DefendingStat;
+    //         off = _ai.GetBaseStat( attacker, offStat );
+    //         def = _ai.GetBaseStat( target, defStat );
+    //     }
+    //     else
+    //     {
+    //         //--Right now MoveThreatResult has scenarios where it isn't returning a move. I need to iron this out asap!!!
+    //         MoveCategory cat;
+    //         if( moveThreat.Move != null )
+    //             cat = moveThreat.Move.MoveSO.MoveCategory;
+    //         else
+    //             cat = MoveCategory.Status;
+
+    //         if( cat == MoveCategory.Physical )
+    //         {
+    //             offStat = Stat.Attack;
+    //             defStat = Stat.Defense;
+    //             off = _ai.GetBaseStat( attacker, offStat );
+    //             def = _ai.GetBaseStat( target, defStat );
+    //         }
+    //         else if( cat == MoveCategory.Special )
+    //         {
+    //             offStat = Stat.SpAttack;
+    //             defStat = Stat.SpDefense;
+    //             off = _ai.GetBaseStat( attacker, offStat );
+    //             def = _ai.GetBaseStat( target, defStat );
+    //         }
+    //         else
+    //         {
+    //             //--Status move used, we may need to alter this somehow
+    //             off = 1;
+    //             def = 1;
+    //         }
+    //     }
+
+    //     float statRatio = (float)Mathf.Max( 1f, def ) / (float)Mathf.Max( 1f, off );
+
+    //     float statComponent = MathF.Log( statRatio );
+    //     float powerComponent = Mathf.Log( (float)Mathf.Max( 1f, movePower ) / MOVE_POWER_BASELINE );
+
+    //     float rawScore = ( statComponent - powerComponent ) * WALLINGSCORE_LOGSCALING_FACTOR + WALLINGSCORE_NORMALIZATION_OFFSET;
+
+    //     int score = Mathf.RoundToInt( rawScore );
+
+    //     // Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Target {target.NickName}'s Defense: {def}, Attacker {attacker.NickName}'s Offense: {off}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}. Stat Component: {statComponent}. Power Component: {powerComponent}. Raw Score: {rawScore}. Final Score: {score}" );
+
+    //     WallingScoreResult wsr = new()
+    //     {
+    //         Score = score,
+
+    //         AttackingStatStage = attacker.StatStages[offStat],
+    //         DefendingStatStage = target.StatStages[defStat],
+
+    //         AttackingDirectModifier = attacker.DirectStatModifiers[offStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+    //         DefendingDirectModifier = target.DirectStatModifiers[defStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+
+    //         Attacker = attacker,
+    //         Target = target,
+    //     };
+
+    //     return wsr;
+    // }
+
+    public PotentialToKOResult Get_PotentialToKOResult( WallingScoreResult wsr, MoveThreatResult mtr, float targetHPR )
     {
-        PotentialToKO basePotentialKO = Get_PotentialToKOFromWallingScore( wsr.Score );
-        
-        //--Move Modifier shift
-        int moveShift = Get_MoveModifierPTKOShift( moveModifier );
+        Debug.Log( $"[AI Scoring][Get Walling Score] (Get_PTKOResult) Damage Estimate: {wsr.DamageEstimate}, Target HPR: {targetHPR}" );
+        PotentialToKO ptko = GetPTKO_FromDamageEstimate( wsr.DamageEstimate, targetHPR );
 
-        //--HP Ratio shift
-        int hpShift = Get_HPRatioPTKOShift( basePotentialKO, targetHPRatio );
+        CustomLogSession ptkoLog = new();
+        ptkoLog.Add( $"=====[PTKO Plot Bar][{wsr.Attacker.Name}'s {mtr.Move.MoveSO.Name} on {wsr.Target.Name} (Expected Damage: {wsr.DamageEstimate}. PTKO: {ptko})]=====" );
+        ptkoLog.Add( $"-60__________-45____________-30________________-12____________________12________________30____________45" );
+        ptkoLog.Add( $"OHKO-------Dangerous--------Risky-------------TwoHKO------------------Safe-------------Sturdy-------Hardwall" );
+        string bar = $"|====------====|====------====|====---------====|====--------------====|====---------====|====------====|";
 
-        int tacticalShift = 0;
+        int minScore = -60;
+        int maxScore = 60;
 
-        //--Attacker attacking stat stage and direct modifier shifts
-        tacticalShift += Get_StatStagePTKOShift( wsr.AttackingStatStage );
-        tacticalShift += Get_DirectModifierPTKOShift( wsr.AttackingDirectModifier );
+        float range = maxScore - minScore;
 
-        //--Target defending stat stage and direct modifier shifts
-        tacticalShift -= Get_StatStagePTKOShift( wsr.DefendingStatStage );
-        tacticalShift -= Get_DirectModifierPTKOShift( wsr.DefendingDirectModifier );
+        int wallIndex = Mathf.RoundToInt( ( ( wsr.DamageEstimate - minScore ) / range ) * ( bar.Length - 1 ) );
 
-        int finalShift = moveShift + hpShift + tacticalShift;
+        char[] chars = bar.ToCharArray();
 
-        bool nearBoundary = PTKOIsNearBoundary( wsr.Score );
+        if( wallIndex >= 0 && wallIndex < chars.Length )
+            chars[wallIndex] = 'X';
 
-        if( nearBoundary && finalShift != 0 )
-        {
-            int boundaryShift = (int)Mathf.Sign( finalShift ); //--slop
-            Debug.Log( $"[AI Scoring][Shift Potential To KO][Boundary Shift] Walling Score was near a boundary! Before: {finalShift} += {boundaryShift}" );
-            finalShift += boundaryShift;
-        }
+        string result = new( chars );
 
-        int finalClassInt = Mathf.Clamp( (int)basePotentialKO + finalShift, (int)PotentialToKO.HardWall, (int)PotentialToKO.OHKO );
-
-        //--This checks to see if the target is immune to the selected move (a 0 move modifier means effectiveness was 0). if it is, the ptko is a hardwall. otherwise, we use the appropriate shift.
-        var finalClass = moveModifier == 0 ? PotentialToKO.HardWall : (PotentialToKO)finalClassInt;
+        ptkoLog.Add( result );
+        Debug.Log( ptkoLog.ToString() );
+        ptkoLog.Clear();
 
         return new()
         {
-            Score = Get_PotentialToKOScoreFromEnum( finalClass ),
-            PTKO = finalClass,
-            Modifier = moveModifier,
+            Score = Get_PotentialToKOScoreFromEnum( ptko ),
+            PTKO = ptko,
+            Modifier = mtr.Modifier,
         };
     }
 
-    private PotentialToKOResult Get_PTKOResultPreview( WallingScoreResult wsr, float moveModifier )
-    {
-        PotentialToKO basePTKO = Get_PotentialToKOFromWallingScore( wsr.Score );
-        int shift = Get_MoveModifierPTKOShift( moveModifier );
+    // public PotentialToKOResult Get_PotentialToKOResult( WallingScoreResult wsr, MoveThreatResult mtr, float targetHPRatio )
+    // {
+    //     PotentialToKO basePotentialKO = Get_PotentialToKOFromWallingScore( wsr.Score );
+    //     float moveModifier = mtr.Modifier;
+        
+    //     //--Move Modifier shift
+    //     int moveShift = Get_MoveModifierPTKOShift( moveModifier );
 
-        int finalClassInt = Mathf.Clamp( (int)basePTKO + shift, (int)PotentialToKO.HardWall, (int)PotentialToKO.OHKO );
-        var finalClass = moveModifier == 0 ? PotentialToKO.HardWall : (PotentialToKO)finalClassInt;
+    //     //--HP Ratio shift
+    //     int hpShift = Get_HPRatioPTKOShift( basePotentialKO, targetHPRatio );
+
+    //     int tacticalShift = 0;
+
+    //     //--Attacker attacking stat stage and direct modifier shifts
+    //     tacticalShift += Get_StatStagePTKOShift( wsr.AttackingStatStage );
+    //     tacticalShift += Get_DirectModifierPTKOShift( wsr.AttackingDirectModifier );
+
+    //     //--Target defending stat stage and direct modifier shifts
+    //     tacticalShift -= Get_StatStagePTKOShift( wsr.DefendingStatStage );
+    //     tacticalShift -= Get_DirectModifierPTKOShift( wsr.DefendingDirectModifier );
+
+    //     int finalShift = moveShift + hpShift + tacticalShift;
+
+    //     bool nearBoundary = PTKOIsNearBoundary( wsr.Score );
+
+    //     if( nearBoundary && finalShift != 0 )
+    //     {
+    //         int boundaryShift = (int)Mathf.Sign( finalShift ); //--this shifts up one or down one according to boundry math.
+    //         Debug.Log( $"[AI Scoring][Shift Potential To KO][Boundary Shift] Walling Score was near a boundary! Before: {finalShift} += {boundaryShift}" );
+    //         finalShift += boundaryShift;
+    //     }
+
+    //     int finalClassInt = Mathf.Clamp( (int)basePotentialKO + finalShift, (int)PotentialToKO.HardWall, (int)PotentialToKO.OHKO );
+
+    //     //--This checks to see if the target is immune to the selected move (a 0 move modifier means effectiveness was 0). if it is, the ptko is Untouchable. otherwise, we use the appropriate shift.
+    //     var finalClass = ( moveModifier == 0 || mtr.Move.MovePower == 0 || mtr.Move.MoveSO.MoveCategory == MoveCategory.Status ) ? PotentialToKO.Untouchable : (PotentialToKO)finalClassInt;
+
+    //     CustomLogSession ptkoLog = new();
+    //     ptkoLog.Add( $"=====[PTKO Plot Bar][{wsr.Attacker.Name}'s {mtr.Move.MoveSO.Name} on {wsr.Target.Name} (Base: {basePotentialKO}, Shift: {finalShift}, Final: {finalClass})]=====" );
+    //     ptkoLog.Add( $"-60__________-45____________-30________________-12____________________12________________30____________45" );
+    //     ptkoLog.Add( $"OHKO-------Dangerous--------Risky-------------TwoHKO------------------Safe-------------Sturdy-------Hardwall" );
+    //     string bar = $"|====------====|====------====|====---------====|====--------------====|====---------====|====------====|";
+
+    //     int minScore = -60;
+    //     int maxScore = 60;
+
+    //     float range = maxScore - minScore;
+
+    //     int wallIndex = Mathf.RoundToInt( ( ( wsr.Score - minScore ) / range ) * ( bar.Length - 1 ) );
+
+    //     char[] chars = bar.ToCharArray();
+
+    //     if( wallIndex >= 0 && wallIndex < chars.Length )
+    //         chars[wallIndex] = 'X';
+
+    //     string result = new( chars );
+
+    //     ptkoLog.Add( result );
+    //     Debug.Log( ptkoLog.ToString() );
+    //     ptkoLog.Clear();
+
+    //     _ai.BaseWallScores.Add( wsr.Score );
+    //     _ai.PTKOShifts.Add( finalClassInt );
+
+    //     return new()
+    //     {
+    //         Score = Get_PotentialToKOScoreFromEnum( finalClass ),
+    //         PTKO = finalClass,
+    //         Modifier = moveModifier,
+    //     };
+    // }
+
+    // private PotentialToKOResult Get_PTKOResultPreview( WallingScoreResult wsr, MoveThreatResult mtr )
+    // {
+    //     PotentialToKO basePTKO = Get_PotentialToKOFromWallingScore( wsr.Score );
+    //     float moveModifier = mtr.Modifier;
+    //     int shift = Get_MoveModifierPTKOShift( moveModifier );
+
+    //     int finalClassInt = Mathf.Clamp( (int)basePTKO + shift, (int)PotentialToKO.HardWall, (int)PotentialToKO.OHKO );
+        
+    //     //--This checks to see if the target is immune to the selected move (a 0 move modifier means effectiveness was 0). if it is, the ptko is Untouchable. otherwise, we use the appropriate shift.
+    //     var finalClass = ( moveModifier == 0 || mtr.Move.MovePower == 0 || mtr.Move.MoveSO.MoveCategory == MoveCategory.Status ) ? PotentialToKO.Untouchable : (PotentialToKO)finalClassInt;
+
+    //     return new()
+    //     {
+    //         Score = Get_PotentialToKOScoreFromEnum( finalClass ),
+    //         PTKO = finalClass,
+    //         Modifier = moveModifier,
+    //     };
+    // }
+
+    private PotentialToKOResult Get_PTKOResultPreview( WallingScoreResult wsr, MoveThreatResult mtr )
+    {
+        PotentialToKO basePTKO = GetPTKO_FromDamageEstimate( wsr.DamageEstimate, 1f );
+        float moveModifier = mtr.Modifier;
 
         return new()
         {
-            Score = Get_PotentialToKOScoreFromEnum( finalClass ),
-            PTKO = finalClass,
+            Score = Get_PotentialToKOScoreFromEnum( basePTKO ),
+            PTKO = basePTKO,
             Modifier = moveModifier,
         };
     }
@@ -596,12 +789,12 @@ public class BattleAI_Projection
     {
 
         PotentialToKO potentialKO;
-        if( wallingScore >= 35 )                potentialKO = PotentialToKO.HardWall;       //--Hard Wall, Shuts down pressure
-        else if( wallingScore >= 25 )           potentialKO = PotentialToKO.Sturdy;         //--Sturdy, can take a couple hits
-        else if( wallingScore >= 10 )           potentialKO = PotentialToKO.Safe;           //--Safe, can take an extra hit
-        else if( wallingScore >= -10 )          potentialKO = PotentialToKO.TwoHKO;         //--Neutral, possible 2HKO
-        else if( wallingScore >= -25 )          potentialKO = PotentialToKO.Risky;          //--Getting Risky, almost guaranteed 2HK0
-        else if( wallingScore >= -35 )          potentialKO = PotentialToKO.Dangerous;      //--Danger, high damage expected, crit or unexpected damage might OHKO
+        if( wallingScore >= 45 )                potentialKO = PotentialToKO.HardWall;       //--Hard Wall, Shuts down pressure
+        else if( wallingScore >= 30 )           potentialKO = PotentialToKO.Sturdy;         //--Sturdy, can take a couple hits
+        else if( wallingScore >= 12 )           potentialKO = PotentialToKO.Safe;           //--Safe, can take an extra hit
+        else if( wallingScore >= -12 )          potentialKO = PotentialToKO.TwoHKO;         //--Neutral, possible 2HKO
+        else if( wallingScore >= -30 )          potentialKO = PotentialToKO.Risky;          //--Getting Risky, almost guaranteed 2HK0
+        else if( wallingScore >= -45 )          potentialKO = PotentialToKO.Dangerous;      //--Danger, high damage expected, crit or unexpected damage might OHKO
         else                                    potentialKO = PotentialToKO.OHKO;           //--Fatal, Likely OHKO
 
         return potentialKO;
@@ -612,6 +805,7 @@ public class BattleAI_Projection
         //--This is a damn pretty switch, sheesh //--shift safe, sturdy, hardwall scores up a bit, maybe by 5-10, and shift neutral and lower down quite a lot, with bigger negative values for dangerous and ohko than their safe equivalents.
         return koClass switch
         {
+            PotentialToKO.Untouchable       => +120,
             PotentialToKO.HardWall          => +70,
             PotentialToKO.Sturdy            => +40,
             PotentialToKO.Safe              => +20,
@@ -625,15 +819,15 @@ public class BattleAI_Projection
 
     private bool PTKOIsNearBoundary( int wallingScore )
     {
-        const int OVERLAP = 4;
-        int distance = 0;
+        const int OVERLAP = 8;
+        int distance;
 
-        if( wallingScore >= 35)             distance = wallingScore - 35;
-        else if( wallingScore >= 25 )       distance = wallingScore - 25;
-        else if( wallingScore >= 10 )       distance = wallingScore - 10;
-        else if( wallingScore >= -10 )      distance = wallingScore + 10;
-        else if( wallingScore >= -25 )      distance = wallingScore + 25;
-        else if( wallingScore >= -35 )      distance = wallingScore + 35;
+        if( wallingScore >= 45 )            distance = wallingScore - 45;
+        else if( wallingScore >= 30 )       distance = wallingScore - 30;
+        else if( wallingScore >= 12 )       distance = wallingScore - 12;
+        else if( wallingScore >= -12 )      distance = wallingScore + 12;
+        else if( wallingScore >= -30 )      distance = wallingScore + 30;
+        else if( wallingScore >= -45 )      distance = wallingScore + 45;
         else distance = 0;
 
         return Mathf.Abs( distance ) < OVERLAP;
@@ -645,108 +839,131 @@ public class BattleAI_Projection
         return Mathf.FloorToInt( off * 1.2f ); //--the higher chance of ko, the more incentivized you are because the score increases more due to being a percentage increase.
     }
 
-    private int Get_MoveModifierPTKOShift( float moveModifier )
-    {
-        //--A higher modifier shifts positively because the enum starts and 0 and increases. HardWall is 0, while LikelyOHKO is 6
-        //--A higher modifier means increased damage, therefore the likelyhood of a KO increases.
+    // private int Get_MoveModifierPTKOShift( float moveModifier )
+    // {
+    //     //--A higher modifier shifts positively because the enum starts and 0 and increases. HardWall is 0, while LikelyOHKO is 6
+    //     //--A higher modifier means increased damage, therefore the likelyhood of a KO increases.
 
-        float log = Mathf.Log( moveModifier, 1.5f );
+    //     float log = Mathf.Log( moveModifier, 1.5f );
 
-        int shift = Mathf.RoundToInt( log ); //--maybe add a small * 1.1 or something here.
+    //     int shift = Mathf.FloorToInt( log );
+    //     // int shift = Mathf.RoundToInt( log );
         
-        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Move modifier shifting KO Potential by: {shift}" );
+    //     // Debug.Log( $"[AI Scoring][Shift Potential To KO] Move modifier shifting KO Potential by: {shift}" );
 
-        return shift;
-    }
+    //     return shift;
+    // }
 
-    private int Get_HPRatioPTKOShift( float targetHPratio )
-    {
-        int shift = 0;
+    // private int Get_HPRatioPTKOShift( PotentialToKO basePTKO, float targetHPratio )
+    // {
+    //     int shift = 0;
 
-        if( targetHPratio < 0.15f )             shift = +6;
-        else if( targetHPratio < 0.25f )        shift = +5;
-        else if( targetHPratio < 0.35f )        shift = +4;
-        else if( targetHPratio < 0.5f )         shift = +3;
-        else if( targetHPratio < 0.75f )        shift = +1;
+    //     float expectedDamage = Get_PTKODamagePercent( basePTKO );
+    //     float hp = Mathf.Floor( targetHPratio * 1000f ) / 1000f;
 
-        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's HP Ratio shifting KO Potential by: {shift}" );
+    //     Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Shifting PTKO based on hp (cascading). Base PTKO: {basePTKO}. Expected Damage: {expectedDamage}. Target's Raw HP Ratio: {targetHPratio}. Target's floored HP Ratio: {hp}." );
 
-        return shift;
-    }
+    //     if( hp <= Get_PTKODamagePercent( PotentialToKO.HardWall ) )       shift += 1;
+    //     if( hp <= Get_PTKODamagePercent( PotentialToKO.Sturdy ) )         shift += 1;
+    //     if( hp <= Get_PTKODamagePercent( PotentialToKO.Safe ) )           shift += 1;
+    //     if( hp <= Get_PTKODamagePercent( PotentialToKO.TwoHKO ) )         shift += 1;
+    //     if( hp <= Get_PTKODamagePercent( PotentialToKO.Risky ) )          shift += 1;
+    //     if( hp <= Get_PTKODamagePercent( PotentialToKO.Dangerous ) )      shift += 1;
 
-    private int Get_HPRatioPTKOShift( PotentialToKO basePTKO, float targetHPratio )
-    {
-        int shift = 0;
+    //     Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Target's HP Ratio shifting KO Potential by: {shift}" );
 
-        float expectedDamage = Get_PTKODamagePercent( basePTKO );
-        float hp = Mathf.Floor( targetHPratio * 1000f ) / 1000f;
+    //     return shift;
+    // }
 
-        Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Shifting PTKO based on hp (cascading). Base PTKO: {basePTKO}. Expected Damage: {expectedDamage}. Target's Raw HP Ratio: {targetHPratio}. Target's floored HP Ratio: {hp}." );
+    // private int Get_HPRatioPTKOShift( PotentialToKO basePTKO, float targetHPratio )
+    // {
+    //     int shift = 0;
 
-        if( hp <= Get_PTKODamagePercent( PotentialToKO.HardWall ) )       shift += 1;
-        if( hp <= Get_PTKODamagePercent( PotentialToKO.Sturdy ) )         shift += 1;
-        if( hp <= Get_PTKODamagePercent( PotentialToKO.Safe ) )           shift += 1;
-        if( hp <= Get_PTKODamagePercent( PotentialToKO.TwoHKO ) )         shift += 1;
-        if( hp <= Get_PTKODamagePercent( PotentialToKO.Risky ) )          shift += 1;
-        if( hp <= Get_PTKODamagePercent( PotentialToKO.Dangerous ) )      shift += 1;
+    //     float expectedDamage = Get_PTKODamagePercent( basePTKO );
+    //     float hp = Mathf.Floor( targetHPratio * 1000f ) / 1000f;
+    //     float ratio = hp/expectedDamage;
 
-        Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Target's HP Ratio shifting KO Potential by: {shift}" );
+    //     Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Shifting PTKO based on hp (cascading). Base PTKO: {basePTKO}. Expected Damage: {expectedDamage}. Target's Raw HP Ratio: {targetHPratio}. Target's floored HP Ratio: {hp}." );
 
-        return shift;
-    }
+    //     shift = Mathf.Clamp( Mathf.RoundToInt( -Mathf.Log( ratio, 2f ) ), -2, 2 );
 
-    private int Get_StatStagePTKOShift( int stage )
-    {
-        int shift = -0;
+    //     Debug.Log( $"[AI Scoring][Shift Potential To KO][HP Shift] Target's HP Ratio shifting KO Potential by: {shift}" );
 
-        if( stage <= -3 )       shift = -2;
-        else if( stage <= -1 )  shift = -1;
-        else if( stage <= 0 )   shift = 0;
-        else if( stage <= 2)    shift = +1;
-        else if( stage <= 4 )   shift = +2;
-        else if( stage > 4 )    shift = +2;
 
-        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Stat Stage for its defending stat shifting KO Potential by: {shift}" );
+    //     return shift;
+    // }
 
-        return shift;
-    }
+    // private int Get_StatStagePTKOShift( int stage )
+    // {
+    //     int shift = -0;
 
-    private int Get_DirectModifierPTKOShift( float totalMod )
-    {
-        int shift = 0;
+    //     if( stage <= -3 )       shift = -2;
+    //     else if( stage <= -1 )  shift = -1;
+    //     else if( stage <= 0 )   shift = 0;
+    //     else if( stage <= 2)    shift = +1;
+    //     else if( stage <= 4 )   shift = +2;
+    //     else if( stage > 4 )    shift = +2;
 
-        if( totalMod <= 0.5f )             shift += -2;
-        else if( totalMod <= 0.75f )       shift += -1;
-        else if( totalMod <= 1.1f )        shift += 0;
-        else if( totalMod <= 1.5f )        shift += 1;
-        else if( totalMod <= 2f )          shift += 2;
-        else if( totalMod > 2f )           shift += 3;
+    //     // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Stat Stage for its defending stat shifting KO Potential by: {shift}" );
 
-        // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Direct Modifier to its defending stat shifting KO Potential by: {shift}" );
+    //     return shift;
+    // }
 
-        return shift;
-    }
+    // private int Get_DirectModifierPTKOShift( float totalMod )
+    // {
+    //     int shift = 0;
+
+    //     if( totalMod <= 0.5f )             shift += -2;
+    //     else if( totalMod <= 0.75f )       shift += -1;
+    //     else if( totalMod <= 1.1f )        shift += 0;
+    //     else if( totalMod <= 1.5f )        shift += 1;
+    //     else if( totalMod <= 2f )          shift += 2;
+    //     else if( totalMod > 2f )           shift += 3;
+
+    //     // Debug.Log( $"[AI Scoring][Shift Potential To KO] Target's Direct Modifier to its defending stat shifting KO Potential by: {shift}" );
+
+    //     return shift;
+    // }
 
     public float Get_PTKODamagePercent( PotentialToKO ptko )
     {
         return ptko switch
         {
-            PotentialToKO.HardWall      => 0.075f,
-            PotentialToKO.Sturdy        => 0.225f,
-            PotentialToKO.Safe          => 0.375f,
+            PotentialToKO.HardWall      => 0.08f,
+            PotentialToKO.Sturdy        => 0.22f,
+            PotentialToKO.Safe          => 0.38f,
             PotentialToKO.TwoHKO        => 0.55f,
-            PotentialToKO.Risky         => 0.725f,
-            PotentialToKO.Dangerous     => 0.90f,
-            PotentialToKO.OHKO          => 1.10f,
+            PotentialToKO.Risky         => 0.72f,
+            PotentialToKO.Dangerous     => 0.88f,
+            PotentialToKO.OHKO          => 1.05f,
             _ => 0f
         };
     }
 
-    public PotentialToKO Get_NeutralPTKO( Pokemon attacker, Pokemon target )
+    public PotentialToKO GetPTKO_FromDamageEstimate( float damageEstimate, float targetHPR )
+    {
+        float damage = damageEstimate / targetHPR;
+        Debug.Log( $"[AI Scoring][Get Walling Score] Damage Estimate: {damageEstimate}, Target HPR: {targetHPR}, Final Damage Done Ratio: {damage}" );
+
+        return damage switch
+        {
+            <= 0f       => PotentialToKO.Untouchable,
+            <= 0.15f    => PotentialToKO.HardWall,
+            <= 0.30f    => PotentialToKO.Sturdy,
+            <= 0.47f    => PotentialToKO.Safe,
+            <= 0.63f    => PotentialToKO.TwoHKO,
+            <= 0.80f    => PotentialToKO.Risky,
+            <= 0.97f    => PotentialToKO.Dangerous,
+            > 0.97f     => PotentialToKO.OHKO,
+            _ => PotentialToKO.TwoHKO,
+        };
+    }
+
+    public PotentialToKO Get_NeutralPTKO( IBattleAIUnit attacker, IBattleAIUnit target )
     {
         var move    = _ai.Get_MostThreateningMove( attacker, target, true );
         var wsr     = Get_WallingScoreResult( attacker, target, move );
-        var result  = Get_PTKOResultPreview( wsr, move.Modifier );
+        var result  = Get_PTKOResultPreview( wsr, move );
 
         return result.PTKO;
     }
@@ -756,6 +973,8 @@ public struct TurnOutcomeProjection
 {
     public SimulatedUnit Attacker;
     public SimulatedUnit Opponent;
+
+    public SimulatedField Field;
 
     public PotentialToKO AttackerPTKO;
     public PotentialToKO OpponentPTKO;

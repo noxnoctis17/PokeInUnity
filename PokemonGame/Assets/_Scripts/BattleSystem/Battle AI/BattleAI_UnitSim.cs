@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class BattleAI_UnitSim
@@ -10,8 +11,9 @@ public class BattleAI_UnitSim
     private readonly Battlefield _field;
     public Dictionary<WeatherConditionID, Func<Move, float>> WeatherDMGModifiers { get; private set; }
     public Dictionary<TerrainID, Func<Move, float>> TerrainDMGModifiers { get; private set; }
-    public Dictionary<BattleItemEffectID, Func<Pokemon, Pokemon, Move, float>> ItemDMGModifiers { get; private set; }
-    // public CustomLogSession TurnSimLog { get; private set; }
+    public Dictionary<BattleItemEffectID, Func<IBattleAIUnit, IBattleAIUnit, Move, float>> ItemDMGModifiers { get; private set; }
+    public Dictionary<string, Func<IBattleAIUnit, IBattleAIUnit, Move, int>> MovePowerConditions { get; private set; }
+    public CustomLogSession TurnSimLog { get; private set; }
 
     public BattleAI_UnitSim( BattleAI ai )
     {
@@ -19,7 +21,7 @@ public class BattleAI_UnitSim
         _bs = _ai.BattleSystem;
         _field = _bs.Field;
 
-        // TurnSimLog = new();
+        TurnSimLog = new();
 
         DicsInit();
     }
@@ -29,93 +31,152 @@ public class BattleAI_UnitSim
         WeatherDicInit();
         TerrainDicInit();
         ItemDicInit();
+        MovePowerChangesDicInit();
     }
 
-    // private void LogSimUnit( SimulatedUnit unit )
-    // {
-    //     TurnSimLog.Add( $"===[Logging Sim Unit: {unit.Name}]===" );
-    //     TurnSimLog.Add( $"Name: {unit.Name}" );
-    //     TurnSimLog.Add( $"HPR: {unit.CurrentHPR}" );
-    //     TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
-    //     TurnSimLog.Add( $"Speed: {unit.Speed}" );
-    //     TurnSimLog.Add( $"Move: {unit.MTR.Move.MoveSO.Name}" );
-    //     TurnSimLog.Add( $"Ungrounded: {unit.IsUngrounded}" );
-    //     TurnSimLog.Add( $"Ability: {unit.Ability}" );
-    //     TurnSimLog.Add( $"Item: {unit.Item}" );
-    //     TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
-    //     TurnSimLog.Add( $"Toxic Counter: {unit.ToxicCounter}" );
-    //     TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
-    //     TurnSimLog.Add( $"Court Seeded: {unit.CourtSeeded}" );
-    //     TurnSimLog.Add( $"Binding Condition Count: {unit.Bindings.Count}" );
-    // }
+    private void LogSimUnit( SimulatedUnit unit )
+    {
+        TurnSimLog.Add( $"===[Logging Sim Unit: {unit.Name}]===" );
+        TurnSimLog.Add( $"Name: {unit.Name}" );
+        TurnSimLog.Add( $"HPR: {unit.CurrentHPR}" );
+        TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
+        TurnSimLog.Add( $"Speed: {unit.Speed}" );
+        TurnSimLog.Add( $"Move: {unit.MTR.Move.MoveSO.Name}" );
+        TurnSimLog.Add( $"Ungrounded: {unit.IsUngrounded}" );
+        TurnSimLog.Add( $"Ability: {unit.Ability}" );
+        TurnSimLog.Add( $"Item: {unit.Item}" );
+        TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
+        TurnSimLog.Add( $"Toxic Counter: {unit.SevereStatusTime}" );
+        TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
+        TurnSimLog.Add( $"Court Seeded: {unit.CourtSeeded}" );
+        TurnSimLog.Add( $"Binding Condition Count: {unit.Bindings.Count}" );
+        TurnSimLog.Add( $"" );
+    }
 
-    // private void LogSimField( SimulatedField field )
-    // {
-    //     TurnSimLog.Add( $"===[Turn Simulation][Beginning Turn Simulation. Getting Sim Field]===" );
-    //     TurnSimLog.Add( $"Weather: {field.Weather}" );
-    //     TurnSimLog.Add( $"Terrain: {field.Terrain}" );
-    //     TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
-    //     TurnSimLog.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
-    // }
+    private void LogSimField( SimulatedField field )
+    {
+        TurnSimLog.Add( $"===[Turn Simulation][Beginning Turn Simulation. Getting Sim Field]===" );
+        TurnSimLog.Add( $"Weather: {field.Weather}" );
+        TurnSimLog.Add( $"Terrain: {field.Terrain}" );
+        TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
+        TurnSimLog.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
+        TurnSimLog.Add( $"" );
+    }
 
-    // public void LogTop( TurnOutcomeProjection top )
-    // {
-    //     TurnSimLog.Add( $"Attacker End HP: {top.Attacker_EndOfTurnHP}" );
-    //     TurnSimLog.Add( $"Opponent End HP: {top.Opponent_EndOfTurnHP}" );
-    //     TurnSimLog.Add( $"Attacker Dies Before Acting: {top.Attacker_DiesBeforeActing}" );
-    //     TurnSimLog.Add( $"Opponent Dies Before Acting: {top.Opponent_DiesBeforeActing}" );
-    //     TurnSimLog.Add( $"Mutual KO: {top.MutualKO}" );
-    // }
+    public void LogTop( TurnOutcomeProjection top )
+    {
+        TurnSimLog.Add( $"Attacker End HP: {top.Attacker_EndOfTurnHP}" );
+        TurnSimLog.Add( $"Opponent End HP: {top.Opponent_EndOfTurnHP}" );
+        TurnSimLog.Add( $"Attacker Dies Before Acting: {top.Attacker_DiesBeforeActing}" );
+        TurnSimLog.Add( $"Opponent Dies Before Acting: {top.Opponent_DiesBeforeActing}" );
+        TurnSimLog.Add( $"Mutual KO: {top.MutualKO}" );
+        TurnSimLog.Add( $"" );
+    }
 
-    public SimulatedUnit BuildSimUnit( Pokemon pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, StatStageDelta statStages )
+    //--Create Simple Sim Unit directly from Pokemon
+    public SimulatedUnit BuildSimUnit( Pokemon pokemon, float hpr, MoveThreatResult mtr, SimulatedField field )
+    {
+        BattleAI_PokemonAdapter mon = new( pokemon, _ai );
+        return BuildSimUnit( mon, hpr, mtr, field );
+    }
+
+    //--Create a Sim Unit with stat stage changes created from an extracted Stat Stage Delta (from either a pokemon or a move)
+    public SimulatedUnit BuildSimUnit( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, StatStageDelta stageDelta )
     {
         var unit = BuildSimUnit( pokemon, hpr, mtr, field );
-        unit.StatStages = statStages;
+        List<StatStage> statStages = new()
+        {
+            new(){ Stat = Stat.Attack,      Change = stageDelta.Attack },
+            new(){ Stat = Stat.Defense,     Change = stageDelta.Defense },
+            new(){ Stat = Stat.SpAttack,    Change = stageDelta.SpAttack },
+            new(){ Stat = Stat.SpDefense,   Change = stageDelta.SpDefense },
+            new(){ Stat = Stat.Speed,       Change = stageDelta.Speed },
+        };
+
+        return BuildSimUnit( unit, hpr, mtr, field, statStages );
+    }
+
+    //--Create a Sim Unit with stat stage changes.
+    public SimulatedUnit BuildSimUnit( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, List<StatStage> statStages )
+    {
+        var unit = BuildSimUnit( pokemon, hpr, mtr, field );
+        unit.StatStages = new();
+
+        for( int i = 0; i < statStages.Count; i++ )
+        {
+            var stages = statStages[i];
+            unit.StatStages.Add( stages.Stat, stages.Change );
+        }
 
         return unit;
     }
 
-    public SimulatedUnit BuildSimUnit( Pokemon pokemon, float hpr, MoveThreatResult mtr, SimulatedField field )
+    //--Create Simple Sim Unit from IBattleAIUnit
+    public SimulatedUnit BuildSimUnit( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field )
     {
-        BattleItemEffectID item = pokemon.BattleItemEffect != null ? pokemon.BattleItemEffect.ID : BattleItemEffectID.None;
-        SevereConditionID severe =  pokemon.SevereStatus != null ? pokemon.SevereStatus.ID : SevereConditionID.None;
-        int toxic = severe == SevereConditionID.TOX ? pokemon.SevereStatusTime : 0;
+        BattleItemEffectID item = pokemon.Item;
+        SevereConditionID severe =  pokemon.SevereStatus;
+        int toxic = pokemon.SevereStatusTime;
 
         List<VolatileConditionID> vol = new();
-        foreach( var kvp in pokemon.VolatileStatuses )
-            vol.Add( kvp.Key );
+        foreach( var id in pokemon.VolatileStatuses )
+            vol.Add( id );
 
         List<BindingConditionID> binds = new();
-        foreach( var kvp in pokemon.BindingStatuses )
-            binds.Add( kvp.Key );
+        foreach( var id in pokemon.Bindings )
+            binds.Add( id );
 
-        var courtLocation = _ai.BattleSystem.Field.GetPokemonCourtLocationFromTrainer( pokemon );
-        var court = _ai.BattleSystem.Field.GetPokemonCourtFromTrainer( pokemon );
+        var courtLocation = pokemon.CourtLocation;
+        var court = pokemon.Court;
         bool leechseed = court.Conditions.ContainsKey( CourtConditionID.LeechSeed );
 
-        var statStages = BuildStatStageDelta( pokemon );
+        var statStages = pokemon.StatStages;
+
+        //--Copy active moves
+        List<Move> activeMoves = new();
+        for( int i = 0; i < pokemon.ActiveMoves.Count; i++ )
+            activeMoves.Add( pokemon.ActiveMoves[i] );
+
+        //--Copy Direct Stat Modifiers
+        var directModifiers = pokemon.DirectStatModifiers;
 
         SimulatedUnit unit = new()
         {
-            Name = pokemon.NickName,
+            Name = pokemon.Name,
+            PID = pokemon.PID,
             CurrentHPR = hpr,
-            Type = ( pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 ),
+            Type = ( pokemon.Type.One, pokemon.Type.Two ),
+
+            Level = pokemon.Level,
+            MaxHP = _ai.GetBaseStat( pokemon, Stat.HP ),
+            Attack = _ai.GetBaseStat( pokemon, Stat.Attack ),
+            Defense = _ai.GetBaseStat( pokemon, Stat.Defense ),
+            SpAttack = _ai.GetBaseStat( pokemon, Stat.SpAttack ),
+            SpDefense = _ai.GetBaseStat( pokemon, Stat.SpDefense ),
             Speed = _ai.GetUnitContextualSpeed( pokemon ),
+
+            ActiveMoves = activeMoves,
             MTR = mtr,
+
             IsUngrounded = IsUngrounded( pokemon, field ),
-            Ability = pokemon.AbilityID,
+
+            Ability = pokemon.Ability,
             Item = item,
+
             SevereStatus = severe,
-            SevereStatusDuration = toxic,
+            SevereStatusTime = toxic,
             VolatileStatuses = vol,
             Bindings = binds,
+
             CourtLocation = courtLocation,
             Court = court,
             CourtSeeded = leechseed,
+
             StatStages = statStages,
+            DirectStatModifiers = directModifiers,
         };
 
-        // LogSimUnit( unit );
+        LogSimUnit( unit );
 
         return unit;
     }
@@ -195,6 +256,18 @@ public class BattleAI_UnitSim
         };
     }
 
+    public Dictionary<Stat, int> BuildStatStagesDictionary( StatStageDelta delta )
+    {
+        return new()
+        {
+            { Stat.Attack,      delta.Attack },
+            { Stat.Defense,     delta.Defense },
+            { Stat.SpAttack,    delta.SpAttack },
+            { Stat.SpDefense,   delta.SpDefense },
+            { Stat.Speed,       delta.Speed },
+        };
+    }
+
     public SimulatedField BuildSimField()
     {
         WeatherConditionID weather = _field.Weather != null ? _field.Weather.ID : WeatherConditionID.None;
@@ -217,12 +290,18 @@ public class BattleAI_UnitSim
             BottomCourtConditions = bottomCourtConditions,
         };
 
-        // LogSimField( field );
+        LogSimField( field );
 
         return field;
     }
 
-    public bool CheckTypes( PokemonType type, SimulatedUnit unit )
+    public Move GetRandomMove( IBattleAIUnit pokemon )
+    {
+        int r = UnityEngine.Random.Range( 0, pokemon.ActiveMoves.Count );
+        return pokemon.ActiveMoves[r];
+    }
+
+    public bool CheckTypes( PokemonType type, IBattleAIUnit unit )
     {
         if( type == unit.Type.One || type == unit.Type.Two )
             return true;
@@ -230,7 +309,7 @@ public class BattleAI_UnitSim
             return false;
     }
 
-    public bool IsFainted( SimulatedUnit unit )
+    public bool IsFainted( IBattleAIUnit unit )
     {
         if( unit.CurrentHPR <= 0 )
             return true;
@@ -246,18 +325,12 @@ public class BattleAI_UnitSim
             return false;
     }
 
-    public bool PredictForcedSwitch( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster )
+    public bool IsUngrounded( IBattleAIUnit pokemon, SimulatedField field )
     {
-        bool weThreatenKO = offensePTKO >= PotentialToKO.Risky;
-        bool theyThreatenKO = defensePTKO >= PotentialToKO.Risky;
-
-        if( weThreatenKO && !theyThreatenKO )
+        if( CheckTypes( PokemonType.Flying, pokemon ) || pokemon.Ability == AbilityID.Levitate )
             return true;
-
-        if( weThreatenKO && weAreFaster && defensePTKO > PotentialToKO.Dangerous )
-            return true;
-
-        return false;
+        else
+            return false;
     }
 
     public List<Move> GetSetupMoves( List<Move> moves )
@@ -280,7 +353,7 @@ public class BattleAI_UnitSim
         return setupMoves;
     }
 
-    public int ComputeSetupValue( PotentialToKOResult before, PotentialToKOResult after, StatStageDelta delta )
+    public int ComputeOffensiveSetupValue( PotentialToKOResult before, PotentialToKOResult after, StatStageDelta delta )
     {
         int value = 0;
 
@@ -292,9 +365,6 @@ public class BattleAI_UnitSim
         if( delta.Speed > 0 )
             value += 25;
 
-        if( delta.Defense > 0 || delta.SpDefense > 0 )
-            value += 15;
-
         if( delta.Attack > 1 || delta.SpAttack > 1 )
             value += 40;
         
@@ -302,6 +372,41 @@ public class BattleAI_UnitSim
             value += 15;
 
         return value;
+    }
+
+    public int ComputeDefensiveSetupValue( PotentialToKOResult before, PotentialToKOResult after, StatStageDelta delta )
+    {
+        int value = 0;
+
+        int beforeScore = before.Score;
+        int afterScore = after.Score;
+
+        value += ( beforeScore - afterScore ) * 2;
+
+        if( delta.Speed > 0 )
+            value += 5;
+
+        if( delta.Defense == 1 || delta.SpDefense == 1 )
+            value += 15;
+
+        if( delta.Defense > 1 || delta.SpDefense > 1 )
+            value += 25;
+
+        return value;
+    }
+
+    public bool PredictForcedSwitch( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster )
+    {
+        bool weThreatenKO = offensePTKO >= PotentialToKO.Risky;
+        bool theyThreatenKO = defensePTKO >= PotentialToKO.Risky;
+
+        if( weThreatenKO && !theyThreatenKO )
+            return true;
+
+        if( weThreatenKO && weAreFaster && defensePTKO > PotentialToKO.Dangerous )
+            return true;
+
+        return false;
     }
 
     public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR )
@@ -316,7 +421,8 @@ public class BattleAI_UnitSim
         if( theyDoNotThreaten )                                                 prob += 0.1f;
         if( opponentHPR < 0.35f )                                               prob += 0.1f;
         if( theirRemaining > 2 )                                                prob += 0.1f;
-        if( theirRemaining == 1 )                                               prob -= 0.4f;
+        
+        if( theirRemaining == 1 )                                               prob = 0f;
 
         prob = Mathf.Clamp01( prob );
 
@@ -342,12 +448,12 @@ public class BattleAI_UnitSim
         return expectedHits;
     }
 
-    public float Get_MoveModifier( Pokemon attacker, Pokemon target, Move move )
+    public float Get_MoveModifier( IBattleAIUnit attacker, IBattleAIUnit target, Move move )
     {
         float modifier = 1f;
         var field = _ai.BattleSystem.Field;
 
-        float stab      = attacker.CheckTypes( move.MoveType ) ? 1.5f : 1f;
+        float stab      = CheckTypes( move.MoveType, attacker ) ? 1.5f : 1f;
         float weather   = 1f;
         float terrain   = 1f;
         float item      = 1f;
@@ -364,9 +470,9 @@ public class BattleAI_UnitSim
                 terrain = mod( move );
         }
 
-        if( attacker.BattleItemEffect != null )
+        if( attacker.Item != BattleItemEffectID.None )
         {
-            if( _ai.UnitSim.ItemDMGModifiers.TryGetValue( attacker.BattleItemEffect.ID, out var mod ) )
+            if( _ai.UnitSim.ItemDMGModifiers.TryGetValue( attacker.Item, out var mod ) )
                 item = mod( attacker, target, move );
         }
 
@@ -619,7 +725,7 @@ public class BattleAI_UnitSim
             {
                 BattleItemEffectID.ExpertBelt, ( attacker, target, move ) =>
                 {
-                    var effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
+                    var effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.Type.One ) * TypeChart.GetEffectiveness( move.MoveType, target.Type.Two );
                     if( effectiveness > 1 )
                         return 4915f/4096f;
                     else
@@ -628,13 +734,33 @@ public class BattleAI_UnitSim
             },
         };
     }
+
+    private void MovePowerChangesDicInit()
+    {
+        MovePowerConditions = new()
+        {
+            {
+                "Knock Off", ( attacker, target, move ) =>
+                {
+                    if( target.Item != BattleItemEffectID.None )
+                        return Mathf.FloorToInt( move.MovePower * 1.5f );
+                    else
+                        return move.MovePower;
+                }
+            }
+        };
+    }
 }
 
 public class SimulatedUnit : IBattleAIUnit
 {
     public string Name { get; set; }
+    public string PID { get; set; }
+    public int CurrentHP { get; set; }
+    public int MaxHP { get; set; }
     public float CurrentHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
+    public int Level { get; set; }
     public int Attack { get; set; }
     public int Defense { get; set; }
     public int SpAttack { get; set; }
@@ -649,7 +775,7 @@ public class SimulatedUnit : IBattleAIUnit
     public BattleItemEffectID Item { get; set; }
 
     public SevereConditionID SevereStatus { get; set; }
-    public int SevereStatusDuration { get; set; }
+    public int SevereStatusTime { get; set; }
     public List<VolatileConditionID> VolatileStatuses { get; set; }
     public List<BindingConditionID> Bindings { get; set; }
 
@@ -657,7 +783,8 @@ public class SimulatedUnit : IBattleAIUnit
     public Court Court { get; set; }
     public bool CourtSeeded { get; set; }
 
-    public StatStageDelta StatStages { get; set; }
+    public Dictionary<Stat, int> StatStages { get; set; }
+    public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers{ get; set; }
 }
 
 public class SimulatedField

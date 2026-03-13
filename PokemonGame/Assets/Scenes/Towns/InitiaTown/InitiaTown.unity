@@ -959,6 +959,17 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 55112767360074210, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
   m_PrefabInstance: {fileID: 202795665}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &205219022 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
+  m_PrefabInstance: {fileID: 202795665}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af7f5ac3095797a49a5cd0b36f94d6f3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &216264691
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6586,7 +6597,7 @@ MonoBehaviour:
     normal: {x: 0, y: 1, z: 0}
     length: {x: 0.25, y: 0.05}
     color: {x: 0.15686275, y: 0.6862745, z: 0.32941177}
-  m_InstantiatedMaterial: {fileID: 1357827454}
+  m_InstantiatedMaterial: {fileID: 1393687310}
 --- !u!4 &615406172
 Transform:
   m_ObjectHideFlags: 0
@@ -9259,7 +9270,7 @@ PrefabInstance:
     - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _opposingTrainer
       value: 
-      objectReference: {fileID: 2142766385}
+      objectReference: {fileID: 205219022}
     - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _trainerSkillLevel
       value: 95
@@ -9915,50 +9926,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e2640358334fc634ea42924a33eb3c15, type: 3}
   m_PrefabInstance: {fileID: 1331197885}
   m_PrefabAsset: {fileID: 0}
---- !u!21 &1357827454
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: m_GrassUnlitBasic(Clone)
-  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - unity_Lightmaps:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_LightmapsInd:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_ShadowMasks:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _Blend: 0
-    - _BlendMult: 1
-    - _BlendOff: 0
-    - _QueueControl: 0
-    - _QueueOffset: 0
-    m_Colors: []
-  m_BuildTextureStacks: []
 --- !u!1 &1360708142
 GameObject:
   m_ObjectHideFlags: 0
@@ -10152,6 +10119,50 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e2640358334fc634ea42924a33eb3c15, type: 3}
   m_PrefabInstance: {fileID: 1382927752}
   m_PrefabAsset: {fileID: 0}
+--- !u!21 &1393687310
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: m_GrassUnlitBasic(Clone)
+  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Blend: 0
+    - _BlendMult: 1
+    - _BlendOff: 0
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    m_Colors: []
+  m_BuildTextureStacks: []
 --- !u!1001 &1424368904
 PrefabInstance:
   m_ObjectHideFlags: 0

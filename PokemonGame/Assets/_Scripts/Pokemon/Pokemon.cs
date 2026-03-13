@@ -808,6 +808,16 @@ public class Pokemon
         return changes;
     }
 
+    public Dictionary<Stat, int> CloneStatStages()
+    {
+        return StatStages.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+    }
+
+    public Dictionary<Stat, Dictionary<DirectModifierCause, float>> CloneDirectModifiers()
+    {
+        return DirectStatModifiers.ToDictionary( kvp => kvp.Key, kvp => new Dictionary<DirectModifierCause, float>( kvp.Value ) );
+    }
+
     public void ApplyDirectStatModifier( Stat stat, DirectModifierCause cause, float modifier )
     {
         Debug.Log( $"{NickName} received a Direct Stat Modifier {cause}: {stat} x {modifier}" );

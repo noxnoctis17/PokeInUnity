@@ -345,6 +345,15 @@ public class VolatileConditionsDB : MonoBehaviour
                         }
                     }
                 }
+            },
+            {
+                VolatileConditionID.ChoiceLocked, new()
+                {
+                    Name = "Choice Locked",
+                    StartMessage = string.Empty,
+
+                    //--The code for this condition is handled in all places where move use is checked, including in battle ai & simulations
+                }
             }
         };
     }
@@ -365,4 +374,5 @@ public enum VolatileConditionID
     Encore,
     Uproar,
     ThroatChop,
+    ChoiceLocked,
 }

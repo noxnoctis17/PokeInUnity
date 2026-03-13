@@ -23,7 +23,7 @@ MonoBehaviour:
   _statOverride: 1
   _power: 80
   _accuracy: 100
-  _alwaysHits: 0
+  _accuracyType: 0
   _pp: 10
   _movePriority: 7
   _critBehavior: 0
@@ -31,6 +31,8 @@ MonoBehaviour:
     RecoilType: 0
     RecoilDamage: 0
   _drainPercentage: 0
+  _healType: 0
+  _healAmount: 0
   _hitRange: {x: 0, y: 0}
   _flags: 02000000
   _moveEffects:
@@ -40,9 +42,9 @@ MonoBehaviour:
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
+    _bindingStatus: 0
     _weather: 0
     _terrain: 0
     _courtCondition: 0
-    _switchEffect:
-      SwitchType: 0
+    _switchType: 0
   _secondaryMoveEffects: []

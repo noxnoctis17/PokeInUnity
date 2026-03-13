@@ -5,8 +5,11 @@ using UnityEngine;
 public interface IBattleAIUnit
 {
     public string Name { get; set; }
+    public string PID { get; set; }
+    public int MaxHP { get; set; }
     public float CurrentHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
+    public int Level { get; set; }
     public int Attack { get; set; }
     public int Defense { get; set; }
     public int SpAttack { get; set; }
@@ -21,7 +24,7 @@ public interface IBattleAIUnit
     public BattleItemEffectID Item { get; set; }
 
     public SevereConditionID SevereStatus { get; set; }
-    public int SevereStatusDuration { get; set; }
+    public int SevereStatusTime { get; set; }
     public List<VolatileConditionID> VolatileStatuses { get; set; }
     public List<BindingConditionID> Bindings { get; set; }
 
@@ -29,15 +32,6 @@ public interface IBattleAIUnit
     public Court Court { get; set; }
     public bool CourtSeeded { get; set; }
 
-    public StatStageDelta StatStages { get; set; }
-
-    public void Build( SimulatedUnit unit )
-    {
-        
-    }
-
-    public void Build( Pokemon mon )
-    {
-        
-    }
+    public Dictionary<Stat, int> StatStages { get; set; }
+    public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers{ get; set; }
 }

@@ -13,6 +13,24 @@ MonoBehaviour:
   m_Name: SinglesTestTeam1
   m_EditorClassIdentifier: 
   _rentalTeam:
+  - _pokemon: {fileID: 11400000, guid: 36e2d923ef378d24694d22841cddb68a, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 8
+    _ability: 15
+    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    _hpEVs: 4
+    _attackEVs: 252
+    _defenseEVs: 252
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 0
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: e9ee2e069c067e64f89f375a9ea17473, type: 2}
+    - {fileID: 11400000, guid: 184f028f7c5a7ae4aaad58bca56c30d9, type: 2}
+    - {fileID: 11400000, guid: a6f9901dbf1962d4c994611663093fc9, type: 2}
+    - {fileID: 11400000, guid: b73e67e501337194fbbcc2b18003ced7, type: 2}
   - _pokemon: {fileID: 11400000, guid: a6be8119356553d44b2528199bcab9b0, type: 2}
     _nickName: Tyranibro
     _level: 100
