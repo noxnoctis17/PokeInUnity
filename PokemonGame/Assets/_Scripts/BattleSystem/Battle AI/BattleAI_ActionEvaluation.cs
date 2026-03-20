@@ -49,24 +49,20 @@ public class BattleAI_ActionEvaluation
     {
         return eval.Type switch
         {
-            ActionType.Attack           => EvaluateAttackAction(eval),
-            ActionType.DefensiveSwitch  => EvaluateDefensiveSwitchAction(eval),
-            ActionType.OffensiveSwitch  => EvaluateOffensiveSwitchAction(eval),
-            ActionType.Setup            => EvaluateSetupAction(eval),
+            ActionType.Attack           => EvaluateAttackAction( eval ),
+            ActionType.DefensiveSwitch  => EvaluateDefensiveSwitchAction( eval ),
+            ActionType.OffensiveSwitch  => EvaluateOffensiveSwitchAction( eval ),
+            ActionType.Setup            => EvaluateSetupAction( eval ),
             _ => eval,
         };
     }
 
     private ActionEvaluation EvaluateAttackAction( ActionEvaluation eval )
     {
-        const int DIE_BEFORE_ACTING_PENALTY = 60;
-        const int CLEAN_KO_BONUS = 35;
-        const int MUTUAL_KO_PENALTY = 10;
-
         int score = eval.Score;
         var top = eval.Top;
 
-        _ai.CurrentLog.Add( $"===[Evaluating Attack Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"===[Evaluating Attack Action. ( Base Score: {score})]===" );
 
         if( eval.MovePayload == null )
         {
@@ -77,21 +73,21 @@ public class BattleAI_ActionEvaluation
         //--Tactical disaster: we die before acting
         if( top.Attacker_DiesBeforeActing )
         {
-            score -= DIE_BEFORE_ACTING_PENALTY;
+            score -= 70;
             _ai.CurrentLog.Add( $"Attacker dies before acting! Score: {score}" );
         }
 
         //--Tactical perfection: we KO before they act
         if( top.Opponent_DiesBeforeActing )
         {
-            score += CLEAN_KO_BONUS;
+            score += 35;
             _ai.CurrentLog.Add( $"Opponent dies before acting! Score: {score}" );
         }
 
         //--Mutual KO (small penalty, PBS handles material)
         if( top.MutualKO )
         {
-            score -= MUTUAL_KO_PENALTY;
+            score -= 10;
             _ai.CurrentLog.Add( $"Mutual KO! Score: {score}" );
         }
 
@@ -100,7 +96,7 @@ public class BattleAI_ActionEvaluation
         //--We potentially force a switch, punish the switch in!
         if( _ai.UnitSim.PredictForcedSwitch( top.AttackerPTKO, top.OpponentPTKO, movesFirst ) )
         {
-            score += 25;
+            score += 20;
             _ai.CurrentLog.Add( $"We threaten to force a switch! Score: {score}" );
         }
 
@@ -112,9 +108,6 @@ public class BattleAI_ActionEvaluation
 
     private ActionEvaluation EvaluateDefensiveSwitchAction( ActionEvaluation eval )
     {
-        const int SWITCH_DIES_PENALTY = 80;
-        const int CRITICAL_ENTRY_PENALTY = 30;
-
         var top = eval.Top;
         int score = eval.Score;
 
@@ -135,7 +128,7 @@ public class BattleAI_ActionEvaluation
         //--Switched mon dies on entry
         if( top.Attacker_EndOfTurnHP <= 0f )
         {
-            score -= SWITCH_DIES_PENALTY;
+            score -= 80;
             eval.Score = score;
             _ai.CurrentLog.Add( $"Switch in (attacker) faints on switch in! Score: {score}" );
             return eval;
@@ -144,7 +137,7 @@ public class BattleAI_ActionEvaluation
         //--Critically low after entry. Will have to be careful here, end game switching might be more heavily penalized, which is somewhat reasonable.
         if( top.Attacker_EndOfTurnHP <= 0.2f )
         {
-            score -= CRITICAL_ENTRY_PENALTY;
+            score -= 30;
             _ai.CurrentLog.Add( $"Switch in (attacker) takes big damage on entry, leaving it at {top.Attacker_EndOfTurnHP} HP on switch in! Score: {score}" );
         }
 
@@ -185,7 +178,8 @@ public class BattleAI_ActionEvaluation
         _ai.CurrentLog.Add( $"Attacker end of turn HP: {eval.Top.Attacker_EndOfTurnHP}. Score: {score}" );
 
         bool opponentThreatenedNextTurn = eval.Top.Opponent_EndOfTurnHP <= 0.5f && eval.Top.Attacker.Speed > eval.Top.Opponent.Speed;
-        if( opponentThreatenedNextTurn )
+        bool survives = eval.Top.Attacker_EndOfTurnHP >= 0.2f;
+        if( opponentThreatenedNextTurn && survives )
             score += 25;
 
         _ai.CurrentLog.Add( $"Attacker threatens Opponent next turn: {opponentThreatenedNextTurn}. Score: {score}" );
@@ -199,8 +193,8 @@ public class BattleAI_ActionEvaluation
         const int DIE_BEFORE_ACTING_PENALTY        = 150;
         const int SETUP_DIES_AFTER_ACTING_PENALTY  = 100;
         const int HEAVY_SETUP_DAMAGE_PENALTY       = 50;
-        const int SETUP_THREATEN_KO_NEXT_TURN      = +30;
-        const int SETUP_FORCE_SWITCH_BONUS         = +30;
+        const int SETUP_THREATEN_KO_NEXT_TURN      = 30;
+        const int SETUP_FORCE_SWITCH_BONUS         = 30;
 
         int score = eval.Score;
         var top = eval.Top;
@@ -244,9 +238,14 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Took big damage! Score: {score}" );
         }
 
-        //--"Slight Look ahead"
+        // foreach( var kvp in top.Attacker.StatStages )
+        //     Debug.Log( $"[Stat Stage Check] Attacker: {top.Attacker.Name}, Stat: {kvp.Key}, Change: {kvp.Value}" );
 
-        var nextRoundMTR = _ai.MoveCommand.Get_BestSimulatedAttack( top.Attacker, top.Opponent, "Evaluate Setup Action" );
+        // foreach( var kvp in top.Opponent.StatStages )
+        //     Debug.Log( $"[Stat Stage Check] Opponent: {top.Opponent.Name}, Stat: {kvp.Key}, Change: {kvp.Value}" );
+
+        //--"Slight Look ahead" //--maybe add fork for switch
+        var nextRoundMTR = _ai.MoveCommand.Get_BestSimulatedAttack( top.Attacker, top.Opponent, "Evaluate Setup Action" ); //--stat change issues
         var nextTOP = nextRoundMTR.Top;
 
         if( nextTOP.Attacker_DiesBeforeActing )

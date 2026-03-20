@@ -29,6 +29,7 @@ public class BattleAI : MonoBehaviour
     public Dictionary<string, UniqueWallingScoreMove> UniqueWallScores { get; private set; }
     public Dictionary<string, PieceValue> TeamPieceValues { get; private set; }
     public CustomLogSession CurrentLog { get; private set; }
+    public List<IBattleAIUnit> OpposingUnits { get; private set; }
 
     public void InitializeAI( BattleSystem battleSystem, BattleUnit battleUnit )
     {
@@ -177,11 +178,11 @@ public class BattleAI : MonoBehaviour
             return;
 
         //--Opposing Threats
-        var opposingUnits = CreateBattleAIUnits_FromBattleUnits( BattleSystem.GetOpposingUnits( Unit ) );
-        var damageThreat = GetThreat_ImmediateDamage( opposingUnits, ThisUnitAdapter );
+        OpposingUnits = CreateBattleAIUnits_FromBattleUnits( BattleSystem.GetOpposingUnits( Unit ) );
+        var damageThreat = GetThreat_ImmediateDamage( OpposingUnits, ThisUnitAdapter );
         
         //--Get Best Action based on high level heuristics, turn outcome simulation, flat board analysis, and simulaiton result adjustments.
-        var bestAction = GetBestAction( damageThreat, opposingUnits );
+        var bestAction = GetBestAction( damageThreat, OpposingUnits );
 
         CurrentLog.Add( $"===[FINAL DECISION: {Unit.Pokemon.NickName} chose the {bestAction.Type} Action! Final Score: {bestAction.Score}]===" );
         Debug.Log( CurrentLog.ToString() );
@@ -256,13 +257,31 @@ public class BattleAI : MonoBehaviour
             actions.Add( setupActionEval );
         }
 
-        //--Support
-        //-- screens, manual weather, redirection, trick room
+        //--Offensive Status
+        //--Thunder Wave, Toxic, Stealth Rocks, Sleep Powder, Growl
 
-        //--Evaluate All Actions Here
-        for( int i = 0; i < actions.Count; i++ )
+        //--Support Status
+        //--screens, manual weather, redirection, trick room, tailwind, howl
+
+        var doomedOutcome = CheckIfDoomedTurn( actions, exchangeEval );
+
+        if( doomedOutcome.DoomedTurn )
         {
-            actions[i] = _actionEval.EvaluateAction( actions[i] );
+            //--Sacrifice Evaluation of all actions
+            Debug.LogError( $"Doomed! It's all doomed!" );
+            //--Standard Evaluation of all actions
+            for( int i = 0; i < actions.Count; i++ )
+            {
+                actions[i] = _actionEval.EvaluateAction( actions[i] );
+            }
+        }
+        else
+        {
+            //--Standard Evaluation of all actions
+            for( int i = 0; i < actions.Count; i++ )
+            {
+                actions[i] = _actionEval.EvaluateAction( actions[i] );
+            }
         }
 
         string attackActionText             = bestSimulatedAttack.Move != null ?            $"Attack ({bestSimulatedAttack.Move?.MoveSO.Name}): {attackActionEval.Score}"                   : $"Attack not found!";
@@ -278,7 +297,199 @@ public class BattleAI : MonoBehaviour
         CurrentLog.Add( $"" );
 
         //--Select highest scored ActionEvaluation
-        return actions.OrderByDescending( a => a.Score ).FirstOrDefault();        
+        return actions.OrderByDescending( a => a.Score ).FirstOrDefault();
+    }
+
+    private DoomedOutcome CheckIfDoomedTurn( List<ActionEvaluation> actions, ExchangeEvaluation exchangeEval )
+    {
+        //--Guaranteed Piece Loss
+        int pieceLossCount = 0;
+        for( int i = 0; i < actions.Count; i++ )
+        {
+            var action = actions[i];
+            if( action.Top.Attacker_EndOfTurnHP <= 0f )
+                pieceLossCount++;
+        }
+
+        bool nearGuaranteedPieceLoss = pieceLossCount == actions.Count - 1;
+        bool alwaysLoseAPiece = pieceLossCount == actions.Count;
+
+        //--Attacker Cannot Act
+        bool opponentThreatensKO        = exchangeEval.OpponentThreatensKO;
+        bool attackerMovesFirst         = exchangeEval.AttackerMovesFirst;
+        // bool attackerHasPriorityMove    = exchangeEval.AttackerHasPriorityMove;
+
+        bool attackerCannotAct = opponentThreatensKO && !attackerMovesFirst /*&& !attackerHasPriorityMove*/;
+
+        //--No Viable Switches
+        int switchActionCount = 0;
+        int unviableSwitches = 0;
+        for( int i = 0; i < actions.Count; i++ )
+        {
+            var action = actions[i];
+            if( action.Type == ActionType.OffensiveSwitch || action.Type == ActionType.DefensiveSwitch )
+            {
+                switchActionCount++;
+                var switchLookAhead = MoveCommand.Get_BestSimulatedAttack( action.Top.Attacker, action.Top.Opponent ).Top;
+
+                //--We use the look ahead PTKOs because those are the PTKOs that would be in effect for the following round. we use the "current" switch simulation HP Ratios because those would be the values we start the following round with.
+                bool forceSwitchNextRound = UnitSim.PredictSwitchProbability( switchLookAhead.AttackerPTKO, switchLookAhead.OpponentPTKO, switchLookAhead.AttackerMovedFirst, action.Top.Attacker.CurrentHPR, action.Top.Opponent.CurrentHPR ) >= 0.9f;
+
+                //--This checks to see if the incoming damage when we switch in was the TwoHKO damage range (0.55f damage on incoming) or more, and then checks the look ahead attack round for how threatening we are the following turn.
+                if( action.Top.OpponentPTKO >= PotentialToKO.TwoHKO && ( forceSwitchNextRound || switchLookAhead.AttackerPTKO <= PotentialToKO.TwoHKO && !switchLookAhead.AttackerMovedFirst || switchLookAhead.AttackerPTKO <= PotentialToKO.Safe ) )
+                    unviableSwitches++;
+            }
+            else
+                continue;
+        }
+
+        int viableSwitches = switchActionCount - unviableSwitches;
+        bool allSwitchesDoomed = viableSwitches == 0;
+
+        //--Opponent Sweep Check
+        List<Pokemon> ourTeamToBeSwept = null;
+        int fasterThan = 0;
+        int threatCount = 0;
+        bool theyKO;
+        bool sweepBeginning;
+        bool sweepIncoming;
+        for( int i = 0; i < actions.Count; i++ )
+        {
+            var action = actions[i];
+            
+            BattleAI_PokemonAdapter revengeCandidate = null;
+            if( action.Top.Attacker_DiesBeforeActing || action.Top.Attacker_EndOfTurnHP <= 0 )
+            {
+                var switchCandidate = SwitchCommand.GetSwitch_Revenge( OpposingUnits ).Pokemon;
+                if( switchCandidate != null )
+                    revengeCandidate = new( switchCandidate, this  );
+            }
+            else if( UnitSim.PredictSwitchProbability( action.Top.OpponentPTKO, action.Top.OpponentPTKO, action.Top.AttackerMovedFirst, action.Top.Opponent.CurrentHPR, action.Top.Attacker.CurrentHPR ) >= 0.8 )
+            {
+                var switchCandidate = SwitchCommand.GetSwitch_Defensive( OpposingUnits ).Pokemon;
+                if( switchCandidate != null )
+                    revengeCandidate = new( switchCandidate, this  );
+            }
+
+            IBattleAIUnit nextPokemon;
+            if( revengeCandidate != null )
+                nextPokemon = revengeCandidate;
+            else
+                nextPokemon = action.Top.Attacker;
+
+            //--Keep in mind, this simulation is from the perspective of the opponent attacking us. Therefore, inside this TOP, WE are the opponent.
+            var opponentSweepTOP = MoveCommand.Get_BestSimulatedAttack( action.Top.Opponent, nextPokemon ).Top;
+            
+            ourTeamToBeSwept = GetRemainingAllyPokemon( nextPokemon.PID );
+            bool movesFirst = opponentSweepTOP.Attacker.Speed > opponentSweepTOP.Opponent.Speed;
+            bool theyForceSwitch = UnitSim.PredictSwitchProbability( opponentSweepTOP.AttackerPTKO, opponentSweepTOP.OpponentPTKO, movesFirst, opponentSweepTOP.Attacker.CurrentHPR, opponentSweepTOP.Opponent.CurrentHPR ) >= 0.8f;
+
+            fasterThan = 0;
+            threatCount = 0;
+            theyKO = opponentSweepTOP.Opponent_DiesBeforeActing || opponentSweepTOP.Opponent_EndOfTurnHP <= 0f;
+            sweepBeginning = theyKO || theyForceSwitch;
+
+            if( sweepBeginning )
+            {
+                foreach( var ally in ourTeamToBeSwept )
+                {
+                    int allySpeed = GetUnitContextualSpeed( ally );
+
+                    if( opponentSweepTOP.Attacker.Speed > allySpeed )
+                        fasterThan++;
+
+                    BattleAI_PokemonAdapter us = new( ally, this );
+                    var ptko = Projection.Get_NeutralPTKO( opponentSweepTOP.Attacker, us );
+                    if( ptko >= PotentialToKO.TwoHKO && opponentSweepTOP.Attacker.Speed > allySpeed || ptko >= PotentialToKO.Risky )
+                        threatCount++;
+                }
+            }
+        }
+
+        if( fasterThan >= ourTeamToBeSwept.Count - 1 && ( threatCount > 3 || threatCount >= ourTeamToBeSwept.Count - 1 ) )
+            sweepIncoming = true;
+        else
+            sweepIncoming = false;
+
+        //--No Tempo Recovery Line Exists
+        bool noTempoRecoveryLine = true;
+        TurnOutcomeProjection tempoCreatedTOP = default;
+        for( int i = 0; i < actions.Count; i++ )
+        {
+            var action = actions[i];
+
+            BattleAI_PokemonAdapter revengeCandidate = null;
+            if( action.Top.Attacker_DiesBeforeActing || action.Top.Attacker_EndOfTurnHP <= 0 )
+            {
+                var switchCandidate = SwitchCommand.GetSwitch_Revenge( OpposingUnits ).Pokemon;
+                if( switchCandidate != null )
+                    revengeCandidate = new( switchCandidate, this  );
+            }
+            else if( UnitSim.PredictSwitchProbability( action.Top.OpponentPTKO, action.Top.OpponentPTKO, action.Top.AttackerMovedFirst, action.Top.Opponent.CurrentHPR, action.Top.Attacker.CurrentHPR ) >= 0.8 )
+            {
+                var switchCandidate = SwitchCommand.GetSwitch_Revenge( OpposingUnits ).Pokemon;
+                if( switchCandidate != null )
+                    revengeCandidate = new( switchCandidate, this  );
+            }
+
+            IBattleAIUnit nextPokemon;
+            if( revengeCandidate != null )
+                nextPokemon = revengeCandidate;
+            else
+                nextPokemon = action.Top.Attacker;
+
+            var followUp = MoveCommand.Get_BestSimulatedAttack( nextPokemon, action.Top.Opponent ).Top;
+
+            bool revengeKill = followUp.Opponent_DiesBeforeActing || followUp.Opponent_EndOfTurnHP <= 0 || ( followUp.OpponentPTKO >= PotentialToKO.Risky && followUp.AttackerMovedFirst );
+
+            float switchProb = UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, nextPokemon.CurrentHPR, action.Top.Opponent.CurrentHPR );
+            bool forcesSwitch = switchProb >= 0.8f;
+
+            bool favorableTrade = action.Top.Opponent_EndOfTurnHP <= 0f || action.Top.MutualKO;
+
+            bool stabilizesNextTurn = followUp.Attacker_EndOfTurnHP > 0f && followUp.Attacker_EndOfTurnHP > 0.35f && followUp.OpponentPTKO <= PotentialToKO.TwoHKO;
+
+            bool createsTempo = revengeKill || forcesSwitch || favorableTrade || stabilizesNextTurn;
+
+            if( createsTempo )
+            {
+                noTempoRecoveryLine = false;
+                tempoCreatedTOP = followUp;
+                break;
+            }
+        }
+
+        //--Overall Pressure check
+        int pressureCount = 0;
+        if ( nearGuaranteedPieceLoss )    pressureCount++;
+        if ( allSwitchesDoomed )          pressureCount++;
+        if ( sweepIncoming )              pressureCount++;
+        if ( noTempoRecoveryLine )        pressureCount++;
+
+        //--Final Condition Flags
+        bool hardDoomed = alwaysLoseAPiece && allSwitchesDoomed && noTempoRecoveryLine;
+        bool functionalDoomed = attackerCannotAct && allSwitchesDoomed && noTempoRecoveryLine;
+        bool sweepDoomed = sweepIncoming && noTempoRecoveryLine && ( allSwitchesDoomed || nearGuaranteedPieceLoss );
+        bool collapseDoomed = pressureCount >= 3;
+
+        //--Are we doomed?
+        bool doomedTurn = hardDoomed || functionalDoomed || sweepDoomed || collapseDoomed;
+
+        return new()
+        {
+            NearGuaranteedPieceLoss = nearGuaranteedPieceLoss,
+            AlwaysLoseAPiece = alwaysLoseAPiece,
+            OpponentThreatensKO = opponentThreatensKO,
+            AttackerMovesFirst = attackerMovesFirst,
+            AttackerCannotAct = attackerCannotAct,
+            ViableSwitches = viableSwitches,
+            AllSwitchesDoomed = allSwitchesDoomed,
+            SweepIncoming = sweepIncoming,
+            NoTempoRecoveryLine = noTempoRecoveryLine,
+
+            PressureScore = pressureCount,
+            DoomedTurn = doomedTurn,
+        };
     }
 
     private ActionEvaluation Get_AttackAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, MoveThreatResult bestSimulatedAttack, MaterialStatus materialStatus )
@@ -401,13 +612,14 @@ public class BattleAI : MonoBehaviour
 
     public int GetUnitInferredStat( IBattleAIUnit pokemon, Stat stat )
     {
-        // Debug.Log( $"[AI Scoring][Get Walling Score] Getting {pokemon.NickName}'s inferred {stat}" );
+        // Debug.Log( $"[AI Scoring][Get Walling Score] Getting {pokemon.Name}'s inferred {stat}" );
         float statValue = GetBaseStat( pokemon, stat );
-        // Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.NickName}'s base {stat} value is: {statValue}" );
 
         int stage = pokemon.StatStages[stat];
         var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
         float directModifier = pokemon.DirectStatModifiers[stat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm );
+
+        stage = Mathf.Clamp( stage, -6, 6 );
 
         if( stage >= 0 )
             statValue *= stageModifier[stage];
@@ -419,7 +631,8 @@ public class BattleAI : MonoBehaviour
 
         int final = Mathf.FloorToInt( statValue );
 
-        // Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.NickName}'s Final Inferred {stat} value is: {final}" );
+        // Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.Name}'s base {stat} value is: {statValue} with a stage of {stage} and a direct modifier total of {directModifier}" );
+        // Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.Name}'s Final Inferred {stat} value is: {final}" );
 
         return final;
     }
@@ -682,17 +895,17 @@ public class BattleAI : MonoBehaviour
         return new(){ Score = highestThreat, Unit = highestUnit };
     }
 
-    public bool Check_UnitHasPriority( BattleUnit attacker, BattleUnit target )
+    public bool Check_UnitHasPriority( IBattleAIUnit attacker, IBattleAIUnit target )
     {
-        for( int i = 0; i < attacker.Pokemon.ActiveMoves.Count; i++ )
+        for( int i = 0; i < attacker.ActiveMoves.Count; i++ )
         {
             if( BattleSystem.Field.Terrain != null && BattleSystem.Field.Terrain.ID == TerrainID.Psychic )
                 return false;
             else
             {
-                if( attacker.Pokemon.ActiveMoves[i].Priority > MovePriority.Zero && attacker.Pokemon.ActiveMoves[i].MoveSO.MoveCategory != MoveCategory.Status )
+                if( attacker.ActiveMoves[i].Priority > MovePriority.Zero && attacker.ActiveMoves[i].MoveSO.MoveCategory != MoveCategory.Status )
                 {
-                    if( attacker.Pokemon.ActiveMoves[i].MoveSO.Name == "Fake Out" )
+                    if( attacker.ActiveMoves[i].MoveSO.Name == "Fake Out" )
                         return CanUseFakeOut( attacker, target );
                     else
                         return true;
@@ -749,9 +962,12 @@ public class BattleAI : MonoBehaviour
 
     public MoveThreatResult Get_MostThreateningMove( IBattleAIUnit attacker, IBattleAIUnit target, bool preview = false )
     {
-        int bestMoveScore = 0;
+        int bestScore = int.MinValue;
         float bestModifier = float.MinValue;
         Move bestMove = null;
+
+        // if( preview )
+            // Debug.Log( $"[Setup Action Evaluation Stat Stage Check] preview is true" );
 
         //--Move Threat
         foreach( var move in attacker.ActiveMoves )
@@ -759,41 +975,42 @@ public class BattleAI : MonoBehaviour
             if( move.MoveSO.Power <= 0 || move.MoveSO.MoveCategory == MoveCategory.Status )
                 continue;
 
-            int currentMoveScore = 0;
+            int score = 0;
 
             float effectiveness     = TypeChart.GetEffectiveness( move.MoveType, target.Type.One ) * TypeChart.GetEffectiveness( move.MoveType, target.Type.Two );
 
             if( effectiveness == 0 )
                 continue;
 
-            float stab              = UnitSim.CheckTypes( move.MoveType, attacker ) ? 1.5f : 1f;
-            float weather           = 1f;
-            float terrain           = 1f;
-            float item              = 1f;
+            // float stab              = UnitSim.CheckTypes( move.MoveType, attacker ) ? 1.5f : 1f;
+            // float weather           = 1f;
+            // float terrain           = 1f;
+            // float item              = 1f;
 
-            var field = BattleSystem.Field;
+            // var field = BattleSystem.Field;
 
-            if( field.Weather != null && !preview )
-            {
-                if( UnitSim.WeatherDMGModifiers.TryGetValue( field.Weather.ID, out var mod ) )
-                    weather = mod( move );
-            }
+            // if( field.Weather != null && !preview )
+            // {
+            //     if( UnitSim.WeatherDMGModifiers.TryGetValue( field.Weather.ID, out var mod ) )
+            //         weather = mod( move );
+            // }
 
-            if( field.Terrain != null && !preview )
-            {
-                if( UnitSim.TerrainDMGModifiers.TryGetValue( field.Terrain.ID, out var mod ) )
-                    terrain = mod( move );
-            }
+            // if( field.Terrain != null && !preview )
+            // {
+            //     if( UnitSim.TerrainDMGModifiers.TryGetValue( field.Terrain.ID, out var mod ) )
+            //         terrain = mod( move );
+            // }
 
-            if( attacker.Item != BattleItemEffectID.None )
-            {
-                if( UnitSim.ItemDMGModifiers.TryGetValue( attacker.Item, out var mod ) )
-                    item = mod( attacker, target, move );
-            }
+            // if( attacker.Item != BattleItemEffectID.None )
+            // {
+            //     if( UnitSim.ItemDMGModifiers.TryGetValue( attacker.Item, out var mod ) )
+            //         item = mod( attacker, target, move );
+            // }
 
             // Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}][{move.MoveSO.Name}] Effectiveness: {effectiveness}, STAB: {stab}, Weather: {weather}, Terrain: {terrain}, Item: {item}" );
 
-            float currentModifier = effectiveness * stab * weather * terrain * item;
+            float modifier = effectiveness * UnitSim.Get_MoveModifier( attacker, target, move );
+            // float modifier = effectiveness * stab * weather * terrain * item;
 
             int movePower = move.MovePower;
 
@@ -812,50 +1029,52 @@ public class BattleAI : MonoBehaviour
                 movePower *= move.MoveSO.HitRange.x;
             }
 
-            if( movePower >= 90 )                       currentMoveScore += 30;
-            else if( movePower >= 60 )                  currentMoveScore += 20;
-            else if( movePower >= 45 )                  currentMoveScore += 15;
-            else if( movePower >= 30 )                  currentMoveScore += 10;
-            else if( movePower >= 15 )                  currentMoveScore += 5;
+            if( movePower >= 90 )                       score += 30;
+            else if( movePower >= 60 )                  score += 20;
+            else if( movePower >= 45 )                  score += 15;
+            else if( movePower >= 30 )                  score += 10;
+            else if( movePower >= 15 )                  score += 5;
 
-            if( currentModifier >= 9f )                 currentMoveScore += 90; //--Upper bounds, this move is 4x effective, has STAB, and benefits from weather.
-            else if( currentModifier >= 6f )            currentMoveScore += 60; //--This move is 4x effective, and either has STAB OR benefits from weather.
-            else if( currentModifier >= 4f )            currentMoveScore += 40; //--This move is 4x effective, or has some combination of 2x effective, stab, and weather.
-            else if( currentModifier >= 3f )            currentMoveScore += 30; //--This move is 3x effective. It likely has 2x type effectiveness + stab.
-            else if( currentModifier >= 2f )            currentMoveScore += 20;
-            else if( currentModifier >= 1.5f )          currentMoveScore += 15;
-            else if( currentModifier >= 1f )            currentMoveScore += 0;
-            else if( currentModifier >= 0.5f )          currentMoveScore -= 20;
-            else if( currentModifier >= 0.25f )         currentMoveScore -= 40;
-            else if( currentModifier == 0f )            currentMoveScore = 0;
+            if( modifier >= 9f )                 score += 90; //--Upper bounds, this move is 4x effective, has STAB, and benefits from weather.
+            else if( modifier >= 6f )            score += 60; //--This move is 4x effective, and either has STAB OR benefits from weather.
+            else if( modifier >= 4f )            score += 40; //--This move is 4x effective, or has some combination of 2x effective, stab, and weather.
+            else if( modifier >= 3f )            score += 30; //--This move is 3x effective. It likely has 2x type effectiveness + stab.
+            else if( modifier >= 2f )            score += 20;
+            else if( modifier >= 1.5f )          score += 15;
+            else if( modifier >= 1f )            score += 0;
+            else if( modifier >= 0.5f )          score -= 20;
+            else if( modifier >= 0.25f )         score -= 40;
+            else if( modifier == 0f )            score = 0;
 
             int accuracy = move.MoveSO.Accuracy;
-            if( accuracy < 70 )                         currentMoveScore -= 35;
-            else if( accuracy < 80 )                    currentMoveScore -= 20;
-            else if( accuracy < 90 )                    currentMoveScore -= 10;
-            else if( accuracy < 100 )                   currentMoveScore -= 5;
+            if( accuracy < 70 )                         score -= 35;
+            else if( accuracy < 80 )                    score -= 20;
+            else if( accuracy < 90 )                    score -= 10;
+            else if( accuracy < 100 )                   score -= 5;
 
             float tarHPR                    = Get_HPRatio( target );
-            MoveThreatResult mtr            = new(){ Score = 0, Modifier = currentModifier, Move = move };
-            var attWSR                      = Projection.Get_WallingScoreResult( attacker, target, mtr );
-            PotentialToKOResult attPTKOR    = Projection.Get_PotentialToKOResult( attWSR, mtr, tarHPR );
+            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move };
+            var attEDR                      = Projection.Get_EstimatedDamageResult( attacker, target, mtr );
+            PotentialToKOResult attPTKOR    = Projection.Get_PotentialToKOResult( attEDR, mtr, tarHPR );
+
+            score += Mathf.FloorToInt( attEDR.DamageEstimate * 150 );
 
             int targetSpeed = GetUnitContextualSpeed( target );
             int attackerSpeed = GetUnitContextualSpeed( attacker );
 
             if( attPTKOR.PTKO > PotentialToKO.Risky )
-                currentMoveScore += 20;
+                score += 20;
 
             if( targetSpeed > attackerSpeed && move.Priority > MovePriority.Zero && attPTKOR.PTKO > PotentialToKO.Risky )
-                currentMoveScore += 50;
+                score += 50;
             else if( targetSpeed > attackerSpeed && move.Priority > MovePriority.Zero )
-                currentMoveScore += 20;
+                score += 20;
 
-            if( currentMoveScore > bestMoveScore )
+            if( score > bestScore )
             {
-                bestModifier = currentModifier;
+                bestModifier = modifier;
                 bestMove = move;
-                bestMoveScore = currentMoveScore;
+                bestScore = score;
             }
 
             //--If the attacker is choice-locked, when we get to the move we're locked into we log all of the scores and force-break from the loop
@@ -867,9 +1086,9 @@ public class BattleAI : MonoBehaviour
                 {
                     if( attUnit.LastUsedMove != null && attUnit.LastUsedMove == move )
                     {
-                        bestModifier = currentModifier;
+                        bestModifier = modifier;
                         bestMove = move;
-                        bestMoveScore = currentMoveScore;
+                        bestScore = score;
                         break;
                     }
                 }
@@ -878,12 +1097,9 @@ public class BattleAI : MonoBehaviour
             // Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}][{move.MoveSO.Name}] Modifier: {currentModifier}" );
         }
 
-        if( bestMove == null )
-        {
-            bestMove = UnitSim.GetRandomMove( attacker );
-        }
+        bestMove ??= UnitSim.GetRandomMove( attacker );
 
-        return new(){ Score = bestMoveScore, Modifier = bestModifier, Move = bestMove };
+        return new(){ Score = bestScore, Modifier = bestModifier, Move = bestMove };
     }
 
     public void RefreshTeamPieceValues( List<Pokemon> team )
@@ -924,7 +1140,7 @@ public class BattleAI : MonoBehaviour
             };
 
             TeamPieceValues.Add( mon.PID, value );
-            Debug.Log( $"[AI Scoring][Piece Value] {mon.Name} value assigned! Offensive Value: {value.OffensiveValue}, Speed Score: {value.SpeedScore}" );
+            // Debug.Log( $"[AI Scoring][Piece Value] {mon.Name} value assigned! Offensive Value: {value.OffensiveValue}, Speed Score: {value.SpeedScore}" );
         }
     }
 
@@ -1152,11 +1368,17 @@ public struct SetupThreatResult
 //--This stores the stage changes for setup moves.
 public struct StatStageDelta
 {
+    public int HP;
     public int Attack;
     public int Defense;
     public int SpAttack;
     public int SpDefense;
     public int Speed;
+
+    public int Accuracy;
+    public int Evasion;
+
+    public float CritRatio;
 }
 
 public struct SwitchCandidateResult
@@ -1171,7 +1393,7 @@ public struct SwitchCandidateResult
     public TurnOutcomeProjection Top { get; set; }
 }
 
-public struct WallingScoreResult
+public struct EstimatedDamageResult
 {
     public int Score;
     public float DamageEstimate;
@@ -1207,6 +1429,9 @@ public struct ExchangeEvaluation
     public bool AttackerMovesFirst;
     public bool OpponentMovesFirst;
 
+    public bool AttackerHasPriorityMove;
+    public bool OpponentHasPriorityMove;
+
     public bool AttackerThreatensKO;
     public bool OpponentThreatensKO;
 
@@ -1224,6 +1449,9 @@ public struct ExchangeEvaluation
 
     public bool AttackerForcesSwitch;
     public bool TargetForcesSwitch;
+
+    public string AttackerMoveName;
+    public string OpponentMoveName;
 
     public ExchangeState ExchangeState;
 }

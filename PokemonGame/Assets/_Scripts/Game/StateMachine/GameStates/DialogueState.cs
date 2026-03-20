@@ -6,12 +6,14 @@ public class DialogueState : State<GameStateController>
     public static DialogueState Instance { get; private set; }
     private GameStateController _gameStateController;
 
-    private void Awake(){
+    private void Awake()
+    {
         Instance = this;
     }
 
-    public override void EnterState( GameStateController owner ){
-        Debug.Log( "Dialogue State Enter()" );
+    public override void EnterState( GameStateController owner )
+    {
+        // Debug.Log( "Dialogue State Enter()" );
         _gameStateController = owner;
 
         //--Set Controls
@@ -20,8 +22,9 @@ public class DialogueState : State<GameStateController>
         _gameStateController.OnDialogueStateEntered?.Invoke();
     }
 
-    public override void ExitState(){
-        Debug.Log( "Dialogue State Exit()" );
+    public override void ExitState()
+    {
+        // Debug.Log( "Dialogue State Exit()" );
         _gameStateController.OnDialogueStateExited?.Invoke();
         PlayerReferences.Instance.PlayerController.DisableUI();
     }

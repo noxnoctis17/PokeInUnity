@@ -323,7 +323,7 @@ public class PokemonAnimator : MonoBehaviour
 
     public IEnumerator PlayReturnToDefaultPosition()
     {
-        Debug.Log( $"{PokeSO.Species} is returning to default position" );
+        // Debug.Log( $"{PokeSO.Species} is returning to default position" );
         if( _pokemonTransform.position == _originalPos || _originalPos == null )
             yield return null;
         else

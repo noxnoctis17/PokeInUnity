@@ -26,7 +26,7 @@ public class BattleAI_BattleSim
 
     public BattleSimContext Get_BattleSimContext( PotentialToKO attPTKO, PotentialToKO oppPTKO, SimulatedUnit attacker, SimulatedUnit opponent, SimulatedField field )
     {
-        _unitSim.TurnSimLog.Add( $"===[Turn Simulation][Getting Sim Context]===" );
+        _unitSim.TurnSimLog.Add( $"===[Building Battle Simulation Context ({attacker.Name} vs {opponent.Name})]===" );
         var units = new List<SimulatedUnit> { attacker, opponent };
         units.Sort( ( a, b ) => b.Speed.CompareTo( a.Speed ) );
 
@@ -34,25 +34,14 @@ public class BattleAI_BattleSim
         var attMovePrio = attacker.MTR.Move.Priority;
         var oppMovePrio = opponent.MTR.Move.Priority;
 
-        if( attacker.Speed > opponent.Speed )
-        {
-            if( attMovePrio > oppMovePrio )
-                attMovesFirst = true;
-            else if( oppMovePrio > attMovePrio )
-                attMovesFirst = false;
-            else
-                attMovesFirst = true;
-        }
+        if( attMovePrio != oppMovePrio )
+            attMovesFirst = attMovePrio > oppMovePrio;
         else
-        {
-            if( attMovePrio > oppMovePrio )
-                attMovesFirst = true;
-            else if( oppMovePrio > attMovePrio )
-                attMovesFirst = false;
-            else
-                attMovesFirst = false;
-        }
+            attMovesFirst = attacker.Speed > opponent.Speed;
 
+        _unitSim.TurnSimLog.Add( $"[Turn Simulation] Attacker ({attacker.Name}) Speed: {attacker.Speed}. Opponent ({opponent.Name}) Speed: {opponent.Speed}." );
+        _unitSim.TurnSimLog.Add( $"[Turn Simulation] Attacker ({attacker.Name}) Move Priority: {attMovePrio}. Opponent ({opponent.Name}) Move Priority {oppMovePrio}." );
+        _unitSim.TurnSimLog.Add( $"[Turn Simulation] Attacker ({attacker.Name}) Moves First: {attMovesFirst}." );
 
         BattleSimContext ctx = new()
         {
@@ -70,7 +59,6 @@ public class BattleAI_BattleSim
 
         _unitSim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} PTKO: {ctx.AttackerPTKO}" );
         _unitSim.TurnSimLog.Add( $"Opponent {ctx.Opponent.Name} PTKO: {ctx.OpponentPTKO}" );
-        _unitSim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} Moves first: {ctx.AttackerMovesFirst}" );
 
         return ctx;
     }
@@ -94,10 +82,11 @@ public class BattleAI_BattleSim
             Opponent_DiesBeforeActing = ctx.Opponent_DiesBeforeActing,
 
             MutualKO = ctx.Attacker.CurrentHPR <= 0f && ctx.Opponent.CurrentHPR <= 0f,
+            AttackerMovedFirst = ctx.AttackerMovesFirst,
         };
 
         _unitSim.LogTop( top );
-        Debug.Log( _unitSim.TurnSimLog.ToString() );
+        top.SimulationLog = _unitSim.TurnSimLog.ToString();
         _unitSim.TurnSimLog.Clear();
         _rounds = 0;
 
@@ -108,6 +97,8 @@ public class BattleAI_BattleSim
     {
         _rounds++;
         _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
+        _unitSim.LogSimUnit( ctx.Attacker );
+        _unitSim.LogSimUnit( ctx.Opponent );
 
         ResolveMovePhase( ctx );
         ResolveRoundEndPhases( ctx );
@@ -119,6 +110,8 @@ public class BattleAI_BattleSim
     {
         _rounds++;
         _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
+        _unitSim.LogSimUnit( ctx.Attacker );
+        _unitSim.LogSimUnit( ctx.Opponent );
 
         ctx.AttackerIsSwitch = attackerIsSwitch;
         ctx.OpponentIsSwitch = opponentIsSwitch;
@@ -132,12 +125,18 @@ public class BattleAI_BattleSim
     public TurnOutcomeProjection SimulatedSetupRound( BattleSimContext ctx, bool attackerIsSwitch, bool opponentIsSwitch, bool attackerSetup, bool opponentSetup )
     {
         _rounds++;
+        _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [Setup Round Simulation])]===" );
+        _unitSim.LogSimUnit( ctx.Attacker );
+        _unitSim.LogSimUnit( ctx.Opponent );
 
         ctx.AttackerIsSwitch = attackerIsSwitch;
         ctx.OpponentIsSwitch = opponentIsSwitch;
 
         ctx.AttackerSetup = attackerSetup;
         ctx.OpponentSetup = opponentSetup;
+
+        foreach( var kvp in ctx.Attacker.StatStages )
+            Debug.Log( $"[Stat Stage Check] Attacker: {ctx.Attacker.Name}, Stat: {kvp.Key}, Change: {kvp.Value} (Attacker inside SimulatedSetupRound, before Resolving Setup Phase)" );
 
         ResolveSetupPhase( ctx );
         ResolveRoundEndPhases( ctx );
@@ -163,8 +162,8 @@ public class BattleAI_BattleSim
             //--Attacker does damage to opponent
             for( int i = 0; i < attackerHitCount; i++ )
             {
-                damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attMove );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove}, Expected Hits: {attackerHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 if( ctx.Opponent.CurrentHPR <= 0f )
                     break;
@@ -180,8 +179,8 @@ public class BattleAI_BattleSim
                 //--Opponent does damage to Attacker
                 for( int i = 0; i < opponentHitCount; i++ )
                 {
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, oppMove );
-                    _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove}, Expected Hits: {opponentHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                    _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                     if( ctx.Attacker.CurrentHPR <= 0f )
                         break;
@@ -195,8 +194,8 @@ public class BattleAI_BattleSim
             //--Opponent does damage to Attacker
             for( int i = 0; i < opponentHitCount; i++ )
             {
-                damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, oppMove );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove}, Expected Hits: {opponentHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 if( ctx.Attacker.CurrentHPR <= 0f )
                     break;
@@ -212,8 +211,8 @@ public class BattleAI_BattleSim
                 //--Attacker does damage to opponent
                 for( int i = 0; i < attackerHitCount; i++ )
                 {
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attMove );
-                    _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove}, Expected Hits: {attackerHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+                    _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                     ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                     if( ctx.Opponent.CurrentHPR <= 0f )
                         break;
@@ -243,8 +242,8 @@ public class BattleAI_BattleSim
             //--Attacker does damage to opponent
             for( int i = 0; i < attackerHitCount; i++ )
             {
-                damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attMove );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove}, Expected Hits: {attackerHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
             }
 
@@ -260,8 +259,8 @@ public class BattleAI_BattleSim
             //--Opponent does damage to Attacker
             for( int i = 0; i < opponentHitCount; i++ )
             {
-                damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, oppMove );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove}, Expected Hits: {opponentHitCount}, Hit: {i}. Damage Done: {damageDone}" );
+                damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
             }
 
@@ -298,7 +297,7 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch )
                 {
                     //--Get hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.AttackerPTKO, oppMove );
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                     ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 }
             }
@@ -307,7 +306,7 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch )
                 {
                     //--Get hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.AttackerPTKO, oppMove );
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                     ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 }
 
@@ -321,8 +320,8 @@ public class BattleAI_BattleSim
             {
                 if( !ctx.OpponentIsSwitch )
                 {
-                    //--Get hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.OpponentPTKO, oppMove );
+                    //--Get hit by Opponent attack
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
 
@@ -337,7 +336,7 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch )
                 {
                     //--Get hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.OpponentPTKO, oppMove );
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
             }
@@ -354,6 +353,7 @@ public class BattleAI_BattleSim
         float attackDrainPercent = attacker.MTR.Move.MoveSO.DrainPercentage;
         HealType healType = attacker.MTR.Move.MoveSO.HealType;
         RecoilType recoilType = attacker.MTR.Move.MoveSO.Recoil.RecoilType;
+        bool moveChangesStats = attacker.MTR.Move.MoveSO.MoveEffects.StatChangeList != null && attacker.MTR.Move.MoveSO.MoveEffects.StatChangeList.Count > 0;
 
         //--Contact
         if( attackerMakesContact )
@@ -376,9 +376,9 @@ public class BattleAI_BattleSim
         }
 
         //--Sitrus Berry
-        if( target.Item == BattleItemEffectID.SitrusBerry && target.CurrentHPR <= 0.5f )
+        if( target.Item == BattleItemEffectID.SitrusBerry && target.CurrentHPR <= 0.5f && target.CurrentHPR > HP_EPSILON )
         {
-            IncreaseHP( attacker, 0.25f );
+            IncreaseHP( target, 0.25f );
             target.Item = BattleItemEffectID.None; //--eat da berry
             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) {target.Name} Had a sitrus berry! HP: {target.CurrentHPR}" );
         }
@@ -445,6 +445,18 @@ public class BattleAI_BattleSim
                 return;
         }
 
+        //--Knock Off
+        if( attacker.MTR.Move.MoveSO.Name == "Knock Off" )
+        {
+            target.Item = BattleItemEffectID.None;
+        }
+
+        //--Guaranteed Stat Changes (close combat, trailblaze, scale shot, etc.)
+        if( moveChangesStats && attacker.MTR.Move.MoveSO.MoveCategory != MoveCategory.Status )
+        {
+            ApplySetupMove( attacker, attacker.MTR.Move );
+        }
+
         _unitSim.TurnSimLog.Add( $"" );
     }
 
@@ -467,18 +479,20 @@ public class BattleAI_BattleSim
         _unitSim.TurnSimLog.Add( $"" );
     }
 
-    private float ApplyAttack( SimulatedUnit unit, PotentialToKO ptko, Move move )
+    private float ApplyAttack( SimulatedUnit target, PotentialToKO attackingPTKO, int hitCount )
     {
-        float previousHPR = unit.CurrentHPR;
-        float damage = _proj.Get_PTKODamagePercent( ptko ); //--Account for 0 damage. consider PTKO class for 0 damage moves.
-        unit.CurrentHPR -= damage;
-        unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
-        unit.CurrentHPR = Mathf.Floor( unit.CurrentHPR * 1000f ) / 1000f;
+        float previousHPR = target.CurrentHPR;
+        float ptkoDamage = _proj.Get_PTKODamagePercent( attackingPTKO );
+        float damage = hitCount > 0 ? ptkoDamage / hitCount : 0f;
 
-        if( unit.CurrentHPR <= HP_EPSILON )
-            unit.CurrentHPR = 0f;
+        target.CurrentHPR -= damage;
+        target.CurrentHPR = Mathf.Clamp01( target.CurrentHPR );
+        target.CurrentHPR = Mathf.Floor( target.CurrentHPR * 1000f ) / 1000f;
 
-        return previousHPR - unit.CurrentHPR;
+        if( target.CurrentHPR <= HP_EPSILON )
+            target.CurrentHPR = 0f;
+
+        return previousHPR - target.CurrentHPR;
     }
 
     private void DecreaseHP( SimulatedUnit unit, float delta )
@@ -501,7 +515,12 @@ public class BattleAI_BattleSim
     private void ApplySetupMove( SimulatedUnit unit, Move move )
     {
         var delta = _unitSim.BuildStatStageDelta( move );
-        unit.StatStages = _unitSim.BuildStatStagesDictionary( delta );
+
+        unit.StatStages[Stat.Attack]        = unit.StatStages[Stat.Attack]      + delta.Attack;
+        unit.StatStages[Stat.Defense]       = unit.StatStages[Stat.Defense]     + delta.Defense;
+        unit.StatStages[Stat.SpAttack]      = unit.StatStages[Stat.SpAttack]    + delta.SpAttack;
+        unit.StatStages[Stat.SpDefense]     = unit.StatStages[Stat.SpDefense]   + delta.SpDefense;
+        unit.StatStages[Stat.Speed]         = unit.StatStages[Stat.Speed]       + delta.Speed;
     }
 
     private void Apply_WeatherDamage( SimulatedUnit unit, List<SimulatedUnit> activeUnits, SimulatedField field )
@@ -556,7 +575,7 @@ public class BattleAI_BattleSim
     
     private void Apply_LeftoversBlackSludge( SimulatedUnit unit, List<SimulatedUnit> activeUnits, SimulatedField field )
     {
-        if( unit.Item == BattleItemEffectID.Leftovers )
+        if( unit.Item == BattleItemEffectID.Leftovers && unit.CurrentHPR > HP_EPSILON )
         {
             IncreaseHP( unit, ( 1f/16f ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
@@ -565,7 +584,7 @@ public class BattleAI_BattleSim
 
         if( unit.Item == BattleItemEffectID.BlackSludge )
         {
-            if( _unitSim.CheckTypes( PokemonType.Poison, unit ) )
+            if( _unitSim.CheckTypes( PokemonType.Poison, unit ) && unit.CurrentHPR > HP_EPSILON )
             {
                 IncreaseHP( unit, ( 1f/16f ) );
                 unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );

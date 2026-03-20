@@ -34,17 +34,24 @@ public class BattleAI_UnitSim
         MovePowerChangesDicInit();
     }
 
-    private void LogSimUnit( SimulatedUnit unit )
+    public void LogSimUnit( SimulatedUnit unit )
     {
-        TurnSimLog.Add( $"===[Logging Sim Unit: {unit.Name}]===" );
-        TurnSimLog.Add( $"Name: {unit.Name}" );
-        TurnSimLog.Add( $"HPR: {unit.CurrentHPR}" );
+        TurnSimLog.Add( $"===[Simulated Unit: (Lv.{unit.Level}) {unit.Name}]===" );
+        TurnSimLog.Add( $"Current HPR: {unit.CurrentHPR}" );
         TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
+        TurnSimLog.Add( $"" );
+        TurnSimLog.Add( $"MaxHP: {unit.MaxHP}" );
+        TurnSimLog.Add( $"Attack: {unit.Attack}" );
+        TurnSimLog.Add( $"Defense: {unit.Defense}" );
+        TurnSimLog.Add( $"SpAttack: {unit.SpAttack}" );
+        TurnSimLog.Add( $"SpDefense: {unit.SpDefense}" );
         TurnSimLog.Add( $"Speed: {unit.Speed}" );
+        TurnSimLog.Add( $"" );
         TurnSimLog.Add( $"Move: {unit.MTR.Move.MoveSO.Name}" );
         TurnSimLog.Add( $"Ungrounded: {unit.IsUngrounded}" );
         TurnSimLog.Add( $"Ability: {unit.Ability}" );
         TurnSimLog.Add( $"Item: {unit.Item}" );
+        TurnSimLog.Add( $"" );
         TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
         TurnSimLog.Add( $"Toxic Counter: {unit.SevereStatusTime}" );
         TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
@@ -55,7 +62,7 @@ public class BattleAI_UnitSim
 
     private void LogSimField( SimulatedField field )
     {
-        TurnSimLog.Add( $"===[Turn Simulation][Beginning Turn Simulation. Getting Sim Field]===" );
+        TurnSimLog.Add( $"===[Simulated Field]===" );
         TurnSimLog.Add( $"Weather: {field.Weather}" );
         TurnSimLog.Add( $"Terrain: {field.Terrain}" );
         TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
@@ -81,23 +88,23 @@ public class BattleAI_UnitSim
     }
 
     //--Create a Sim Unit with stat stage changes created from an extracted Stat Stage Delta (from either a pokemon or a move)
-    public SimulatedUnit BuildSimUnit( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, StatStageDelta stageDelta )
+    public SimulatedUnit BuildSimUnit_WithStageDelta( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, StatStageDelta stageDelta )
     {
         var unit = BuildSimUnit( pokemon, hpr, mtr, field );
         List<StatStage> statStages = new()
         {
-            new(){ Stat = Stat.Attack,      Change = stageDelta.Attack },
-            new(){ Stat = Stat.Defense,     Change = stageDelta.Defense },
-            new(){ Stat = Stat.SpAttack,    Change = stageDelta.SpAttack },
-            new(){ Stat = Stat.SpDefense,   Change = stageDelta.SpDefense },
-            new(){ Stat = Stat.Speed,       Change = stageDelta.Speed },
+            new(){ Stat = Stat.Attack,      Change = stageDelta.Attack      + pokemon.StatStages[Stat.Attack] }, //--We do + existing stages because we need to actually consider existing stages lol
+            new(){ Stat = Stat.Defense,     Change = stageDelta.Defense     + pokemon.StatStages[Stat.Defense] },
+            new(){ Stat = Stat.SpAttack,    Change = stageDelta.SpAttack    + pokemon.StatStages[Stat.SpAttack] },
+            new(){ Stat = Stat.SpDefense,   Change = stageDelta.SpDefense   + pokemon.StatStages[Stat.SpDefense] },
+            new(){ Stat = Stat.Speed,       Change = stageDelta.Speed       + pokemon.StatStages[Stat.Speed] },
         };
 
-        return BuildSimUnit( unit, hpr, mtr, field, statStages );
+        return BuildSimUnit_WithStatStageList( unit, hpr, mtr, field, statStages );
     }
 
     //--Create a Sim Unit with stat stage changes.
-    public SimulatedUnit BuildSimUnit( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, List<StatStage> statStages )
+    private SimulatedUnit BuildSimUnit_WithStatStageList( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, List<StatStage> statStages )
     {
         var unit = BuildSimUnit( pokemon, hpr, mtr, field );
         unit.StatStages = new();
@@ -130,15 +137,16 @@ public class BattleAI_UnitSim
         var court = pokemon.Court;
         bool leechseed = court.Conditions.ContainsKey( CourtConditionID.LeechSeed );
 
-        var statStages = pokemon.StatStages;
-
         //--Copy active moves
         List<Move> activeMoves = new();
         for( int i = 0; i < pokemon.ActiveMoves.Count; i++ )
             activeMoves.Add( pokemon.ActiveMoves[i] );
 
+        //--Copy Stat Stages
+        var statStages = pokemon.StatStages.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
         //--Copy Direct Stat Modifiers
-        var directModifiers = pokemon.DirectStatModifiers;
+        var directModifiers = pokemon.DirectStatModifiers.ToDictionary( kvp => kvp.Key, kvp => new Dictionary<DirectModifierCause, float>( kvp.Value ) );
 
         SimulatedUnit unit = new()
         {
@@ -175,8 +183,6 @@ public class BattleAI_UnitSim
             StatStages = statStages,
             DirectStatModifiers = directModifiers,
         };
-
-        LogSimUnit( unit );
 
         return unit;
     }
@@ -298,7 +304,12 @@ public class BattleAI_UnitSim
     public Move GetRandomMove( IBattleAIUnit pokemon )
     {
         int r = UnityEngine.Random.Range( 0, pokemon.ActiveMoves.Count );
-        return pokemon.ActiveMoves[r];
+        var unit = _ai.GetBattleUnit( pokemon.PID );
+
+        if( unit != null && unit.Flags[UnitFlags.ChoiceItem].IsActive && unit.LastUsedMove != null )
+            return unit.LastUsedMove;
+        else
+            return pokemon.ActiveMoves[r];
     }
 
     public bool CheckTypes( PokemonType type, IBattleAIUnit unit )

@@ -81,49 +81,49 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         StatStages = pokemon.CloneStatStages();
         DirectStatModifiers = pokemon.CloneDirectModifiers();
 
-        _buildLog = new();
-        _buildLog.Add( $"===[Built Adapter for (Lv. {Level}) {Name}]===" );
-        _buildLog.Add( $"PID: {PID}" );
-        _buildLog.Add( $"Current HPR: {CurrentHPR}" );
-        _buildLog.Add( $"Type One: {Type.One}, Type Two: {Type.Two}" );
-        _buildLog.Add( $"" );
-        _buildLog.Add( $"HP: {MaxHP}" );
-        _buildLog.Add( $"Attack: {Attack}" );
-        _buildLog.Add( $"Defense: {Defense}" );
-        _buildLog.Add( $"SpAttack: {SpAttack}" );
-        _buildLog.Add( $"SpDefense: {SpDefense}" );
-        _buildLog.Add( $"Speed: {Speed}" );
+        // _buildLog = new();
+        // _buildLog.Add( $"===[Built Adapter for (Lv. {Level}) {Name}]===" );
+        // _buildLog.Add( $"PID: {PID}" );
+        // _buildLog.Add( $"Current HPR: {CurrentHPR}" );
+        // _buildLog.Add( $"Type One: {Type.One}, Type Two: {Type.Two}" );
+        // _buildLog.Add( $"" );
+        // _buildLog.Add( $"HP: {MaxHP}" );
+        // _buildLog.Add( $"Attack: {Attack}" );
+        // _buildLog.Add( $"Defense: {Defense}" );
+        // _buildLog.Add( $"SpAttack: {SpAttack}" );
+        // _buildLog.Add( $"SpDefense: {SpDefense}" );
+        // _buildLog.Add( $"Speed: {Speed}" );
 
-        _buildLog.Add( $"" );
-        _buildLog.Add( $"=[Move List]=" );
-        for( int i = 0; i < ActiveMoves.Count; i++ )
-            _buildLog.Add( $"Move {i+1}: {ActiveMoves[i].MoveSO.Name}" );
+        // _buildLog.Add( $"" );
+        // _buildLog.Add( $"=[Move List]=" );
+        // for( int i = 0; i < ActiveMoves.Count; i++ )
+            // _buildLog.Add( $"Move {i+1}: {ActiveMoves[i].MoveSO.Name}" );
 
-        _buildLog.Add( $"" );
-        _buildLog.Add( $"Ability: {Ability}" );
-        _buildLog.Add( $"Item: {Item}" );
-        _buildLog.Add( $"" );
-        _buildLog.Add( $"Severe Status: {SevereStatus}" );
-        _buildLog.Add( $"Volatile Statuses: {VolatileStatuses.Count}" );
-        _buildLog.Add( $"Binding Statuses: {Bindings.Count}" );
-        _buildLog.Add( $"" );
-        _buildLog.Add( $"Court Location: {CourtLocation}" );
-        _buildLog.Add( $"" );
+        // _buildLog.Add( $"" );
+        // _buildLog.Add( $"Ability: {Ability}" );
+        // _buildLog.Add( $"Item: {Item}" );
+        // _buildLog.Add( $"" );
+        // _buildLog.Add( $"Severe Status: {SevereStatus}" );
+        // _buildLog.Add( $"Volatile Statuses: {VolatileStatuses.Count}" );
+        // _buildLog.Add( $"Binding Statuses: {Bindings.Count}" );
+        // _buildLog.Add( $"" );
+        // _buildLog.Add( $"Court Location: {CourtLocation}" );
+        // _buildLog.Add( $"" );
 
-        _buildLog.Add( $"=[Stat Stages]=" );
-        foreach( var kvp in StatStages )
-            _buildLog.Add( $"Stat: {kvp.Key}, Stage: {kvp.Value}" );
+        // _buildLog.Add( $"=[Stat Stages]=" );
+        // foreach( var kvp in StatStages )
+            // _buildLog.Add( $"Stat: {kvp.Key}, Stage: {kvp.Value}" );
 
-        _buildLog.Add( $"=[Direct Modifiers]=" );
-        foreach( var stat in DirectStatModifiers )
-        {
-            foreach( var cause in stat.Value )
-            {
-                _buildLog.Add( $"Stat: {stat.Key}, Cause: {cause.Key}, Modifier: {cause.Value}" );
-            }
-        }
+        // _buildLog.Add( $"=[Direct Modifiers]=" );
+        // foreach( var stat in DirectStatModifiers )
+        // {
+            // foreach( var cause in stat.Value )
+            // {
+                // _buildLog.Add( $"Stat: {stat.Key}, Cause: {cause.Key}, Modifier: {cause.Value}" );
+            // }
+        // }
 
-        Debug.Log( _buildLog.ToString() );
-        _buildLog.Clear();
+        // Debug.Log( _buildLog.ToString() );
+        // _buildLog.Clear();
     }
 }

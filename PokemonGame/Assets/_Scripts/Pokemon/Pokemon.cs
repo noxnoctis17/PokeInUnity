@@ -123,7 +123,7 @@ public class Pokemon
         //--Nature
         InitializeNatures();
         _defaultNature = trainerPokemon.Nature;
-        Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
+        // Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
         if( _defaultNature == NatureID.None )
             GetRandomNature();
 
@@ -345,29 +345,29 @@ public class Pokemon
     {
         int d21 = UnityEngine.Random.Range( 1, 22 );
         _defaultNature = (NatureID)d21;
-        Debug.Log( $"[Pokemon][Nature] Random Nature, {_defaultNature} chosen for {NickName}" );
+        // Debug.Log( $"[Pokemon][Nature] Random Nature, {_defaultNature} chosen for {NickName}" );
     }
 
     private void AssignAbilityFromID( AbilityID id )
     {
-        Debug.Log( $"[Pokemon][Ability] Assigning {NickName}'s ability {id} from its id!" );
+        // Debug.Log( $"[Pokemon][Ability] Assigning {NickName}'s ability {id} from its id!" );
         if( PokeSO.Abilities.Count > 0 && PokeSO.Abilities.Contains( id ) )
         {
-            Debug.Log( $"[Pokemon][Ability] id found in {PokeSO.Species} PokemonSO! Assigning..." );
+            // Debug.Log( $"[Pokemon][Ability] id found in {PokeSO.Species} PokemonSO! Assigning..." );
             _ability = AbilityDB.Abilities[id];
             _abilityID = id;
             _currentAbilityIndex = PokeSO.Abilities.IndexOf( id );
-            Debug.Log( $"[Pokemon][Ability] {NickName}'s ability info: Ability: {_ability}, ID: {_abilityID}, Index: {_currentAbilityIndex}" );
+            // Debug.Log( $"[Pokemon][Ability] {NickName}'s ability info: Ability: {_ability}, ID: {_abilityID}, Index: {_currentAbilityIndex}" );
         }
         else if( PokeSO.Abilities.Count > 0 )
         {
-            Debug.Log( $"[Pokemon][Ability] id not found in {PokeSO.Species} PokemonSO! Assigning first index!" );
+            // Debug.Log( $"[Pokemon][Ability] id not found in {PokeSO.Species} PokemonSO! Assigning first index!" );
             _currentAbilityIndex = 0;
             _ability = AbilityDB.Abilities[PokeSO.Abilities[_currentAbilityIndex]];
             _abilityID = PokeSO.Abilities[_currentAbilityIndex];
         }
         else
-            Debug.Log( $"[Pokemon][Ability] NO abilities found in {PokeSO.Species} PokemonSO!" );
+            Debug.LogError( $"[Pokemon][Ability] NO abilities found in {PokeSO.Species} PokemonSO!" );
     }
 
     public void SkillSwap( AbilityID id )
@@ -409,15 +409,15 @@ public class Pokemon
         if( item == null )
             return;
         
-        Debug.Log( $"[Held Item] Giving {NickName} held item: {item}." );
+        // Debug.Log( $"[Held Item] Giving {NickName} held item: {item}." );
         if( _heldItem != null )
-            Debug.Log( $"[Held Item]{NickName} was holding: {_heldItem}!" );
+            // Debug.Log( $"[Held Item]{NickName} was holding: {_heldItem}!" );
 
         _heldItem = item;
         if( item.HasBattleEffect )
             BattleItemEffect = BattleItemDB.BattleItemEffects[_heldItem.BattleEffectID];
 
-        Debug.Log( $"[Held Item] {NickName}'s held item now is: {_heldItem}" );
+        // Debug.Log( $"[Held Item] {NickName}'s held item now is: {_heldItem}" );
     }
 
     public void RemoveHeldItem()
@@ -739,6 +739,8 @@ public class Pokemon
 
         int final = Mathf.FloorToInt( statValue );
 
+        // Debug.Log( $"[Get Stat]{NickName}'s {stat} is: {final} after calculating at Stage {stage} and a {directModifier} Modifier");
+
         return final;
     }
 
@@ -934,7 +936,7 @@ public class Pokemon
 
     public void IncreaseHP( int amount ){
         CurrentHP = Mathf.Clamp( CurrentHP + amount, 0, MaxHP );
-        Debug.Log( $"{NickName}'s current hp is now: {CurrentHP}" );
+        // Debug.Log( $"{NickName}'s current hp is now: {CurrentHP}" );
         OnDisplayInfoChanged?.Invoke();
     }
 
@@ -1045,7 +1047,7 @@ public class Pokemon
 
     public void SetVolatileStatus( VolatileConditionID id, StatusEffectSource source, int duration = -1 ) //--consider adding the attacker or something as well
     {
-        Debug.Log( $"[Volatile Status] Trying to set Volatile Status {id} on {NickName}!" );
+        // Debug.Log( $"[Volatile Status] Trying to set Volatile Status {id} on {NickName}!" );
         if( VolatileStatuses == null )
             VolatileStatuses = new();
 
@@ -1054,10 +1056,10 @@ public class Pokemon
         if( !canApply )
             return;
 
-        Debug.Log( $"[Volatile Status] Can be applied! Checking if it's not already in the list..." );
+        // Debug.Log( $"[Volatile Status] Can be applied! Checking if it's not already in the list..." );
         var condition = VolatileConditionsDB.Conditions[id];
 
-        Debug.Log( $"[Volatile Status] Adding {id} to {NickName}'s Volatile Statuses!" );
+        // Debug.Log( $"[Volatile Status] Adding {id} to {NickName}'s Volatile Statuses!" );
         VolatileStatuses.Add( id, ( condition, condition.Duration ) );
 
         condition?.OnStart?.Invoke( this );
@@ -1144,16 +1146,16 @@ public class Pokemon
         if( !CanApplyTransientStatus( id ) )
             return;
             
-        Debug.Log( $"SetTransientStatus()" );
+        // Debug.Log( $"SetTransientStatus()" );
         //--May need to limit to one transient status at a time
         TransientStatus = TransientConditionsDB.Conditions[id];
         TransientStatusActive = true;
         TransientStatus?.OnStart?.Invoke( this );
 
-        if( TransientStatus != null )
-        {
-            Debug.Log( $"{NickName} was Transiently affected by {TransientStatus.Name}! TransientStatusActive is: {TransientStatusActive}" );
-        }
+        // if( TransientStatus != null )
+        // {
+            // Debug.Log( $"{NickName} was Transiently affected by {TransientStatus.Name}! TransientStatusActive is: {TransientStatusActive}" );
+        // }
 
         Ability?.OnSetTransientStatus?.Invoke( id, this, source );
     }
@@ -1177,9 +1179,8 @@ public class Pokemon
 
     public void SetBindingStatus( BindingConditionID id, StatusEffectSource source )
     {
-        Debug.Log( $"Setting a binding status!" );
-        if( BindingStatuses == null )
-            BindingStatuses = new();
+        // Debug.Log( $"Setting a binding status!" );
+        BindingStatuses ??= new();
 
         var status = BindingConditionsDB.Conditions[id];
         if( BindingStatuses.ContainsKey( id ) )
@@ -1301,7 +1302,7 @@ public class Pokemon
 
     public void AddStatusEvent( string message, int change = 0 )
     {
-        Debug.Log( $"[Status Event] Adding status event string {message}" );
+        // Debug.Log( $"[Status Event] Adding status event string {message}" );
         StatusChanges.Enqueue( new( StatusEventType.Text, message, change ) );
     }
 
@@ -1333,7 +1334,7 @@ public class Pokemon
         $"{trainerID:D4}" +
         $"{dexNO:D3}";
 
-        Debug.Log( $"{NickName}'s PID: {pidString}" );
+        // Debug.Log( $"{NickName}'s PID: {pidString}" );
         return pidString;
     }
 

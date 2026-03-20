@@ -1522,6 +1522,41 @@ public class AbilityDB
 
                 //--Crit Ratio stuff not implemented at all. Gotta figure this out soon...
             }
+        },
+        {
+            AbilityID.Illuminate, new()
+            {
+                Name = "Illuminate",
+                Description = "The Pokemon's inner glow naturally boosts its Special Attack and Accuracy when it enters battle.",
+                
+                OnAbilityEnter = ( attacker, targets, field ) =>
+                {
+                    List<StatStage> statStages = new();
+                    StatStage spAttackBoost = new(){ Stat = Stat.SpAttack, Change = +1 };
+                    StatStage accuracyBoost = new(){ Stat = Stat.Accuracy, Change = +1 };
+
+                    statStages.Add( spAttackBoost );
+                    statStages.Add( accuracyBoost );
+
+                    BattleSystem.Instance.TriggerAbilityCutIn( attacker );
+
+                    StageChangeSource source = new()
+                    {
+                        Pokemon = attacker,
+                        MoveName = string.Empty,
+                        Source = StageChangeSourceType.Ability,
+                    };
+
+                    attacker.ApplyStatStageChange( statStages, source );
+                }
+            }
+        },
+        {
+            AbilityID.Analytic, new()
+            {
+                Name = "Analytic",
+                Description = "Boosts the power of the Pokemon's move if it is the last to act that turn."
+            }
         }
 
     };
@@ -1618,5 +1653,7 @@ public enum AbilityID
     Soundproof,
     Hustle,
     Superluck,
+    Illuminate,
+    Analytic,
 
 }

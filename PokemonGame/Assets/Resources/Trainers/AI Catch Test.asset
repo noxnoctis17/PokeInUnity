@@ -19,6 +19,24 @@ MonoBehaviour:
   _dialogueColor: {fileID: 11400000, guid: bf5ac1436ecaceb4e8b6b91a4b981553, type: 2}
   _battleTheme: 0
   _party:
+  - _pokemon: {fileID: 11400000, guid: f31e0f9cd436efd45bd375678c2044cc, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 10
+    _ability: 56
+    _heldItem: {fileID: 11400000, guid: 4488e3c6ad0b72f4fad0b48dfefa4636, type: 2}
+    _hpEVs: 4
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 252
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 2
+    _moves:
+    - {fileID: 11400000, guid: c83c0173d55591d4d9866e24269a5ed3, type: 2}
+    - {fileID: 11400000, guid: a7614a14d3163fe4a8979a8c4588fb07, type: 2}
+    - {fileID: 11400000, guid: 5a322c01babb63f44bf58fb6f2d13511, type: 2}
+    - {fileID: 11400000, guid: 4e768a347da8abf47b483a0dc46f8e82, type: 2}
   - _pokemon: {fileID: 11400000, guid: a6be8119356553d44b2528199bcab9b0, type: 2}
     _nickName: 
     _level: 100

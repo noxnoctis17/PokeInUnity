@@ -732,7 +732,9 @@ public enum Stat
     Speed,
 
     Accuracy,
-    Evasion
+    Evasion,
+
+    CritRatio,
 }
 
 public enum GrowthRate

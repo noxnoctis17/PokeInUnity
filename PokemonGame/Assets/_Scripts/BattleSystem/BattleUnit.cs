@@ -358,7 +358,7 @@ public class BattleUnit : MonoBehaviour
         if( targetCount > 1 )
             targets = 0.75f;
 
-        Debug.Log( $"[Perform Move Command][Battle Unit][Take Damage] Target Modifier is: {targets}" );
+        // Debug.Log( $"[Perform Move Command][Battle Unit][Take Damage] Target Modifier is: {targets}" );
 
         //--Calculate crit chance in accordance to move's crit behavior
         if( move.MoveSO.CritBehavior != CritBehavior.NeverCrits )
@@ -386,11 +386,11 @@ public class BattleUnit : MonoBehaviour
 
         //--Weather damage modifier
         float weatherModifier = weather?.OnDamageModify?.Invoke( attacker.Pokemon, Pokemon, move ) ?? 1f;
-        Debug.Log( $"[Take Damage] Weather Modifier: {weatherModifier}" );
+        // Debug.Log( $"[Take Damage] Weather Modifier: {weatherModifier}" );
 
         //--Terrain damage modifier
         float terrainModifier = terrain?.OnDamageModify?.Invoke( attacker, Pokemon, move ) ?? 1f;
-        Debug.Log( $"[Take Damage] Terrain Modifier: {terrainModifier}" );
+        // Debug.Log( $"[Take Damage] Terrain Modifier: {terrainModifier}" );
 
         //--Screens damage modifiers
         float reflectModifier = 1f;
@@ -450,7 +450,7 @@ public class BattleUnit : MonoBehaviour
 
         //--Apply any damage modifications to the attacker based on the target's ability. In the only existing case atm, Thick Fat reduces both the atk and spatk of the attacker if the move is ice or fire. --12/21/25
         attackStat = target.Ability?.OnModifyTakeDamage?.Invoke( attackStat, attacker.Pokemon, target, move ) ?? attackStat;
-        int power = move.MovePower;
+        float power = move.MovePower;
 
         if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
             power = MoveConditionDB.Conditions[move.MoveSO.Name].OnModifyMovePower?.Invoke( attacker, this, move, hit ) ?? power;
@@ -463,9 +463,13 @@ public class BattleUnit : MonoBehaviour
         float modifiers = targets * random * STAB * effectiveness * critical * weatherModifier * terrainModifier * reflectModifier * lightScreenModifier * auroraVeilModifier
                             * itemOnDamageModify * helpingHand * brnORfbt;
 
-        float damageCalc = Mathf.Floor( ( 2f * attacker.Level / 5f + 2f ) * power * attackStat / defenseStat / 50f + 2f ) * modifiers;
-        int rawDamage = (int)Mathf.Max( damageCalc, 1f );
+        float level = attacker.Level;
+        float damageCalc = ( ( 2f * level / 5f + 2f ) * power * attackStat / defenseStat / 50f + 2f ) * modifiers;
+        int rawDamage = Mathf.FloorToInt( Mathf.Max( damageCalc, 1f ) );
         int damage = Mathf.Clamp( rawDamage, 1, Pokemon.CurrentHP );
+
+        // Debug.Log( $"[Take Damage] Attacker {attacker.Pokemon.NickName}'s Attack Stat {attackStat} vs Target {Pokemon.NickName}'s Defense Stat {defenseStat}. Raw Damage: {rawDamage} Target HP Before: {Pokemon.CurrentHP}, After: {Pokemon.CurrentHP - rawDamage}." );
+        // Debug.Log( $"[Take Damage] Attacker {attacker.Pokemon.NickName}'s Attack Stat {attackStat} vs Target {Pokemon.NickName} Move: {move.MoveSO.Name}, Power: {power}, Modifiers: Targets {targets} Random {random} STAB {STAB} Effectiveness {effectiveness} Critical {critical} Weather {weatherModifier} Terrain {terrainModifier} Reflect {reflectModifier} Light Screen {lightScreenModifier} Aurora Veil {auroraVeilModifier} Item On Damage modify: {itemOnDamageModify} Helping Hand: {helpingHand} BRN or FBT: {brnORfbt}." );
 
         if( effectiveness == 0 )
             damage = 0;

@@ -279,7 +279,13 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
             if( _battleSystem.CommandQueue.Peek() is UseMoveCommand )
             {
                 moveCommand = _battleSystem.CommandQueue.Peek() as UseMoveCommand;
-                Debug.Log( $"[Command Queue] The next move command by {moveCommand.User.Pokemon.NickName} is {moveCommand.Move.MoveSO.Name}, targeting: {moveCommand.Targets}" );
+                if( moveCommand.Targets.Count > 0 )
+                {
+                    for( int i = 0; i < moveCommand.Targets.Count; i++ )
+                        Debug.Log( $"[Command Queue] The next move command by {moveCommand.User.Pokemon.NickName} is {moveCommand.Move.MoveSO.Name}, targeting: {moveCommand.Targets[i].Pokemon.NickName}" );
+                }
+                else if( moveCommand.SingleTarget != null )
+                    Debug.Log( $"[Command Queue] The next move command by {moveCommand.User.Pokemon.NickName} is {moveCommand.Move.MoveSO.Name}, targeting: {moveCommand.SingleTarget.Pokemon.NickName}" );
             }
 
             yield return null;

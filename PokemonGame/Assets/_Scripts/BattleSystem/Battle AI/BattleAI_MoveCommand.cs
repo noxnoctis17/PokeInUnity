@@ -103,7 +103,7 @@ public class BattleAI_MoveCommand
             return -999;
         }
 
-        _ai.CurrentLog.Add( $"===[Beginning Attack Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {myPTKO_onTarget.PTKO}, their PTKO on me: {theirPTKO_onMe.PTKO}]===" );
+        _ai.CurrentLog.Add( $"===[Beginning Attack Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {myPTKO_onTarget.PTKO}, their PTKO on me: {theirPTKO_onMe.PTKO} ({eval.OpponentMoveName})]===" );
 
         //--KO Class Advantage
         score += _proj.Get_OffensivePTKOScore( myPTKO_onTarget.Score );
@@ -166,11 +166,6 @@ public class BattleAI_MoveCommand
 
         _ai.CurrentLog.Add( $"Tempo check. Score: {score}" );
 
-        if( context.IsForcedTrade )
-            score += 45;
-
-        _ai.CurrentLog.Add( $"Forced Trade: {context.IsForcedTrade}. Score: {score}" );
-
         if( context.IsBehind )
             score += 20;
 
@@ -187,6 +182,16 @@ public class BattleAI_MoveCommand
             score += 10;
             _ai.CurrentLog.Add( $"The pressure is on! Score: {score}" );
         }
+
+        if( context.IsForcedTrade )
+        {
+            if( eval.AttackerThreatensKO )
+                score += 25;
+            else if( eval.AttackerPTKOR.PTKO >= PotentialToKO.Safe || eval.AttackerForcesSwitch )
+                score += 15;
+        }
+
+        _ai.CurrentLog.Add( $"Forced Trade: {context.IsForcedTrade}. Score: {score}" );
 
         return score;
     }
@@ -280,9 +285,9 @@ public class BattleAI_MoveCommand
         return score;
     }
 
-    public MoveThreatResult Get_BestSimulatedAttack( IBattleAIUnit attacker, IBattleAIUnit target, string source = "NO SOURCE" )
+    public MoveThreatResult Get_BestSimulatedAttack( IBattleAIUnit attacker, IBattleAIUnit target, string source = "NO SOURCE", int depth = 0 )
     {
-        CustomLogSession moveLog = new();
+        // CustomLogSession moveLog = new();
         int bestScore = int.MinValue;
         float bestModifier = 1f;
         Move bestMove = null;
@@ -290,19 +295,12 @@ public class BattleAI_MoveCommand
         var materialStatus = _proj.GetMaterialStatus( attacker );
 
         //--Create Target's PTKO on attacker & target's sim unit once for use in each attacker's move's simulation
-        float attHPR                    = _ai.Get_HPRatio( attacker );
-        float tarHPR                    = _ai.Get_HPRatio( target );
-        var tarMTR                      = _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
-        var tarMoveMod                  = tarMTR.Modifier;
-        var tarWSR                      = _proj.Get_WallingScoreResult( target, attacker, tarMTR );
-        PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarWSR, tarMTR, attHPR );
         
-        var fieldSim                    = _ai.UnitSim.BuildSimField();
-        var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
+        var fieldSim = _ai.UnitSim.BuildSimField();
 
         bool isFaster = _ai.GetUnitContextualSpeed( attacker ) > _ai.GetUnitContextualSpeed( target );
 
-        moveLog.Add( $"===[Beginning Scoring for {attacker.Name}'s Best Simulated Attack vs {target.Name}, called from {source}]===" );
+        // moveLog.Add( $"===[Beginning Scoring for {attacker.Name}'s Best Simulated Attack vs {target.Name}, called from {source}]===" );
 
         foreach( var move in attacker.ActiveMoves )
         {
@@ -335,18 +333,21 @@ public class BattleAI_MoveCommand
             if( effectiveness == 0f )
                 continue;
 
-            moveLog.Add( $"[Best Simulated Move] Getting PTKO for {attacker.Name}'s {move.MoveSO.Name} on {target.Name} (HPR: {tarHPR}" );
+            float attHPR                    = _ai.Get_HPRatio( attacker );
+            float tarHPR                    = _ai.Get_HPRatio( target );
+            var tarMTR                      = depth == 0 ? Get_BestSimulatedAttack( target, attacker, source, depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
+            var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
+            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attHPR );
+
+            // moveLog.Add( $"[Best Simulated Move] Getting PTKO for {attacker.Name}'s {move.MoveSO.Name} on {target.Name} (HPR: {tarHPR}" );
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, move );
             MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move };
-            var attWSR                      = _proj.Get_WallingScoreResult( attacker, target, mtr );
-            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attWSR, mtr, tarHPR );
+            var attEDR                      = _proj.Get_EstimatedDamageResult( attacker, target, mtr );
+            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attEDR, mtr, tarHPR );
 
-            moveLog.Add( $"[Best Simulated Move] PTKO for {attacker.Name}'s {move.MoveSO.Name} on {target.Name} (HPR: {tarHPR} is: {attPTKOR.PTKO} (Damage Estimate: {attWSR.DamageEstimate})" );
+            // moveLog.Add( $"[Best Simulated Move] PTKO for {attacker.Name}'s {move.MoveSO.Name} on {target.Name} (HPR: {tarHPR} is: {attPTKOR.PTKO} (Damage Estimate: {attEDR.DamageEstimate})" );
 
-            // bool movesFirst = isFaster || move.MoveSO.MovePriority > MovePriority.Zero;
-
-            targetSimUnit.CurrentHPR        = tarHPR; //--Because we create this sim unit only once, we need to make sure we heal its hp to where it currently is before we run the attack sim!
-            moveLog.Add( $"[Best Simulated Move] Target's pre-sim HPR: {tarHPR}. Target's Sim Unit HRP: {targetSimUnit.CurrentHPR}" );
+            var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
             var attackerSimUnit             = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
             var battleSimContext            = _battleSim.Get_BattleSimContext( attPTKOR.PTKO, tarPTKOR.PTKO, attackerSimUnit, targetSimUnit, fieldSim );
             
@@ -363,11 +364,18 @@ public class BattleAI_MoveCommand
             if( top.MutualKO )
                 score += materialStatus.IsBehind ? 40 : -40;
 
+            bool opponentThreatensKO = tarPTKOR.PTKO >= PotentialToKO.Risky;
+            if( opponentThreatensKO && move.MoveSO.MovePriority > MovePriority.Zero && top.Opponent_DiesBeforeActing )
+                score += 25;
+
             score += Mathf.FloorToInt( ( 1f - top.Opponent_EndOfTurnHP ) * 90f );
             score -= Mathf.FloorToInt( ( 1f - top.Attacker_EndOfTurnHP ) * 80f );
 
-            // if( effectiveness >= 2f )
-                // score += 5;
+            if( effectiveness >= 2f )
+                score += 5;
+
+            if( effectiveness <= 0.75f )
+                score -= 5;
 
             int movePower = move.MovePower;
             var moveSO = move.MoveSO;
@@ -392,13 +400,20 @@ public class BattleAI_MoveCommand
                 movePower *= moveSO.HitRange.x;
             }
 
-            // score += Mathf.FloorToInt( move.MovePower * 0.05f );
+            int movePowerBonus = Mathf.FloorToInt( movePower * 0.05f );
+            int damageBonus = Mathf.FloorToInt( attEDR.DamageEstimate * 5f );
+            score += movePowerBonus;
+            score += damageBonus;
+
+            // moveLog.Add( $"[Best Simulated Move][{attacker.Name}'s {move.MoveSO.Name}] Move Power: {movePower}. Move Power Bonus: {movePowerBonus}. Damage Bonus: {damageBonus}  Score: {score}." );
 
             int accuracy = move.MoveSO.Accuracy;
             if( accuracy < 70 )                         score -= 35;
             else if( accuracy < 80 )                    score -= 20;
             else if( accuracy < 90 )                    score -= 10;
             else if( accuracy < 100 )                   score -= 5;
+
+            // moveLog.Add( $"[Best Simulated Move] Final Score for {attacker.Name}'s {move.MoveSO.Name} on {target.Name} (HPR: {tarHPR}. Score: {score}." );
 
             if( score > bestScore )
             {
@@ -414,17 +429,20 @@ public class BattleAI_MoveCommand
         {
             Move fallbackMove = _unitSim.GetRandomMove( attacker );
 
+            float attHPR                    = _ai.Get_HPRatio( attacker );
+            float tarHPR                    = _ai.Get_HPRatio( target );
+            var tarMTR                      = depth == 0 ? Get_BestSimulatedAttack( target, attacker, source, depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
+            var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
+            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attHPR );
+
             //--Move type effectiveness
             float effectiveness             = TypeChart.GetEffectiveness( fallbackMove.MoveType, target.Type.One ) * TypeChart.GetEffectiveness( fallbackMove.MoveType, target.Type.Two );
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, fallbackMove );
             MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = fallbackMove };
-            var attWSR                      = _proj.Get_WallingScoreResult( attacker, target, mtr );
+            var attWSR                      = _proj.Get_EstimatedDamageResult( attacker, target, mtr );
             PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attWSR, mtr, tarHPR );
 
-            // bool movesFirst = isFaster || fallbackMove.MoveSO.MovePriority > MovePriority.Zero;
-
-            targetSimUnit.CurrentHPR    = tarHPR; //--Because we create this sim unit only once, we need to make sure we heal its hp to where it currently is before we run the attack sim!
-            moveLog.Add( $"[Best Simulated Move] Target's pre-sim HPR: {tarHPR}. Target's Sim Unit HRP: {targetSimUnit.CurrentHPR}" );
+            var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
             var attackerSimUnit         = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
             var battleSimContext        = _battleSim.Get_BattleSimContext( attPTKOR.PTKO, tarPTKOR.PTKO, attackerSimUnit, targetSimUnit, fieldSim );
             
@@ -436,8 +454,10 @@ public class BattleAI_MoveCommand
             bestTop         = top;
         }
 
-        Debug.Log( moveLog.ToString() );
-        moveLog.Clear();
+        // moveLog.Add( $"[Best Simulated Move] Final Chosen move & Score for {attacker.Name}'s {bestMove.MoveSO.Name} on {target.Name} Score: {bestScore}." );
+
+        // Debug.Log( moveLog.ToString() );
+        // moveLog.Clear();
 
         return new()
         {
@@ -476,13 +496,13 @@ public class BattleAI_MoveCommand
         float tarHPR                            = _ai.Get_HPRatio( target );
 
         //--Get the best attack before using a boosting move and its PTKO.
-        var attackerMTRbefore                   = Get_BestSimulatedAttack( attacker, target, "Best Simulated Setup (before)" );
-        var attWSRbefore                        = _proj.Get_WallingScoreResult( attacker, target, attackerMTRbefore );
+        var attackerMTRbefore                   = Get_BestSimulatedAttack( attacker, target, "Best Simulated Setup (Attacker MTR Before)" );
+        var attWSRbefore                        = _proj.Get_EstimatedDamageResult( attacker, target, attackerMTRbefore );
         PotentialToKOResult attPTKObefore       = _proj.Get_PotentialToKOResult( attWSRbefore, attackerMTRbefore, tarHPR );
 
         //--Create Target's PTKO on attacker
-        var tarMTRbefore                        = _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
-        var tarWSRbefore                        = _proj.Get_WallingScoreResult( target, attacker, tarMTRbefore );
+        var tarMTRbefore                        = Get_BestSimulatedAttack( target, attacker, "Best Simulated Setup (Target MTR Before)", 1 ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
+        var tarWSRbefore                        = _proj.Get_EstimatedDamageResult( target, attacker, tarMTRbefore );
         PotentialToKOResult tarPTKORbefore      = _proj.Get_PotentialToKOResult( tarWSRbefore, tarMTRbefore, attHPR );
         
         //--Create Sim field
@@ -495,15 +515,15 @@ public class BattleAI_MoveCommand
             var stageDelta = _unitSim.BuildStatStageDelta( move );
 
             //--We need to build this guy to get a new attack for him first, and then we can rebuild him with that improved attack. it's a little goofy, i will try to improve the flow of this later... --03/09/26
-            var attackerSetupSim = _unitSim.BuildSimUnit( attacker, attHPR, attackerMTRbefore, fieldSim, stageDelta );
+            var attackerSetupSim = _unitSim.BuildSimUnit_WithStageDelta( attacker, attHPR, attackerMTRbefore, fieldSim, stageDelta );
 
             //--Get the best attacks after the attacker uses the current setup move.
             var attackerMTRafter   = Get_BestSimulatedAttack( attackerSetupSim, target, "Best Simulated Setup (after)" );
             var targetMTRafter     = Get_BestSimulatedAttack( target, attackerSetupSim, "Best Simulated Setup (after)" );
 
             //--Post Setup Walling Scores
-            var attWSRafter = _proj.Get_WallingScoreResult( attackerSetupSim, target, attackerMTRafter );
-            var tarWSRafter = _proj.Get_WallingScoreResult( target, attackerSetupSim, targetMTRafter );
+            var attWSRafter = _proj.Get_EstimatedDamageResult( attackerSetupSim, target, attackerMTRafter );
+            var tarWSRafter = _proj.Get_EstimatedDamageResult( target, attackerSetupSim, targetMTRafter );
 
             //--Post Setup PTKOs
             PotentialToKOResult attPTKOafter    = _proj.Get_PotentialToKOResult( attWSRafter, attackerMTRafter, tarHPR );
@@ -521,7 +541,7 @@ public class BattleAI_MoveCommand
 
                 float oppHRP = _ai.Get_HPRatio( oppAdapter );
                 var bestVSopp = Get_BestSimulatedAttack( attackerSetupSim, oppAdapter, "Best Simulated Setup (best vs target)" );
-                var vsOppWSR = _proj.Get_WallingScoreResult( attackerSetupSim, oppAdapter, bestVSopp );
+                var vsOppWSR = _proj.Get_EstimatedDamageResult( attackerSetupSim, oppAdapter, bestVSopp );
                 PotentialToKOResult PTKOvsOpp = _proj.Get_PotentialToKOResult( vsOppWSR, bestVSopp, oppHRP );
 
                 bool faster = _ai.GetUnitContextualSpeed( attackerSetupSim ) > _ai.GetUnitContextualSpeed( oppAdapter );
@@ -549,13 +569,13 @@ public class BattleAI_MoveCommand
                 BattleAI_PokemonAdapter oppAdapter = new( opp, _ai );
 
                 //--Opp PTKO us Before Setup
-                var vsUsMTRbefore = Get_BestSimulatedAttack( oppAdapter, attacker, "Best Simulated Setup (before)" );
-                var vsUsWSRbefore = _proj.Get_WallingScoreResult( oppAdapter, attacker, vsUsMTRbefore );
+                var vsUsMTRbefore = Get_BestSimulatedAttack( oppAdapter, attacker, "Best Simulated Setup (Opponent PTKO us before)" );
+                var vsUsWSRbefore = _proj.Get_EstimatedDamageResult( oppAdapter, attacker, vsUsMTRbefore );
                 PotentialToKOResult OppPTKObefore = _proj.Get_PotentialToKOResult( vsUsWSRbefore, vsUsMTRbefore, attHPR );
 
                 //--Opp PTKO us After Setup
-                var vsUsMTRafter = Get_BestSimulatedAttack( oppAdapter, attackerSetupSim, "Best Simulated Setup (after)" );
-                var vsUsWSRafter = _proj.Get_WallingScoreResult( oppAdapter, attackerSetupSim, vsUsMTRafter );
+                var vsUsMTRafter = Get_BestSimulatedAttack( oppAdapter, attackerSetupSim, "Best Simulated Setup (Opponent PTKO us after)" );
+                var vsUsWSRafter = _proj.Get_EstimatedDamageResult( oppAdapter, attackerSetupSim, vsUsMTRafter );
                 PotentialToKOResult OppPTKOafter = _proj.Get_PotentialToKOResult( vsUsWSRafter, vsUsMTRafter, attHPR );
 
                 bool faster = _ai.GetUnitContextualSpeed( attackerSetupSim ) > _ai.GetUnitContextualSpeed( oppAdapter );
@@ -597,9 +617,9 @@ public class BattleAI_MoveCommand
         bool opponentSwitches = _unitSim.PredictSwitchProbability( attPTKObefore.PTKO, tarPTKORbefore.PTKO, currentlyFaster, attHPR, tarHPR ) >= 0.8f;
 
         if( opponentSwitches )
-            top = _battleSim.SimulatedSetupRound( battleSimContext, false, true, true, false );
+            top = _battleSim.SimulatedSetupRound( battleSimContext, false, true, true, false ); //--attacker is switch, opponent is switch, attacker is setup, opponent setup
         else
-            top = _battleSim.SimulatedSetupRound( battleSimContext, false, false, true, false );
+            top = _battleSim.SimulatedSetupRound( battleSimContext, false, false, true, false ); //--attacker is switch, opponent is switch, attacker is setup, opponent setup
 
         best = new()
         {
