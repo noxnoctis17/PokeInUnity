@@ -66,37 +66,37 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
     private void HandleDoublesTargetSwap()
     {
         if( _battleSystem.CommandQueue.Peek() is UseMoveCommand )
+        {
+            var moveCommand = _battleSystem.CommandQueue.Peek() as UseMoveCommand;
+            if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null )
             {
-                var moveCommand = _battleSystem.CommandQueue.Peek() as UseMoveCommand;
-                if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null )
+                //--change target if current target is fainted. if the new target has also fainted, we remove the command from the queue.
+                if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[0] )
                 {
-                    //--change target if current target is fainted. if the new target has also fainted, we remove the command from the queue.
-                    if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[0] )
-                    {
-                        moveCommand.ChangeTarget( _battleSystem.EnemyUnits[1] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
-                            _battleSystem.CommandQueue.Dequeue();
-                    }
-                    else if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[1] )
-                    {
-                        moveCommand.ChangeTarget( _battleSystem.EnemyUnits[0] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
-                            _battleSystem.CommandQueue.Dequeue();
-                    }
-                    else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[0] )
-                    {
-                        moveCommand.ChangeTarget( _battleSystem.PlayerUnits[1] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
-                            _battleSystem.CommandQueue.Dequeue();
-                    }
-                    else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[1] )
-                    {
-                        moveCommand.ChangeTarget( _battleSystem.PlayerUnits[0] );
-                        if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
-                            _battleSystem.CommandQueue.Dequeue();
-                    }
+                    moveCommand.ChangeTarget( _battleSystem.EnemyUnits[1] );
+                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        _battleSystem.CommandQueue.Dequeue();
+                }
+                else if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[1] )
+                {
+                    moveCommand.ChangeTarget( _battleSystem.EnemyUnits[0] );
+                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        _battleSystem.CommandQueue.Dequeue();
+                }
+                else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[0] )
+                {
+                    moveCommand.ChangeTarget( _battleSystem.PlayerUnits[1] );
+                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        _battleSystem.CommandQueue.Dequeue();
+                }
+                else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[1] )
+                {
+                    moveCommand.ChangeTarget( _battleSystem.PlayerUnits[0] );
+                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                        _battleSystem.CommandQueue.Dequeue();
                 }
             }
+        }
     }
 
     private IEnumerator AfterTurnUpdate( BattleUnit user )
@@ -247,7 +247,7 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
             _battleSystem.SetBattleFlag( BattleFlag.Redirect, false );
             _battleSystem.SetLastUsedMove( null );
 
-            if( unit.Pokemon.IsFainted() )
+            if( unit.Pokemon.CurrentHP <= 0 )
             {
                 _battleSystem.SetHandleFaintCompleted( false );
                 yield return _battleSystem.HandleFaintedPokemon( unit );
@@ -262,30 +262,39 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
 
     public IEnumerator ExecuteCommandQueue()
     {
+        _battleSystem.IncrementRounds();
         yield return new WaitForEndOfFrame();
         yield return new WaitForSeconds( 0.25f );
+
+        Debug.Log( $"[Command Queue] (ROUND {_battleSystem.Rounds}) Entered ExecuteCommandQueue Coroutine!" );
+
+        _battleSystem.RoundLog.Add( $"" );
+        _battleSystem.RoundLog.Add( $"===[ROUND {_battleSystem.Rounds} (Queued Actions: {_battleSystem.CommandQueue.Count})]===" );
+        _battleSystem.RoundLog.Add( $"" );
 
         while( _battleSystem.CommandQueue.Count > 0 )
         {
             if( _battleSystem.CommandQueue.Count == 0 )
                 break;
+
+            Debug.Log( $"[Command Queue({_battleSystem.CommandQueue.Count})] (ROUND {_battleSystem.Rounds}) Entered Command Queue's While Loop!" );
             
             var user = _battleSystem.CommandQueue.Peek().User;
             yield return _battleSystem.WaitForUIQueue();
             yield return null;
 
             UseMoveCommand moveCommand = null;
-            Debug.Log( $"[Command Queue] Next Command is: {_battleSystem.CommandQueue.Peek()} by {user.Pokemon.NickName}. Their HP: {user.Pokemon.CurrentHP}, Status: {user.Pokemon.SevereStatus?.ID}" );
+            Debug.Log( $"[Command Queue({_battleSystem.CommandQueue.Count})] Next Command is: {_battleSystem.CommandQueue.Peek()} by {user.Pokemon.NickName}. Their HP: {user.Pokemon.CurrentHP}, Status: {user.Pokemon.SevereStatus?.ID}" );
             if( _battleSystem.CommandQueue.Peek() is UseMoveCommand )
             {
                 moveCommand = _battleSystem.CommandQueue.Peek() as UseMoveCommand;
                 if( moveCommand.Targets.Count > 0 )
                 {
                     for( int i = 0; i < moveCommand.Targets.Count; i++ )
-                        Debug.Log( $"[Command Queue] The next move command by {moveCommand.User.Pokemon.NickName} is {moveCommand.Move.MoveSO.Name}, targeting: {moveCommand.Targets[i].Pokemon.NickName}" );
+                        Debug.Log( $"[Command Queue({_battleSystem.CommandQueue.Count})] The next move command by {moveCommand.User.Pokemon.NickName} is {moveCommand.Move.MoveSO.Name}, targeting: {moveCommand.Targets[i].Pokemon.NickName}" );
                 }
                 else if( moveCommand.SingleTarget != null )
-                    Debug.Log( $"[Command Queue] The next move command by {moveCommand.User.Pokemon.NickName} is {moveCommand.Move.MoveSO.Name}, targeting: {moveCommand.SingleTarget.Pokemon.NickName}" );
+                    Debug.Log( $"[Command Queue({_battleSystem.CommandQueue.Count})] The next move command by {moveCommand.User.Pokemon.NickName} is {moveCommand.Move.MoveSO.Name}, targeting: {moveCommand.SingleTarget.Pokemon.NickName}" );
             }
 
             yield return null;
@@ -340,7 +349,11 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
             }
 
             yield return null;
+
+            Debug.Log( $"[Command Queue] (ROUND {_battleSystem.Rounds}) One Full Loop Completed!" );
         }
+
+        Debug.Log( $"[Command Queue] (ROUND {_battleSystem.Rounds}) Exited Command Queue's While Loop!" );
 
         _battleSystem.CommandQueue.Clear();
         yield return new WaitForSeconds( 0.25f );
@@ -356,6 +369,19 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         yield return _battleSystem.WaitForUIQueue();
         yield return new WaitForSeconds( 0.1f );
 
+        yield return null;
+
+        _battleSystem.RoundLog.Add( $"" );
+        _battleSystem.RoundLog.Add( $"==========================================" );
+        _battleSystem.RoundLog.Add( $"===[END ROUND ({_battleSystem.Rounds})]===" );
+        _battleSystem.RoundLog.Add( $"==========================================" );
+        _battleSystem.RoundLog.Add( $"" );
+
+        yield return null;
+
+        Debug.Log( $"[Command Queue] (ROUND {_battleSystem.Rounds}) Completely Finished ExecuteCommandQueue! Popping State..." );
+
+        yield return null;
         if( _battleSystem.StateMachine.CurrentState == this )
             _battleSystem.PopState();
     }

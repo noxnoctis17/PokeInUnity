@@ -14,7 +14,7 @@ public class RoundEndPhase_WeatherDuration : IRoundEndPhaseHandler
                 if( battleSystem.Field.Weather?.EffectMessage != null )
                 {
                     string message = battleSystem.Field.Weather?.EffectMessage;
-                    battleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( message ) );
+                    battleSystem.AddDialogue( message );
                 }
 
                 Debug.Log( $"Reducing {battleSystem.Field.Weather?.ID}'s Time Left from {battleSystem.Field.WeatherDuration} to {( battleSystem.Field.WeatherDuration - 1 )}" );
@@ -25,7 +25,7 @@ public class RoundEndPhase_WeatherDuration : IRoundEndPhaseHandler
                 if( battleSystem.Field.Weather?.EndMessage != null )
                 {
                     string message = battleSystem.Field.Weather?.EndMessage;
-                    battleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( message ) );
+                    battleSystem.AddDialogue( message );
                 }
 
                 //--If the route has a default weather (or eventually an active weather as part of a global weather system or something)
@@ -40,7 +40,7 @@ public class RoundEndPhase_WeatherDuration : IRoundEndPhaseHandler
                     if( battleSystem.Field.Weather?.StartMessage != null )
                     {
                         string message = battleSystem.Field.Weather?.StartMessage;
-                        battleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( message ) );
+                        battleSystem.AddDialogue( message );
                     }
                 }
                 else

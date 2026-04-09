@@ -17,7 +17,7 @@ public class VolatileCondition
     public Action<Pokemon> OnStart { get; set; }
     public Action<Pokemon> OnEnter { get; set; }
     public Action<Pokemon> OnExit { get; set; }
-    public Func<Pokemon, bool> OnBeforeTurn { get; set; }
+    public Func<Pokemon, Move, bool> OnBeforeTurn { get; set; }
     public Func<BattleUnit, Move> OnBeforeMoveUsed { get; set; }
     public Action<Pokemon> OnAfterTurn { get; set; }
     public Action<BattleUnit> OnRoundEndPhase { get; set; }

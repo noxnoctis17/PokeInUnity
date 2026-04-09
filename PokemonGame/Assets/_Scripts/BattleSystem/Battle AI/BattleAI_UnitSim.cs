@@ -13,6 +13,7 @@ public class BattleAI_UnitSim
     public Dictionary<TerrainID, Func<Move, float>> TerrainDMGModifiers { get; private set; }
     public Dictionary<BattleItemEffectID, Func<IBattleAIUnit, IBattleAIUnit, Move, float>> ItemDMGModifiers { get; private set; }
     public Dictionary<string, Func<IBattleAIUnit, IBattleAIUnit, Move, int>> MovePowerConditions { get; private set; }
+    public Dictionary<SevereConditionID, Action<IBattleAIUnit>> SevereConditions { get; private set; }
     public CustomLogSession TurnSimLog { get; private set; }
 
     public BattleAI_UnitSim( BattleAI ai )
@@ -32,6 +33,7 @@ public class BattleAI_UnitSim
         TerrainDicInit();
         ItemDicInit();
         MovePowerChangesDicInit();
+        SevereConditionsDicInit();
     }
 
     public void LogSimUnit( SimulatedUnit unit )
@@ -40,7 +42,7 @@ public class BattleAI_UnitSim
         TurnSimLog.Add( $"Current HPR: {unit.CurrentHPR}" );
         TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
         TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"MaxHP: {unit.MaxHP}" );
+        TurnSimLog.Add( $"MaxHP: {unit.HPBaseStat}" );
         TurnSimLog.Add( $"Attack: {unit.Attack}" );
         TurnSimLog.Add( $"Defense: {unit.Defense}" );
         TurnSimLog.Add( $"SpAttack: {unit.SpAttack}" );
@@ -55,7 +57,6 @@ public class BattleAI_UnitSim
         TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
         TurnSimLog.Add( $"Toxic Counter: {unit.SevereStatusTime}" );
         TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
-        TurnSimLog.Add( $"Court Seeded: {unit.CourtSeeded}" );
         TurnSimLog.Add( $"Binding Condition Count: {unit.Bindings.Count}" );
         TurnSimLog.Add( $"" );
     }
@@ -85,6 +86,19 @@ public class BattleAI_UnitSim
     {
         BattleAI_PokemonAdapter mon = new( pokemon, _ai );
         return BuildSimUnit( mon, hpr, mtr, field );
+    }
+
+    public SimulatedUnit BuildSimUnit_WithStatus( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field )
+    {
+        var moveEffects = mtr.Move.MoveSO.MoveEffects;
+
+        if( moveEffects.SevereStatus != SevereConditionID.None )
+            pokemon.SevereStatus = moveEffects.SevereStatus;
+
+        if( moveEffects.VolatileStatus != VolatileConditionID.None )
+            pokemon.VolatileStatuses.Add( moveEffects.VolatileStatus );
+
+        return BuildSimUnit( pokemon, hpr, mtr, field );
     }
 
     //--Create a Sim Unit with stat stage changes created from an extracted Stat Stage Delta (from either a pokemon or a move)
@@ -134,8 +148,6 @@ public class BattleAI_UnitSim
             binds.Add( id );
 
         var courtLocation = pokemon.CourtLocation;
-        var court = pokemon.Court;
-        bool leechseed = court.Conditions.ContainsKey( CourtConditionID.LeechSeed );
 
         //--Copy active moves
         List<Move> activeMoves = new();
@@ -152,11 +164,12 @@ public class BattleAI_UnitSim
         {
             Name = pokemon.Name,
             PID = pokemon.PID,
+            BeginningHPR = hpr,
             CurrentHPR = hpr,
             Type = ( pokemon.Type.One, pokemon.Type.Two ),
 
             Level = pokemon.Level,
-            MaxHP = _ai.GetBaseStat( pokemon, Stat.HP ),
+            HPBaseStat = _ai.GetBaseStat( pokemon, Stat.HP ),
             Attack = _ai.GetBaseStat( pokemon, Stat.Attack ),
             Defense = _ai.GetBaseStat( pokemon, Stat.Defense ),
             SpAttack = _ai.GetBaseStat( pokemon, Stat.SpAttack ),
@@ -177,8 +190,6 @@ public class BattleAI_UnitSim
             Bindings = binds,
 
             CourtLocation = courtLocation,
-            Court = court,
-            CourtSeeded = leechseed,
 
             StatStages = statStages,
             DirectStatModifiers = directModifiers,
@@ -344,17 +355,30 @@ public class BattleAI_UnitSim
             return false;
     }
 
+    public bool CanActOnTurn( IBattleAIUnit pokemon )
+    {
+        if( pokemon.SevereStatus == SevereConditionID.PAR && pokemon.SevereStatusTime > 0 )
+            return false;
+
+        if( pokemon.SevereStatus == SevereConditionID.SLP && pokemon.SevereStatusTime > 0 )
+            return false;
+
+        return true;
+    }
+
     public List<Move> GetSetupMoves( List<Move> moves )
     {
         List<Move> setupMoves = new();
 
         foreach( var move in moves )
         {
+            bool isSetupMove = move.MoveSO.MoveEffects.StatChangeList?.Count > 0 && ( move.MoveSO.MoveEffects.Target == EffectTarget.Self || move.MoveSO.MoveEffects.Target == EffectTarget.AllySide );
+
             if( move.MoveSO.MoveCategory != MoveCategory.Status )
                 continue;
             else
             {
-                if( move.MoveSO.MoveEffects.StatChangeList?.Count > 0 )
+                if( isSetupMove )
                     setupMoves.Add( move );
                 else
                     continue;
@@ -362,6 +386,64 @@ public class BattleAI_UnitSim
         }
 
         return setupMoves;
+    }
+
+    public bool CheckHasMove( IBattleAIUnit pokemon, string move )
+    {
+        for( int i = 0; i < pokemon.ActiveMoves.Count; i++ )
+        {
+            if( pokemon.ActiveMoves[i].MoveSO.Name == move )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool CheckCurseIsVolatile( IBattleAIUnit pokemon )
+    {        
+        if( CheckTypes( PokemonType.Ghost, pokemon ) )
+            return true;
+        else
+            return false;
+    }
+
+    public Move GetCurseFromActiveMoves( List<Move> moves )
+    {
+        for( int i = 0; i < moves.Count; i++ )
+        {
+            if( moves[i].MoveSO.Name == "Curse" )
+                return moves[i];
+            else
+                continue;
+        }
+
+        return null;
+    }
+
+    public List<Move> GetOffensiveStatusMoves( List<Move> moves )
+    {
+        List<Move> statusMoves = new();
+
+        foreach( var move in moves )
+        {
+            bool isSetupMove = move.MoveSO.MoveEffects.StatChangeList?.Count > 0 && ( move.MoveSO.MoveEffects.Target == EffectTarget.Self || move.MoveSO.MoveEffects.Target == EffectTarget.AllySide );
+            bool isOffensiveStatus = move.MoveSO.MoveEffects.Target == EffectTarget.Enemy || move.MoveSO.MoveEffects.Target == EffectTarget.OpposingSide;
+            var category = move.MoveSO.MoveCategory;
+
+            if( category != MoveCategory.Status )
+                continue;
+            else
+            {
+                if( !isSetupMove && isOffensiveStatus )
+                    statusMoves.Add( move );
+                else
+                    continue;
+            }
+        }
+
+        return statusMoves;
     }
 
     public int ComputeOffensiveSetupValue( PotentialToKOResult before, PotentialToKOResult after, StatStageDelta delta )
@@ -414,31 +496,81 @@ public class BattleAI_UnitSim
         if( weThreatenKO && !theyThreatenKO )
             return true;
 
-        if( weThreatenKO && weAreFaster && defensePTKO > PotentialToKO.Dangerous )
+        if( weThreatenKO && weAreFaster && defensePTKO < PotentialToKO.Risky )
             return true;
 
         return false;
     }
 
-    public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR )
+    public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR, CustomLogSession log = null )
     {
-        float prob = 0.0f;
-        bool weThreaten_OHKO = offensePTKO >= PotentialToKO.Dangerous;
-        bool theyDoNotThreaten = defensePTKO < PotentialToKO.TwoHKO;
+        float prob = 0f;
+
+        bool forced = PredictForcedSwitch( offensePTKO, defensePTKO, weAreFaster );
+        bool weThreatenOHKO = offensePTKO >= PotentialToKO.Dangerous;
+        bool theyThreatenOHKO = defensePTKO >= PotentialToKO.Dangerous;
+        bool theyThreaten2HKO = defensePTKO >= PotentialToKO.Risky;
+
         int theirRemaining = _ai.GetRemainingOpposingPokemon( _ai.Unit.Pokemon ).Count;
 
-        if( PredictForcedSwitch( offensePTKO, defensePTKO, weAreFaster ) )      prob += 0.6f;
-        if( weThreaten_OHKO )                                                   prob += 0.2f;
-        if( theyDoNotThreaten )                                                 prob += 0.1f;
-        if( opponentHPR < 0.35f )                                               prob += 0.1f;
-        if( theirRemaining > 2 )                                                prob += 0.1f;
+        //--Strong signals
+        if( forced )
+            prob += 0.65f;
         
-        if( theirRemaining == 1 )                                               prob = 0f;
+        if ( weAreFaster && !theyThreatenOHKO )
+            prob += 0.2f;
 
+        //--Moderate signals
+        if( opponentHPR <= 0.2f )
+            prob += 0.35f;
+        else if( opponentHPR <= 0.3f )
+            prob += 0.25f;
+        else if( opponentHPR <= 0.5f )
+            prob += 0.15f;
+        else if( opponentHPR <= 0.7f && weThreatenOHKO )
+            prob += 0.2f;
+
+        //---Negative signals (VERY IMPORTANT)
+        if( theyThreatenOHKO )
+            prob -= 0.4f;
+        else if( theyThreaten2HKO )
+            prob -= 0.2f;
+
+        //--If they are faster and threaten, even less likely to switch
+        if( !weAreFaster && theyThreaten2HKO )
+            prob -= 0.15f;
+
+        //--Endgame: less switching
+        if( theirRemaining == 1 )
+            prob = 0f;
+        else if( theirRemaining == 2 )
+            prob *= 0.6f;
+
+        // Clamp
         prob = Mathf.Clamp01( prob );
 
         return prob;
     }
+    
+    // public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR )
+    // {
+    //     float prob = 0.0f;
+    //     bool weThreaten_OHKO = offensePTKO >= PotentialToKO.Dangerous;
+    //     bool theyDoNotThreaten = defensePTKO < PotentialToKO.TwoHKO;
+    //     int theirRemaining = _ai.GetRemainingOpposingPokemon( _ai.Unit.Pokemon ).Count;
+
+    //     if( PredictForcedSwitch( offensePTKO, defensePTKO, weAreFaster ) )      prob += 0.6f;
+    //     if( weThreaten_OHKO )                                                   prob += 0.2f;
+    //     if( theyDoNotThreaten )                                                 prob += 0.1f;
+    //     if( opponentHPR < 0.35f )                                               prob += 0.1f;
+    //     if( theirRemaining > 2 )                                                prob += 0.1f;
+        
+    //     if( theirRemaining == 1 )                                               prob = 0f;
+
+    //     prob = Mathf.Clamp01( prob );
+
+    //     return prob;
+    // }
 
     public int Get_ExpectedMoveHits( Move move )
     {
@@ -761,17 +893,69 @@ public class BattleAI_UnitSim
             }
         };
     }
+
+    private void AbilityDicInit()
+    {
+        
+    }
+
+    private void SevereConditionsDicInit()
+    {
+        SevereConditions = new()
+        {
+            {
+                SevereConditionID.PSN, ( attacker ) =>
+                {
+                    attacker.SevereStatus = SevereConditionID.PSN;
+                } 
+            },
+            {
+                SevereConditionID.TOX, ( attacker ) =>
+                {
+                    attacker.SevereStatus = SevereConditionID.TOX;
+                    attacker.SevereStatusTime = 1;
+                } 
+            },
+            {
+                SevereConditionID.BRN, ( attacker ) =>
+                {
+                    attacker.SevereStatus = SevereConditionID.BRN;
+                } 
+            },
+            {
+                SevereConditionID.FBT, ( attacker ) =>
+                {
+                    attacker.SevereStatus = SevereConditionID.FBT;
+                } 
+            },
+            {
+                SevereConditionID.PAR, ( attacker ) =>
+                {
+                    attacker.SevereStatus = SevereConditionID.PAR;
+                    attacker.SevereStatusTime = 1;
+                } 
+            },
+            {
+                SevereConditionID.SLP, ( attacker ) =>
+                {
+                    attacker.SevereStatus = SevereConditionID.SLP;
+                    attacker.SevereStatusTime = 2;
+                } 
+            },
+        };
+    }
+
 }
 
 public class SimulatedUnit : IBattleAIUnit
 {
     public string Name { get; set; }
     public string PID { get; set; }
-    public int CurrentHP { get; set; }
-    public int MaxHP { get; set; }
+    public float BeginningHPR { get; set; }
     public float CurrentHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
     public int Level { get; set; }
+    public int HPBaseStat { get; set; }
     public int Attack { get; set; }
     public int Defense { get; set; }
     public int SpAttack { get; set; }
@@ -791,9 +975,7 @@ public class SimulatedUnit : IBattleAIUnit
     public List<BindingConditionID> Bindings { get; set; }
 
     public CourtLocation CourtLocation { get; set; }
-    public Court Court { get; set; }
-    public bool CourtSeeded { get; set; }
-
+    
     public Dictionary<Stat, int> StatStages { get; set; }
     public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers{ get; set; }
 }

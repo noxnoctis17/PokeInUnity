@@ -36,7 +36,7 @@ public class Battlefield
         if( Weather != null && currentWeather != Weather?.ID )
         {
             if( Weather?.StartByMoveMessage != null )
-                BattleSystem.Instance.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( Weather?.StartByMoveMessage ) );
+                BattleSystem.Instance.AddDialogue( Weather?.StartByMoveMessage );
 
             currentWeather = Weather.ID;
         }
@@ -80,7 +80,7 @@ public class Battlefield
         if( Terrain != null && currentTerrain != Terrain?.ID )
         {
             if( Terrain?.StartByMoveMessage != null )
-                BattleSystem.Instance.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( Terrain?.StartByMoveMessage ) );
+                BattleSystem.Instance.AddDialogue( Terrain?.StartByMoveMessage );
 
             currentTerrain = Terrain.ID;
         }

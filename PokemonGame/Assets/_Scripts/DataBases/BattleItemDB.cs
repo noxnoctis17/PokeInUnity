@@ -100,7 +100,6 @@ public class BattleItemDB
 
                 OnItemAfterTurn = ( BattleUnit unit ) =>
                 {
-                    Debug.Log( $"[Life Orb] We here at on item after turn for life orb and...did damage is: {unit.Flags[UnitFlags.DidDamage].IsActive}" );
                     if( unit.Flags[UnitFlags.DidDamage].IsActive )
                     {
                         unit.Pokemon.DecreaseHP( unit.Pokemon.MaxHP / 10 );
@@ -238,32 +237,16 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.SitrusBerry,
 
-                // OnItemEnter = ( BattleUnit unit ) =>
-                // {
-                //     Debug.Log( $"Sitrus Berry Count: {unit.Flags[UnitFlags.SitrusBerry].Count}" );
-                //     if( unit.Flags[UnitFlags.SitrusBerry].Count == 1 )
-                //         unit.SetFlagActive( UnitFlags.SitrusBerry, true );
-                //     else
-                //         unit.SetFlagActive( UnitFlags.SitrusBerry, false );
-                // },
-
-                OnAfterTakeDamage = ( BattleUnit unit ) =>
+                OnAfterTakeDamage = ( unit ) =>
                 {
-                    // if( unit.Flags[UnitFlags.SitrusBerry].IsActive )
-                    // {
                     Debug.Log( $"{unit.Pokemon.NickName} is holding a Sitrus Berry!" );
                     if( unit.Pokemon.IsBelowHPPercent( 50 ) && unit.Pokemon.CurrentHP > 0 )
                     {
-                        // Debug.Log( $"{unit.Pokemon.NickName} previous hp: {unit.Pokemon.CurrentHP}" );
                         int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 4f );
                         unit.Pokemon.IncreaseHP( healBy );
-                        // unit.SetFlagActive( UnitFlags.SitrusBerry, false );
-                        // unit.SetFlagCount( UnitFlags.SitrusBerry, 0 );
-                        // Debug.Log( $"{unit.Pokemon.NickName} new hp: {unit.Pokemon.CurrentHP}" );
                         unit.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{unit.Pokemon.NickName} ate its Sitrus Berry to restore HP!" );
                         unit.Pokemon.RemoveHeldItem();
                     }
-                    // }
                 }
             }
         },
@@ -399,6 +382,23 @@ public class BattleItemDB
                         return 1f;
                 }
             }
+        },
+        {
+            BattleItemEffectID.MetalCoat, new()
+            {
+                ID = BattleItemEffectID.MetalCoat,
+
+                OnDamageModify = ( attacker, target, move ) =>
+                {
+                    if( move.MoveType == PokemonType.Steel )
+                    {
+                        Debug.Log( $"{attacker.Pokemon.NickName} is holding a Metal Coat! 1.2x steel move damage baybeee!" );
+                        return 1.2f;
+                    }
+                    else
+                        return 1f;
+                }
+            }
         }
     };
 }
@@ -429,4 +429,6 @@ public enum BattleItemEffectID
     HeavyDutyBoots,
     BlackSludge,
     AirBalloon,
+    MetalCoat,
+
 }

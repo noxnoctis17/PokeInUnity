@@ -235,6 +235,12 @@ public class CourtConditionDB
                         if( drainedUnit == null || healedUnit == null )
                             continue;
 
+                        if( drainedUnit.Pokemon.CurrentHP <= 0 || healedUnit.Pokemon.CurrentHP <= 0 )
+                            continue;
+
+                        if( drainedUnit.Pokemon.IsFainted() || healedUnit.Pokemon.IsFainted() ) //--just for shits n giggles to be extra safe
+                            continue;
+
                         if( drainedUnit == unit )
                         {
                             stolenHP = drainedUnit.Pokemon.MaxHP / 8;

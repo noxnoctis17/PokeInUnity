@@ -40,7 +40,7 @@ MonoBehaviour:
   - _pokemon: {fileID: 11400000, guid: 1a07c48c49a9c134c999404d103a10e8, type: 2}
     _nickName: 
     _level: 100
-    _nature: 14
+    _nature: 10
     _ability: 40
     _heldItem: {fileID: 11400000, guid: f7cdb5117198a254689e63af5f47d4b6, type: 2}
     _hpEVs: 4

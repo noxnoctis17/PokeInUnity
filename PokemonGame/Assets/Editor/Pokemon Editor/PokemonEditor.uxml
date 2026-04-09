@@ -82,19 +82,19 @@
                                 <ui:IntegerField value="0" name="FriendshipField" class="infoFields infoFieldOne" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; flex-direction: row-reverse;">
                                     <ui:Label tabindex="-1" text="Friendship" parse-escape-sequences="true" display-tooltip-when-elided="true" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; width: 150px;" />
                                 </ui:IntegerField>
-                                <ui:IntegerField value="0" name="HeightField" class="infoFields infoFieldOne" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; flex-direction: row-reverse;">
+                                <ui:FloatField value="2.5" name="HeightField" class="infoFieldOne" style="flex-direction: row-reverse; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;">
                                     <ui:Label tabindex="-1" text="Height" parse-escape-sequences="true" display-tooltip-when-elided="true" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; width: 150px;" />
-                                </ui:IntegerField>
-                                <ui:IntegerField value="0" name="WeightField" class="infoFields infoFieldOne" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; flex-direction: row-reverse;">
+                                </ui:FloatField>
+                                <ui:FloatField value="2.5" name="WeightField" class="infoFieldOne" style="flex-direction: row-reverse; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;">
                                     <ui:Label tabindex="-1" text="Weight" parse-escape-sequences="true" display-tooltip-when-elided="true" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; width: 150px;" />
-                                </ui:IntegerField>
+                                </ui:FloatField>
                                 <ui:Label tabindex="-1" text="Gender Ratio" parse-escape-sequences="true" display-tooltip-when-elided="true" name="Gender" class="detailFieldLabels" style="border-top-width: 2px; border-right-width: 2px; border-bottom-width: 2px; border-left-width: 2px; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; height: 25px;" />
-                                <ui:IntegerField value="0" name="MaleField" class="infoFields infoFieldOne" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; flex-direction: row-reverse;">
+                                <ui:FloatField value="2.5" name="MaleField" class="infoFieldOne" style="flex-direction: row-reverse; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;">
                                     <ui:Label tabindex="-1" text="Male" parse-escape-sequences="true" display-tooltip-when-elided="true" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; width: 150px;" />
-                                </ui:IntegerField>
-                                <ui:IntegerField value="0" name="FemaleField" class="infoFields infoFieldOne" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; flex-direction: row-reverse;">
+                                </ui:FloatField>
+                                <ui:FloatField value="2.5" name="FemaleField" class="infoFieldOne" style="flex-direction: row-reverse; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;">
                                     <ui:Label tabindex="-1" text="Female" parse-escape-sequences="true" display-tooltip-when-elided="true" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; width: 150px;" />
-                                </ui:IntegerField>
+                                </ui:FloatField>
                             </ui:GroupBox>
                             <ui:GroupBox name="Abilities" class="detailGroupLabels" style="width: auto; margin-top: 5px; margin-right: 5px; margin-bottom: 5px; margin-left: 5px; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; height: 205px; flex-grow: 0;">
                                 <ui:Label tabindex="-1" text="Abilities" parse-escape-sequences="true" display-tooltip-when-elided="true" class="detailFieldLabels" />

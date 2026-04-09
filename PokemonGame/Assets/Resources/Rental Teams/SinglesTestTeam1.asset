@@ -17,7 +17,7 @@ MonoBehaviour:
     _nickName: 
     _level: 100
     _nature: 10
-    _ability: 69
+    _ability: 56
     _heldItem: {fileID: 11400000, guid: 4488e3c6ad0b72f4fad0b48dfefa4636, type: 2}
     _hpEVs: 4
     _attackEVs: 0

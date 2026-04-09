@@ -19,6 +19,24 @@ MonoBehaviour:
   _dialogueColor: {fileID: 11400000, guid: ad671d68783857748ac8c25caf995908, type: 2}
   _battleTheme: 6
   _party:
+  - _pokemon: {fileID: 11400000, guid: 87efd8ea2f6812544a59f3710960869c, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 4
+    _ability: 48
+    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
+    _hpEVs: 0
+    _attackEVs: 252
+    _defenseEVs: 0
+    _spattackEVs: 0
+    _spdefenseEVs: 4
+    _speedEVs: 252
+    _ball: 3
+    _moves:
+    - {fileID: 11400000, guid: e9b6b47073468064385ac34db88bfd11, type: 2}
+    - {fileID: 11400000, guid: 4095d344166f78f47a19679885bbd675, type: 2}
+    - {fileID: 11400000, guid: 2925f961c50b7fa49a131423b84a144b, type: 2}
+    - {fileID: 11400000, guid: e0a513386b824f04a84ef45c984f45f6, type: 2}
   - _pokemon: {fileID: 11400000, guid: 5aa1bfdd35203cb498d1a93bf9c95261, type: 2}
     _nickName: 
     _level: 100
@@ -54,7 +72,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 462480866f3cbd3419a9f2b0cc76eca8, type: 2}
     - {fileID: 11400000, guid: eb74480cf06abeb49915d74a6fc99641, type: 2}
     - {fileID: 11400000, guid: 10fd748a2c033fe4a8197478bca1dbaf, type: 2}
-    - {fileID: 11400000, guid: a3edd254a06b7be4088261f01b3314d4, type: 2}
+    - {fileID: 11400000, guid: 41ebdf6a5bc4ec84d85132981314bec8, type: 2}
   - _pokemon: {fileID: 11400000, guid: 607d4f0aec3ea7d4a8d098aae17b04a3, type: 2}
     _nickName: 
     _level: 100
@@ -71,7 +89,7 @@ MonoBehaviour:
     _moves:
     - {fileID: 11400000, guid: 056d8ff300075024ba9e40188d19068f, type: 2}
     - {fileID: 11400000, guid: 4e768a347da8abf47b483a0dc46f8e82, type: 2}
-    - {fileID: 11400000, guid: a3edd254a06b7be4088261f01b3314d4, type: 2}
+    - {fileID: 11400000, guid: 34b86dd1642d43b44ac3ebea22af4e34, type: 2}
     - {fileID: 11400000, guid: 3a4a345a7257f4547a1421cf2b5efed6, type: 2}
   - _pokemon: {fileID: 11400000, guid: ebaec8c1fcb3a274bbfb444202ec6369, type: 2}
     _nickName: 
@@ -109,21 +127,3 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 703267d45ecb21e4b9963715e7c37a6b, type: 2}
     - {fileID: 11400000, guid: 2925f961c50b7fa49a131423b84a144b, type: 2}
     - {fileID: 11400000, guid: 6ac437aad251d214bace8e4526a3b786, type: 2}
-  - _pokemon: {fileID: 11400000, guid: 87efd8ea2f6812544a59f3710960869c, type: 2}
-    _nickName: 
-    _level: 100
-    _nature: 4
-    _ability: 48
-    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
-    _hpEVs: 0
-    _attackEVs: 252
-    _defenseEVs: 0
-    _spattackEVs: 0
-    _spdefenseEVs: 4
-    _speedEVs: 252
-    _ball: 3
-    _moves:
-    - {fileID: 11400000, guid: e9b6b47073468064385ac34db88bfd11, type: 2}
-    - {fileID: 11400000, guid: 4095d344166f78f47a19679885bbd675, type: 2}
-    - {fileID: 11400000, guid: 2925f961c50b7fa49a131423b84a144b, type: 2}
-    - {fileID: 11400000, guid: 59ded4d3f9c3cbe449c06187edcc0908, type: 2}

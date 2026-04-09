@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Wish
   m_EditorClassIdentifier: 
   _moveName: Wish
-  _hasTM: 0
+  _hasTM: 1
   _description: One turn after this move is used, the user's or its replacement's
     HP is restored by up to half the user's max HP.
   _moveCategory: 2

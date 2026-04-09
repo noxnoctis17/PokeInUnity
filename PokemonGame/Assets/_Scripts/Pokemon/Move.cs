@@ -16,6 +16,8 @@ public class Move
     public MoveTarget MoveTarget { get; private set; }
     public int HealAmount { get; private set; }
     public MoveEffects MoveEffects { get; private set; }
+    public bool Disabled { get; private set; }
+    public int ConsecutiveUses { get; private set; }
 
     public Move( MoveSO mBase )
     {
@@ -29,6 +31,7 @@ public class Move
         MoveTarget = MoveSO.MoveTarget;
         HealAmount = MoveSO.HealAmount;
         MoveEffects = MoveSO.MoveEffects;
+        ConsecutiveUses = 0;
     }
 
     public Move( MoveSaveData saveData )
@@ -41,6 +44,22 @@ public class Move
         AccuracyType = MoveSO.AccuracyType;
         MoveTarget = saveData.MoveTarget;
         HealAmount = saveData.HealAmount;
+        ConsecutiveUses = 0;
+    }
+
+    public void SetMoveDisabled( bool value )
+    {
+        Disabled = value;
+    }
+
+    public void IncreaseUses()
+    {
+        ConsecutiveUses++;
+    }
+
+    public void ResetUses()
+    {
+        ConsecutiveUses = 0;
     }
 
     //--Mostly for shit like Pixilate, Liquid Voice, etc.

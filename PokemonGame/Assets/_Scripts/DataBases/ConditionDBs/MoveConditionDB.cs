@@ -2,8 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using System.Xml;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class MoveConditionDB
@@ -116,13 +115,13 @@ public class MoveConditionDB
                         {
 
                             if( endMessages.Count > 1 )
-                                bs.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It shattered the barriers!" ) );
+                                bs.AddDialogue( "It shattered the barriers!" );
                             else
-                                bs.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It shattered the barrier!" ) );
+                                bs.AddDialogue( "It shattered the barrier!" );
 
                             for( int i = 0; i < endMessages.Count; i++ )
                             {
-                                bs.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( endMessages[i] ) );
+                                bs.AddDialogue( endMessages[i] );
                             }
                         }
                     },
@@ -134,7 +133,7 @@ public class MoveConditionDB
                     OnMoveChanged = ( BattleUnit user, Move move, BattleSystem bs ) =>
                     {
                         var changed = user.Pokemon.GetRandomMoveExcluding( move );
-                        bs.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{user.Pokemon.NickName} used {changed.MoveSO.Name}!" ) );
+                        bs.AddDialogue( $"{user.Pokemon.NickName} used {changed.MoveSO.Name}!" );
                         
                         return changed;
                     }
@@ -166,7 +165,7 @@ public class MoveConditionDB
                 {
                     OnMoveSuccess = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
-                        bs.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"... But nothing happened..." ) );
+                        bs.AddDialogue( $"... But nothing happened..." );
                     }
                 }
             },
@@ -777,15 +776,19 @@ public class MoveConditionDB
                 {
                     OnMoveCompleted = ( attacker, target, move, bs ) =>
                     {
+                        Debug.Log( $"[Wish] OnMoveCompelted" );
                         attacker.SetWish( attacker, move );
                     },
 
-                    OnAfterNextRound = ( unit, move, bs ) =>
+                    OnAfterRound = ( unit, move, bs ) =>
                     {
+                        Debug.Log( $"[Wish] OnAfterRound" );
                         var wish = unit.Flags[UnitFlags.Wish];
-                        if( wish.Count == 0 )
+                        if( wish.Count > 0 )
                         {
-                            wish.Count++;
+                            // Debug.Log( $"[Wish] Wish Count is: {wish.Count}" );
+                            unit.Flags[UnitFlags.Wish] = wish;
+                            wish.Count--;
                             return;
                         }
                         else
@@ -856,7 +859,7 @@ public class MoveConditionDB
                         bs.AddDialogue( $"{attacker.Pokemon.NickName} foresaw an attack!" );
                     },
 
-                    OnAfterNextRound = ( unit, move, bs ) =>
+                    OnAfterRound = ( unit, move, bs ) =>
                     {
                         var fs = unit.Flags[UnitFlags.FutureSight];
                         if( fs.Count > 0 )
@@ -924,6 +927,241 @@ public class MoveConditionDB
                             return 140;
                         else
                             return move.MovePower;
+                    }
+                }
+            },
+            {
+                "Heavy Slam", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        //--Does damage relative to how much heavier the user is. or, rather, how much lighter the target is, techncially. i guess we get a ratio of weights and then use the chart.
+                        float weightDiff = attacker.Pokemon.PokeSO.Weight / target.Pokemon.PokeSO.Weight;
+                        int power = 40;
+
+                        if( weightDiff > 0.5f )             power = 40;
+                        else if( weightDiff > 0.3335f )     power = 60;
+                        else if( weightDiff > 0.2501f )     power = 80;
+                        else if( weightDiff > 0.2001f )     power = 100;
+                        else                                power = 120;
+
+                        Debug.Log( $"Attacker {attacker.Pokemon.NickName}'s Weight: {attacker.Pokemon.PokeSO.Weight} / Target {target.Pokemon.NickName}'s Weight: {target.Pokemon.PokeSO.Weight} = {weightDiff}. Power: {power}" );
+
+                        return power;     
+                    }
+                }
+            },
+            {
+                "Hard Press", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        float currentHP = target.Pokemon.CurrentHP;
+                        float maxHP = target.Pokemon.MaxHP;
+                        int power = Mathf.RoundToInt( 100f * ( currentHP / maxHP ) );
+
+                        return power;
+                    }
+                }
+            },
+            {
+                "Venoshock", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        if( target.Pokemon.SevereStatus?.ID == SevereConditionID.PSN || target.Pokemon.SevereStatus?.ID == SevereConditionID.TOX )
+                            return move.MovePower * 2;
+                        else
+                            return move.MovePower;
+                    }
+                }
+            },
+            {
+                "Covet", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.CurrentHP > 0 && attacker.Pokemon.HeldItem == null && target.Pokemon.HeldItem != null )
+                            attacker.Pokemon.GiveHeldItem( target.Pokemon.HeldItem );
+                    }
+                }
+            },
+            {
+                "Echoed Voice", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        attacker.Flags[UnitFlags.EchoedVoiceCount].Count++;
+                    },
+
+                    OnModifyMovePower = ( attacker, target, move, hits ) =>
+                    {
+                        var count = attacker.Flags[UnitFlags.EchoedVoiceCount].Count;
+                        return count switch
+                        {
+                            0 => 40,
+                            1 => 80,
+                            2 => 120,
+                            3 => 160,
+                            >= 4 => 200,
+                            _ => 40,
+                        };
+                    }
+                }
+            },
+            {
+                "Healing Wish", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        //--do this nonsense some other time
+                    }
+                }
+            },
+            {
+                "Weather Ball", new()
+                {
+                    
+                }
+            },
+            {
+                "Aromatherapy", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        var allyParty = bs.GetAllyParty( attacker.Pokemon );
+                        bool cured = false;
+                        for( int i = 0; i < allyParty.Count; i++ )
+                        {
+                            var mon = allyParty[i];
+                            if( mon.SevereStatus?.ID != SevereConditionID.None )
+                            {
+                                mon.CureSevereStatus();
+                                cured = true;
+                            }
+                        }
+
+                        if( cured )
+                        {
+                            bs.AddDialogue( $"{attacker.Pokemon.NickName} cured its entire party of severe status conditions!" );
+                        }
+                    }
+                }
+            },
+            {
+                "Seismic Toss", new()
+                {
+                    OnModifyMoveDamage = ( attacker, target, move, damage ) =>
+                    {
+                        return attacker.Pokemon.Level;
+                    }
+                }
+            },
+            {
+                "Beat Up", new()
+                {
+                    OnModifyMoveHitCount = ( attacker, target, move, bs ) =>
+                    {
+                        var allyParty = bs.GetAllyParty( attacker.Pokemon );
+                        int hits = 1;
+                        for( int i = 0; i < allyParty.Count; i++ )
+                        {
+                            var mon = allyParty[i];
+                            if( !mon.IsFainted() && ( mon.SevereStatus == null || mon.SevereStatus?.ID != SevereConditionID.None ) )
+                                hits++;
+                        }
+
+                        return hits;
+                    },
+
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        var allyParty = BattleSystem.Instance.GetAllyParty( attacker.Pokemon );
+                        List<Pokemon> beatUppers = new();
+
+                        for( int i = 0; i < allyParty.Count; i++ )
+                        {
+                            var mon = allyParty[i];
+                            if( !mon.IsFainted() && ( mon.SevereStatus == null || mon.SevereStatus?.ID != SevereConditionID.None ) )
+                            {
+                                beatUppers.Add( mon );
+                            }
+                        }
+
+                        int attackNumber = Mathf.Max( 0, hit - 1 );
+                        var attackingAlly = beatUppers[attackNumber];
+
+                        int power = ( attackingAlly.PokeSO.Attack / 10 ) + 5;
+
+                        return power;
+                    }
+                }
+            },
+            {
+                "Assurance", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        if( target.Flags[UnitFlags.TookDamage].IsActive )
+                            return move.MovePower * 2;
+                        else
+                            return move.MovePower;
+                    }
+                }
+            },
+            {
+                "Ice Spinner", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.CurrentHP > 0 )
+                        {
+                            if( bs.Field.Terrain?.ID != TerrainID.None )
+                            {
+                                bs.Field.Terrain.ID = TerrainID.None;
+                                bs.AddDialogue( $"{attacker.Pokemon.NickName} cleared the terrain!" );
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "Fury Cutter", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        return move.ConsecutiveUses switch
+                        {
+                            0 => 40,
+                            1 => 80,
+                            2 => 120,
+                            >= 3 => 160,
+                            _ => 40,
+                        };
+                    }
+                }
+            },
+            {
+                "Acrobatics", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        if( attacker.Pokemon.HeldItem == null )
+                            return move.MovePower * 2;
+                        else
+                            return move.MovePower;
+                    }
+                }
+            },
+            {
+                "Bug Bite", new()
+                {
+                    OnMoveHitTarget = ( attacker, target, move, damage, hit, bs ) =>
+                    {
+                        if( target.Pokemon.HeldItem != null && target.Pokemon.HeldItem.ItemCategory == ItemCategory.Berry )
+                        {
+                            //--idk yet. we'll return to this.
+                        }
                     }
                 }
             }

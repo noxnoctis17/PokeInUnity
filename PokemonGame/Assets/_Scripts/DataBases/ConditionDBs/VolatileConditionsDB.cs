@@ -43,7 +43,7 @@ public class VolatileConditionsDB : MonoBehaviour
                         pokemon.SetVolatileStatusTime( VolatileConditionID.Confusion, Random.Range( 2, 6 ) );
                     },
 
-                    OnBeforeTurn = ( Pokemon pokemon ) =>
+                    OnBeforeTurn = ( pokemon, move ) =>
                     {
                         var confusion = pokemon.VolatileStatuses[VolatileConditionID.Confusion];
                         
@@ -77,7 +77,7 @@ public class VolatileConditionsDB : MonoBehaviour
                     Name = "Aqua Ring",
                     StartMessage = "surrounded itself with a veil of water!",
                     Passable = true,
-                    OnBeforeTurn = ( Pokemon pokemon ) => true,
+                    OnBeforeTurn = ( pokemon, move ) => true,
 
                     OnRoundEndPhase = ( BattleUnit unit ) =>
                     {
@@ -93,7 +93,7 @@ public class VolatileConditionsDB : MonoBehaviour
                 {
                     Name = "Helping Hand",
                     StartMessage = "is ready to lend a hand!",
-                    OnBeforeTurn = ( Pokemon pokemon ) => true,
+                    OnBeforeTurn = ( pokemon, move ) => true,
                 }
             },
             {
@@ -117,7 +117,7 @@ public class VolatileConditionsDB : MonoBehaviour
                         //--if it is swapped or faints, infatuation ends.
                     },
 
-                    OnBeforeTurn = ( Pokemon pokemon ) =>
+                    OnBeforeTurn = ( pokemon, move ) =>
                     {
                         var unit = BattleSystem.Instance.GetPokemonBattleUnit( pokemon );
                         var opps = BattleSystem.Instance.GetOpposingUnits( unit );
@@ -164,7 +164,7 @@ public class VolatileConditionsDB : MonoBehaviour
                         // increment status counter
                     },
 
-                    OnBeforeTurn = ( Pokemon pokemon ) => true, //--This is where rampage actually lives i think
+                    OnBeforeTurn = ( pokemon, move ) => true, //--This is where rampage actually lives i think
 
                     OnAfterTurn = ( Pokemon pokemon ) =>
                     {
@@ -178,7 +178,7 @@ public class VolatileConditionsDB : MonoBehaviour
                     Name = "Substitute",
                     StartMessage = "created a substitute!",
                     Passable = true,
-                    OnBeforeTurn = ( Pokemon pokemon ) => true,
+                    OnBeforeTurn = ( pokemon, move ) => true,
 
                     OnApplyStatus = ( BattleUnit attacker, BattleUnit target, BattleSystem bs ) =>
                     {
@@ -201,7 +201,7 @@ public class VolatileConditionsDB : MonoBehaviour
                     Name = "Cursed",
                     StartMessage = "has been cursed!",
                     Passable = true,
-                    OnBeforeTurn = ( Pokemon pokemon ) => true,
+                    OnBeforeTurn = ( pokemon, move ) => true,
 
                     OnRoundEndPhase = ( BattleUnit unit ) =>
                     {
@@ -216,7 +216,7 @@ public class VolatileConditionsDB : MonoBehaviour
                 {
                     Name = "Taunt",
                     StartMessage = "has been taunted!",
-                    OnBeforeTurn = ( Pokemon pokemon ) => true, //--too bad so sad
+                    OnBeforeTurn = ( pokemon, move ) => true, //--too bad so sad
 
                     OnStart = ( Pokemon pokemon ) =>
                     {
@@ -354,6 +354,110 @@ public class VolatileConditionsDB : MonoBehaviour
 
                     //--The code for this condition is handled in all places where move use is checked, including in battle ai & simulations
                 }
+            },
+            {
+                VolatileConditionID.Perish, new()
+                {
+                    Name = "Perish Song",
+                    StartMessage = "has heard its doom in the form of a song!",
+                    Duration = 4,
+                    Passable = true,
+
+                    OnStart = ( pokemon ) =>
+                    {
+                        Debug.Log( $"[Volatile Status] {pokemon.NickName} has been effected by persih song!" );
+                        pokemon.SetVolatileStatusTime( VolatileConditionID.Perish, 4 );
+                    },
+
+                    OnBeforeTurn = ( pokemon, move ) =>
+                    {
+                        var perish = pokemon.VolatileStatuses[VolatileConditionID.Perish];
+                        
+                        if( perish.Duration == 0 )
+                        {
+                            pokemon.CureVolatileStatus( VolatileConditionID.Perish );
+                            pokemon.AddStatusEvent( StatusEventType.Damage, $"{pokemon.NickName} has perished!" );
+
+                            //--Died
+                            return false;
+                        }
+                        
+                        perish.Duration--;
+                        pokemon.VolatileStatuses[VolatileConditionID.Perish] = perish;
+                        pokemon.AddStatusEvent( $"{pokemon.NickName} perish counter drops to {perish.Duration}!" );
+
+                        //--Perform Move
+                        return true;
+                    }
+                }
+            },
+            {
+                VolatileConditionID.HealBlocked, new()
+                {
+                    Name = "Heal Blocked",
+                    StartMessage = "can no longer receive healing from moves!",
+                    Duration = 2,
+                    Passable = false,
+
+                    OnStart = ( pokemon ) =>
+                    {
+                        Debug.Log( $"[Volatile Status] {pokemon.NickName} has been heal blocked!" );
+                        pokemon.SetVolatileStatusTime( VolatileConditionID.HealBlocked, 2 );
+                    },
+
+                    OnBeforeTurn = ( pokemon, move ) =>
+                    {
+                        var blocked = pokemon.VolatileStatuses[VolatileConditionID.HealBlocked];
+                        
+                        if( blocked.Duration == 0 )
+                        {
+                            pokemon.CureVolatileStatus( VolatileConditionID.HealBlocked );
+                            pokemon.AddStatusEvent( StatusEventType.Text, $"{pokemon.NickName} can be healed by moves again!" );
+                            return true;
+                        }
+                        
+                        blocked.Duration--;
+                        pokemon.VolatileStatuses[VolatileConditionID.HealBlocked] = blocked;
+                        return true;
+                    }
+                }
+            },
+            {
+                VolatileConditionID.ThroatChop, new()
+                {
+                    Name = "Silenced",
+                    StartMessage = "can no longer use sound-based moves!",
+                    Duration = 2,
+                    Passable = false,
+
+                    OnStart = ( pokemon ) =>
+                    {
+                        pokemon.SetVolatileStatusTime( VolatileConditionID.ThroatChop, 2 );
+                    },
+
+                    OnBeforeTurn = ( pokemon, move ) =>
+                    {
+                        var silence = pokemon.VolatileStatuses[VolatileConditionID.ThroatChop];
+
+                        if( silence.Duration == 0 )
+                        {
+                            pokemon.CureVolatileStatus( VolatileConditionID.ThroatChop );
+                            pokemon.AddStatusEvent( StatusEventType.Text, $"{pokemon.NickName} can use sound-based moves again!" );
+                            return true;
+                        }
+
+                        silence.Duration--;
+                        pokemon.VolatileStatuses[VolatileConditionID.ThroatChop] = silence;
+
+                        if( move.MoveSO.Flags.Contains( MoveFlags.Sound ) )
+                        {
+                            pokemon.AddStatusEvent( StatusEventType.Text, $"{pokemon.NickName} can't make a sound!" );
+                            return false;
+                        }
+                        else
+                            return true;
+                    }
+                }
             }
         };
     }
@@ -375,4 +479,8 @@ public enum VolatileConditionID
     Uproar,
     ThroatChop,
     ChoiceLocked,
+    MeanLook,
+    DestinyBond,
+    Perish,
+    HealBlocked,
 }

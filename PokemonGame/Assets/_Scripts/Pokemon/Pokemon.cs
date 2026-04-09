@@ -43,6 +43,7 @@ public class Pokemon
     public int Friendship { get; private set; }
     public bool CanEvolveByLevelUp { get; private set; }
     public int CurrentHP { get; set; }
+    public float CurrentWeight { get; private set; }
     [SerializeField] private PokeBallType _currentBallType;
     public PokeBallType CurrentBallType => _currentBallType;
     public Sprite CurrentBallSprite => PokeBallIconAtlas.PokeBallIcons[CurrentBallType];
@@ -113,6 +114,7 @@ public class Pokemon
     {
         _pokeSO = trainerPokemon.PokeSO;
         _level = trainerPokemon.Level;
+        CurrentWeight = _pokeSO.Weight;
 
         //--Nickname
         if( trainerPokemon.NickName != "" )
@@ -193,6 +195,7 @@ public class Pokemon
         _gainedEffortPoints     = saveData.GainedEffortPoints;
         RemainingEffortPoints   = saveData.RemainingEffortPoints;
         _currentBallType        = saveData.CurrentBall;
+        CurrentWeight           = _pokeSO.Weight;
 
         InitializeEVs();
         AssignEVs( Stat.HP,         saveData.HP_EVs, true );
@@ -246,6 +249,7 @@ public class Pokemon
         SetupBattleItem();
 
         Friendship = PokeSO.BaseFriendship;
+        CurrentWeight = PokeSO.Weight;
 
         //--------GENERATE MOVES-----------
         bool populateActiveMoves = true;
@@ -339,6 +343,16 @@ public class Pokemon
         };
 
         return saveData;
+    }
+
+    public void ChangeCurrentWeight( float change )
+    {
+        CurrentWeight = change;
+    }
+
+    public void ResetCurrentWeight()
+    {
+        CurrentWeight = PokeSO.Weight;
     }
 
     private void GetRandomNature()
@@ -573,7 +587,18 @@ public class Pokemon
 
     public bool CheckHasMove( string move )
     {
+        if( string.IsNullOrEmpty( move ) )
+            return false;
+        
         return ActiveMoves.Count( m => m.MoveSO.Name == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO.Name == move ) > 0;
+    }
+
+    public bool CheckHasActiveMove( string move )
+    {
+        if( string.IsNullOrEmpty( move ) )
+            return false;
+
+        return ActiveMoves.Count( m => m.MoveSO.Name == move ) > 0;
     }
 
     public bool CheckHasAttackingMoveOfType( PokemonType type )
@@ -725,6 +750,9 @@ public class Pokemon
     {
         float statValue = Stats[stat];
 
+        if( stat == Stat.HP )
+            return Mathf.FloorToInt( statValue );
+
         int stage = StatStages[stat];
         var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
         var directModifier = DirectStatModifiers[stat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm );
@@ -808,6 +836,21 @@ public class Pokemon
         }
 
         return changes;
+    }
+
+    public void ClearStatStages()
+    {
+        StatStages = new Dictionary<Stat, int>()
+        {
+            { Stat.HP,          0 },
+            { Stat.Attack,      0 },
+            { Stat.Defense,     0 },
+            { Stat.SpAttack,    0 },
+            { Stat.SpDefense,   0 },
+            { Stat.Speed,       0 },
+            { Stat.Accuracy,    0 },
+            { Stat.Evasion,     0 },
+        };
     }
 
     public Dictionary<Stat, int> CloneStatStages()
@@ -1232,14 +1275,14 @@ public class Pokemon
         return true;
     }
 
-    public bool OnBeforeTurn_Volatile()
+    public bool OnBeforeTurn_Volatile( Move move )
     {
         //--Volatile Status
         if( VolatileStatuses != null && VolatileStatuses.Count > 0 )
         {
             foreach( var kvp in VolatileStatuses )
             {
-                bool success = kvp.Value.Condition?.OnBeforeTurn?.Invoke( this ) ?? true;
+                bool success = kvp.Value.Condition?.OnBeforeTurn?.Invoke( this, move ) ?? true;
                 if( !success )
                     return false;
                 else
@@ -1292,7 +1335,7 @@ public class Pokemon
 
     public bool IsFainted()
     {
-        return CurrentHP <= 0 || SevereStatus?.ID == SevereConditionID.FNT;
+        return SevereStatus?.ID == SevereConditionID.FNT;
     }
 
     public void AddStatusEvent( StatusEventType type, string message, int change = 0 )

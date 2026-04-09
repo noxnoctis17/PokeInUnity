@@ -1,7 +1,9 @@
 using System;
+using System.CodeDom;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class BattleAI_Projection
@@ -16,12 +18,12 @@ public class BattleAI_Projection
         _unitSim = _ai.UnitSim;
     }
 
-    public ProjectedBoardState BuildProjectedBoardState( TurnOutcomeProjection top, int myRemainingPieces, int oppRemainingPieces )
+    public ProjectedBoardState BuildProjectedBoardState( TurnOutcomeProjection top, ExchangeEvaluation eval, TempoStateResult tempo, int myRemainingPieces, int oppRemainingPieces )
     {
         bool iAmKO = false;
         bool oppIsKO = false;
 
-        bool tempoAdvantage;
+        TempoState tempoState = tempo.TempoState;
 
         _ai.CurrentLog.Add( $"===[Displaying Simulation Log from Chosen Action for below PBS logs]===" );
         _ai.CurrentLog.Add( top.SimulationLog );
@@ -40,83 +42,146 @@ public class BattleAI_Projection
             _ai.CurrentLog.Add( $"Opponent Fainted! Opponent's remaining pieces reduced from {oppRemainingPieces + 1} to {oppRemainingPieces}! Opponent KO is {oppIsKO}." );
         }
 
-        if( oppIsKO && !iAmKO )
-        {
-            tempoAdvantage = true;
-            _ai.CurrentLog.Add( $"Opponent Fainted! We have tempo advantage: {tempoAdvantage}" );
-        }
-        else if( iAmKO && oppIsKO )
-        {
-            tempoAdvantage = false;
-            _ai.CurrentLog.Add( $"Attacker Fainted! We have tempo advantage: {tempoAdvantage}" );
-        }
-        else if( !iAmKO && !oppIsKO )
-        {
-            tempoAdvantage = top.Attacker.Speed > top.Opponent.Speed;
-            _ai.CurrentLog.Add( $"No Faint! We have tempo advantage: {tempoAdvantage}" );
-        }
-        else
-        {
-            tempoAdvantage = false;
-            _ai.CurrentLog.Add( $"No other faint detections available, was there a Mutual KO? We have tempo advantage: {tempoAdvantage}" );
-        }
+        //--Turn Economy
+        int myTurnsRemaining = 0;
+        int oppTurnsRemaining = 0;
 
-        //--Post Loss tempo gain
+        //--My Turns
+        if( eval.AttackerMovesFirst )
+            myTurnsRemaining = top.Attacker_EndOfTurnHP > 0 ? 1 : 0;
+        else
+            myTurnsRemaining = eval.AttackerSurvives ? 1 : 0;
+
+        //--Opponent Turns
+        if( eval.OpponentMovesFirst )
+            oppTurnsRemaining = top.Opponent_EndOfTurnHP > 0 ? 1 : 0;
+        else
+            oppTurnsRemaining = eval.OpponentSurvives ? 1 : 0;
+
+        _ai.CurrentLog.Add( $"[Build PBS] My Turns Remaining {myTurnsRemaining}. Opponent Turns Remaining: {oppTurnsRemaining}" );
+
+        //--Post Loss Revenge Quality
         int revengeScore = 0;
         if( iAmKO && !oppIsKO )
         {
             List<IBattleAIUnit> opps = new() { top.Opponent };
             var revengeKiller = _ai.SwitchCommand.GetSwitch_Revenge( opps );
             if( revengeKiller.Top.Opponent_DiesBeforeActing )
+            {
                 revengeScore += 45;
+                _ai.CurrentLog.Add( $"[Build PBS] Revenge Score: {revengeScore}" );
+            }
             else if( revengeKiller.Top.AttackerPTKO >= PotentialToKO.Dangerous && revengeKiller.Top.OpponentPTKO <= PotentialToKO.Risky )
+            {
                 revengeScore += 25;
+                _ai.CurrentLog.Add( $"[Build PBS] Revenge Score: {revengeScore}" );
+            }
             else if( revengeKiller.Top.AttackerMovedFirst && revengeKiller.Top.AttackerPTKO >= PotentialToKO.Safe )
+            {
                 revengeScore += 15;
+                _ai.CurrentLog.Add( $"[Build PBS] Revenge Score: {revengeScore}" );
+            }
         }
 
         return new()
         {
             MyHP_AfterTurn = top.Attacker_EndOfTurnHP,
             OppHP_AfterTurn = top.Opponent_EndOfTurnHP,
+
+            MyTurnsRemaining = myTurnsRemaining,
+            OpponentTurnsRemaining = oppTurnsRemaining,
+
             IAmKO = iAmKO,
             OppIsKO = oppIsKO,
             MutualKO = top.MutualKO,
-            IHaveTempoAdvantageNextTurn = tempoAdvantage,
+
+            AttackerThreatensKO = eval.AttackerThreatensKO,
+            OpponentThreatensKO = eval.OpponentThreatensKO,
+
+            AttackerKillsFirst = eval.AttackerKillsFirst,
+            OpponentKillsFirst = eval.OpponentKillsFirst,
+
+            AttackerMovesFirst = eval.AttackerMovesFirst,
+            OpponentMovesFirst = eval.OpponentMovesFirst,
+
             MyRemainingPieces = myRemainingPieces,
             OppRemainingPieces = oppRemainingPieces,
             MaterialDelta = myRemainingPieces - oppRemainingPieces,
+
             RevengeScore = revengeScore,
+            TempoState = tempoState,
         };
     }
 
     public int EvaluatePBS( ProjectedBoardState pbs )
     {
-        const int MATERIAL_WEIGHT = 100;
-        const int TEMPO_WEIGHT = 10;
-        const int HP_WEIGHT = 2;
+        const int MATERIAL_WEIGHT = 50;
+        const int TEMPO_WEIGHT = 50;
+        const int TURN_WEIGHT = 45;
+        const int THREAT_WEIGHT = 30;
 
         int score = 0;
 
         //--Material. Material is currently considered the most important resource.
-        score += pbs.MaterialDelta * MATERIAL_WEIGHT;
-        _ai.CurrentLog.Add( $"[Evaluate PBS] Material Delta: {pbs.MaterialDelta}. Score: {score}" );
+        if( pbs.IAmKO || pbs.OppIsKO )
+        {
+            score += pbs.MaterialDelta * MATERIAL_WEIGHT;
+            _ai.CurrentLog.Add( $"[Evaluate PBS] Material Delta: {pbs.MaterialDelta}. Score: {score}" );
+        }
 
-        //--Tempo judges when no ko happens on either side. I have to wonder what happens to scoring when there is a ko.
-        if( !pbs.IAmKO && !pbs.OppIsKO )
-            score += pbs.IHaveTempoAdvantageNextTurn ? TEMPO_WEIGHT : -TEMPO_WEIGHT;
+        int tempoScore = pbs.TempoState switch
+        {
+            TempoState.WinningHard  => +60,
+            TempoState.Winning      => +35,
+            TempoState.Neutral      => 0,
+            TempoState.Losing       => -35,
+            TempoState.LosingHard   => -60,
+            _ => 0
+        };
 
-        _ai.CurrentLog.Add( $"[Evaluate PBS] I am KO: {pbs.IAmKO}. Opp is KO: {pbs.OppIsKO}. Score: {score}" );
+        score += tempoScore;
 
-        //--Remaining HP judgement.
-        int myHPPercent = Mathf.RoundToInt( pbs.MyHP_AfterTurn * 100f );
-        int oppHPPercent = Mathf.RoundToInt( pbs.OppHP_AfterTurn * 100f );
+        _ai.CurrentLog.Add( $"[Evaluate PBS] TempoState: {pbs.TempoState} → {tempoScore}. Score: {score}" );
 
-        int hpDelta = myHPPercent - oppHPPercent;
-        hpDelta = Mathf.Clamp( hpDelta, -50, 50 );
-        score += hpDelta * HP_WEIGHT;
+        int turnDelta = pbs.MyTurnsRemaining - pbs.OpponentTurnsRemaining;
+        int turnScore = turnDelta * TURN_WEIGHT;
 
-        _ai.CurrentLog.Add( $"[Evaluate PBS] My HP Percent: {myHPPercent}. Opp HP Percent: {oppHPPercent}. HP Delta: {hpDelta}. Score: {score}" );
+        score += turnScore;
+
+        _ai.CurrentLog.Add( $"[Evaluate PBS] Turn Delta: {turnDelta} → {turnScore}. Score: {score}" );
+
+        int threatScore = 0;
+
+        //--My threat
+        if( !pbs.IAmKO )
+        {
+            if( pbs.AttackerThreatensKO )
+                threatScore += 25;
+
+            if( pbs.AttackerMovesFirst )
+                threatScore += 15;
+
+            if( pbs.AttackerKillsFirst )
+                threatScore += 40;
+        }
+
+        //--Opponent threat. We subtract the score here to give an opposing direction for opponent's threat.
+        if( !pbs.OppIsKO )
+        {
+            if( pbs.OpponentThreatensKO )
+                threatScore -= 25;
+
+            if( pbs.OpponentMovesFirst )
+                threatScore -= 15;
+
+            if( pbs.OpponentKillsFirst )
+                threatScore -= 40;
+        }
+
+        score += threatScore;
+
+        _ai.CurrentLog.Add( $"[Evaluate PBS] Threat Score: {threatScore}. Score: {score}" );
+
 
         if( pbs.IAmKO && !pbs.OppIsKO )
         {
@@ -127,9 +192,9 @@ public class BattleAI_Projection
         if( pbs.IAmKO && pbs.OppIsKO )
         {
             if( pbs.MaterialDelta < 0 )
-                score += 20; //--Trade while behind good
+                score += 10; //--Trade while behind good
             else if( pbs.MaterialDelta > 0 )
-                score -= 20; //--Trade while ahead bad
+                score -= 10; //--Trade while ahead bad
         }
 
         return score;
@@ -152,14 +217,14 @@ public class BattleAI_Projection
     {
         //--Potential to KO
         //--Attacker PTKO Target
-        var attackerMTR = _ai.MoveCommand.Get_BestSimulatedAttack( attacker, target, "Evaluate Exchange (attacker vs target)" );
+        var attackerMTR = _ai.MoveCommand.GetMove_BestAttack( attacker, target, "Evaluate Exchange (attacker vs target)" );
         var targetWSR = Get_EstimatedDamageResult( attacker, target, attackerMTR );
         float targetHP = _ai.Get_HPRatio( target );
 
         PotentialToKOResult attackerPTKO_target = Get_PotentialToKOResult( targetWSR, attackerMTR, targetHP );
 
         //--Target PTKO Attacker
-        var targetMTR = _ai.MoveCommand.Get_BestSimulatedAttack( target, attacker, "Evaluate Exchange (target vs attacker)" );
+        var targetMTR = _ai.MoveCommand.GetMove_BestAttack( target, attacker, "Evaluate Exchange (target vs attacker)" );
         var attackerWSR = Get_EstimatedDamageResult( target, attacker, targetMTR );
         float attackerHP = _ai.Get_HPRatio( attacker );
 
@@ -224,8 +289,10 @@ public class BattleAI_Projection
         // Debug.Log( $"[AI Scoring][Get Tempo] Final Comparisons Made! Results: Attacker Threatens KO: {attackerThreatensKO_onTarget}, Target Threatens KO: {targetThreatensKO_onAttacker}, Attacker Survives: {attackerSurvives_targetAttack}, Target Survives: {targetSurvives_attackerAttack}" );
         
         //--Predict Forced Switch for this turn
-        bool attackerForcesSwitch = _unitSim.PredictForcedSwitch( attackerPTKO_target.PTKO, targetPTKO_attacker.PTKO, attackerMovesFirst );
-        bool targetForcesSwitch = _unitSim.PredictForcedSwitch( targetPTKO_attacker.PTKO, attackerPTKO_target.PTKO, targetMovesFirst );
+        // bool attackerForcesSwitch = _unitSim.PredictForcedSwitch( attackerPTKO_target.PTKO, targetPTKO_attacker.PTKO, attackerMovesFirst );
+        // bool targetForcesSwitch = _unitSim.PredictForcedSwitch( targetPTKO_attacker.PTKO, attackerPTKO_target.PTKO, targetMovesFirst );
+        bool attackerForcesSwitch = _unitSim.PredictSwitchProbability( attackerPTKO_target.PTKO, targetPTKO_attacker.PTKO, attackerMovesFirst, attackerHP, targetHP ) > 0.8f;
+        bool targetForcesSwitch = _unitSim.PredictSwitchProbability( targetPTKO_attacker.PTKO, attackerPTKO_target.PTKO, targetMovesFirst, targetHP, attackerHP ) > 0.8f;
 
         ExchangeState state = ExchangeState.Neutral;
 
@@ -260,8 +327,8 @@ public class BattleAI_Projection
             AttackerHPR = attackerHP,
             OpponentHPR = targetHP,
 
-            AttackerForcesSwitch = attackerForcesSwitch,
-            TargetForcesSwitch = targetForcesSwitch,
+            OpponentSwitches = attackerForcesSwitch,
+            AttackerSwitches = targetForcesSwitch,
 
             AttackerMoveName = attackerMTR.Move.MoveSO.Name,
             OpponentMoveName = targetMTR.Move.MoveSO.Name,
@@ -364,7 +431,7 @@ public class BattleAI_Projection
                 if( !mon.IsFainted() && pivotHP > 0.35f )
                 {
                     BattleAI_PokemonAdapter monAdapter = new( mon, _ai );
-                    var targetThreateningMove = _ai.MoveCommand.Get_BestSimulatedAttack( opponent, monAdapter, "Get Safe Pivot" );
+                    var targetThreateningMove = _ai.MoveCommand.GetMove_BestAttack( opponent, monAdapter, "Get Safe Pivot" );
                     var attackerWSR = Get_EstimatedDamageResult( opponent, monAdapter, targetThreateningMove );
                     float targetHP = _ai.Get_HPRatio( opponent );
                     PotentialToKOResult pivotPTKO_target = Get_PotentialToKOResult( attackerWSR, targetThreateningMove, targetHP );
@@ -432,7 +499,7 @@ public class BattleAI_Projection
         };
     }
 
-    private float GetRemainingTeamHP( List<Pokemon> team )
+    public float GetRemainingTeamHP( List<Pokemon> team )
     {
         float currentHPTotal = 0;
         float maxHPTotal = 0;
@@ -484,6 +551,7 @@ public class BattleAI_Projection
         var moveSO = moveThreat.Move.MoveSO;
         float movePower = moveThreat.Move.MovePower;
         float modifier = moveThreat.Modifier;
+        float brnOrfbt = 1f;
 
         //--Unique Wallscore Key check
         if( moveThreat.Move != null )
@@ -533,6 +601,9 @@ public class BattleAI_Projection
                 defendingStat = Stat.Defense;
                 attack = _ai.GetUnitInferredStat( attacker, attackingStat );
                 defense = _ai.GetUnitInferredStat( target, defendingStat );
+
+                if( attacker.SevereStatus == SevereConditionID.BRN && attacker.Ability != AbilityID.Guts )
+                    brnOrfbt = 0.5f;
             }
             else if( cat == MoveCategory.Special )
             {
@@ -540,6 +611,9 @@ public class BattleAI_Projection
                 defendingStat = Stat.SpDefense;
                 attack = _ai.GetUnitInferredStat( attacker, attackingStat );
                 defense = _ai.GetUnitInferredStat( target, defendingStat );
+
+                if( attacker.SevereStatus == SevereConditionID.FBT )
+                    brnOrfbt = 0.5f;
             }
             else
             {
@@ -552,12 +626,15 @@ public class BattleAI_Projection
         float targetMHP = _ai.GetBaseStat( target, Stat.HP );
         float levelFactor = ( 2f * attacker.Level / 5f + 2f );
 
-        float damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * DAMAGE_ROLL;
+        float damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * DAMAGE_ROLL;
         float normalizedDamage = ( damage / targetMHP ) * STAT_SCALAR;
+
+        if( !_unitSim.CanActOnTurn( attacker ) )
+            damage = 0;
 
         // Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Target {target.Name}'s Defending Stat: {defendingStat}, {defense}, Base HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Attacking stat {attackingStat}, {attack}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}. Final Damage Estimate: {damage}, Normalized: {normalizedDamage}" );
         
-        EstimatedDamageResult wsr = new()
+        EstimatedDamageResult edr = new()
         {
             // Score = score,
             DamageEstimate = normalizedDamage,
@@ -571,12 +648,12 @@ public class BattleAI_Projection
             Target = target,
         };
 
-        return wsr;
+        return edr;
     }
 
-    public PotentialToKOResult Get_PotentialToKOResult( EstimatedDamageResult wsr, MoveThreatResult mtr, float targetHPR )
+    public PotentialToKOResult Get_PotentialToKOResult( EstimatedDamageResult edr, MoveThreatResult mtr, float targetHPR )
     {
-        PotentialToKO ptko = GetPTKO_FromDamageEstimate( wsr.DamageEstimate, targetHPR );
+        PotentialToKO ptko = GetPTKO_FromDamageEstimate( edr.DamageEstimate, targetHPR );
 
         return new()
         {
@@ -664,6 +741,153 @@ public class BattleAI_Projection
 
         return result.PTKO;
     }
+
+    public TeamVSTeamAnalysis Get_TeamVSTeamAnalysis( List<Pokemon> ourTeam, List<Pokemon> theirTeam )
+    {
+        List<int> ourPTKOS = new();
+        List<int> theirPTKOS = new();
+
+        int ourBestPTKO = 0;
+        int theirBestPTKO = 0;
+
+        int ourThreatCount = 0;
+        int theirThreatCount = 0;
+
+        int ourLikelySwitches = 0;
+        int theirLikelySwitches = 0;
+
+        int theirFavorATK = 0;
+        int theirFavorSpATK = 0;
+
+        int ourOutspeeds = 0;
+        int theirOutspeeds = 0;
+
+        //--Anal
+        for( int i = 0; i < ourTeam.Count; i++ )
+        {
+            if( theirTeam.Count < i + 1 )
+                break;
+
+            BattleAI_PokemonAdapter ourMon = new( ourTeam[i], _ai );
+
+            for( int t = 0; t < theirTeam.Count; t++ )
+            {
+                BattleAI_PokemonAdapter theirMon = new( theirTeam[t], _ai );
+
+                //--MTRs
+                var ourMTR = _ai.MoveCommand.GetMove_BestAttack( ourMon, theirMon );
+                var theirMTR = _ai.MoveCommand.GetMove_BestAttack( theirMon, ourMon );
+
+                //--EDRs
+                var ourEDR = Get_EstimatedDamageResult( ourMon, theirMon, ourMTR );
+                var theirEDR = Get_EstimatedDamageResult( theirMon, ourMon, theirMTR );
+
+                //--PTKOs
+                var ourPTKO = Get_PotentialToKOResult( ourEDR, ourMTR, theirMon.CurrentHPR ).PTKO;
+                var theirPTKO = Get_PotentialToKOResult( theirEDR, theirMTR, ourMon.CurrentHPR ).PTKO;
+
+                ourPTKOS.Add( (int)ourPTKO );
+                theirPTKOS.Add( (int)theirPTKO );
+
+                if( ourPTKO - 1 > theirPTKO )
+                    ourThreatCount++;
+
+                if( theirPTKO - 1 > ourPTKO )
+                    theirThreatCount++;
+
+                bool weSurvive = theirPTKO <= PotentialToKO.Safe;
+                bool weMoveFirst = ourMTR.Move.Priority > theirMTR.Move.Priority || ( ourMTR.Move.Priority == theirMTR.Move.Priority && ourMon.Speed > theirMon.Speed );
+                bool weThreaten = ourPTKO >= PotentialToKO.Dangerous && ( weMoveFirst || weSurvive );
+
+                bool theySurvive = ourPTKO <= PotentialToKO.Safe;
+                bool theyThreaten = theirPTKO >= PotentialToKO.Dangerous && ( !weMoveFirst || theySurvive );
+
+                if( weThreaten && theirTeam.Count > 1 )
+                    theirLikelySwitches++;
+
+                if( theyThreaten && ourTeam.Count > 1 )
+                    ourLikelySwitches++;
+
+                if( theirMTR.Move.MoveSO.MoveCategory == MoveCategory.Physical )
+                    theirFavorATK++;
+
+                if( theirMTR.Move.MoveSO.MoveCategory == MoveCategory.Special )
+                    theirFavorSpATK++;
+
+                if( ourMon.Speed > theirMon.Speed )
+                    ourOutspeeds++;
+                else
+                    theirOutspeeds++;
+
+            }
+        }
+
+        //--Average PTKO
+        int ourTotalPTKOS = 0;
+        for( int i = 0; i < ourPTKOS.Count; i++ )
+        {
+            ourTotalPTKOS += ourPTKOS[i];
+
+            if( theirPTKOS[i] > ourBestPTKO )
+                ourBestPTKO = ourPTKOS[i];
+
+        }
+
+        PotentialToKO ourAveragePTKO = (PotentialToKO)( ourTotalPTKOS / ourPTKOS.Count );
+
+        int theirTotalPTKOS = 0;
+        for( int i = 0; i < theirPTKOS.Count; i++ )
+        {
+            theirTotalPTKOS += theirPTKOS[i];
+
+            if( theirPTKOS[i] > theirBestPTKO )
+                theirBestPTKO = theirPTKOS[i];
+        }
+
+        PotentialToKO theirAveragePTKO = (PotentialToKO)( theirTotalPTKOS / theirPTKOS.Count );
+
+        return new()
+        {
+            Our_BestPTKO = (PotentialToKO)ourBestPTKO,
+            Their_BestPTKO = (PotentialToKO)theirBestPTKO,
+
+            Our_AveragePTKO = ourAveragePTKO,
+            Their_AveragePTKO = theirAveragePTKO,
+
+            Our_ThreatCount = ourThreatCount,
+            Their_ThreatCount = theirThreatCount,
+
+            Our_LikelySwitches = ourLikelySwitches,
+            Their_LikelySwitches = theirLikelySwitches,
+
+            TheirFavorCount_ATK = theirFavorATK,
+            TheirFavorCount_SpATK = theirFavorSpATK,
+
+            Our_Outspeeds = ourOutspeeds,
+            Their_Outspeeds = theirOutspeeds,
+        };
+    }
+}
+
+public struct TeamVSTeamAnalysis
+{
+    public PotentialToKO Our_BestPTKO;
+    public PotentialToKO Their_BestPTKO;
+
+    public PotentialToKO Our_AveragePTKO;
+    public PotentialToKO Their_AveragePTKO;
+
+    public int Our_ThreatCount;
+    public int Their_ThreatCount;
+
+    public int Our_LikelySwitches;
+    public int Their_LikelySwitches;
+
+    public int TheirFavorCount_ATK;
+    public int TheirFavorCount_SpATK;
+
+    public int Our_Outspeeds;
+    public int Their_Outspeeds;
 }
 
 public struct TurnOutcomeProjection
@@ -682,6 +906,9 @@ public struct TurnOutcomeProjection
     public bool Attacker_DiesBeforeActing;
     public bool Opponent_DiesBeforeActing;
 
+    public bool AttackerCanAct;
+    public bool OpponentCanAct;
+
     public bool MutualKO;
     public bool AttackerMovedFirst;
 
@@ -694,12 +921,19 @@ public struct ProjectedBoardState
     public float MyHP_AfterTurn;
     public float OppHP_AfterTurn;
 
+    public int MyTurnsRemaining;
+    public int OpponentTurnsRemaining;
+
     public bool IAmKO;
     public bool OppIsKO;
     public bool MutualKO;
 
-    //--Tempo Next Turn
-    public bool IHaveTempoAdvantageNextTurn;
+    public bool AttackerThreatensKO;
+    public bool OpponentThreatensKO;
+    public bool AttackerKillsFirst;
+    public bool OpponentKillsFirst;
+    public bool AttackerMovesFirst;
+    public bool OpponentMovesFirst;
 
     //--Material
     public int MyRemainingPieces;
@@ -707,6 +941,8 @@ public struct ProjectedBoardState
 
     public int MaterialDelta;
     public int RevengeScore;
+
+    public TempoState TempoState;
 }
 
 public struct DoomedOutcome
@@ -726,6 +962,6 @@ public struct DoomedOutcome
     public bool NoTempoRecoveryLine;
     public TurnOutcomeProjection TempoRecoveredTOP;
 
-    public int PressureScore;
+    public float PressureScore;
     public bool DoomedTurn;
 }

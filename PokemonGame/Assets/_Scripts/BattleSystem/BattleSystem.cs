@@ -165,6 +165,9 @@ public class BattleSystem : MonoBehaviour
     private SwitchPokemonCommand _switchPokemonCommand;
     private RunFromBattleCommand _runFromBattleCommand;
 #endregion
+//======================================[ ROUND LOG ]=========================================================
+    public CustomLogSession RoundLog { get; private set; }
+    public int Rounds { get; private set; }
 
 //============================================================================================================
 //============================================================================================================
@@ -176,6 +179,8 @@ public class BattleSystem : MonoBehaviour
         StateMachine = new( this );
         CommandCenter.Setup( this );
         _playerInventory = PlayerReferences.Instance.PlayerInventory;
+        RoundLog = new();
+        Rounds = 0;
 
         _roundEndPhaseState.Init();
         MoveSuccessDB.Init();
@@ -254,6 +259,11 @@ public class BattleSystem : MonoBehaviour
     public void SetUnitInSelectionState( int i )
     {
         _unitInSelectionState = i;
+    }
+
+    public void IncrementRounds()
+    {
+        Rounds++;
     }
 
     public void HandleTwoTurnMoves( BattleUnit unit )
@@ -350,6 +360,10 @@ public class BattleSystem : MonoBehaviour
                 // Debug.Log( $"[Battle System] Redirection target found! Setting new target to: {opp.Pokemon.NickName}" );
                 newTarget = opp;
             }
+            else if( opp.Pokemon.AbilityID == AbilityID.LightningRod && move.MoveType == PokemonType.Electric )
+            {
+                newTarget = opp;
+            }
             else
                 continue;
         }
@@ -420,7 +434,8 @@ public class BattleSystem : MonoBehaviour
 
     public void AddDialogue( string dialogue )
     {
-        AddToEventQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( dialogue ) );
+        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( dialogue ) );
+        RoundLog.Add( dialogue );
     }
 
     public void AddToUIQueue( Func<IEnumerator> cr, [System.Runtime.CompilerServices.CallerFilePath] string file = "", [System.Runtime.CompilerServices.CallerLineNumber] int line = 0 )
@@ -477,7 +492,7 @@ public class BattleSystem : MonoBehaviour
         yield return healedUnit.BattleHUD.UpdateHPCoroutine();
         yield return healedUnit.BattleHUD.WaitForHPUpdate();
         
-        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{drainedUnit.Pokemon.NickName} had its health drained by Leech Seed and given to {healedUnit.Pokemon.NickName}!") );
+        AddDialogue( $"{drainedUnit.Pokemon.NickName} had its health drained by Leech Seed and given to {healedUnit.Pokemon.NickName}!");
     }
 
     //--Start setting up a battle. Anything that starts a battle needs to set the Battle Type. The Battle Type is responsible
@@ -627,6 +642,8 @@ public class BattleSystem : MonoBehaviour
     public IEnumerator BeginBattle()
     {
         Field.SetWeather( WeatherController.Instance.CurrentWeather );
+        RoundLog.Add( $"===[Beginning Battle]===" );
+        RoundLog.Add( $"{BottomTrainer1.TrainerName} vs {TopTrainer1.TrainerName}" );
 
         List<BattleUnit> activePokemon = new();
         activePokemon = GetActivePokemon();
@@ -640,6 +657,8 @@ public class BattleSystem : MonoBehaviour
         //--Run all on enter abilities
         foreach( var unit in activePokemon )
         {
+            RoundLog.Add( $"Go, {unit.Pokemon.NickName}!" );
+
             unit.Pokemon.Ability?.OnAbilityEnter?.Invoke( unit.Pokemon, GetOpposingUnits( unit ), Field );
 
             unit.SetFlagActive( UnitFlags.ChoiceItem, false );
@@ -676,6 +695,7 @@ public class BattleSystem : MonoBehaviour
     public void TriggerAbilityCutIn( Pokemon pokemon )
     {
         AddToUIQueue( () => _abilityCutIn.CutIn( pokemon, Field.GetUnitCourt( pokemon ).Location ) );
+        RoundLog.Add( $"{pokemon.NickName}'s Ability {pokemon.AbilityID} cut-in triggered!" );
     }
 
     public void SetForcedSwitch( bool value )
@@ -700,7 +720,7 @@ public class BattleSystem : MonoBehaviour
         //--The list then sorts itself appropriately, and feeds everything into the queue for the queue to run or dequeue accordingly.
         foreach( IBattleCommand command in CommandList )
         {
-            Debug.Log( command.GetType() );
+            // Debug.Log( command.GetType() );
             if( command is SwitchPokemonCommand )
             {
                 var switchCommand = command as SwitchPokemonCommand;
@@ -908,15 +928,29 @@ public class BattleSystem : MonoBehaviour
         {
             if( target.Pokemon.TransientStatus?.ID == TransientConditionID.Protect && !move.MoveSO.Flags.Contains( MoveFlags.ProtectIgnore ) )
             {
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{target.Pokemon.NickName} protects itself!" ) );
+                AddDialogue( $"{target.Pokemon.NickName} protects itself!" );
                 return false;
             }
+        }
+
+        if( target.Pokemon.AbilityID == AbilityID.LightningRod && move.MoveType == PokemonType.Electric )
+        {
+            List<StatStage> changes = new(){ new(){ Stat = Stat.SpAttack, Change = 1 } };
+            StageChangeSource source = new()
+            {
+                Pokemon = attacker.Pokemon,
+                Source = StageChangeSourceType.Ability,
+            };
+
+            target.Pokemon.AddStatusEvent( StatusEventType.Text, $"{target.Pokemon.NickName} drew in the attack with its Lightning Rod!" );
+            target.Pokemon.ApplyStatStageChange( changes, source );
+            return false;
         }
         
         if( GetTotalEffectiveness( move, target ) == 0 && move.MoveSO.MoveCategory != MoveCategory.Status )
         {
             if( !aiCheck )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It doesn't effect {target.Pokemon.NickName}..." ) );
+                AddDialogue( $"It doesn't effect {target.Pokemon.NickName}..." );
 
             return false;
         }
@@ -924,7 +958,7 @@ public class BattleSystem : MonoBehaviour
         if( move.MoveType == PokemonType.Ground && ( target.Pokemon.Ability?.ID == AbilityID.Levitate || target.Flags[UnitFlags.Ungrounded].IsActive ) )
         {
             if( !aiCheck )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It doesn't effect {target.Pokemon.NickName}..." ) );
+                AddDialogue( $"It doesn't effect {target.Pokemon.NickName}..." );
 
             return false;
         }
@@ -932,7 +966,7 @@ public class BattleSystem : MonoBehaviour
         if( move.MoveSO.MoveCategory == MoveCategory.Status && move.MoveSO.MoveEffects.SevereStatus == SevereConditionID.PAR && target.Pokemon.CheckTypes( PokemonType.Electric ) )
         {
             if( !aiCheck )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It doesn't effect {target.Pokemon.NickName}..." ) );
+                AddDialogue( $"It doesn't effect {target.Pokemon.NickName}..." );
 
             return false;
         }
@@ -940,7 +974,7 @@ public class BattleSystem : MonoBehaviour
         if( move.MoveSO.Flags.Contains( MoveFlags.Powder ) && target.Pokemon.CheckTypes( PokemonType.Grass ) )
         {
             if( !aiCheck )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It doesn't effect {target.Pokemon.NickName}..." ) );
+                AddDialogue( $"It doesn't effect {target.Pokemon.NickName}..." );
 
             return false;
         }
@@ -969,7 +1003,7 @@ public class BattleSystem : MonoBehaviour
             if( !MoveTargetSelfSide( move ) && Field.Terrain?.ID == TerrainID.Psychic )
             {
                 if( !aiCheck )
-                    AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"But it's blocked by the Psychic terrain!" ) );
+                    AddDialogue( $"But it's blocked by the Psychic terrain!" );
 
                 return false;
             }
@@ -1006,12 +1040,12 @@ public class BattleSystem : MonoBehaviour
                 if( successful )
                 {
                     if( moveSuccess.SuccessMessage != null )
-                        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( moveSuccess.SuccessMessage?.Invoke( attacker.Pokemon ) ) );
+                        AddDialogue( moveSuccess.SuccessMessage?.Invoke( attacker.Pokemon ) );
                 }
                 else
                 {
                     if( moveSuccess.FailureMessage != null )
-                        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( moveSuccess.FailureMessage?.Invoke( attacker.Pokemon ) ) );
+                        AddDialogue( moveSuccess.FailureMessage?.Invoke( attacker.Pokemon ) );
                 }
             }
 
@@ -1104,7 +1138,7 @@ public class BattleSystem : MonoBehaviour
             if( !string.IsNullOrEmpty( statusEvent.Message ) )
             {
                 // Debug.Log( $"[Show Status Changes] Message isn't null! Message: {statusEvent.Message}" );
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( statusEvent.Message ) );
+                AddDialogue( statusEvent.Message );
             }
 
             yield return null;
@@ -1129,9 +1163,12 @@ public class BattleSystem : MonoBehaviour
     //--and then once after game board update in the case of statuses like BRN, FRST, PSN, TOX
     public IEnumerator CheckForFaint( BattleUnit checkUnit )
     {
-        // Debug.Log( $"[Move Command][UI Queue][Check For Faint] Checking for faint on {checkUnit.Pokemon.NickName}" );
-        if( checkUnit.Pokemon.CurrentHP > 0 || checkUnit.Pokemon.SevereStatus?.ID == SevereConditionID.FNT )
-            yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet. If the pokemon has already fainted from an earlier phase check, we also leave
+        Debug.Log( $"[Move Command][UI Queue][Check For Faint] Checking for faint on {checkUnit.Pokemon.NickName}" );
+        if( checkUnit.Pokemon.CurrentHP > 0 )
+            yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet.
+
+        if( checkUnit.Pokemon.IsFainted() )
+            yield break; //--If the pokemon has already fainted from an earlier phase check, we shouldn't run this
 
         checkUnit.Pokemon.CureSevereStatus(); //--Clear any potential Severe Status, which would prevent FNT from being assigned
         checkUnit.Pokemon.ClearAllVolatileStatus(); //--This also happens on faint, so it should be taken care of. Reminder to do so on switch too
@@ -1141,6 +1178,7 @@ public class BattleSystem : MonoBehaviour
         checkUnit.SetFlagActive( UnitFlags.ChoiceItem, false );
         checkUnit.SetUnitTrapped( false );
         checkUnit.SetLastUsedMove( null );
+        checkUnit.Pokemon.ClearStatStages();
 
         checkUnit.Pokemon.SetFainted(); //--Set fainted status condition
         yield return checkUnit.PokeAnimator.PlayFaintAnimation(); //--fainted animation placeholder
@@ -1149,19 +1187,19 @@ public class BattleSystem : MonoBehaviour
 
         if( _bottomTrainer1.Party.Contains( checkUnit.Pokemon ) )
         {
-            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Your {checkUnit.Pokemon.NickName} fainted!" ) );
+            AddDialogue( $"Your {checkUnit.Pokemon.NickName} fainted!" );
             yield return WaitForUIQueue();
         }
         else
         {
             if( checkUnit.Pokemon == _wildPokemon )
             {
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The wild {checkUnit.Pokemon.NickName} fainted!" ) );
+                AddDialogue( $"The wild {checkUnit.Pokemon.NickName} fainted!" );
                 yield return WaitForUIQueue();
             }
             else if( BattleType == BattleType.TrainerSingles || BattleType == BattleType.TrainerDoubles || BattleType == BattleType.AI_Singles || BattleType == BattleType.AI_Doubles )
             {
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The Enemy {checkUnit.Pokemon.NickName} fainted!" ) );
+                AddDialogue( $"The Enemy {checkUnit.Pokemon.NickName} fainted!" );
                 yield return WaitForUIQueue();
             }
         }
@@ -1188,11 +1226,40 @@ public class BattleSystem : MonoBehaviour
     {
         Debug.Log( $"[Battle System][Fainted Pokemon] {faintedUnit.Pokemon.NickName} has fainted!" );
 
-        //--Remove the fainted unit's commands from the command queue, if it had any
+        List<IBattleCommand> commandsToRemove = new();
+        bool removeFaintedUnitFromQueue = false;
+        //--Get the fainted unit's commands from the command queue, if it had any, and if there was only one single target command left also get that for removal
         foreach( var command in CommandQueue )
         {
-            if( command.User == faintedUnit )
-                RemoveUnitCommandFromQueue( faintedUnit );
+            if( faintedUnit.Pokemon.CurrentHP > 0 )
+                break;
+                
+            //--If the command's user is the fainted unit, we flag it for removal from the queue
+            if( command.User.Pokemon == faintedUnit.Pokemon )
+                removeFaintedUnitFromQueue = true;
+
+            //--In a singles battle, if the alive pokemon has a command in the queue that targets the fainted pokemon (in the case a pokemon fainted from recoil or something),
+            //--then we need to grab it up for removal. Attacking moves do not go off post-faint in single battles. I may be able to clean up my double battle re-targeting
+            //--by handling that here instead of where ever the hell it's handled in the run queue state. And i really do need to clean that logic up lol it's ugly as hell. --03/25/26.
+            if( BattleType == BattleType.TrainerSingles || BattleType == BattleType.AI_Singles )
+            {
+                if( CommandQueue.Count == 1 && command is UseMoveCommand moveCommand )
+                {
+                    if( moveCommand.SingleTarget.Pokemon == faintedUnit.Pokemon )
+                        commandsToRemove.Add( moveCommand );
+                }
+            }
+        }
+
+        //--Remove Fainted Unit's command from the queue
+        if( removeFaintedUnitFromQueue )
+            RemoveUnitCommandFromQueue( faintedUnit );
+
+        //--If there was only 1 more command found from the still alive mon that targeted the fainted unit, remove it. Attacks do not go off post-faint in single battles.
+        if( commandsToRemove.Count > 0 )
+        {
+            for( int i = 0; i < commandsToRemove.Count; i++ )
+                RemoveCommandFromQueue( commandsToRemove[i ] );
         }
 
         //--If Player Unit has fainted
@@ -1282,7 +1349,7 @@ public class BattleSystem : MonoBehaviour
         PokeballItemSO ballItem = (PokeballItemSO)ball.ItemSO;
         PokeBallType ballType = ballItem.BallType;
 
-        AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"You threw a {ball.ItemSO.ItemName}!" ) );
+        AddDialogue( $"You threw a {ball.ItemSO.ItemName}!" );
         yield return WaitForUIQueue();
 
         var thrownBall = Instantiate( _thrownPokeBall, playerBallPosition, Quaternion.identity );
@@ -1319,7 +1386,7 @@ public class BattleSystem : MonoBehaviour
             AudioController.Instance.PlaySFX( SoundEffect.BattleBallClick );
             yield return new WaitUntil( () => !AudioController.Instance.IsPlayingSFX );
             AudioController.Instance.PlaySFX( SoundEffect.CatchSuccess );
-            AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{_enemyUnits[0].Pokemon.NickName} was caught!" ) );
+            AddDialogue( $"{_enemyUnits[0].Pokemon.NickName} was caught!" );
             yield return WaitForUIQueue();
             yield return thrownBall.GetComponentInChildren<PokeballAnimator>().Fadeout( 1.5f, true );
             
@@ -1339,13 +1406,13 @@ public class BattleSystem : MonoBehaviour
             Destroy( thrownBall );
 
             if( shakeCount == 0 )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"It broke free!" ) );
+                AddDialogue( $"It broke free!" );
             if( shakeCount == 1 )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Argh, almost caught!" ) );
+                AddDialogue( $"Argh, almost caught!" );
             if( shakeCount == 2 )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"Shoot, it was so close!" ) );
+                AddDialogue( $"Shoot, it was so close!" );
             if( shakeCount == 3 )
-                AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"F U C K     ! ! !" ) );
+                AddDialogue( $"F U C K     ! ! !" );
 
             yield return WaitForUIQueue();
         }
@@ -1471,6 +1538,11 @@ public class BattleSystem : MonoBehaviour
             _postBattleSummary.gameObject.SetActive( true );
             _postBattleSummary.RunBattleSummary( exp, ep );
         }
+
+        Debug.Log( RoundLog.ToString() );
+        string path = Application.persistentDataPath + "/BattleLog.txt";
+        System.IO.File.AppendAllText( path, RoundLog.ToString() + "\n" );
+        RoundLog.Clear();
     }
 
     private IEnumerator NextUnitInSelection()
@@ -1530,8 +1602,26 @@ public class BattleSystem : MonoBehaviour
 
         foreach( var command in CommandQueue )
         {
-            if( command.User != unit )
+            if( command.User.Pokemon != unit.Pokemon )
                 newCommandList.Add( command );
+        }
+
+        CommandQueue.Clear();
+
+        for( int i = 0; i < newCommandList.Count; i++ )
+            AddCommand( newCommandList[i] );
+    }
+
+    private void RemoveCommandFromQueue( IBattleCommand removeCommand )
+    {
+        List<IBattleCommand> newCommandList = new();
+
+        foreach( var command in CommandQueue )
+        {
+            if( command != removeCommand )
+                newCommandList.Add( command );
+            else
+                continue;
         }
 
         CommandQueue.Clear();

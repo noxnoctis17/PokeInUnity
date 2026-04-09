@@ -131,6 +131,7 @@ public class BattleUnit : MonoBehaviour
             { UnitFlags.FutureSight,            new() },
             { UnitFlags.DoomDesire,             new() },
             { UnitFlags.FaintedPreviousTurn,    new() },
+            { UnitFlags.EchoedVoiceCount,       new() },
         };
     }
 
@@ -257,6 +258,7 @@ public class BattleUnit : MonoBehaviour
 
     public void SetWish( BattleUnit user, Move move )
     {
+        Debug.Log( $"[Wish] SetWish()" );
         SetFlagActive( UnitFlags.Wish, true );
         var wish = Flags[UnitFlags.Wish];
         wish.User = user.Pokemon;
@@ -272,6 +274,7 @@ public class BattleUnit : MonoBehaviour
         var wish = Flags[UnitFlags.Wish];
         wish.Attacker = null;
         wish.Count = 0;
+        Flags[UnitFlags.Wish] = wish;
     }
 
     public void SetFutureSight( BattleUnit user, Move move )
@@ -329,7 +332,7 @@ public class BattleUnit : MonoBehaviour
 
     private float GetBurnOrFrostbite( BattleUnit attacker, Move move )
     {
-        if( attacker.Pokemon.Ability?.ID == AbilityID.Guts )
+        if( attacker.Pokemon.SevereStatus?.ID == SevereConditionID.BRN && attacker.Pokemon.AbilityID == AbilityID.Guts )
             return 1f;
 
         if( move.MoveSO.Name == "Facade" )
@@ -365,15 +368,24 @@ public class BattleUnit : MonoBehaviour
         {
             if( move.MoveSO.CritBehavior == CritBehavior.AlwaysCrits )
             {
-                critical = 1.5f;
+                if( attacker.Pokemon.AbilityID == AbilityID.Sniper )
+                    critical = 2.25f;
+                else
+                    critical = 1.5f;
             }
             else
             {
                 //--I barely understand this math LOL 05/29/24
-                int critChance = 0 + ( move.MoveSO.CritBehavior == CritBehavior.HighCritRatio ? 1 : 0 ); //--TODO Ability checks (sniper?), held item (scope lens?)
+                int critChance = 0 + ( move.MoveSO.CritBehavior == CritBehavior.HighCritRatio ? 1 : 0 );
                 float[] chances = new float[] { 4.167f, 12.5f, 50f, 100f, };
+                
                 if( UnityEngine.Random.value * 100f <= chances[Mathf.Clamp( critChance, 0, 3 )] )
-                    critical = 1.5f;
+                {
+                    if( attacker.Pokemon.AbilityID == AbilityID.Sniper )
+                        critical = 2.25f;
+                    else
+                        critical = 1.5f;
+                }
             }
         }
 
@@ -449,11 +461,13 @@ public class BattleUnit : MonoBehaviour
         }
 
         //--Apply any damage modifications to the attacker based on the target's ability. In the only existing case atm, Thick Fat reduces both the atk and spatk of the attacker if the move is ice or fire. --12/21/25
-        attackStat = target.Ability?.OnModifyTakeDamage?.Invoke( attackStat, attacker.Pokemon, target, move ) ?? attackStat;
+        attackStat = target.Ability?.OnModifyIncomingAttackStat?.Invoke( attackStat, attacker.Pokemon, target, move ) ?? attackStat;
         float power = move.MovePower;
 
         if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
             power = MoveConditionDB.Conditions[move.MoveSO.Name].OnModifyMovePower?.Invoke( attacker, this, move, hit ) ?? power;
+
+        power = attacker.Pokemon.Ability?.OnModify_MovePower?.Invoke( attacker.Pokemon, target, move, power, _battleSystem ) ?? power;
 
         float helpingHand = GetHelpingHand( attacker );
         float brnORfbt = GetBurnOrFrostbite( attacker, move );
@@ -468,14 +482,17 @@ public class BattleUnit : MonoBehaviour
         int rawDamage = Mathf.FloorToInt( Mathf.Max( damageCalc, 1f ) );
         int damage = Mathf.Clamp( rawDamage, 1, Pokemon.CurrentHP );
 
-        // Debug.Log( $"[Take Damage] Attacker {attacker.Pokemon.NickName}'s Attack Stat {attackStat} vs Target {Pokemon.NickName}'s Defense Stat {defenseStat}. Raw Damage: {rawDamage} Target HP Before: {Pokemon.CurrentHP}, After: {Pokemon.CurrentHP - rawDamage}." );
-        // Debug.Log( $"[Take Damage] Attacker {attacker.Pokemon.NickName}'s Attack Stat {attackStat} vs Target {Pokemon.NickName} Move: {move.MoveSO.Name}, Power: {power}, Modifiers: Targets {targets} Random {random} STAB {STAB} Effectiveness {effectiveness} Critical {critical} Weather {weatherModifier} Terrain {terrainModifier} Reflect {reflectModifier} Light Screen {lightScreenModifier} Aurora Veil {auroraVeilModifier} Item On Damage modify: {itemOnDamageModify} Helping Hand: {helpingHand} BRN or FBT: {brnORfbt}." );
+        Debug.Log( $"[Take Damage] Attacker {attacker.Pokemon.NickName}'s Attack Stat {attackStat} vs Target {Pokemon.NickName}'s Defense Stat {defenseStat}. Raw Damage: {rawDamage} Target HP Before: {Pokemon.CurrentHP}, After: {Pokemon.CurrentHP - rawDamage}." );
+        Debug.Log( $"[Take Damage] Attacker {attacker.Pokemon.NickName}'s Attack Stat {attackStat} vs Target {Pokemon.NickName} Move: {move.MoveSO.Name}, Power: {power}, Modifiers: Targets {targets} Random {random} STAB {STAB} Effectiveness {effectiveness} Critical {critical} Weather {weatherModifier} Terrain {terrainModifier} Reflect {reflectModifier} Light Screen {lightScreenModifier} Aurora Veil {auroraVeilModifier} Item On Damage modify: {itemOnDamageModify} Helping Hand: {helpingHand} BRN or FBT: {brnORfbt}." );
 
         if( effectiveness == 0 )
             damage = 0;
 
         if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
             damage = MoveConditionDB.Conditions[move.MoveSO.name].OnModifyMoveDamage?.Invoke( attacker, this, move, damage ) ?? damage;
+
+        //--Abilities that directly modify final damage, such as abilities that absorb moves and heal or have other effects, such as water absorb or lightning rod.
+        damage = Pokemon.Ability?.OnModifyDamage?.Invoke( attacker, this, move, damage, _battleSystem ) ?? damage;
 
         //--Mostly just for focus sash i think.
         damage = Pokemon.BattleItemEffect?.OnTakeMoveDamage?.Invoke( attacker, this, move, damage ) ?? damage;
@@ -484,7 +501,7 @@ public class BattleUnit : MonoBehaviour
         damage = Pokemon.TransientStatus?.OnTakeDamage?.Invoke( this, damage ) ?? damage;
 
         //--Substitute
-        if( Flags[UnitFlags.Substitute].IsActive && ( attacker.Pokemon.Ability?.ID != AbilityID.Infiltrator || !move.MoveSO.Flags.Contains( MoveFlags.Authentic ) ))
+        if( Flags[UnitFlags.Substitute].IsActive && ( attacker.Pokemon.Ability?.ID != AbilityID.Infiltrator || !move.MoveSO.Flags.Contains( MoveFlags.Authentic ) || !move.MoveSO.Flags.Contains( MoveFlags.Sound ) ) )
         {
             int subHP = Flags[UnitFlags.Substitute].SubstituteHP;
             Flags[UnitFlags.Substitute].SubstituteHP = Mathf.Clamp( subHP, 0, subHP - damage );
@@ -547,6 +564,7 @@ public enum UnitFlags
     FutureSight,
     DoomDesire,
     FaintedPreviousTurn,
+    EchoedVoiceCount,
 }
 
 public class BattleUnitFlag

@@ -11,6 +11,7 @@ public class MoveCondition
     public Action<BattleUnit /*attacker*/, BattleUnit /*target*/, Move, int /*damage*/, int /*hit*/, BattleSystem> OnMoveHitTarget { get; set; }
     public Func<BattleUnit /*attacker*/, BattleUnit /*target*/, Move, int /*hit*/, int> OnModifyMovePower { get; set; }
     public Func<BattleUnit /*attacker*/, BattleUnit /*target*/, Move, int, int> OnModifyMoveDamage { get; set; }
+    public Func<BattleUnit, BattleUnit, Move, BattleSystem, int> OnModifyMoveHitCount { get; set; }
     public Func<BattleUnit, Move, BattleSystem, Move> OnMoveChanged { get; set; }
     public Action<BattleUnit /*attacker*/, BattleUnit /*target*/, Move, BattleSystem> OnMoveSuccessChanged { get; set; }
     public Action<BattleUnit /*attacker*/, BattleUnit /*target*/, Move, BattleSystem> OnMoveCompleted { get; set; }
@@ -20,6 +21,6 @@ public class MoveCondition
     public Func<BattleUnit, BattleUnit, Move, int> OnOverrideDefensiveStat { get; set; }
     public Func<BattleUnit, BattleUnit, Move, BattleSystem, BattleUnit> OnTargetRedirect { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnModifyCommandQueue { get; set; }
-    public Action<BattleUnit, Move, BattleSystem> OnAfterNextRound { get; set; }
+    public Action<BattleUnit, Move, BattleSystem> OnAfterRound { get; set; }
 
 }

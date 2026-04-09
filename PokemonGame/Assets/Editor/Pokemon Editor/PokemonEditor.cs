@@ -75,10 +75,10 @@ public class PokemonEditor : EditorWindow
     private IntegerField _epField;
     private EnumField _growthRateField;
     private IntegerField _friendshipField;
-    private IntegerField _heightField;
-    private IntegerField _weightField;
-    private IntegerField _maleField;
-    private IntegerField _femaleField;
+    private FloatField _heightField;
+    private FloatField _weightField;
+    private FloatField _maleField;
+    private FloatField _femaleField;
 
     //--Sprites
     // default portrait
@@ -172,10 +172,10 @@ public class PokemonEditor : EditorWindow
         _growthRateField = rootVisualElement.Q<EnumField>( "GrowthRateField" );
         _growthRateField.Init( GrowthRate.MediumFast );
         _friendshipField = rootVisualElement.Q<IntegerField>( "FriendshipField" );
-        _heightField = rootVisualElement.Q<IntegerField>( "HeightField" );
-        _weightField = rootVisualElement.Q<IntegerField>( "WeightField" );
-        _maleField = rootVisualElement.Q<IntegerField>( "MaleField" );
-        _femaleField = rootVisualElement.Q<IntegerField>( "FemaleField" );
+        _heightField = rootVisualElement.Q<FloatField>( "HeightField" );
+        _weightField = rootVisualElement.Q<FloatField>( "WeightField" );
+        _maleField = rootVisualElement.Q<FloatField>( "MaleField" );
+        _femaleField = rootVisualElement.Q<FloatField>( "FemaleField" );
 
         //--Abilities
         _abilitiesList = rootVisualElement.Q<ListView>( "AbilityList" );
@@ -367,13 +367,33 @@ public class PokemonEditor : EditorWindow
 
         _evolutionList.makeItem = () =>
         {
-            VisualElement row = new();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.height        = 40;
-            row.style.paddingTop    = 2;
-            row.style.paddingLeft   = 2;
-            row.style.paddingRight  = 2;
-            row.style.paddingBottom = 2;
+            VisualElement topRow = new();
+            topRow.style.flexDirection = FlexDirection.Row;
+            topRow.style.height        = 40;
+            topRow.style.paddingTop    = 2;
+            topRow.style.paddingLeft   = 2;
+            topRow.style.paddingRight  = 2;
+            topRow.style.paddingBottom = 2;
+
+            Label pokeSOLabel = new(){ text = "PokeSO" };
+            Label levelLabel = new(){ text = "Lv." };
+            Label itemLabel = new(){ text = "Item" };
+            Label friendLabel = new(){ text = "Friend" };
+            Label timeLabel = new(){ text = "Time" };
+
+            topRow.Add( pokeSOLabel );
+            topRow.Add( levelLabel );
+            topRow.Add( itemLabel );
+            topRow.Add( friendLabel );
+            topRow.Add( timeLabel );
+
+            VisualElement bottomRow = new();
+            bottomRow.style.flexDirection = FlexDirection.Row;
+            bottomRow.style.height        = 40;
+            bottomRow.style.paddingTop    = 2;
+            bottomRow.style.paddingLeft   = 2;
+            bottomRow.style.paddingRight  = 2;
+            bottomRow.style.paddingBottom = 2;
 
             ObjectField pokeSOField = new();
             pokeSOField.objectType = typeof( PokemonSO );
@@ -415,16 +435,22 @@ public class PokemonEditor : EditorWindow
                 RefreshEvolutionsList();
             };
 
-            row.Add( pokeSOField );
-            row.Add( levelField );
-            row.Add( itemField );
-            row.Add( friendshipField );
-            row.Add( timeField );
-            row.Add( passLearnsetButton );
-            row.Add( removeButton );
+            bottomRow.Add( pokeSOField );
+            bottomRow.Add( levelField );
+            bottomRow.Add( itemField );
+            bottomRow.Add( friendshipField );
+            bottomRow.Add( timeField );
+            bottomRow.Add( passLearnsetButton );
+            bottomRow.Add( removeButton );
+
+            VisualElement row = new();
+            row.style.height = 85;
 
             row.userData = ( pokeSOField, levelField, itemField, friendshipField, timeField, passLearnsetButton, removeButton );
             removeButton.userData = row;
+
+            row.Add( topRow );
+            row.Add( bottomRow );
 
             return row;
         };
@@ -1364,13 +1390,13 @@ public class PokemonEditor : EditorWindow
             Debug.Log( $"Sprite Sheet is a Portrait Sprite Sheet! The current Pokemon is: {_currentPokemon.Species}, Form: {_currentPokemon.Form}" );
             Undo.RecordObject( _currentPokemon, $"Assign Portrait Sprites" );
             
-            if( sprites.Count > 0 )
+            if( sprites.Count >= 1 && sprites[0] != null )
                 _currentPokemon.SetNormalPortrait( sprites[0] );
-            if( sprites.Count > 1 )
+            if( sprites.Count >= 2 && sprites[1] != null )
                 _currentPokemon.SetHappyPortrait( sprites[1] );
-            if( sprites.Count > 3 )
+            if( sprites.Count >= 4 && sprites[3] != null )
                 _currentPokemon.SetAngryPortrait( sprites[3] );
-            if( sprites.Count > 5 )
+            if( sprites.Count >= 7 && sprites[6] != null )
                 _currentPokemon.SetHurtPortrait( sprites[6] );
         }
         else 

@@ -133,6 +133,16 @@ public class WeatherConditionsDB
 
                         return 1f;
                     },
+
+                    OnWeatherEffect = ( pokemon ) =>
+                    {
+                        if( pokemon.SevereStatus?.ID != SevereConditionID.None )
+                        {
+                            var status = pokemon.SevereStatus.ID;
+                            pokemon.CureSevereStatus();
+                            pokemon.AddStatusEvent( StatusEventType.Heal, $"{pokemon.NickName} has been cured of its {status} by the falling rain!" );
+                        }
+                    }
                 }
 
             },

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
+using UnityEngine.InputSystem.Composites;
 
 [CreateAssetMenu( menuName = "Pokemon/New Pokemon" )]
 public class PokemonSO : ScriptableObject
@@ -33,10 +34,10 @@ public class PokemonSO : ScriptableObject
     [SerializeField] int _effortPointsYield;
     [SerializeField] GrowthRate _growthRate;
     [SerializeField] private int _baseFriendship;
-    [SerializeField] private int _height;
-    [SerializeField] private int _weight;
-    [SerializeField] private int _maleRatio;
-    [SerializeField] private int _femaleRatio;
+    [SerializeField] private float _height;
+    [SerializeField] private float _weight;
+    [SerializeField] private float _maleRatio;
+    [SerializeField] private float _femaleRatio;
 
 
     //--Properties
@@ -51,10 +52,10 @@ public class PokemonSO : ScriptableObject
     public int EffortYield          => _effortPointsYield;
     public GrowthRate GrowthRate    => _growthRate;
     public int BaseFriendship => _baseFriendship;
-    public int Height => _height;
-    public int Weight => _weight;
-    public int MaleRatio => _maleRatio;
-    public int FemaleRatio => _femaleRatio;
+    public float Height => _height;
+    public float Weight => _weight;
+    public float MaleRatio => _maleRatio;
+    public float FemaleRatio => _femaleRatio;
 
 #endregion
 
@@ -239,6 +240,7 @@ public class PokemonSO : ScriptableObject
     {
         _species = name;
         _learnableMoves = new();
+        _abilities = new();
         _idleUpSprites = new();
         _idleDownSprites = new();
         _idleLeftSprites = new();
@@ -346,22 +348,22 @@ public class PokemonSO : ScriptableObject
         _baseFriendship = friend;
     }
 
-    public void SetHeight( int height )
+    public void SetHeight( float height )
     {
         _height = height;
     }
 
-    public void SetWeight( int weight )
+    public void SetWeight( float weight )
     {
         _weight = weight;
     }
 
-    public void SetMaleRatio( int male )
+    public void SetMaleRatio( float male )
     {
         _maleRatio = male;
     }
 
-    public void SetFemaleRatio( int fem )
+    public void SetFemaleRatio( float fem )
     {
         _femaleRatio = fem;
     }
@@ -786,5 +788,10 @@ public class TypeChart
         int col = (int)defenseType - 1;
 
         return chart[row][col];
+    }
+
+    public static float GetTotalEffectiveness( ( PokemonType One, PokemonType Two ) type, Move move )
+    {
+        return GetEffectiveness( move.MoveType, type.One ) * GetEffectiveness( move.MoveType, type.Two );
     }
 }

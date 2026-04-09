@@ -15,7 +15,9 @@ public class Ability
     public Func<float, Pokemon, Pokemon, Move, float> OnModify_SPD { get; set; }
     public Func<float, Pokemon, Pokemon, Move, float> OnModify_ACC { get; set; }
     public Func<float, Pokemon, Pokemon, Move, float> OnModify_EVA { get; set; }
-    public Func<float, Pokemon, Pokemon, Move, float> OnModifyTakeDamage { get; set; }
+    public Func<float, Pokemon, Pokemon, Move, float> OnModifyIncomingAttackStat { get; set; }
+
+    public Func<Pokemon, Pokemon, Move, float, BattleSystem, float> OnModify_MovePower { get; set; }
 //--Stat Stage Modification---------------------------------------------------------
     public Action<Dictionary<Stat, int>, Pokemon, Pokemon> OnStatStageChange { get; set; }
     public Action<Dictionary<Stat, int>, Pokemon, Pokemon> OnAfterStatStageChange { get; set; }
@@ -24,6 +26,7 @@ public class Ability
     public Action<Pokemon, List<BattleUnit>, Battlefield> OnAbilityExit { get; set; }
     public Action<BattleUnit, BattleUnit, Battlefield> OnAbilityBeforeTurn { get; set; }
     public Action<BattleUnit, Battlefield> OnAbilityAfterTurn { get; set; }
+    public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAbilityRedirectMove { get; set; }
 
 //--Status--------------------------------------------------------------------------
     //--Try Set Status
@@ -43,4 +46,5 @@ public class Ability
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnMoveUsed { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnMoveCompleted { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnTakeDamage { get; set; }
+    public Func<BattleUnit, BattleUnit, Move, int, BattleSystem, int> OnModifyDamage { get; set; }
 }

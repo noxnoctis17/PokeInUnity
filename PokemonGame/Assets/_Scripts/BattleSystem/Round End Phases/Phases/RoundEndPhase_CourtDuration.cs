@@ -35,7 +35,7 @@ public class RoundEndPhase_CourtDuration : IRoundEndPhaseHandler
                             {
                                 condition?.OnEnd?.Invoke( battleSystem, battleSystem.Field );
                                 string message = condition.EndMessage;
-                                battleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( message ) );
+                                battleSystem.AddDialogue( message );
                             }
 
                             foreach( var unit in court.Units )

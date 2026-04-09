@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Analytics;
 
 public class BattleCommandCenter : MonoBehaviour
 {
@@ -19,6 +18,19 @@ public class BattleCommandCenter : MonoBehaviour
         return targets.OrderByDescending( p => p.Pokemon.Speed ).ToList();
     }
 
+    private void HandleConsecutiveMoveUses( Pokemon pokemon, Move usedMove )
+    {
+        for( int i = 0; i < pokemon.ActiveMoves.Count; i++ )
+        {
+            var move = pokemon.ActiveMoves[i];
+
+            if( move == usedMove )
+                usedMove.IncreaseUses();
+            else
+                move.ResetUses();
+        }
+    }
+
 //-------------------------------------------------------------------------------------------------------
 //--------------------------------------------[ MOVE COMMAND ]-----------------------------------------------
 //-------------------------------------------------------------------------------------------------------
@@ -32,13 +44,16 @@ public class BattleCommandCenter : MonoBehaviour
         //--Assign last used move.
         attacker.SetLastUsedMove( move );
 
+        //--Handle individual move consecutive uses. This increments the used move and resets all other move use counts. This is mostly intended for Fury Cutter & Echoed Voice. And maybe Round?
+        HandleConsecutiveMoveUses( attacker.Pokemon, move );
+
         if( move.MoveSO.Name != "Protect" || move.MoveSO.Name != "Endure" || move.MoveSO.Name != "Detect" )
             attacker.Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
 
         //--Handle Imprison
         if( BattleSystem.IsImprisoned( move, attacker ) )
         {
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName}'s {move.MoveSO.Name} is imprisoned! The move failed!" ) );
+            BattleSystem.AddDialogue( $"{attacker.Pokemon.NickName}'s {move.MoveSO.Name} is imprisoned! The move failed!" );
             yield return null;
             yield return BattleSystem.WaitForUIQueue();
             yield break;
@@ -46,7 +61,7 @@ public class BattleCommandCenter : MonoBehaviour
 
         //--Checks if there's a status impeding the pokemon from using a move this turn, such as sleep, flinch, first turn para, confusion, etc.
         bool severe = attacker.Pokemon.OnBeforeTurn_Severe();
-        bool volatileStatus = attacker.Pokemon.OnBeforeTurn_Volatile();
+        bool volatileStatus = attacker.Pokemon.OnBeforeTurn_Volatile( move );
         bool transient = attacker.Pokemon.OnBeforeTurn_Transient();
 
         bool passedStatusBeforeTurn =  severe && volatileStatus && transient;
@@ -115,15 +130,23 @@ public class BattleCommandCenter : MonoBehaviour
         if( !pressure )
             move.PP--; //--Reduces the move's PP by 1
 
-        BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName} used {move.MoveSO.Name}!" ) );
+        BattleSystem.AddDialogue( $"{attacker.Pokemon.NickName} used {move.MoveSO.Name}!" );
         yield return BattleSystem.WaitForUIQueue();
+
+        //--Check for an ability that redirects moves, such as lightning rod or storm drain.
+        for( int r = 0; r < sortedTargets.Count; r++ )
+        {
+            var target = sortedTargets[r];
+            target.Pokemon.Ability?.OnAbilityRedirectMove?.Invoke( attacker, target, move, BattleSystem );
+        }
 
         List<BattleUnit> targetsHit = new();
         for( int t = 0; t < sortedTargets.Count; t++ )
         {
             var target = sortedTargets[t];
+            BattleSystem.RoundLog.Add( $"{attacker.Pokemon.NickName}(HP: {attacker.Pokemon.CurrentHP}/{attacker.Pokemon.MaxHP}), {target.Pokemon.NickName}(HP: {target.Pokemon.CurrentHP}/{target.Pokemon.MaxHP})" );
 
-            //--Handle Target redirection (Moves that need to retarget/rand target in doubles, also redirection like follow me and rage powder)
+            //--Handle Target redirection (Moves that need to retarget/rand target in doubles, also redirection like follow me and rage powder, as well as abilities such as lightning rod and storm drain)
             if( BattleSystem.BattleFlags[BattleFlag.Redirect] )
                 target = BattleSystem.HandleRedirection( attacker, target, move );
             
@@ -157,7 +180,7 @@ public class BattleCommandCenter : MonoBehaviour
                 else
                 {
                     BattleSystem.SetLastUsedMove( null );
-                    BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{attacker.Pokemon.NickName}'s attack missed!" ) );
+                    BattleSystem.AddDialogue( $"{attacker.Pokemon.NickName}'s attack missed!" );
                     yield return BattleSystem.WaitForUIQueue();
                 }
             }
@@ -213,7 +236,7 @@ public class BattleCommandCenter : MonoBehaviour
                                 newTarget = EffectTarget.AllySide;
 
                             BattleSystem.TriggerAbilityCutIn( target.Pokemon );
-                            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{target.Pokemon.NickName}'s Magic Bounce reflected it back!" ) );
+                            BattleSystem.AddDialogue( $"{target.Pokemon.NickName}'s Magic Bounce reflected it back!" );
                             yield return BattleSystem.WaitForUIQueue();
                         }
 
@@ -294,6 +317,8 @@ public class BattleCommandCenter : MonoBehaviour
                     
                     if( target.Pokemon.CurrentHP <= 0 )
                         break;
+
+                    BattleSystem.RoundLog.Add( $"{attacker.Pokemon.NickName}({attacker.Pokemon.CurrentHP}/{attacker.Pokemon.MaxHP}) did {damageDetails.DamageDealt} damage to {target.Pokemon.NickName}({target.Pokemon.CurrentHP}/{target.Pokemon.MaxHP})! Hits: {hits}/{totalHits}" );
                 }
 
                 yield return attacker.PokeAnimator.PlayReturnToDefaultPosition();
@@ -313,7 +338,7 @@ public class BattleCommandCenter : MonoBehaviour
 
                 if( totalHits > 1 )
                 {
-                    BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"The Pokemon was hit {hits} times!" ) );
+                    BattleSystem.AddDialogue( $"The Pokemon was hit {hits} times!" );
                     yield return BattleSystem.WaitForUIQueue();
                 }
 
@@ -584,7 +609,7 @@ public class BattleCommandCenter : MonoBehaviour
 
             //--Then we set the new weather due to the move changing the weather
             BattleSystem.Field.SetWeather( effects.Weather, 5 );
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( BattleSystem.Field.Weather?.StartByMoveMessage ?? BattleSystem.Field.Weather?.StartMessage ) );
+            BattleSystem.AddDialogue( BattleSystem.Field.Weather?.StartByMoveMessage ?? BattleSystem.Field.Weather?.StartMessage );
 
             yield return BattleSystem.WaitForUIQueue();
         }
@@ -606,7 +631,7 @@ public class BattleCommandCenter : MonoBehaviour
 
             //--Then we set the new weather due to the move changing the weather
             BattleSystem.Field.SetTerrain( effects.Terrain, 5 );
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( BattleSystem.Field.Terrain?.StartByMoveMessage ?? BattleSystem.Field.Terrain?.StartMessage ) );
+            BattleSystem.AddDialogue( BattleSystem.Field.Terrain?.StartByMoveMessage ?? BattleSystem.Field.Terrain?.StartMessage );
 
             yield return BattleSystem.WaitForUIQueue();
         }
@@ -626,14 +651,14 @@ public class BattleCommandCenter : MonoBehaviour
             BattleSystem.Field.ActiveCourts[location]?.AddCondition( effects.CourtCondition );
 
             if( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage != null )
-                BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage ) );
+                BattleSystem.AddDialogue( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage );
             
             if( effects.CourtCondition == CourtConditionID.TrickRoom )
             {
                 if( !BattleSystem.BattleFlags[BattleFlag.TrickRoom] )
-                    BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.TrickRoomStartMessage?.Invoke( BattleSystem, attacker.Pokemon ) ) );
+                    BattleSystem.AddDialogue( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.TrickRoomStartMessage?.Invoke( BattleSystem, attacker.Pokemon ) );
                 else
-                    BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.TrickRoomAlreadyActiveMessage?.Invoke( BattleSystem, attacker.Pokemon ) ) );
+                    BattleSystem.AddDialogue( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.TrickRoomAlreadyActiveMessage?.Invoke( BattleSystem, attacker.Pokemon ) );
             }
 
             yield return BattleSystem.WaitForUIQueue();
@@ -809,7 +834,7 @@ public class BattleCommandCenter : MonoBehaviour
         //--critical hit dialogue
         if( damageDetails.Critical > 1 )
         {
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It was a critical hit!" ) );
+            BattleSystem.AddDialogue( "It was a critical hit!" );
             yield return BattleSystem.WaitForUIQueue();
         }
     }
@@ -818,20 +843,20 @@ public class BattleCommandCenter : MonoBehaviour
     {
         //--Super Effective dialogue
         if ( typeEffectiveness == 2f )
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It's super effective!" ) );
+            BattleSystem.AddDialogue( "It's super effective!" );
 
         if ( typeEffectiveness == 4f )
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It's extremely effective! " ) );
+            BattleSystem.AddDialogue( "It's extremely effective! " );
 
         //--Not Very Effective dialogue
         if ( typeEffectiveness == 0.5f )
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It wasn't very effective." ) );
+            BattleSystem.AddDialogue( "It wasn't very effective." );
         if ( typeEffectiveness == 0.25f )
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It had a minimal effect!!" ) );
+            BattleSystem.AddDialogue( "It had a minimal effect!" );
 
         //--No Effect dialogue
         else if ( typeEffectiveness == 0 )
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It had no effect at all!" ) );
+            BattleSystem.AddDialogue( "It had no effect at all!" );
 
         yield return BattleSystem.WaitForUIQueue();
     }
@@ -840,9 +865,10 @@ public class BattleCommandCenter : MonoBehaviour
 //--------------------------------------------[ SWITCH COMMAND ]-----------------------------------------------
 //-------------------------------------------------------------------------------------------------------------
 
-    private void ClearBattleUnitFlags( BattleUnit unit )
+    private void ClearBattleUnit( BattleUnit unit )
     {
         unit.Pokemon.ClearAllVolatileStatus(); //--Cure all of the volatile statuses of the previous pokemon.
+        unit.Pokemon.ClearStatStages();
         unit.ResetTurnsTakenInBattle();
         unit.Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
         unit.SetFlagActive( UnitFlags.ChoiceItem, false );
@@ -891,13 +917,17 @@ public class BattleCommandCenter : MonoBehaviour
         else
             trainer = BattleSystem.BottomTrainer1;
 
-        ClearBattleUnitFlags( unit );
+        BattleSystem.RoundLog.Add( $"{trainer.TrainerName} is switching {unit.Pokemon.NickName} for {pokemon.NickName}" );
+
+        ClearBattleUnit( unit );
+        unit.Pokemon.ClearAllVolatileStatus();
 
         if( !BattleSystem.IsForcedSwitch )
         {
             if( !forcedAI )
             {
                 BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlayTrainerDialogueCR( $"{unit.Pokemon.NickName}, come back!", trainer ) );
+                BattleSystem.RoundLog.Add( $"{unit.Pokemon.NickName}, come back!" );
                 yield return BattleSystem.WaitForUIQueue();
             }
         }
@@ -940,6 +970,7 @@ public class BattleCommandCenter : MonoBehaviour
         }
 
         BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlayTrainerDialogueCR( $"Go, {pokemon.NickName}!", trainer ) );
+        BattleSystem.RoundLog.Add( $"Go, {pokemon.NickName}!" );
         yield return BattleSystem.WaitForUIQueue();
         AudioController.Instance.PlaySFX( SoundEffect.BattleBallThrow );
 
@@ -1012,7 +1043,8 @@ public class BattleCommandCenter : MonoBehaviour
         yield return null;
         yield return BattleSystem.WaitForEventQueue();
 
-        if( BattleSystem.IsForcedSwitch ){
+        if( BattleSystem.IsForcedSwitch )
+        {
             //--During a fainted switch, the menu gets paused, but because fainted
             //--switch happens after the command queue, there's never an opportunity for
             //--the menu to become unpaused, therefore it needs to happen here in this
@@ -1048,10 +1080,10 @@ public class BattleCommandCenter : MonoBehaviour
         var itemUsed = BattleSystem.PlayerInventory.UseItem( item, pokemon );
 
         if( itemUsed != null ){
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( itemUsed.UseText( pokemon ) ) );
+            BattleSystem.AddDialogue( itemUsed.UseText( pokemon ) );
         }
         else{
-            BattleSystem.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( "It didn't have any effect!" ) );
+            BattleSystem.AddDialogue( "It didn't have any effect!" );
         }
 
         yield return BattleSystem.WaitForUIQueue();

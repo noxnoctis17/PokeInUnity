@@ -9,10 +9,11 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
     public Pokemon Pokemon { get; private set; }
     public string Name { get; set; }
     public string PID { get; set; }
-    public int MaxHP { get; set; }
+    public float BeginningHPR { get; set; }
     public float CurrentHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
     public int Level { get; set; }
+    public int HPBaseStat { get; set; }
     public int Attack { get; set; }
     public int Defense { get; set; }
     public int SpAttack { get; set; }
@@ -32,8 +33,6 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
     public List<BindingConditionID> Bindings { get; set; }
 
     public CourtLocation CourtLocation { get; set; }
-    public Court Court { get; set; }
-    public bool CourtSeeded { get; set; }
 
     public Dictionary<Stat, int> StatStages { get; set; }
     public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers{ get; set; }
@@ -52,12 +51,13 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         Name = pokemon.NickName;
         PID = pokemon.PID;
 
-        CurrentHPR = _ai.Get_HPRatio( pokemon );
+        BeginningHPR = _ai.Get_HPRatio( pokemon );
+        CurrentHPR = BeginningHPR;
 
         Type = ( pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 );
 
         Level = pokemon.Level;
-        MaxHP = _ai.GetBaseStat( pokemon, Stat.HP );
+        HPBaseStat = _ai.GetBaseStat( pokemon, Stat.HP );
         Attack = _ai.GetBaseStat( pokemon, Stat.Attack );
         Defense = _ai.GetBaseStat( pokemon, Stat.Defense );
         SpAttack = _ai.GetBaseStat( pokemon, Stat.SpAttack );
@@ -75,8 +75,6 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         Bindings = new( pokemon.BindingStatuses.Keys );
 
         CourtLocation = _ai.BattleSystem.Field.GetPokemonCourtLocationFromTrainer( pokemon );
-        Court = _ai.BattleSystem.Field.ActiveCourts[CourtLocation];
-        CourtSeeded = Court.Conditions.ContainsKey( CourtConditionID.LeechSeed );
 
         StatStages = pokemon.CloneStatStages();
         DirectStatModifiers = pokemon.CloneDirectModifiers();

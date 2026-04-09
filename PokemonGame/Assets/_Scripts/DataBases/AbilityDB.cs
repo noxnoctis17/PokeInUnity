@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 public class AbilityDB
@@ -13,29 +14,17 @@ public class AbilityDB
                 Name = "Blaze",
                 Description = "Powers up Fire-type moves by 1.5x when the Pokemon's HP is 33% or less",
 
-                OnModify_ATK = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
+                OnModify_MovePower = ( attacker, target, move, power, bs ) =>
                 {
                     if( move.MoveSO.Type == PokemonType.Fire  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
                     {
                         Debug.Log( $"Blaze is Active!" );
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        atk = atk * 1.5f;
+                        power *= 1.5f;
                     }
 
-                    return atk;
+                    return power;
                 },
-
-                OnModify_SpATK = ( float spAtk, Pokemon attacker, Pokemon target, Move move ) =>
-                {
-                    if( move.MoveSO.Type == PokemonType.Fire  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
-                    {
-                        Debug.Log( $"Blaze is Active!" );
-                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        spAtk = spAtk * 1.5f;
-                    }
-
-                    return spAtk;
-                }
             }
         },
         {
@@ -44,29 +33,17 @@ public class AbilityDB
                 Name = "Torrent",
                 Description = "Powers up Water-type moves by 1.5x when the Pokemon's HP is 33% or less",
 
-                OnModify_ATK = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
+                OnModify_MovePower = ( attacker, target, move, power, bs ) =>
                 {
-                    if( move.MoveSO.Type == PokemonType.Water  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
+                    if( move.MoveSO.Type == PokemonType.Fire  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
                     {
-                        Debug.Log( $"Torrent is Active!" );
+                        Debug.Log( $"Blaze is Active!" );
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        atk = atk * 1.5f;
+                        power *= 1.5f;
                     }
 
-                    return atk;
+                    return power;
                 },
-
-                OnModify_SpATK = ( float spAtk, Pokemon attacker, Pokemon target, Move move ) =>
-                {
-                    if( move.MoveSO.Type == PokemonType.Water  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
-                    {
-                        Debug.Log( $"Torrent is Active!" );
-                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        spAtk = spAtk * 1.5f;
-                    }
-
-                    return spAtk;
-                }
             }
         },
         {
@@ -75,29 +52,17 @@ public class AbilityDB
                 Name = "Overgrow",
                 Description = "Powers up Grass-type moves by 1.5x when the Pokemon's HP is 33% or less",
 
-                OnModify_ATK = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
+                OnModify_MovePower = ( attacker, target, move, power, bs ) =>
                 {
-                    if( move.MoveSO.Type == PokemonType.Grass  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
+                    if( move.MoveSO.Type == PokemonType.Fire  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
                     {
-                        Debug.Log( $"Overgrow is Active!" );
+                        Debug.Log( $"Blaze is Active!" );
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        atk = atk * 1.5f;
+                        power *= 1.5f;
                     }
 
-                    return atk;
+                    return power;
                 },
-
-                OnModify_SpATK = ( float spAtk, Pokemon attacker, Pokemon target, Move move ) =>
-                {
-                    if( move.MoveSO.Type == PokemonType.Grass  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
-                    {
-                        Debug.Log( $"Overgrow is Active!" );
-                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        spAtk = spAtk * 1.5f;
-                    }
-
-                    return spAtk;
-                }
             }
         },
         {
@@ -106,29 +71,17 @@ public class AbilityDB
                 Name = "Swarm",
                 Description = "Powers up Bug-type moves by 1.5x when the Pokemon's HP is 33% or less",
 
-                OnModify_ATK = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
+                OnModify_MovePower = ( attacker, target, move, power, bs ) =>
                 {
-                    if( move.MoveSO.Type == PokemonType.Bug  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
+                    if( move.MoveSO.Type == PokemonType.Fire  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
                     {
-                        Debug.Log( $"Swarm is Active!" );
+                        Debug.Log( $"Blaze is Active!" );
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        atk = atk * 1.5f;
+                        power *= 1.5f;
                     }
 
-                    return atk;
+                    return power;
                 },
-
-                OnModify_SpATK = ( float spAtk, Pokemon attacker, Pokemon target, Move move ) =>
-                {
-                    if( move.MoveSO.Type == PokemonType.Bug  && attacker.CurrentHP <= Mathf.Floor( attacker.MaxHP / 3 ) )
-                    {
-                        Debug.Log( $"Swarm is Active!" );
-                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        spAtk = spAtk * 1.5f;
-                    }
-
-                    return spAtk;
-                }
             }
         },
 
@@ -149,7 +102,7 @@ public class AbilityDB
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> opps, Battlefield field ) =>
                 {
-                    if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.BRN )
+                    if( pokemon.SevereStatus?.ID == SevereConditionID.BRN )
                     {
                         pokemon.ApplyDirectStatModifier( Stat.Attack, DirectModifierCause.BRN, 1.5f );
                     }
@@ -157,7 +110,7 @@ public class AbilityDB
 
                 OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> opps, Battlefield field ) =>
                 {
-                    if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.BRN )
+                    if( pokemon.SevereStatus?.ID == SevereConditionID.BRN )
                     {
                         pokemon.RemoveDirectStatModifier( Stat.Attack, DirectModifierCause.BRN );
                     }
@@ -212,8 +165,8 @@ public class AbilityDB
 
                 OnModify_ACC = ( float acc, Pokemon attacker, Pokemon target, Move move ) =>
                 {
-                        Debug.Log( "Quick Feet is active!" );
-                        return acc * 1.3f;
+                    Debug.Log( "Quick Feet is active!" );
+                    return acc * 1.3f;
                 }
             }
         },
@@ -389,7 +342,7 @@ public class AbilityDB
 
                         if( target.Pokemon.AbilityID == AbilityID.Oblivious )
                         {
-                            BattleSystem.Instance.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{target.Pokemon.NickName} is oblivious to the intimidation!" ) );
+                            BattleSystem.Instance.AddDialogue( $"{target.Pokemon.NickName} is oblivious to the intimidation!" );
                             continue;
                         }
 
@@ -434,7 +387,7 @@ public class AbilityDB
                         
                         if( target.Pokemon.AbilityID == AbilityID.Oblivious )
                         {
-                            BattleSystem.Instance.AddToUIQueue( () => DialogueManager.Instance.PlaySystemMessageCoroutine( $"{target.Pokemon.NickName} is oblivious to being demoralized!" ) );
+                            BattleSystem.Instance.AddDialogue( $"{target.Pokemon.NickName} is oblivious to being demoralized!" );
                             continue;
                         }
 
@@ -1003,7 +956,7 @@ public class AbilityDB
             }
         },
         {
-            AbilityID.Electrify, new()
+            AbilityID.Electrize, new()
             {
                 Name = "Electrify",
                 Description = "Normal-type moves become Electric-type moves. The power of those moves is boosted by 1.2x.",
@@ -1025,6 +978,37 @@ public class AbilityDB
                     foreach( var move in pokemon.ActiveMoves )
                     {
                         if( move.MoveSO.Type == PokemonType.Normal && move.MoveType == PokemonType.Fire)
+                        {
+                            move.OverrideMoveType( PokemonType.Normal );
+                            move.OverrideMovePower( Mathf.FloorToInt( move.MoveSO.Power ) );
+                        }
+                    }
+                },
+            }
+        },
+        {
+            AbilityID.Liquidize, new()
+            {
+                Name = "Liquidize",
+                Description = "Normal-type moves become Water-type moves. The power of those moves is boosted by 1.2x.",
+
+                OnAbilityEnter = ( pokemon, targets, field ) =>
+                {
+                    foreach( var move in pokemon.ActiveMoves )
+                    {
+                        if( move.MoveSO.Type == PokemonType.Normal )
+                        {
+                            move.OverrideMoveType( PokemonType.Water );
+                            move.OverrideMovePower( Mathf.FloorToInt( move.MoveSO.Power * 1.2f ) );
+                        }
+                    }
+                },
+
+                OnAbilityExit = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
+                {
+                    foreach( var move in pokemon.ActiveMoves )
+                    {
+                        if( move.MoveSO.Type == PokemonType.Normal && move.MoveType == PokemonType.Water )
                         {
                             move.OverrideMoveType( PokemonType.Normal );
                             move.OverrideMovePower( Mathf.FloorToInt( move.MoveSO.Power ) );
@@ -1078,7 +1062,7 @@ public class AbilityDB
                 Name = "Thick Fat",
                 Description = "The Pokemon is protected by a layer of thick fat, which halves the damage taken from Fire- and Ice-type moves.",
 
-                OnModifyTakeDamage = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
+                OnModifyIncomingAttackStat = ( float atk, Pokemon attacker, Pokemon target, Move move ) =>
                 {
                     if( move.MoveType == PokemonType.Fire || move.MoveType == PokemonType.Ice )
                     {
@@ -1557,8 +1541,198 @@ public class AbilityDB
                 Name = "Analytic",
                 Description = "Boosts the power of the Pokemon's move if it is the last to act that turn."
             }
-        }
+        },
+        {
+            AbilityID.SandForce, new()
+            {
+                Name = "Sand Force",
+                Description = "Boosts the power of Rock-, Ground-, and Steel-type moves used in a sandstorm by 30% (1.3x).",
+                
+                OnModify_MovePower = ( attacker, target, move, power, bs ) =>
+                {
+                    var field = bs.Field;
+                    if( field.Weather?.ID == WeatherConditionID.SANDSTORM )
+                        return 1.5f;
+                    else
+                        return 1f;
+                },
+            }
+        },
+        {
+            AbilityID.CursedBody, new()
+            {
+                Name = "Cursed Body",
+                Description = "May disable a move that has dealt damage to this Pokemon.",
 
+                OnTakeDamage = ( attacker, target, move, bs ) =>
+                {
+                    bool trigger = Random.Range( 1, 4 ) == 1;
+                    move.SetMoveDisabled( true );
+                }
+            }
+        },
+        {
+            AbilityID.Healer, new()
+            {
+                Name = "Healer",
+                Description = "Often cures the status conditions of the Pokemon's allies with a 50% chance upon entering battle, and a 30% chance after each round.",
+
+                OnAbilityEnter = ( attacker, opponents, field ) =>
+                {
+                    var court = field.GetUnitCourt( attacker );
+                    var allyUnits = court.Units;
+
+                    for( int i = 0; i < allyUnits.Count; i++ )
+                    {
+                        var mon = allyUnits[i].Pokemon;
+                        if( mon != attacker )
+                        {
+                            if( mon.SevereStatus?.ID != SevereConditionID.None )
+                            {
+                                bool cure = Random.Range( 1, 3 ) == 1;
+                                if( cure )
+                                {
+                                    mon.AddStatusEvent( StatusEventType.Text, $"{mon.NickName} had its {mon.SevereStatus?.ID} cured by {attacker.NickName}!" );
+                                    mon.CureSevereStatus();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            AbilityID.FriendGuard, new()
+            {
+                Name = "Friend Guard",
+                Description = "Reduces damage done to allies by 25%.",
+                //--Not sure where i want to handle this. i'll get to it eventually.
+            }
+        },
+        {
+            AbilityID.WaterAbsorb, new()
+            {
+                Name = "Water Absorb",
+                Description = "If hit by a Water-type move, the Pokemon has its HP restored instead of taking damage.",
+
+                OnModifyDamage = ( attacker, target, move, damage, bs ) =>
+                {
+                    if( move.MoveType == PokemonType.Water )
+                    {
+                        int heal = Mathf.CeilToInt( damage );
+                        target.Pokemon.IncreaseHP( heal );
+                        target.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{target.Pokemon.NickName} absorbed the attack and restored its HP!" );
+
+                        damage = 0;
+                        return damage;
+                    }
+
+                    return damage;
+                }
+            }
+        },
+        {
+            AbilityID.Hydration, new()
+            {
+                Name = "Hydration",
+                Description = "Cures the Pokemon's severe status condition if it has one at the end of each turn, if it is raining."
+                //--This ability will be handled in the weather condition db entry for rain.
+            }
+        },
+        {
+            AbilityID.Pickpocket, new()
+            {
+                Name = "Pickpocket",
+                Description = "If an attacker makes contact with this Pokemon, it steals the attacker's held item if it has one.",
+
+                OnMoveContact = ( attacker, target, move ) =>
+                {
+                    if( attacker.Pokemon.HeldItem == null && target.Pokemon.HeldItem != null )
+                    {
+                        attacker.Pokemon.GiveHeldItem( target.Pokemon.HeldItem );
+                        target.Pokemon.RemoveHeldItem();
+
+                        attacker.Pokemon.AddStatusEvent( StatusEventType.Text, $"{attacker.Pokemon.NickName} pickpocketed {target.Pokemon.NickName}'s {attacker.Pokemon.HeldItem.ItemName}!" );
+                    }
+                }
+            }
+        },
+        {
+            AbilityID.LightMetal, new()
+            {
+                Name = "Light Metal",
+                Description = "Halves the Pokémon's weight.",
+
+                OnAbilityEnter = ( attacker, opponents, field ) =>
+                {
+                    //--Going to need to add a "Current Weight" property to pokemon that gets used in place of species weight (unless an effect specifically uses species weight, such as heavy ball)
+                    float halved = Mathf.Floor( attacker.PokeSO.Weight / 2f );
+                    attacker.ChangeCurrentWeight( halved );
+                }
+            }
+        },
+        {
+            AbilityID.Sniper, new()
+            {
+                Name = "Sniper",
+                Description = "If the Pokemon's attack lands a critical hit, the attack is powered up by an additional 50%.",
+                //--Ability is handled in crit calculation.
+            }
+        },
+        {
+            AbilityID.Damp, new()
+            {
+                Name = "Damp",
+                Description = "The Pokémon dampens its surroundings, preventing all Pokemon from using explosive moves such as Self-Destruct.",
+                //--This ability is currently irrelevant. If it is ever relevant, it should be handled in MoveSuccess.
+            }
+        },
+        {
+            AbilityID.ArenaTrap, new()
+            {
+                Name = "Arena Trap",
+                Description = "Prevents opposing Pokemon from switching out or fleeing from battle. Does not work on Pokemon who are ungrounded.",
+
+                OnAbilityEnter = ( attacker, opponents, field ) =>
+                {
+                    for( int i = 0; i < opponents.Count; i++ )
+                    {
+                        var opp = opponents[i];
+                        if( !opp.Flags[UnitFlags.Ungrounded].IsActive )
+                            opp.SetUnitTrapped( true );
+                        else
+                            continue;
+                    }
+                },
+
+                OnAbilityExit = ( attacker, opponents, field ) =>
+                {
+                    for( int i = 0; i < opponents.Count; i++ )
+                    {
+                        var opp = opponents[i];
+                        if( opp.Pokemon.BindingStatuses?.Count == 0 )
+                            opp.SetUnitTrapped( false );
+                        else
+                            continue;
+                    }
+                }
+            }
+        },
+        {
+            AbilityID.LightningRod, new()
+            {
+                Name = "Lightning Rod",
+                Description = "The Pokemon draws in all Electric-type moves. Instead of taking damage from them, its Sp. Atk stat is raised by 1 stage.",
+
+                OnAbilityRedirectMove = ( attacker, target, move, bs ) =>
+                {
+                    if( move.MoveType == PokemonType.Electric )
+                    {
+                        bs.SetBattleFlag( BattleFlag.Redirect, true );
+                    }
+                },
+            }
+        }
     };
 }
 
@@ -1615,13 +1789,11 @@ public enum AbilityID
     PoisonPoint,
     Static,
 
-//--Move Type Changing Abilities
     Pixilate,
     LiquidVoice,
     Burninate,
-    Electrify,
+    Electrize,
 
-//--Adaptability
     Adaptability,
     SereneGrace,
     SolarPower,
@@ -1655,5 +1827,17 @@ public enum AbilityID
     Superluck,
     Illuminate,
     Analytic,
-
+    SandForce,
+    CursedBody,
+    Healer,
+    FriendGuard, //--TODO
+    Liquidize,
+    WaterAbsorb,
+    Hydration,
+    Pickpocket,
+    LightMetal,
+    Sniper,
+    Damp,
+    ArenaTrap,
+    LightningRod,
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;
 
 public enum BattleSimRoundType { AttackRound, SwitchRound, SetupRound, }
 public class BattleAI_BattleSim
@@ -55,6 +56,8 @@ public class BattleAI_BattleSim
             Field = field,
 
             AttackerMovesFirst = attMovesFirst,
+            AttackerCanAct = _unitSim.CanActOnTurn( attacker ),
+            OpponentCanAct = _unitSim.CanActOnTurn( opponent ),
         };
 
         _unitSim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} PTKO: {ctx.AttackerPTKO}" );
@@ -80,6 +83,9 @@ public class BattleAI_BattleSim
 
             Attacker_DiesBeforeActing = ctx.Attacker_DiesBeforeActing,
             Opponent_DiesBeforeActing = ctx.Opponent_DiesBeforeActing,
+
+            AttackerCanAct = ctx.AttackerCanAct,
+            OpponentCanAct = ctx.OpponentCanAct,
 
             MutualKO = ctx.Attacker.CurrentHPR <= 0f && ctx.Opponent.CurrentHPR <= 0f,
             AttackerMovedFirst = ctx.AttackerMovesFirst,
@@ -144,6 +150,23 @@ public class BattleAI_BattleSim
         return BuildTOP( ctx );
     }
 
+    public TurnOutcomeProjection SimulateOffensiveStatusRound( BattleSimContext ctx, bool attackerStatus, bool opponentStatus, bool attackerSwitch, bool opponentSwitch )
+    {
+        _rounds++;
+        _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [Offensive Status Round Simulation])]===" );
+
+        ctx.AttackerStatus = attackerStatus;
+        ctx.OpponentStatus = opponentStatus;
+        
+        ctx.AttackerIsSwitch = attackerSwitch;
+        ctx.OpponentIsSwitch = opponentSwitch;
+
+        ResolveStatusPhase( ctx );
+        ResolveRoundEndPhases( ctx );
+
+        return BuildTOP( ctx );
+    }
+
     private void ResolveMovePhase( BattleSimContext ctx )
     {
         _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Move Phase]===" );
@@ -162,6 +185,9 @@ public class BattleAI_BattleSim
             //--Attacker does damage to opponent
             for( int i = 0; i < attackerHitCount; i++ )
             {
+                if( !_unitSim.CanActOnTurn( ctx.Attacker ) )
+                    continue;
+
                 damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
@@ -174,7 +200,7 @@ public class BattleAI_BattleSim
                 ctx.Opponent_DiesBeforeActing = true;
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent before it could act! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
             }
-            else
+            else if( _unitSim.CanActOnTurn( ctx.Opponent ) )
             {
                 //--Opponent does damage to Attacker
                 for( int i = 0; i < opponentHitCount; i++ )
@@ -194,6 +220,9 @@ public class BattleAI_BattleSim
             //--Opponent does damage to Attacker
             for( int i = 0; i < opponentHitCount; i++ )
             {
+                if( !_unitSim.CanActOnTurn( ctx.Opponent ) )
+                    continue;
+
                 damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
@@ -206,7 +235,7 @@ public class BattleAI_BattleSim
                 ctx.Attacker_DiesBeforeActing = true;
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent before it could act! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
             }
-            else
+            else if( _unitSim.CanActOnTurn( ctx.Attacker ) )
             {
                 //--Attacker does damage to opponent
                 for( int i = 0; i < attackerHitCount; i++ )
@@ -236,7 +265,7 @@ public class BattleAI_BattleSim
         int opponentHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
 
         float damageDone = 0f;
-        if( ctx.OpponentIsSwitch && !ctx.AttackerIsSwitch )
+        if( ctx.OpponentIsSwitch && !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
         {
             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
             //--Attacker does damage to opponent
@@ -253,7 +282,7 @@ public class BattleAI_BattleSim
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent on entry! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
             }
         }
-        else if( !ctx.OpponentIsSwitch && ctx.AttackerIsSwitch )
+        else if( !ctx.OpponentIsSwitch && ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
         {
             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
             //--Opponent does damage to Attacker
@@ -289,60 +318,136 @@ public class BattleAI_BattleSim
 
         if( ctx.AttackerSetup )
         {
-            if( ctx.AttackerMovesFirst )
+            if( ctx.AttackerMovesFirst && _unitSim.CanActOnTurn( ctx.Attacker ) )
             {
-                //--Attacker Setup
+                //--Attacker Sets up
                 ApplySetupMove( ctx.Attacker, attMove );
 
-                if( !ctx.OpponentIsSwitch )
+                if( !ctx.OpponentIsSwitch && ctx.OpponentCanAct )
                 {
-                    //--Get hit by opponent attack
+                    //--Attacker gets hit by opponent attack
                     damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
-                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
             }
             else
             {
-                if( !ctx.OpponentIsSwitch )
+                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
                 {
-                    //--Get hit by opponent attack
+                    //--Attacker gets hit by opponent attack
                     damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
-                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
 
-                //--Attacker Setup
-                ApplySetupMove( ctx.Attacker, attMove );
+                //--Attacker Sets up
+                if( ctx.AttackerCanAct )
+                    ApplySetupMove( ctx.Attacker, attMove );
             }
         }
         else if( ctx.OpponentSetup )
         {
             if( ctx.AttackerMovesFirst )
             {
-                if( !ctx.OpponentIsSwitch )
+                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
                 {
-                    //--Get hit by Opponent attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                    //--Opponent gets hit by Attacker attack
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attack, attack hit count
+                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 }
 
-                //--Opponent Setup
-                ApplySetupMove( ctx.Opponent, oppMove );
+                //--Opponent Sets up
+                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+                    ApplySetupMove( ctx.Opponent, oppMove );
             }
             else
             {
-                //--Opponent Setup
-                ApplySetupMove( ctx.Opponent, oppMove );
+                //--Opponent Sets up
+                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+                    ApplySetupMove( ctx.Opponent, oppMove );
 
-                if( !ctx.OpponentIsSwitch )
+                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
                 {
-                    //--Get hit by Attacker attack
+                    //--Opponent gets hit by Attacker attack
                     damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 }
             }
         }
 
         _unitSim.TurnSimLog.Add( $"" );
+    }
+
+    private void ResolveStatusPhase( BattleSimContext ctx )
+    {
+        var attMove = ctx.Attacker.MTR.Move;
+        var oppMove = ctx.Opponent.MTR.Move;
+
+        int attackerHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
+        int opponentHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
+
+        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Offensive Status Phase]===" );
+        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
+
+        float damageDone = 0f;
+
+        if( ctx.AttackerStatus )
+        {
+            if( ctx.AttackerMovesFirst )
+            {
+                //--Attacker Uses Offensive Status
+                if( _unitSim.CanActOnTurn( ctx.Attacker ) )
+                    ApplyOffensiveStatusMove( ctx.Opponent, attMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+
+                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
+                {
+                    //--Attacker gets hit by opponent attack
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                }
+            }
+            else
+            {
+                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
+                {
+                    //--Attacker gets hit by opponent attack
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                }
+
+                //--Attacker Uses Offensive Status
+                if( _unitSim.CanActOnTurn( ctx.Attacker ) )
+                    ApplyOffensiveStatusMove( ctx.Opponent, attMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+            }
+        }
+        else if( ctx.OpponentStatus )
+        {
+            if( ctx.AttackerMovesFirst )
+            {
+                if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
+                {
+                    //--Opponent gets hit by Attacker attack
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                }
+
+                //--Opponent Uses Offensive Status
+                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+                    ApplyOffensiveStatusMove( ctx.Attacker, oppMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+            }
+            else
+            {
+                //--Opponent Uses Offensive Status
+                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+                    ApplyOffensiveStatusMove( ctx.Attacker, oppMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+
+                if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
+                {
+                    //--Opponent gets hit by Attacker attack
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+                }
+            }
+        }
     }
 
     private void ResolvePostMoveEffects( SimulatedUnit attacker, SimulatedUnit target, float damageDone )
@@ -523,6 +628,35 @@ public class BattleAI_BattleSim
         unit.StatStages[Stat.Speed]         = unit.StatStages[Stat.Speed]       + delta.Speed;
     }
 
+    private void ApplyOffensiveStatusMove( SimulatedUnit target, Move move, SimulatedField field )
+    {
+        bool severe     = move.MoveEffects.SevereStatus     != SevereConditionID.None ;
+        bool vol        = move.MoveEffects.VolatileStatus   != VolatileConditionID.None;
+        bool trans      = move.MoveEffects.TransientStatus  != TransientConditionID.None;
+        // bool bind       = move.MoveEffects.BindingStatus    != BindingConditionID.None; //--Consider having binding moves be part of this decision line later
+
+        bool statusEffect   =  severe || vol || trans;
+        bool hazard         = move.MoveEffects.CourtCondition   != CourtConditionID.None;
+        bool debuff         = move.MoveEffects.StatChangeList?.Count > 0 && ( move.MoveSO.MoveEffects.Target == EffectTarget.Enemy || move.MoveSO.MoveEffects.Target == EffectTarget.OpposingSide );
+
+        if( statusEffect )
+        {
+            if( severe )
+                _unitSim.SevereConditions[move.MoveEffects.SevereStatus]?.Invoke( target );
+        }
+        else if( hazard )
+        {
+            if( target.CourtLocation == CourtLocation.TopCourt )
+                field.TopCourtConditions.Add( move.MoveEffects.CourtCondition );
+            else if( target.CourtLocation == CourtLocation.BottomCourt )
+                field.BottomCourtConditions.Add( move.MoveEffects.CourtCondition );
+        }
+        else if( debuff )
+        {
+            ApplySetupMove( target, move );
+        }
+    }
+
     private void Apply_WeatherDamage( SimulatedUnit unit, List<SimulatedUnit> activeUnits, SimulatedField field )
     {
         if( field.Weather == WeatherConditionID.None )
@@ -596,8 +730,6 @@ public class BattleAI_BattleSim
                 unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Black Sludge! HP: {unit.CurrentHPR}" );
             }
-
-            
         }
     }
 
@@ -638,6 +770,24 @@ public class BattleAI_BattleSim
             DecreaseHP( unit, ( 1f/16f ) );
             unit.CurrentHPR = Mathf.Clamp01( unit.CurrentHPR );
             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) {unit.Name} was hurt by Burn or Frostbite! HP: {unit.CurrentHPR}" );
+        }
+
+        if( unit.SevereStatus == SevereConditionID.PAR )
+        {
+            if( unit.SevereStatusTime > 0 )
+                unit.SevereStatusTime--;
+
+            if( unit.SevereStatusTime <= 0 )
+                unit.SevereStatus = SevereConditionID.None;
+        }
+
+        if( unit.SevereStatus == SevereConditionID.SLP )
+        {
+            if( unit.SevereStatusTime > 0 )
+                unit.SevereStatusTime--;
+
+            if( unit.SevereStatusTime <= 0 )
+                unit.SevereStatus = SevereConditionID.None;
         }
     }
 
@@ -719,12 +869,17 @@ public class BattleSimContext
     public PotentialToKO OpponentPTKO;
 
     public bool AttackerMovesFirst;
+    public bool AttackerCanAct;
+    public bool OpponentCanAct;
 
     public bool AttackerIsSwitch;
     public bool OpponentIsSwitch;
 
     public bool AttackerSetup;
     public bool OpponentSetup;
+
+    public bool AttackerStatus;
+    public bool OpponentStatus;
 
     public bool Attacker_DiesBeforeActing;
     public bool Opponent_DiesBeforeActing;

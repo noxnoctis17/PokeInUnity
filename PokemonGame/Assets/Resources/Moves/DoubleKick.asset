@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: DoubleKick
   m_EditorClassIdentifier: 
   _moveName: Double Kick
-  _description: kick's your mouth twice!
+  _hasTM: 0
+  _description: The user attacks by kicking the target twice in a row using two feet.
   _moveCategory: 0
   _moveTarget: 0
   _moveType: 7
@@ -21,7 +22,7 @@ MonoBehaviour:
   _statOverride: 0
   _power: 30
   _accuracy: 100
-  _alwaysHits: 0
+  _accuracyType: 0
   _pp: 30
   _movePriority: 7
   _critBehavior: 0
@@ -29,15 +30,20 @@ MonoBehaviour:
     RecoilType: 0
     RecoilDamage: 0
   _drainPercentage: 0
+  _healType: 0
+  _healAmount: 0
   _hitRange: {x: 2, y: 0}
   _flags: 02000000
   _moveEffects:
+    _target: 0
+    _trigger: 0
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
+    _bindingStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
-    _switchEffect:
-      SwitchType: 0
+    _switchType: 0
   _secondaryMoveEffects: []
