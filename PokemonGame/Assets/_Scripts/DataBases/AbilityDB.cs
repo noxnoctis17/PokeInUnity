@@ -802,15 +802,17 @@ public class AbilityDB
             AbilityID.RoughSkin, new()
             {
                 Name = "Rough Skin",
-                Description = "The Pokemon's rough skin damages attackers that make direct contact with it.",
+                Description = "The Pokemon's rough skin damages attackers that make direct contact with it for 1/8th of their max hp.",
 
-                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                OnMoveContactTarget = ( attacker, target, move ) =>
                 {
                     if( move.MoveSO.HasFlag( MoveFlags.Contact ) )
                     {
                         int damage = Mathf.FloorToInt( attacker.Pokemon.MaxHP / 8 );
                         attacker.Pokemon.DecreaseHP( damage );
                         attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} is hurt by {target.Pokemon.NickName}'s Rough Skin" );
+
+                        attacker.Pokemon.BattleItemEffect?.OnTakePassiveDamage( attacker, damage );
                     }
                 },
             }
@@ -819,9 +821,9 @@ public class AbilityDB
             AbilityID.FlameBody, new()
             {
                 Name = "Flame Body",
-                Description = "Contact with the Pokemon may burn the attacker.",
+                Description = "Contact with the Pokemon has a 30% chance to burn the attacker.",
 
-                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                OnMoveContactTarget = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                 {
                     if( move.MoveSO.HasFlag( MoveFlags.Contact ) && Random.Range( 1, 101 ) <= 30 )
                     {
@@ -840,9 +842,9 @@ public class AbilityDB
             AbilityID.PoisonPoint, new()
             {
                 Name = "Poison Point",
-                Description = "Contact with the Pokemon may poison the attacker.",
+                Description = "Contact with the Pokemon has a 30% chance to poison the attacker.",
 
-                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                OnMoveContactTarget = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                 {
                     if( move.MoveSO.HasFlag( MoveFlags.Contact ) && Random.Range( 1, 101 ) <= 30 )
                     {
@@ -861,9 +863,9 @@ public class AbilityDB
             AbilityID.Static, new()
             {
                 Name = "Static",
-                Description = "The Pokemon is charged with static electricity and may paralyze attackers that make direct contact with it.",
+                Description = "The Pokemon is charged with static electricity and has a 30% chance to paralyze attackers that make direct contact with it.",
 
-                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                OnMoveContactTarget = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                 {
                     if( move.MoveSO.HasFlag( MoveFlags.Contact ) && Random.Range( 1, 101 ) <= 30 )
                     {
@@ -897,7 +899,7 @@ public class AbilityDB
             AbilityID.Pixilate, new()
             {
                 Name = "Pixilate",
-                Description = "Normal-type moves become Fairy-type moves. The power of those moves is boosted by 1.2x.",
+                Description = "Normal-type moves become Fairy-type moves. The power of those moves is boosted by 20%.",
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
                 {
@@ -928,7 +930,7 @@ public class AbilityDB
             AbilityID.Burninate, new()
             {
                 Name = "Burninate",
-                Description = "Normal-type moves become Fire-type moves. The power of those moves is boosted by 1.2x.",
+                Description = "Normal-type moves become Fire-type moves. The power of those moves is boosted by 20%.",
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
                 {
@@ -959,7 +961,7 @@ public class AbilityDB
             AbilityID.Electrize, new()
             {
                 Name = "Electrify",
-                Description = "Normal-type moves become Electric-type moves. The power of those moves is boosted by 1.2x.",
+                Description = "Normal-type moves become Electric-type moves. The power of those moves is boosted by 20%.",
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> targets, Battlefield field ) =>
                 {
@@ -990,7 +992,7 @@ public class AbilityDB
             AbilityID.Liquidize, new()
             {
                 Name = "Liquidize",
-                Description = "Normal-type moves become Water-type moves. The power of those moves is boosted by 1.2x.",
+                Description = "Normal-type moves become Water-type moves. The power of those moves is boosted by 20%",
 
                 OnAbilityEnter = ( pokemon, targets, field ) =>
                 {
@@ -1021,7 +1023,7 @@ public class AbilityDB
             AbilityID.SereneGrace, new()
             {
                 Name = "Serene Grace",
-                Description = "Raises the likelihood of additional effects occurring when the Pokemon uses its moves.",
+                Description = "Raises the likelihood of additional effects occurring when the Pokemon uses its moves by 2x.",
 
                 OnSecondaryEffectChanceModify = () =>
                 {
@@ -1033,15 +1035,17 @@ public class AbilityDB
             AbilityID.SolarPower, new()
             {
                 Name = "Solar Power",
-                Description = "In harsh sunlight, the Pokemon's Sp. Atk stat is boosted, but its HP decreases every turn.",
+                Description = "In harsh sunlight, the Pokemon's Sp. Atk stat is boosted, but its HP decreases by 1/8 of its max HP every turn.",
 
                 //--Stat Modifiers applied in WeatherConditionDB
 
-                OnAbilityAfterTurn = ( BattleUnit attacker, Battlefield field ) =>
+                OnAbilityAfterTurn = ( attacker, field ) =>
                 {
                     if( field.Weather?.ID == WeatherConditionID.SUNNY && field.WeatherDuration > 1 )
                     {
-                        attacker.Pokemon.DecreaseHP( Mathf.FloorToInt( attacker.Pokemon.MaxHP / 8 ) );
+                        int damage = Mathf.FloorToInt( attacker.Pokemon.MaxHP / 8 );
+                        attacker.Pokemon.DecreaseHP( damage );
+                        attacker.Pokemon.BattleItemEffect?.OnTakePassiveDamage( attacker, damage );
                     }
                 },
             }
@@ -1083,7 +1087,7 @@ public class AbilityDB
             {
                 Name = "Prankster",
                 ID = AbilityID.Prankster,
-                Description = "Gives priority to the Pokemon's status moves.",
+                Description = "Gives +1 priority to the Pokemon's status moves.",
                 //--Ability's Effect is handled in UseMoveCommand
             }
         },
@@ -1146,8 +1150,17 @@ public class AbilityDB
             {
                 Name = "Sand Veil",
                 ID = AbilityID.SandVeil,
-                Description = "Boosts the Pokemon's evasiveness in a sandstorm.",
+                Description = "Boosts the Pokemon's evasiveness by 25% in a sandstorm.",
                 //--This ability is handled in Sandstorm's WeatherDB entry.
+            }
+        },
+        {
+            AbilityID.SnowCloak, new()
+            {
+            Name = "Snow Cloak",
+                ID = AbilityID.SnowCloak,
+                Description = "Boosts the Pokemon's evasiveness by 25% in a snow storm.",
+                //--This ability is handled in Snow's WeatherDB entry.
             }
         },
         {
@@ -1297,7 +1310,7 @@ public class AbilityDB
                 Description = "The Pokemon may infatuate attackers that make direct contact with it.",
                 ID = AbilityID.CuteCharm,
 
-                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                OnMoveContactTarget = ( BattleUnit attacker, BattleUnit target, Move move ) =>
                 {
                     if( move.MoveSO.HasFlag( MoveFlags.Contact ) && Random.Range( 1, 101 ) <= 30 ) //--And if the genders are not the same!
                     {
@@ -1379,7 +1392,7 @@ public class AbilityDB
                 Description = "Powers up weak moves so the Pokémon can deal more damage with them.",
                 ID = AbilityID.Technician,
 
-                OnMoveUsed = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
+                OnMoveUsed = ( attacker, target, move, bs ) =>
                 {
                     if( move.MovePower > 60 )
                         return;
@@ -1388,7 +1401,7 @@ public class AbilityDB
                     move.OverrideMovePower( power );
                 },
 
-                OnMoveCompleted = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
+                OnMoveCompleted = ( attacker, target, move, bs ) =>
                 {
                     if( move.MovePower != move.MoveSO.Power )
                         move.OverrideMovePower( move.MoveSO.Power );
@@ -1460,7 +1473,7 @@ public class AbilityDB
                 Name = "Justified",
                 Description = "When the Pokemon is hit by a Dark-type attack, its Attack stat is boosted by its sense of justice.",
 
-                OnTakeDamage = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
+                OnAfterTargetTakeDamage = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                 {
                     if( move.MoveType == PokemonType.Dark )
                     {
@@ -1546,15 +1559,17 @@ public class AbilityDB
             AbilityID.SandForce, new()
             {
                 Name = "Sand Force",
-                Description = "Boosts the power of Rock-, Ground-, and Steel-type moves used in a sandstorm by 30% (1.3x).",
+                Description = "Boosts the power of Rock-, Ground-, and Steel-type moves used in a sandstorm by 30%.",
                 
                 OnModify_MovePower = ( attacker, target, move, power, bs ) =>
                 {
                     var field = bs.Field;
-                    if( field.Weather?.ID == WeatherConditionID.SANDSTORM )
-                        return 1.5f;
+                    bool boosts = move.MoveType == PokemonType.Rock || move.MoveType == PokemonType.Ground || move.MoveType == PokemonType.Steel;
+
+                    if( boosts && field.Weather?.ID == WeatherConditionID.SANDSTORM )
+                        return move.MovePower * 1.3f;
                     else
-                        return 1f;
+                        return move.MovePower;
                 },
             }
         },
@@ -1564,7 +1579,7 @@ public class AbilityDB
                 Name = "Cursed Body",
                 Description = "May disable a move that has dealt damage to this Pokemon.",
 
-                OnTakeDamage = ( attacker, target, move, bs ) =>
+                OnAfterTargetTakeDamage = ( attacker, target, move, bs ) =>
                 {
                     bool trigger = Random.Range( 1, 4 ) == 1;
                     move.SetMoveDisabled( true );
@@ -1607,28 +1622,15 @@ public class AbilityDB
                 Name = "Friend Guard",
                 Description = "Reduces damage done to allies by 25%.",
                 //--Not sure where i want to handle this. i'll get to it eventually.
+                //--think i'll make it a unit flag that gets set or unset in ability enter/exit. does onabilityexit get raised when a unit faints? i hope so lol
             }
         },
         {
             AbilityID.WaterAbsorb, new()
             {
                 Name = "Water Absorb",
-                Description = "If hit by a Water-type move, the Pokemon has its HP restored instead of taking damage.",
-
-                OnModifyDamage = ( attacker, target, move, damage, bs ) =>
-                {
-                    if( move.MoveType == PokemonType.Water )
-                    {
-                        int heal = Mathf.CeilToInt( damage );
-                        target.Pokemon.IncreaseHP( heal );
-                        target.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{target.Pokemon.NickName} absorbed the attack and restored its HP!" );
-
-                        damage = 0;
-                        return damage;
-                    }
-
-                    return damage;
-                }
+                Description = "Water-type moves do not work on the Pokemon. Instead, they restore 1/4 of its max HP.",
+                //--The effects for this are actually triggered during the move success check phase, so the absorption and healing code is handled in BattleSystem.MoveSuccess()
             }
         },
         {
@@ -1645,7 +1647,7 @@ public class AbilityDB
                 Name = "Pickpocket",
                 Description = "If an attacker makes contact with this Pokemon, it steals the attacker's held item if it has one.",
 
-                OnMoveContact = ( attacker, target, move ) =>
+                OnMoveContactTarget = ( attacker, target, move ) =>
                 {
                     if( attacker.Pokemon.HeldItem == null && target.Pokemon.HeldItem != null )
                     {
@@ -1732,6 +1734,21 @@ public class AbilityDB
                     }
                 },
             }
+        },
+        {
+            AbilityID.StormDrain, new()
+            {
+                Name = "Storm Drain",
+                Description = "The Pokemon draws in all Water-type moves. Instead of taking damage from them, its Sp. Atk stat is raised by 1 stage.",
+
+                OnAbilityRedirectMove = ( attacker, target, move, bs ) =>
+                {
+                    if( move.MoveType == PokemonType.Water )
+                    {
+                        bs.SetBattleFlag( BattleFlag.Redirect, true );
+                    }
+                },
+            }
         }
     };
 }
@@ -1806,7 +1823,7 @@ public enum AbilityID
     PsychicSurge,
     RoughSkin,
     SandVeil,
-    EarthPower,
+    SnowCloak,
     Oblivious, //--Immune to taunt, infatuation, and intimidate (and demoralize)
     Competitive,
     Defiant,
@@ -1840,4 +1857,5 @@ public enum AbilityID
     Damp,
     ArenaTrap,
     LightningRod,
+    StormDrain,
 }

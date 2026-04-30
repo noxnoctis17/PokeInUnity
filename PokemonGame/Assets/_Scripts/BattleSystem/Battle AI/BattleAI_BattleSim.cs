@@ -188,7 +188,8 @@ public class BattleAI_BattleSim
                 if( !_unitSim.CanActOnTurn( ctx.Attacker ) )
                     continue;
 
-                damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+                damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+                // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 if( ctx.Opponent.CurrentHPR <= 0f )
@@ -205,7 +206,8 @@ public class BattleAI_BattleSim
                 //--Opponent does damage to Attacker
                 for( int i = 0; i < opponentHitCount; i++ )
                 {
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                     _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                     if( ctx.Attacker.CurrentHPR <= 0f )
@@ -223,7 +225,8 @@ public class BattleAI_BattleSim
                 if( !_unitSim.CanActOnTurn( ctx.Opponent ) )
                     continue;
 
-                damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+                // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 if( ctx.Attacker.CurrentHPR <= 0f )
@@ -240,7 +243,8 @@ public class BattleAI_BattleSim
                 //--Attacker does damage to opponent
                 for( int i = 0; i < attackerHitCount; i++ )
                 {
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
                     _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                     ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                     if( ctx.Opponent.CurrentHPR <= 0f )
@@ -271,7 +275,8 @@ public class BattleAI_BattleSim
             //--Attacker does damage to opponent
             for( int i = 0; i < attackerHitCount; i++ )
             {
-                damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+                damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+                // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
             }
@@ -288,7 +293,8 @@ public class BattleAI_BattleSim
             //--Opponent does damage to Attacker
             for( int i = 0; i < opponentHitCount; i++ )
             {
-                damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+                // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
             }
@@ -326,7 +332,8 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch && ctx.OpponentCanAct )
                 {
                     //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
             }
@@ -335,7 +342,8 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
                 {
                     //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
 
@@ -351,7 +359,8 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
                 {
                     //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attack, attack hit count
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attack, attack hit count
+                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attack, attack hit count
                     ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 }
 
@@ -368,7 +377,8 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
                 {
                     //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
                     ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
                 }
             }
@@ -401,7 +411,8 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
                 {
                     //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
             }
@@ -410,7 +421,8 @@ public class BattleAI_BattleSim
                 if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
                 {
                     //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
 
@@ -426,7 +438,8 @@ public class BattleAI_BattleSim
                 if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
                 {
                     //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
 
@@ -443,7 +456,8 @@ public class BattleAI_BattleSim
                 if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
                 {
                     //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
                     ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
                 }
             }
@@ -584,11 +598,10 @@ public class BattleAI_BattleSim
         _unitSim.TurnSimLog.Add( $"" );
     }
 
-    private float ApplyAttack( SimulatedUnit target, PotentialToKO attackingPTKO, int hitCount )
+    private float ApplyAttack( SimulatedUnit target, /*PotentialToKO attackingPTKO*/float baseDamage, int hitCount )
     {
         float previousHPR = target.CurrentHPR;
-        float ptkoDamage = _proj.Get_PTKODamagePercent( attackingPTKO );
-        float damage = hitCount > 0 ? ptkoDamage / hitCount : 0f;
+        float damage = hitCount > 0 ? baseDamage / hitCount : 0f;
 
         target.CurrentHPR -= damage;
         target.CurrentHPR = Mathf.Clamp01( target.CurrentHPR );
@@ -647,9 +660,9 @@ public class BattleAI_BattleSim
         else if( hazard )
         {
             if( target.CourtLocation == CourtLocation.TopCourt )
-                field.TopCourtConditions.Add( move.MoveEffects.CourtCondition );
+                field.TopCourtConditions.Add( move.MoveEffects.CourtCondition, -1 );
             else if( target.CourtLocation == CourtLocation.BottomCourt )
-                field.BottomCourtConditions.Add( move.MoveEffects.CourtCondition );
+                field.BottomCourtConditions.Add( move.MoveEffects.CourtCondition, -1 );
         }
         else if( debuff )
         {

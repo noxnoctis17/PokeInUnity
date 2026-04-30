@@ -36,8 +36,38 @@ public class BattleAI_MoveCommand
 
         List<BattleUnit> targets = new();
         
-        if( attackStyle == AIDecisionType.RandomMove && ( move.MoveSO.MoveTarget == MoveTarget.Self || move.MoveSO.MoveTarget == MoveTarget.AllySide ) )
-            targets.Add( _ai.Unit );
+        if( attackStyle == AIDecisionType.RandomMove )
+        {
+            if( move.MoveSO.MoveTarget == MoveTarget.Self || move.MoveSO.MoveTarget == MoveTarget.AllySide )
+                targets.Add( _ai.Unit );
+            else if( move.MoveSO.MoveTarget == MoveTarget.OpposingSide )
+            {
+                for( int t = 0; t < _ai.OpposingUnits.Count; t++ )
+                {
+                    var tar = _ai.GetBattleUnit( _ai.OpposingUnits[t].PID );
+                    targets.Add( tar );
+                }
+            }
+            else if( move.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
+            {
+                for( int t = 0; t < _ai.OpposingUnits.Count; t++ )
+                {
+                    var tar = _ai.GetBattleUnit( _ai.OpposingUnits[t].PID );
+                    targets.Add( tar );
+                }
+
+                var allyUnits = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
+                for( int i = 0; i < allyUnits.Count; i++ )
+                {
+                    if( allyUnits[i] != _ai.Unit )
+                        targets.Add( allyUnits[i] );
+                    else
+                        continue;
+                }
+            }
+            else
+                targets.Add( action.Target );
+        }
         else
             targets.Add( action.Target );
 
@@ -194,7 +224,13 @@ public class BattleAI_MoveCommand
 
         _ai.CurrentLog.Add( $"Forced Trade: {context.IsForcedTrade}. Score: {score}" );
 
-        score += 20; //--default attack incentive
+        //--Flat KO flag check
+        if( eval.AttackerPTKOR.PTKO == PotentialToKO.Dangerous && ( !theyThreatenKO || iAmFaster ) )
+            score += 10;
+        else if( eval.AttackerPTKOR.PTKO == PotentialToKO.OHKO && ( !theyThreatenKO || iAmFaster ) )
+            score += 20;
+
+        score += 10; //--default attack incentive
 
         return score;
     }
@@ -219,13 +255,14 @@ public class BattleAI_MoveCommand
             return -999;
         }
 
-        if( theirPTKO_onMe.PTKO >= PotentialToKO.Risky && !eval.AttackerMovesFirst )
+        //--These are much tighter/more risky because setting up can drastically change an outcome. defensive setup can swing ptko chances, while offensive setup can threaten KOs across entire teams, making your current hp potentially irrelevant
+        if( theirPTKO_onMe.PTKO >= PotentialToKO.Dangerous && !eval.AttackerMovesFirst )
         {
             _ai.CurrentLog.Add( $"We're likely to die if we setup now! Tanking Score!" );
             return -999;
         }
 
-        if( theirPTKO_onMe.PTKO >= PotentialToKO.Dangerous )
+        if( theirPTKO_onMe.PTKO == PotentialToKO.OHKO )
         {
             _ai.CurrentLog.Add( $"We're likely to die if we setup now! Tanking Score!" );
             return -999;
@@ -434,7 +471,7 @@ public class BattleAI_MoveCommand
         float bestModifier = 1f;
         Move bestMove = null;
         TurnOutcomeProjection bestTop = new();
-        var materialStatus = _proj.GetMaterialStatus( attacker );
+        // var materialStatus = _proj.GetMaterialStatus( attacker );
 
         //--Create Target's PTKO on attacker & target's sim unit once for use in each attacker's move's simulation
         
@@ -443,7 +480,7 @@ public class BattleAI_MoveCommand
         bool isFaster = _ai.GetUnitContextualSpeed( attacker ) > _ai.GetUnitContextualSpeed( target );
 
         // moveLog.Add( $"===[Beginning Scoring for {attacker.Name}'s Best Simulated Attack vs {target.Name}, called from {source}]===" );
-        if( attacker.PID == target.PID || attacker == target || attacker.Name == target.Name )
+        if( attacker.PID == target.PID || attacker == target )
             Debug.LogError( $"===[Beginning Scoring for {attacker.Name}'s Best Simulated Attack vs {target.Name}, called from {source}]===" );
 
         foreach( var move in attacker.ActiveMoves )
@@ -471,7 +508,7 @@ public class BattleAI_MoveCommand
             }
 
             //--Move type effectiveness
-            float effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.Type.One ) * TypeChart.GetEffectiveness( move.MoveType, target.Type.Two );
+            float effectiveness = _ai.UnitSim.Get_MoveEffectiveness( target, move );
 
             //--If there a type immunity, skip this move
             if( effectiveness == 0f )
@@ -505,8 +542,13 @@ public class BattleAI_MoveCommand
             if( top.Opponent_DiesBeforeActing )
                 score += 150;
 
+            int myAliveCount = _ai.GetRemainingAllyPokemon( attacker.PID ).Count;
+            int oppAliveCount = _ai.GetRemainingOpposingPokemon( attacker.PID ).Count;
+
+            bool isBehind = myAliveCount < oppAliveCount;
+
             if( top.MutualKO )
-                score += materialStatus.IsBehind ? 40 : -40;
+                score += isBehind ? 40 : -40;
 
             bool opponentThreatensKO = tarPTKOR.PTKO >= PotentialToKO.Risky;
             if( opponentThreatensKO && move.MoveSO.MovePriority > MovePriority.Zero && top.Opponent_DiesBeforeActing )
@@ -580,7 +622,7 @@ public class BattleAI_MoveCommand
             PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attHPR );
 
             //--Move type effectiveness
-            float effectiveness             = TypeChart.GetEffectiveness( fallbackMove.MoveType, target.Type.One ) * TypeChart.GetEffectiveness( fallbackMove.MoveType, target.Type.Two );
+            float effectiveness             = _ai.UnitSim.Get_MoveEffectiveness( target, fallbackMove );
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, fallbackMove );
             MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = fallbackMove };
             var attWSR                      = _proj.Get_EstimatedDamageResult( attacker, target, mtr );
@@ -870,13 +912,13 @@ public class BattleAI_MoveCommand
             }
             else if( hazard )
             {
-                List<CourtConditionID> courtConditions = new();
+                Dictionary<CourtConditionID, int> courtConditions = new();
                 if( target.CourtLocation == CourtLocation.TopCourt )
                     courtConditions = field_Before.TopCourtConditions;
                 else if( target.CourtLocation == CourtLocation.BottomCourt )
                     courtConditions = field_Before.BottomCourtConditions;
 
-                if( courtConditions.Contains( move.MoveSO.MoveEffects.CourtCondition ) && move.MoveSO.MoveEffects.CourtCondition != CourtConditionID.Spikes && move.MoveSO.MoveEffects.CourtCondition != CourtConditionID.ToxicSpikes )
+                if( courtConditions.ContainsKey( move.MoveSO.MoveEffects.CourtCondition ) && move.MoveSO.MoveEffects.CourtCondition != CourtConditionID.Spikes && move.MoveSO.MoveEffects.CourtCondition != CourtConditionID.ToxicSpikes )
                     continue;
 
                 type = OffensiveStatusType.EntryHazard;
@@ -1289,13 +1331,13 @@ public class BattleAI_MoveCommand
         log.Add( $"[{move.MoveSO.Name}] We Are Faster: {weMoveFirst}. Threat Impact: {threatImpact}, Disruption Value {disruptionValue}, Tempo Swing: {tempoSwing}. Immediate Impact Value: {impact}" );
 
         //--Layer logic
-        List<CourtConditionID> courtConditions = new();
+        Dictionary<CourtConditionID, int> courtConditions = new();
         if( targetSim.CourtLocation == CourtLocation.TopCourt )
             courtConditions = context.Field.TopCourtConditions;
         else if( targetSim.CourtLocation == CourtLocation.BottomCourt )
             courtConditions = context.Field.BottomCourtConditions;
 
-        bool alreadySet = courtConditions.Contains( move.MoveSO.MoveEffects.CourtCondition );
+        bool alreadySet = courtConditions.ContainsKey( move.MoveSO.MoveEffects.CourtCondition );
 
         if( !alreadySet )
             uniqueScore += 25;

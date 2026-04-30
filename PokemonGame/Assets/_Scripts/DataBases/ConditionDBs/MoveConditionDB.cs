@@ -213,7 +213,7 @@ public class MoveConditionDB
             {
                 "Triple Axel", new()
                 {
-                    OnModifyMovePower = ( BattleUnit attacker, BattleUnit target, Move move, int hit ) =>
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
                     {
                         if( hit == 1 )      return 20;
                         else if( hit == 2 ) return 40;

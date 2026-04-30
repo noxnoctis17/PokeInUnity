@@ -40,11 +40,13 @@ public class Ability
     public Action<TransientConditionID, Pokemon, StatusEffectSource> OnSetTransientStatus { get; set; }
     public Action<BindingConditionID, Pokemon, StatusEffectSource> OnSetBindingStatus { get; set; }
 //-------------------------------------------------------------------------------------
-    public Action<BattleUnit, BattleUnit, Move> OnMoveContact { get; set; }
+    public Action<BattleUnit, BattleUnit, Move> OnMoveContactTarget { get; set; }
+    public Action<BattleUnit, BattleUnit, Move> OnMoveContactAttacker { get; set; }
     public Func<Pokemon, Move, float> OnSTABModify { get; set; }
     public Func<float> OnSecondaryEffectChanceModify { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnMoveUsed { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnMoveCompleted { get; set; }
-    public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnTakeDamage { get; set; }
+    public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAfterTargetTakeDamage { get; set; }
+    public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAfterAttackerTakeDamage { get; set; }
     public Func<BattleUnit, BattleUnit, Move, int, BattleSystem, int> OnModifyDamage { get; set; }
 }

@@ -158,11 +158,11 @@ public class WeatherConditionsDB
 
                     //--This should only be called when a pokemon enters the field and a
                     //--Weather Condition is currently active. Really only for Sandstorm and Snow, but who knows
-                    OnEnterWeather = ( Pokemon pokemon ) =>
+                    OnEnterWeather = ( pokemon ) =>
                     {
                         //--Sandstorm SPDEF Boost.
                         Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
-                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.AbilityID == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.EarthPower )
+                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.AbilityID == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
                         {
                             pokemon.ApplyDirectStatModifier( Stat.SpDefense, DirectModifierCause.WeatherSpDEF, 1.5f );
                             Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
@@ -187,10 +187,10 @@ public class WeatherConditionsDB
                         }
                     },
 
-                    OnWeatherEffect = ( Pokemon pokemon ) =>
+                    OnWeatherEffect = ( pokemon ) =>
                     {
                         //--If the Pokemon is Rock, Ground, or Steel type we simply return. Else, the Pokemon takes sandstorm damage. Pokemon with Abilities like Sandforce and Sand Rush also do not take sandstorm damage!
-                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush )
+                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
                             return;
                         else
                         {
@@ -202,11 +202,11 @@ public class WeatherConditionsDB
                         
                     },
 
-                    OnExitWeather = ( Pokemon pokemon ) =>
+                    OnExitWeather = ( pokemon ) =>
                     {
                         //--Sandstorm SPDEF Boost
                         Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
-                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) )
+                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.AbilityID == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
                         {
                             pokemon.RemoveDirectStatModifier( Stat.SpDefense, DirectModifierCause.WeatherSpDEF );
                             Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
@@ -243,7 +243,7 @@ public class WeatherConditionsDB
 
                     //--This should only be called when a pokemon enters the field and a
                     //--Weather Condition is currently active. Really only for Sandstorm and Snow, but who knows
-                    OnEnterWeather = ( Pokemon pokemon ) =>
+                    OnEnterWeather = ( pokemon ) =>
                     {
                         //--Ice type pokemon gain a 50% defense boost in snow
                         Debug.Log( $"{pokemon.NickName}'s DEF Stat is: {pokemon.Defense}" );
@@ -262,10 +262,18 @@ public class WeatherConditionsDB
                             pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
                             Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         }
+
+                        //--Sand Veil
+                        if( pokemon.AbilityID == AbilityID.SnowCloak )
+                        {
+                            Debug.Log( $"[Ability] Sand Veil in Sandstorm detected! Adding evasion modifier..." );
+                            float mod = 4096f/3277f;
+                            pokemon.ApplyDirectStatModifier( Stat.Evasion, DirectModifierCause.SnowCloak, mod );
+                        }
                     },
 
                     //--Called when a pokemon leaves the field during a weather condition
-                    OnExitWeather = ( Pokemon pokemon ) =>
+                    OnExitWeather = ( pokemon ) =>
                     {
                         //--Ice type pokemon gain a 50% defense boost in snow
                         Debug.Log( $"{pokemon.NickName}'s DEF Stat is: {pokemon.Defense}" );
@@ -283,10 +291,16 @@ public class WeatherConditionsDB
                             pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
                             Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         }
+
+                        //--Sand Veil
+                        if( pokemon.AbilityID == AbilityID.SnowCloak )
+                        {
+                            pokemon.RemoveDirectStatModifier( Stat.Evasion, DirectModifierCause.SnowCloak );
+                        }
                     },
 
                     //--We're buffing the shit out of snow LOL
-                    OnDamageModify = ( Pokemon source, Pokemon target, Move move ) =>
+                    OnDamageModify = ( source, target, move ) =>
                     {
                         if( move.MoveSO.Type == PokemonType.Ice )
                             return 1.5f;

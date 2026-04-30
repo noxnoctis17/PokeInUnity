@@ -13,6 +13,24 @@ MonoBehaviour:
   m_Name: NoxFirstSinglesTeam
   m_EditorClassIdentifier: 
   _rentalTeam:
+  - _pokemon: {fileID: 11400000, guid: fb5da8217f41db343b561c7adc662aca, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 8
+    _ability: 23
+    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    _hpEVs: 252
+    _attackEVs: 0
+    _defenseEVs: 168
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 88
+    _ball: 2
+    _moves:
+    - {fileID: 11400000, guid: 4095d344166f78f47a19679885bbd675, type: 2}
+    - {fileID: 11400000, guid: 8432c297d2bcb4846909a6a2abd61dc4, type: 2}
+    - {fileID: 11400000, guid: d95b1deb705becb43a097aeaf268e137, type: 2}
+    - {fileID: 11400000, guid: e0a513386b824f04a84ef45c984f45f6, type: 2}
   - _pokemon: {fileID: 11400000, guid: 9c71d553f1ce52a42826da0055ef22b4, type: 2}
     _nickName: 
     _level: 100
@@ -85,24 +103,6 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 948f522354e4047408d3e47230d3b9a5, type: 2}
     - {fileID: 11400000, guid: 34b86dd1642d43b44ac3ebea22af4e34, type: 2}
     - {fileID: 11400000, guid: 81bdb2ed4d7a1144b958f1cb2f1cb089, type: 2}
-  - _pokemon: {fileID: 11400000, guid: fb5da8217f41db343b561c7adc662aca, type: 2}
-    _nickName: 
-    _level: 100
-    _nature: 8
-    _ability: 23
-    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
-    _hpEVs: 252
-    _attackEVs: 0
-    _defenseEVs: 168
-    _spattackEVs: 0
-    _spdefenseEVs: 0
-    _speedEVs: 88
-    _ball: 2
-    _moves:
-    - {fileID: 11400000, guid: 4095d344166f78f47a19679885bbd675, type: 2}
-    - {fileID: 11400000, guid: 8432c297d2bcb4846909a6a2abd61dc4, type: 2}
-    - {fileID: 11400000, guid: d95b1deb705becb43a097aeaf268e137, type: 2}
-    - {fileID: 11400000, guid: e0a513386b824f04a84ef45c984f45f6, type: 2}
   - _pokemon: {fileID: 11400000, guid: 1a07c48c49a9c134c999404d103a10e8, type: 2}
     _nickName: 
     _level: 100

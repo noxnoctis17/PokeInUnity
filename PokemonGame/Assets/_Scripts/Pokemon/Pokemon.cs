@@ -985,6 +985,10 @@ public class Pokemon
 
     public void DecreaseHP( int damage ){
         CurrentHP = Mathf.Clamp( CurrentHP - damage, 0, MaxHP );
+
+        if( CurrentHP < 1 )
+            CurrentHP = 0;
+
         OnDisplayInfoChanged?.Invoke();
     }
 
@@ -1404,7 +1408,7 @@ public enum DirectModifierCause
     Tailwind, Reflect, LightScreen,
     ChoiceBand, ChoiceSpecs, ChoiceScarf,
     LightBall, Guts, MarvelScale,
-    SolarPower, SandVeil, Hustle,
+    SolarPower, SandVeil, Hustle, SnowCloak,
 
 }
 

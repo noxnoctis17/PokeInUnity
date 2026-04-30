@@ -164,6 +164,12 @@ public class BattleCommandCenter : MonoBehaviour
                     MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveSuccess?.Invoke( attacker, target, move, BattleSystem );
                     move = MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveChanged?.Invoke( attacker, move, BattleSystem ) ?? move; //--Sleep Talk, Metronome, etc.
                 }
+
+                yield return null;
+                BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+                BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+                yield return null;
+                yield return BattleSystem.WaitForEventQueue();
                 
                 yield return null;
                 yield return BattleSystem.WaitForUIQueue();
@@ -186,6 +192,11 @@ public class BattleCommandCenter : MonoBehaviour
             }
             else
             {
+                yield return null;
+                BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+                BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+                yield return null;
+                yield return BattleSystem.WaitForEventQueue();
                 BattleSystem.SetLastUsedMove( null );
                 yield return BattleSystem.WaitForUIQueue();
             }
@@ -289,21 +300,11 @@ public class BattleCommandCenter : MonoBehaviour
                         yield return null;
                         yield return BattleSystem.WaitForEventQueue();
 
-                        //--Immediately after doing damage checks. Should handle appropriate timing for things like rocky helmet, rough skin, and flame body.
-                        target.Pokemon.BattleItemEffect?.OnAfterTakeDamage?.Invoke( target );
-                        yield return null;
-                        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-
-                        target.Pokemon.BattleItemEffect?.OnMoveContact?.Invoke( attacker, target, move );
-                        yield return null;
-                        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-                        
-                        target.Pokemon.Ability?.OnMoveContact?.Invoke( attacker, target, move );
-                        yield return null;
-                        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-
-                        yield return null;
-                        yield return BattleSystem.WaitForEventQueue();
+                        //===============================================
+                        //=====[Immediate Checks After Doing Damage]=====
+                        //===============================================
+                        yield return OnAfterTakeDamage( attacker, target, move );
+                        yield return OnMoveContact( attacker, target, move );
                     }
 
                     //--Multi hit move checks
@@ -383,6 +384,140 @@ public class BattleCommandCenter : MonoBehaviour
             }
         }
         
+        yield return null;
+    }
+
+    private IEnumerator OnMoveContact( BattleUnit attacker, BattleUnit target, Move move )
+    {
+        // attacker.Pokemon.Ability?.OnMoveContactAttacker?.Invoke( attacker, target, move );
+        // yield return null;
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        // yield return null;
+        // yield return BattleSystem.WaitForEventQueue();
+
+        //--Target has an ability triggered by a contact move
+        target.Pokemon.Ability?.OnMoveContactTarget?.Invoke( attacker, target, move );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+
+        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
+        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
+        // yield return null;
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        // yield return null;
+        // yield return BattleSystem.WaitForEventQueue();
+
+        //--Attacker check if reaches an HP threshold from taking damage from its target's ability. hp thresholds determine berry healing or focus sash loss
+        attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+
+        //--Target has an item triggered by a contact move
+        target.Pokemon.BattleItemEffect?.OnMoveContactTarget?.Invoke( attacker, target, move );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+
+        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
+        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
+        // yield return null;
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        // yield return null;
+        // yield return BattleSystem.WaitForEventQueue();
+
+        //--Attacker check if reaches an HP threshold from taking damage from its target's item. hp thresholds determine berry healing or focus sash loss
+        attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+
+        // attacker.Pokemon.BattleItemEffect?.OnMoveContactAttacker?.Invoke( attacker, target, move );
+        // yield return null;
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        // yield return null;
+        // yield return BattleSystem.WaitForEventQueue();
+
+        yield return null;
+    }
+
+    private IEnumerator OnAfterTakeDamage( BattleUnit attacker, BattleUnit target, Move move )
+    {
+        target.Pokemon.Ability?.OnAfterTargetTakeDamage?.Invoke( attacker, target, move, BattleSystem );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+        yield return BattleSystem.CheckForFaint( attacker );
+        yield return BattleSystem.CheckForFaint( target );
+
+        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
+        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
+        // yield return null;
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        // yield return null;
+        // yield return BattleSystem.WaitForEventQueue();
+
+        //--Attacker effected by own item when the attacker successfully does any attack damage.
+        attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+        yield return BattleSystem.CheckForFaint( attacker );
+        yield return BattleSystem.CheckForFaint( target );
+
+        //--Attacker effected by target's item. For items that trigger when the target takes any attack damage, not just contact damage.
+        target.Pokemon.BattleItemEffect?.OnAfterTargetTakeDamage?.Invoke( attacker );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+        yield return BattleSystem.CheckForFaint( attacker );
+        yield return BattleSystem.CheckForFaint( target );
+
+        //--Target effected by own item. Should be HP threshold items such as sitrus berry.
+        target.Pokemon.BattleItemEffect?.OnAfterTargetTakeDamage?.Invoke( target );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+        yield return BattleSystem.CheckForFaint( attacker );
+        yield return BattleSystem.CheckForFaint( target );
+
+        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
+        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
+        // yield return null;
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        // yield return null;
+        // yield return BattleSystem.WaitForEventQueue();
+
+        //--Attacker effected by own item. This is how we'll handle hp threshold items when the attacker takes damage from stuff like rocky helmet or rough skin.
+        attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+        yield return BattleSystem.CheckForFaint( attacker );
+        yield return BattleSystem.CheckForFaint( target );
+
+        //--Target effected by attacker's item. Currently no items exist that have an effect on the attacking pokemon when they hit their target with an attack.
+        // attacker.Pokemon.BattleItemEffect?.OnAfterTargetTakeDamage?.Invoke( target );
+        // yield return null;
+        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        // yield return null;
+        // yield return BattleSystem.WaitForEventQueue();
+
         yield return null;
     }
 
@@ -735,7 +870,7 @@ public class BattleCommandCenter : MonoBehaviour
                     if( target.IsAI )
                     {
                         BattleSystem.SetForcedSwitch( true );
-                        var switchIn = target.BattleAI.RequestedForcedSwitch();
+                        var switchIn = target.BattleAI.RequestRandomSwitch();
                         target.SetFlagActive( UnitFlags.Phazed, true );
                         yield return PerformSwitchPokemonCommand( switchIn, target, true );
                         yield return new WaitUntil( () => !BattleSystem.IsForcedSwitch );
@@ -743,6 +878,7 @@ public class BattleCommandCenter : MonoBehaviour
                     else
                     {
                         target.SetFlagActive( UnitFlags.Phazed, true );
+                        //--Players also need to have a random pokemon dragged out in the event they are phazed. right now you can side-phaze to effectively pivot, which is stupid and funny, but also incorrect.
                         yield return ForcedSwitchPartyMenu( target );
                         yield return new WaitUntil( () => !BattleSystem.IsForcedSwitch );
                     }
@@ -876,6 +1012,9 @@ public class BattleCommandCenter : MonoBehaviour
         unit.ClearCharging();
         unit.SetFlagActive( UnitFlags.IncreasedStatStage, false );
 
+        if( unit.Pokemon.SevereStatus?.ID == SevereConditionID.TOX )
+            unit.Pokemon.SevereStatusTime = 1;
+
         if( unit.Flags[UnitFlags.SkillSwapped].IsActive )
         {
             unit.Pokemon.ResetSkillSwap();
@@ -920,7 +1059,6 @@ public class BattleCommandCenter : MonoBehaviour
         BattleSystem.RoundLog.Add( $"{trainer.TrainerName} is switching {unit.Pokemon.NickName} for {pokemon.NickName}" );
 
         ClearBattleUnit( unit );
-        unit.Pokemon.ClearAllVolatileStatus();
 
         if( !BattleSystem.IsForcedSwitch )
         {
@@ -943,8 +1081,9 @@ public class BattleCommandCenter : MonoBehaviour
 
         //--Raise OnExit for ability, weather, and held item conditions on the returning Pokemon
         unit.Pokemon.Ability?.OnAbilityExit?.Invoke( unit.Pokemon, opposingUnits, BattleSystem.Field );
-        BattleSystem.Field.Weather?.OnExitWeather?.Invoke( unit.Pokemon );
         unit.Pokemon.BattleItemEffect?.OnItemExit?.Invoke( unit );
+        BattleSystem.Field.Weather?.OnExitWeather?.Invoke( unit.Pokemon );
+        BattleSystem.Field.Terrain?.OnExitTerrain?.Invoke( unit );
 
         //--If the previous Pokemon exits while any court conditions are active on its side (Enemy = Top, Player = Bottom), raise OnExitCourt
         if( BattleSystem.Field.ActiveCourts[courtLocation].Conditions.Count > 0 )
@@ -975,8 +1114,11 @@ public class BattleCommandCenter : MonoBehaviour
         AudioController.Instance.PlaySFX( SoundEffect.BattleBallThrow );
 
         //--Consider adding "exit" and "enter" functions or something -- 02/02/26
-        //--Enter weather.
+        //--Enter Weather
         BattleSystem.Field.Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
+
+        //--Enter Terrain
+        BattleSystem.Field.Terrain?.OnEnterTerrain?.Invoke( unit );
 
         if( courtLocation == CourtLocation.TopCourt )
             yield return unit.PokeAnimator.PlayEnterBattleAnimation( unit.transform, BattleSystem.TrainerCenter_Top1.transform );

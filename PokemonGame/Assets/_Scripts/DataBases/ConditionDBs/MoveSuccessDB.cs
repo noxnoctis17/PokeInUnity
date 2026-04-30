@@ -742,6 +742,48 @@ public class MoveSuccessDB
                             return true;
                     }
                 }
+            },
+            {
+                "Roar", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( bs.BattleType == BattleType.WildBattle_1v1 || bs.BattleType == BattleType.WildBattle_2v2 )
+                            return false;
+                            
+                        var allyPokemon = bs.GetAllyParty( target.Pokemon );
+                        var ourActiveUnits = bs.GetAllyUnits( target );
+                        var bench = allyPokemon.Where( p => !ourActiveUnits.Any( u => u.Pokemon == p ) && p.CurrentHP > 0  ).ToList();
+                        
+                        if( bench.Count > 0 )
+                            return true;
+                        else
+                            return false;
+                    }
+                }
+            },
+            {
+                "Whirlwind", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( bs.BattleType == BattleType.WildBattle_1v1 || bs.BattleType == BattleType.WildBattle_2v2 )
+                            return false;
+
+                        var allyPokemon = bs.GetAllyParty( target.Pokemon );
+                        var ourActiveUnits = bs.GetAllyUnits( target );
+                        var bench = allyPokemon.Where( p => !ourActiveUnits.Any( u => u.Pokemon == p ) && p.CurrentHP > 0  ).ToList();
+                        
+                        if( bench.Count > 0 )
+                            return true;
+                        else
+                            return false;
+                    }
+                }
             }
         };
     }

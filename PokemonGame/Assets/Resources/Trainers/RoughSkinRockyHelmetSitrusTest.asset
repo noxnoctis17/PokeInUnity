@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2eb24358a6a0488409e1319ae03bba77, type: 3}
+  m_Name: RoughSkinRockyHelmetSitrusTest
+  m_EditorClassIdentifier: 
+  _name: RoughSkinRockyHelmetSitrusTest
+  _trainerClass: 0
+  _skillLevel: 0
+  _portrait: {fileID: 0}
+  _dialogueColor: {fileID: 11400000, guid: bf5ac1436ecaceb4e8b6b91a4b981553, type: 2}
+  _battleTheme: 0
+  _party:
+  - _pokemon: {fileID: 11400000, guid: 5aa1bfdd35203cb498d1a93bf9c95261, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 6
+    _ability: 48
+    _heldItem: {fileID: 11400000, guid: 0a920a696a04d5c459d7af6f90c8d33f, type: 2}
+    _hpEVs: 252
+    _attackEVs: 0
+    _defenseEVs: 252
+    _spattackEVs: 0
+    _spdefenseEVs: 4
+    _speedEVs: 0
+    _ball: 3
+    _moves:
+    - {fileID: 11400000, guid: 8c717781a6dbf0a45a073fb55fb8952e, type: 2}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}

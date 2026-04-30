@@ -946,6 +946,29 @@ public class BattleSystem : MonoBehaviour
             target.Pokemon.ApplyStatStageChange( changes, source );
             return false;
         }
+
+        if( target.Pokemon.AbilityID == AbilityID.StormDrain && move.MoveType == PokemonType.Water )
+        {
+            List<StatStage> changes = new(){ new(){ Stat = Stat.SpAttack, Change = 1 } };
+            StageChangeSource source = new()
+            {
+                Pokemon = attacker.Pokemon,
+                Source = StageChangeSourceType.Ability,
+            };
+
+            target.Pokemon.AddStatusEvent( StatusEventType.Text, $"{target.Pokemon.NickName} drew in the attack with its Storm Drain!" );
+            target.Pokemon.ApplyStatStageChange( changes, source );
+            return false;
+        }
+
+        if( target.Pokemon.AbilityID == AbilityID.WaterAbsorb && move.MoveType == PokemonType.Water )
+        {
+            float maxHP = target.Pokemon.MaxHP;
+            int heal = Mathf.CeilToInt( maxHP * 0.25f );
+            target.Pokemon.IncreaseHP( heal );
+            target.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{target.Pokemon.NickName} absorbed the attack and restored its HP!" );
+            return false;
+        }
         
         if( GetTotalEffectiveness( move, target ) == 0 && move.MoveSO.MoveCategory != MoveCategory.Status )
         {
@@ -1164,7 +1187,7 @@ public class BattleSystem : MonoBehaviour
     public IEnumerator CheckForFaint( BattleUnit checkUnit )
     {
         Debug.Log( $"[Move Command][UI Queue][Check For Faint] Checking for faint on {checkUnit.Pokemon.NickName}" );
-        if( checkUnit.Pokemon.CurrentHP > 0 )
+        if( checkUnit.Pokemon.CurrentHP >= 1 )
             yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet.
 
         if( checkUnit.Pokemon.IsFainted() )
@@ -1187,6 +1210,14 @@ public class BattleSystem : MonoBehaviour
 
         if( _bottomTrainer1.Party.Contains( checkUnit.Pokemon ) )
         {
+            checkUnit.Pokemon.Ability?.OnAbilityExit?.Invoke( checkUnit.Pokemon, _enemyUnits, Field );
+            checkUnit.Pokemon.BattleItemEffect?.OnItemExit?.Invoke( checkUnit );
+            Field.Weather?.OnExitWeather?.Invoke( checkUnit.Pokemon );
+            Field.Terrain?.OnExitTerrain?.Invoke( checkUnit );
+            var courtEffects = Field.GetUnitCourt( checkUnit ).Conditions;
+            foreach( var effect in courtEffects )
+                effect.Value.OnExitCourt?.Invoke( checkUnit, Field );
+
             AddDialogue( $"Your {checkUnit.Pokemon.NickName} fainted!" );
             yield return WaitForUIQueue();
         }
@@ -1199,6 +1230,14 @@ public class BattleSystem : MonoBehaviour
             }
             else if( BattleType == BattleType.TrainerSingles || BattleType == BattleType.TrainerDoubles || BattleType == BattleType.AI_Singles || BattleType == BattleType.AI_Doubles )
             {
+                checkUnit.Pokemon.Ability?.OnAbilityExit?.Invoke( checkUnit.Pokemon, _playerUnits, Field );
+                checkUnit.Pokemon.BattleItemEffect?.OnItemExit?.Invoke( checkUnit );
+                Field.Weather?.OnExitWeather?.Invoke( checkUnit.Pokemon );
+                Field.Terrain?.OnExitTerrain?.Invoke( checkUnit );
+                var courtEffects = Field.GetUnitCourt( checkUnit ).Conditions;
+                foreach( var effect in courtEffects )
+                    effect.Value.OnExitCourt?.Invoke( checkUnit, Field );
+                    
                 AddDialogue( $"The Enemy {checkUnit.Pokemon.NickName} fainted!" );
                 yield return WaitForUIQueue();
             }

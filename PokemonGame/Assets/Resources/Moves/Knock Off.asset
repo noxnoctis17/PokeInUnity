@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Knock Off
   m_EditorClassIdentifier: 
   _moveName: Knock Off
+  _hasTM: 1
   _description: 'The user slaps down the target''s held item, making it unusable
     for that battle. This move does more damage if the target has a held item. '
   _moveCategory: 0
@@ -22,7 +23,7 @@ MonoBehaviour:
   _statOverride: 0
   _power: 65
   _accuracy: 100
-  _alwaysHits: 0
+  _accuracyType: 0
   _pp: 20
   _movePriority: 7
   _critBehavior: 0
@@ -30,15 +31,20 @@ MonoBehaviour:
     RecoilType: 0
     RecoilDamage: 0
   _drainPercentage: 0
+  _healType: 0
+  _healAmount: 0
   _hitRange: {x: 0, y: 0}
   _flags: 02000000
   _moveEffects:
+    _target: 0
+    _trigger: 0
     _statChangeList: []
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
+    _bindingStatus: 0
     _weather: 0
+    _terrain: 0
     _courtCondition: 0
-    _switchEffect:
-      SwitchType: 0
+    _switchType: 0
   _secondaryMoveEffects: []

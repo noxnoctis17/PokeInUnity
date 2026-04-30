@@ -18,7 +18,7 @@ MonoBehaviour:
     This move has a +1 Priority.
   _moveCategory: 0
   _moveTarget: 0
-  _moveType: 0
+  _moveType: 6
   _animationType: 2
   _statOverride: 0
   _power: 40

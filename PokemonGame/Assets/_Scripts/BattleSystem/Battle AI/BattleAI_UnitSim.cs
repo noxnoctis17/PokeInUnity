@@ -162,6 +162,7 @@ public class BattleAI_UnitSim
 
         SimulatedUnit unit = new()
         {
+            Pokemon = pokemon.Pokemon,
             Name = pokemon.Name,
             PID = pokemon.PID,
             BeginningHPR = hpr,
@@ -289,25 +290,31 @@ public class BattleAI_UnitSim
     {
         WeatherConditionID weather = _field.Weather != null ? _field.Weather.ID : WeatherConditionID.None;
         TerrainID terrain = _field.Terrain != null ? _field.Terrain.ID : TerrainID.None;
+        int weatherDuration = _field.Weather != null ? (int)_field.WeatherDuration : 0;
+        int terrainDuration = _field.Terrain != null ? (int)_field.TerrainDuration : 0;
 
-        List<CourtConditionID> topCourtConditions = new();
-        List<CourtConditionID> bottomCourtConditions = new();
+        Dictionary<CourtConditionID, int> topCourtConditions = new();
+        Dictionary<CourtConditionID, int> bottomCourtConditions = new();
 
         foreach( var kvp in _field.ActiveCourts[CourtLocation.TopCourt].Conditions )
-            topCourtConditions.Add( kvp.Key );
+            topCourtConditions.Add( kvp.Key, kvp.Value.TimeLeft );
 
         foreach( var kvp in _field.ActiveCourts[CourtLocation.BottomCourt].Conditions )
-            bottomCourtConditions.Add( kvp.Key );
+            bottomCourtConditions.Add( kvp.Key, kvp.Value.TimeLeft );
 
         SimulatedField field = new()
         {
             Weather = weather,
             Terrain = terrain,
+            WeatherDuration = weatherDuration,
+            TerrainDuration = terrainDuration,
             TopCourtConditions = topCourtConditions,
             BottomCourtConditions = bottomCourtConditions,
+            TrickRoomActive = _ai.BattleSystem.BattleFlags[BattleFlag.TrickRoom],
+            TrickRoomDuration = 4, //--We have to move TR out of CourtConditionDB ASAP!
         };
 
-        LogSimField( field );
+        // LogSimField( field );
 
         return field;
     }
@@ -364,6 +371,196 @@ public class BattleAI_UnitSim
             return false;
 
         return true;
+    }
+
+    public bool PokemonBenefitsFromSevereStatus( Pokemon pokemon )
+    {
+        var ability = pokemon.AbilityID;
+        if( ability == AbilityID.Guts || ability == AbilityID.MarvelScale || ability == AbilityID.QuickFeet )
+            return true;
+        else
+            return false;
+    }
+
+    public bool PokemonHasWeatherAbility( Pokemon pokemon )
+    {
+        if( pokemon.AbilityID == AbilityID.Drought || pokemon.AbilityID == AbilityID.Drizzle || pokemon.AbilityID == AbilityID.Sandstream || pokemon.AbilityID == AbilityID.SnowWarning )
+            return true;
+        else
+            return false;
+    }
+
+    public bool PokemonHasWeatherMove( Pokemon pokemon )
+    {
+        if( pokemon.CheckHasActiveMove( "Sunny Day" ) || pokemon.CheckHasActiveMove( "Rain Dance" ) || pokemon.CheckHasActiveMove( "Sandstorm" ) || pokemon.CheckHasActiveMove( "Snowscape" ) )
+            return true;
+        else
+            return false;
+    }
+
+    public bool PokemonHasTerrainAbility( Pokemon pokemon )
+    {
+        if( pokemon.AbilityID == AbilityID.GrassySurge || pokemon.AbilityID == AbilityID.PsychicSurge || pokemon.AbilityID == AbilityID.DesecratedGround )
+            return true;
+        else
+            return false;
+    }
+
+    public bool PokemonHasTerrainMove( Pokemon pokemon )
+    {
+        if( pokemon.CheckHasActiveMove( "Grassy Terrain" ) || pokemon.CheckHasActiveMove( "Psychic Terrain" ) || pokemon.CheckHasActiveMove( "Misty Terrain" ) || pokemon.CheckHasActiveMove( "Electric Terrain" ) )
+            return true;
+        else
+            return false;
+    }
+
+    public bool TeamHasWeatherSetter_Ability( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( PokemonHasWeatherAbility( mon ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasWeatherSetter_Move( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( PokemonHasWeatherMove( mon ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasTerrainSetter_Ability( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( PokemonHasTerrainAbility( mon ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasTerrainSetter_Move( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( PokemonHasTerrainMove( mon ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasTailwindSetter( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( mon.CheckHasActiveMove( "Tailwind" ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasReflectSetter( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( mon.CheckHasActiveMove( "Reflect" ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasLightScreenSetter( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( mon.CheckHasActiveMove( "Light Screen" ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasAuroraSetter( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( mon.CheckHasActiveMove( "Aurora Veil" ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasTrickRoomSetter( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( mon.CheckHasActiveMove( "Trick Room" ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool TeamHasHazardSetter( List<Pokemon> team )
+    {
+        for( int i = 0; i < team.Count; i++ )
+        {
+            var mon = team[i];
+            if( mon.CheckHasActiveMove( "Stealth Rock" ) || mon.CheckHasActiveMove( "Sticky Web" ) || mon.CheckHasActiveMove( "Leech Seed" ) || mon.CheckHasActiveMove( "Spikes" ) || mon.CheckHasActiveMove( "Toxic Spikes" ) )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool MoveIsEntryHazard( Move move )
+    {
+        string name = move.MoveSO.Name;
+        if( name == "Stealth Rock" || name == "Sticky Web" || name == "Leech Seed" || name == "Spikes" || name == "Toxic Spikes" )
+            return true;
+        else
+            return false;
     }
 
     public List<Move> GetSetupMoves( List<Move> moves )
@@ -502,75 +699,151 @@ public class BattleAI_UnitSim
         return false;
     }
 
+    // public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR, CustomLogSession log = null )
+    // {
+    //     float prob = 0f;
+
+    //     bool weThreatenOHKO = offensePTKO >= PotentialToKO.Dangerous;
+    //     bool theyThreatenOHKO = defensePTKO >= PotentialToKO.Dangerous;
+    //     bool theyThreaten2HKO = defensePTKO >= PotentialToKO.Risky;
+
+    //     int theirRemaining = _ai.GetRemainingOpposingPokemon( _ai.Unit.Pokemon ).Count;
+
+    //     //--Strong signals
+    //     if( weThreatenOHKO && !theyThreatenOHKO )
+    //         prob += 0.65f;
+    //     else if( weThreatenOHKO && weAreFaster && defensePTKO < PotentialToKO.Risky )
+    //         prob += 0.65f;
+        
+    //     if ( weAreFaster && !theyThreatenOHKO )
+    //         prob += 0.2f;
+
+    //     //--Moderate signals
+    //     if( opponentHPR <= 0.2f )
+    //         prob += 0.35f;
+    //     else if( opponentHPR <= 0.3f )
+    //         prob += 0.25f;
+    //     else if( opponentHPR <= 0.5f )
+    //         prob += 0.15f;
+    //     else if( opponentHPR <= 0.7f && weThreatenOHKO )
+    //         prob += 0.2f;
+
+    //     //---Negative signals (VERY IMPORTANT)
+    //     if( theyThreatenOHKO )
+    //         prob -= 0.4f;
+    //     else if( theyThreaten2HKO )
+    //         prob -= 0.2f;
+
+    //     //--If they are faster and threaten, even less likely to switch
+    //     if( !weAreFaster && theyThreaten2HKO )
+    //         prob -= 0.15f;
+
+    //     //--Endgame: less switching
+    //     if( theirRemaining == 1 )
+    //         prob = 0f;
+    //     else if( theirRemaining == 2 )
+    //         prob *= 0.6f;
+
+    //     // Clamp
+    //     prob = Mathf.Clamp01( prob );
+
+    //     return prob;
+    // }
+
     public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR, CustomLogSession log = null )
     {
         float prob = 0f;
+        float positive = 0;
+        float negative = 0;
 
-        bool forced = PredictForcedSwitch( offensePTKO, defensePTKO, weAreFaster );
         bool weThreatenOHKO = offensePTKO >= PotentialToKO.Dangerous;
         bool theyThreatenOHKO = defensePTKO >= PotentialToKO.Dangerous;
         bool theyThreaten2HKO = defensePTKO >= PotentialToKO.Risky;
 
         int theirRemaining = _ai.GetRemainingOpposingPokemon( _ai.Unit.Pokemon ).Count;
+        if( theirRemaining == 1 )
+            return 0f;
 
-        //--Strong signals
-        if( forced )
-            prob += 0.65f;
+        // _ai.CurrentLog.Add( $"" );
+        // _ai.CurrentLog.Add( $"===[Predicting Opponent Switch Probability...]===" );
+
+        //--Positive Signals
+        if( weThreatenOHKO && !theyThreatenOHKO )
+        {
+            positive += 2;
+            // _ai.CurrentLog.Add( $"We threaten a KO and they don't! Positive: {positive}, Negative: {negative}" );
+        }
+        
+        if( weThreatenOHKO && weAreFaster )
+        {
+            positive++;
+            // _ai.CurrentLog.Add( $"We threaten a KO and we're faster! Positive: {positive}, Negative: {negative}" );
+        }
         
         if ( weAreFaster && !theyThreatenOHKO )
-            prob += 0.2f;
+        {
+            positive++;
+            // _ai.CurrentLog.Add( $"We're faster and they don't threaten a KO! Positive: {positive}, Negative: {negative}" );
+        }
 
-        //--Moderate signals
-        if( opponentHPR <= 0.2f )
-            prob += 0.35f;
-        else if( opponentHPR <= 0.3f )
-            prob += 0.25f;
+        if( opponentHPR <= 0.3f )
+        {
+            positive += 2;
+            // _ai.CurrentLog.Add( $"Opponent current HP <= 30%! Positive: {positive}, Negative: {negative}" );
+        }
         else if( opponentHPR <= 0.5f )
-            prob += 0.15f;
-        else if( opponentHPR <= 0.7f && weThreatenOHKO )
-            prob += 0.2f;
+        {
+            positive += 1;
+            // _ai.CurrentLog.Add( $"Opponent current HP <= 50%! Positive: {positive}, Negative: {negative}" );
+        }
 
-        //---Negative signals (VERY IMPORTANT)
-        if( theyThreatenOHKO )
-            prob -= 0.4f;
-        else if( theyThreaten2HKO )
-            prob -= 0.2f;
+        //--Negative Signals
+        if( theyThreatenOHKO && !weThreatenOHKO )
+        {
+            negative += 2;
+            // _ai.CurrentLog.Add( $"They threaten a KO and we don't! Positive: {positive}, Negative: {negative}" );
+        }
 
-        //--If they are faster and threaten, even less likely to switch
-        if( !weAreFaster && theyThreaten2HKO )
-            prob -= 0.15f;
+        if( theyThreaten2HKO && !weAreFaster )
+        {
+            negative++;
+            // _ai.CurrentLog.Add( $"They threaten a 2HKO and we are slower! Positive: {positive}, Negative: {negative}" );
+        }
 
-        //--Endgame: less switching
-        if( theirRemaining == 1 )
-            prob = 0f;
-        else if( theirRemaining == 2 )
-            prob *= 0.6f;
+        if( theirRemaining <= 2 )
+        {
+            negative++;
+            // _ai.CurrentLog.Add( $"They have 2 or less Pokemon! Positive: {positive}, Negative: {negative}" );
+        }
 
-        // Clamp
-        prob = Mathf.Clamp01( prob );
+        if( opponentHPR <= 0.2f )
+        {
+            negative++;
+            // _ai.CurrentLog.Add( $"They're likely going to faint anyway from being <= 20% HP! Positive: {positive}, Negative: {negative}" );
+        }
+
+        if( defensePTKO == PotentialToKO.OHKO && !weAreFaster )
+        {
+            negative++;
+            // _ai.CurrentLog.Add( $"They almost certainly KO us and we're slower! {positive}, Negative: {negative}" );
+        }
+
+        //--Calculate
+        float total = positive - negative;
+        // _ai.CurrentLog.Add( $"Total probability: {total} ({positive} + Negative: {negative})" );
+
+        if( total == 0 )
+            return 0.5f;
+
+        // prob = positive / total;
+        prob = 1f / ( 1f + Mathf.Exp( -total ) );
+
+        // _ai.CurrentLog.Add( $"Final Probability: {prob} (Positive: {positive} / Total: {total})" );
+        // _ai.CurrentLog.Add( $"===" );
+        // _ai.CurrentLog.Add( $"" );
 
         return prob;
     }
-    
-    // public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attackerHPR, float opponentHPR )
-    // {
-    //     float prob = 0.0f;
-    //     bool weThreaten_OHKO = offensePTKO >= PotentialToKO.Dangerous;
-    //     bool theyDoNotThreaten = defensePTKO < PotentialToKO.TwoHKO;
-    //     int theirRemaining = _ai.GetRemainingOpposingPokemon( _ai.Unit.Pokemon ).Count;
-
-    //     if( PredictForcedSwitch( offensePTKO, defensePTKO, weAreFaster ) )      prob += 0.6f;
-    //     if( weThreaten_OHKO )                                                   prob += 0.2f;
-    //     if( theyDoNotThreaten )                                                 prob += 0.1f;
-    //     if( opponentHPR < 0.35f )                                               prob += 0.1f;
-    //     if( theirRemaining > 2 )                                                prob += 0.1f;
-        
-    //     if( theirRemaining == 1 )                                               prob = 0f;
-
-    //     prob = Mathf.Clamp01( prob );
-
-    //     return prob;
-    // }
 
     public int Get_ExpectedMoveHits( Move move )
     {
@@ -624,15 +897,44 @@ public class BattleAI_UnitSim
         return modifier;
     }
 
-    public int Get_WeatherContextScore( Pokemon pokemon )
+    public float Get_MoveEffectiveness( IBattleAIUnit target, Move move )
+    {
+        float effectiveness = 1f;
+
+        //--Base Effectiveness
+        effectiveness = TypeChart.GetTotalEffectiveness( target.Type, move );
+
+        //--Contextual Effectiveness. Typically ability-based effectiveness changes, such as levitate or water absorb. growing list as of 04/11/26
+        if( ( target.Ability == AbilityID.Levitate || target.IsUngrounded ) && move.MoveType == PokemonType.Ground )
+            effectiveness = 0;
+
+        if( target.Ability == AbilityID.WaterAbsorb && move.MoveType == PokemonType.Water )
+            effectiveness = 0;
+
+        if( target.Ability == AbilityID.LightningRod && move.MoveType == PokemonType.Electric )
+            effectiveness = 0;
+
+        if( move.MoveSO.Flags.Contains( MoveFlags.Powder ) && CheckTypes( PokemonType.Grass, target ) )
+            effectiveness = 0;
+
+        if( move.MoveSO.Flags.Contains( MoveFlags.Sound ) && target.Ability == AbilityID.Soundproof )
+            effectiveness = 0;
+
+        return effectiveness;
+    }
+
+    public int Get_WeatherContextScore( Pokemon pokemon, WeatherConditionID checkWeather = WeatherConditionID.None )
     {
         int score = 0;
-        var weather = _ai.BattleSystem.Field.Weather;
+        var weather = checkWeather != WeatherConditionID.None ? checkWeather : _ai.BattleSystem.Field.Weather?.ID;
+        
+        if( _ai.BattleSystem.Field.Weather == null )
+            weather = WeatherConditionID.None;
 
-        if( weather == null )
+        if( weather == WeatherConditionID.None )
             return 0;
 
-        if( weather.ID == WeatherConditionID.RAIN )
+        if( weather == WeatherConditionID.RAIN )
         {
             if( pokemon.CheckTypes( PokemonType.Water ) )
                 score += 5;
@@ -646,16 +948,16 @@ public class BattleAI_UnitSim
             if( pokemon.CheckHasAttackingMoveOfType( PokemonType.Water ) )
                 score += 5;
 
-            if( pokemon.CheckHasMove( "Thunder" ) )
+            if( pokemon.CheckHasActiveMove( "Thunder" ) )
                 score += 2;
 
-            if( pokemon.CheckHasMove( "Hurricane" ) )
+            if( pokemon.CheckHasActiveMove( "Hurricane" ) )
                 score += 2;
 
             return score;
         }
 
-        if( weather.ID == WeatherConditionID.SUNNY )
+        if( weather == WeatherConditionID.SUNNY )
         {
             if( pokemon.CheckTypes( PokemonType.Fire ) )
                 score += 5;
@@ -669,41 +971,41 @@ public class BattleAI_UnitSim
             if( pokemon.CheckHasAttackingMoveOfType( PokemonType.Fire ) )
                 score += 5;
 
-            if( pokemon.CheckHasMove( "Solar Beam" ) )
+            if( pokemon.CheckHasActiveMove( "Solar Beam" ) )
                 score += 3;
 
-            if( pokemon.CheckHasMove( "Solar Blade" ) )
+            if( pokemon.CheckHasActiveMove( "Solar Blade" ) )
                 score += 3;
 
             return score;
         }
 
-        if( weather.ID == WeatherConditionID.SANDSTORM )
+        if( weather == WeatherConditionID.SANDSTORM )
         {
             if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) )
                 score += 5;
 
-            if( pokemon.AbilityID == AbilityID.SandRush /*|| sand ability*/ )
+            if( pokemon.AbilityID == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandForce /*|| sand ability*/ )
                 score += 10;
 
             return score;
         }
 
-        if( weather.ID == WeatherConditionID.SNOW )
+        if( weather == WeatherConditionID.SNOW )
         {
             if( pokemon.CheckTypes( PokemonType.Ice ) )
                 score += 5;
 
-            if( pokemon.CheckTypes( PokemonType.Fighting ) && pokemon.CheckHasAttackingMoveOfType( PokemonType.Fighting ) )
+            if( pokemon.CheckTypes( PokemonType.Fighting ) || pokemon.CheckHasAttackingMoveOfType( PokemonType.Fighting ) )
                 score -= 5;
 
-            if( pokemon.AbilityID == AbilityID.SlushRush /*|| snow ability */ )
+            if( pokemon.AbilityID == AbilityID.SlushRush || pokemon.AbilityID == AbilityID.SnowCloak /*|| snow ability */ )
                 score += 10;
 
             if( pokemon.CheckHasAttackingMoveOfType( PokemonType.Ice ) )
                 score += 5;
 
-            if( pokemon.CheckHasMove( "Blizzard" ) )
+            if( pokemon.CheckHasActiveMove( "Blizzard" ) )
                 score += 5;
 
             return score;
@@ -717,7 +1019,7 @@ public class BattleAI_UnitSim
         int score = 0;
         var terrain = _ai.BattleSystem.Field.Terrain;
 
-        if( terrain == null )
+        if( terrain == null || terrain?.ID == TerrainID.None )
             return 0;
 
         if( terrain.ID == TerrainID.Blighted )
@@ -785,6 +1087,17 @@ public class BattleAI_UnitSim
                         return 1.5f;
                     else if( move.MoveType == PokemonType.Fire )
                         return 0.5f;
+                    else
+                        return 1f;
+                }
+            },
+            {
+                WeatherConditionID.SANDSTORM, ( move ) =>
+                {
+                    bool boosts = move.MoveType == PokemonType.Rock || move.MoveType == PokemonType.Ground || move.MoveType == PokemonType.Steel;
+
+                    if( boosts )
+                        return 1.3f;
                     else
                         return 1f;
                 }
@@ -949,6 +1262,7 @@ public class BattleAI_UnitSim
 
 public class SimulatedUnit : IBattleAIUnit
 {
+    public Pokemon Pokemon { get; set; }
     public string Name { get; set; }
     public string PID { get; set; }
     public float BeginningHPR { get; set; }
@@ -983,7 +1297,11 @@ public class SimulatedUnit : IBattleAIUnit
 public class SimulatedField
 {
     public WeatherConditionID Weather;
+    public int WeatherDuration;
     public TerrainID Terrain;
-    public List<CourtConditionID> TopCourtConditions;
-    public List<CourtConditionID> BottomCourtConditions;
+    public int TerrainDuration;
+    public Dictionary<CourtConditionID, int> TopCourtConditions;
+    public Dictionary<CourtConditionID, int> BottomCourtConditions;
+    public bool TrickRoomActive;
+    public int TrickRoomDuration;
 }

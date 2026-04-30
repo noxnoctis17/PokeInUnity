@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public enum ActionType { Attack, OffensiveSwitch, DefensiveSwitch, Setup, OffensiveStatus, Support }
 public class BattleAI_ActionEvaluation
@@ -13,21 +14,22 @@ public class BattleAI_ActionEvaluation
         _ai = ai;
     }
 
-    public ActionEvaluation BuildActionEvaluation( ActionType type, int baseScore, ProjectedBoardState pbs, IBattleAIUnit target, object payload, TurnOutcomeProjection top )
+    public ActionEvaluation BuildActionEvaluation( ActionType type, int baseScore, IBattleAIUnit target, object payload, TurnOutcomeProjection top, ExchangeEvaluation exchangeEval )
     {
-        int pbsScore = _ai.Projection.EvaluatePBS( pbs );
         ActionEvaluation eval = new()
         {
             Type = type,
-            Score = baseScore + pbsScore,
-            Top = top,
+            Score = baseScore,
+            Top1 = top,
+            ExchangeEvaluation = exchangeEval,
+            ActorPID = top.Attacker.PID,
         };
 
         BattleUnit targetUnit = null;
         if( target != null )
             targetUnit = _ai.GetBattleUnit( target.PID ); //--It's possible that targets are coming back wrong here for attacks?
 
-        _ai.CurrentLog.Add( $"===[Built Action Evaluation for {eval.Type}. Base Score + PBS Score: {eval.Score}]===" );
+        _ai.CurrentLog.Add( $"===[Built Action Evaluation for {eval.Type}. ActionScore: {eval.Score}]===" );
 
         switch( type )
         {
@@ -70,15 +72,9 @@ public class BattleAI_ActionEvaluation
     private ActionEvaluation EvaluateAttackAction( ActionEvaluation eval )
     {
         int score = eval.Score;
-        var top = eval.Top;
+        var top = eval.Top1;
 
-        _ai.CurrentLog.Add( $"===[Evaluating Attack Action. ( Base Score: {score})]===" );
-
-        if( eval.MovePayload == null )
-        {
-            _ai.CurrentLog.Add( $"No Attacking move was picked! Returning hopefully tanked score! {score}" );
-            return eval;
-        }
+        _ai.CurrentLog.Add( $"===[Evaluating Attack Action. (Base Score: {score})]===" );
 
         //--Tactical disaster: we die before acting
         if( top.Attacker_DiesBeforeActing )
@@ -104,15 +100,42 @@ public class BattleAI_ActionEvaluation
         bool movesFirst = top.Attacker.Speed > top.Opponent.Speed;
 
         //--We potentially force a switch, punish the switch in!
-        if( _ai.UnitSim.PredictForcedSwitch( top.AttackerPTKO, top.OpponentPTKO, movesFirst ) )
+        bool weForceSwitch = _ai.UnitSim.PredictSwitchProbability( top.AttackerPTKO, top.OpponentPTKO, movesFirst, top.Attacker.BeginningHPR, top.Opponent.BeginningHPR ) >= 0.8f;
+        if( weForceSwitch )
         {
             score += 25;
             _ai.CurrentLog.Add( $"We threaten to force a switch! Score: {score}" );
         }
 
         //--Look Ahead Section-------------------------
+        var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
+        var ourActiveAdapters = _ai.CreateBattleAIUnits_FromBattleUnits( ourActivePokemon );
+        
+        var offensiveSwitch = _ai.SwitchCommand.GetSwitch_Offensive( ourActiveAdapters, true, top.Opponent ).Pokemon;
+        var defensiveSwitch = _ai.SwitchCommand.GetSwitch_Defensive( ourActiveAdapters, true, top.Opponent ).Top.Attacker;
 
-        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent ).Top;
+        SimulatedUnit nextOpponent;
+        MoveThreatResult nextOpponentMTR;
+
+        if( top.Opponent_EndOfTurnHP <= 0f && offensiveSwitch != null )
+        {
+            BattleAI_PokemonAdapter opponentOffensiveSwitchAdapter = new( offensiveSwitch, _ai );
+            nextOpponentMTR = _ai.MoveCommand.GetMove_BestAttack( opponentOffensiveSwitchAdapter, top.Attacker );
+            nextOpponent = _ai.UnitSim.BuildSimUnit( opponentOffensiveSwitchAdapter, opponentOffensiveSwitchAdapter.BeginningHPR, nextOpponentMTR, top.Field );
+        }
+        else if( weForceSwitch && defensiveSwitch != null )
+        {
+            SimulatedUnit opponentDefensiveSwitchAdapter = defensiveSwitch;
+            nextOpponentMTR = _ai.MoveCommand.GetMove_BestAttack( opponentDefensiveSwitchAdapter, top.Attacker );
+            nextOpponent = _ai.UnitSim.BuildSimUnit( opponentDefensiveSwitchAdapter, opponentDefensiveSwitchAdapter.CurrentHPR, nextOpponentMTR, top.Field );
+        }
+        else
+        {
+            nextOpponentMTR = _ai.MoveCommand.GetMove_BestAttack( top.Opponent, top.Attacker );
+            nextOpponent = _ai.UnitSim.BuildSimUnit( top.Opponent, top.Opponent_EndOfTurnHP, nextOpponentMTR, top.Field );
+        }
+
+        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, nextOpponent ).Top;
 
         bool weKOThem = next.Opponent_DiesBeforeActing || next.Opponent_EndOfTurnHP <= 0f;
         bool weDie = next.Attacker_DiesBeforeActing || next.Attacker_EndOfTurnHP <= 0f;
@@ -120,8 +143,12 @@ public class BattleAI_ActionEvaluation
         if( weKOThem )
             score += 50;
 
+        _ai.CurrentLog.Add( $"We KO them in the look ahead round! Score: {score}" );
+
         if( weDie )
             score -= 70;
+
+        _ai.CurrentLog.Add( $"They KO us in the look ahead round! Score: {score}" );
 
         bool weMaintainPressure = next.AttackerPTKO >= PotentialToKO.TwoHKO;
         bool theyThreatenUs = next.OpponentPTKO >= PotentialToKO.Dangerous && !next.AttackerMovedFirst;
@@ -129,36 +156,73 @@ public class BattleAI_ActionEvaluation
         if( weMaintainPressure )
             score += 25;
 
+        _ai.CurrentLog.Add( $"We maintain pressure in the look ahead round! Score: {score}" );
+
         if( theyThreatenUs )
             score -= 30;
+
+        _ai.CurrentLog.Add( $"They threaten us in the look ahead round! Score: {score}" );
 
         //--Reward tanks for taking very little damage the turn after switching in.
         float damageTakenRaw = top.Attacker.CurrentHPR - next.Attacker_EndOfTurnHP;
         float damageTaken = NormalizeDamage( damageTakenRaw, top.Attacker.CurrentHPR );
-        if( damageTaken >= 0.4f )           score -= 20;
-        else if( damageTaken >= 0.2f )      score -= 10;
+        if( damageTaken >= 0.4f )
+        {
+            score -= 20;
+            _ai.CurrentLog.Add( $"We take more than 40% of our current hp in damage next round! Score: {score}" );
+        }
+        else if( damageTaken >= 0.2f )
+        {
+            score -= 10;
+            _ai.CurrentLog.Add( $"We take more than 20% of our current hp in damage next round! Score: {score}" );
+        }
 
         //--Reward doing acceptable chip.
         float oppHPLossRaw = top.Opponent_EndOfTurnHP - next.Opponent_EndOfTurnHP;
         float oppHPLoss = NormalizeDamage( oppHPLossRaw, top.Opponent_EndOfTurnHP );
-        if( oppHPLoss >= 0.6f )             score += 45;
-        else if( oppHPLoss >= 0.45f )       score += 30;
-        else if( oppHPLoss >= 0.25f )       score += 15;
+        if( oppHPLoss >= 0.6f )
+        {
+            score += 45;
+            _ai.CurrentLog.Add( $"We do 60% or more damage in the next round! Score: {score}" );
+        }
+        else if( oppHPLoss >= 0.45f )
+        {
+            score += 30;
+            _ai.CurrentLog.Add( $"We do 45% or more damage in the next round! Score: {score}" );
+        }
+        else if( oppHPLoss >= 0.25f )
+        {
+            score += 15;
+            _ai.CurrentLog.Add( $"We do 25% or more damage in the next round! Score: {score}" );
+        }
 
         bool badTrade = damageTaken >= 0.45f && oppHPLoss <= 0.25f;
 
         if( badTrade )
+        {
             score -= 40;
+            _ai.CurrentLog.Add( $"Bad Trade detected. Score: {score}" );
+        }
 
         bool weAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP ) >= 0.8f;
         bool theyAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP ) >= 0.8f;
 
         if( theyAreForcedOut )
+        {
             score += 25;
+            _ai.CurrentLog.Add( $"We force them to switch next round! Score: {score}" );
+        }
 
         if( weAreForcedOut )
+        {
             score -= 30;
+            _ai.CurrentLog.Add( $"They force us to switch next round! Score: {score}" );
+        }
 
+        eval.NextTurn_WeAreForcedOut = weAreForcedOut;
+        eval.NextTurn_TheyAreForcedOut = theyAreForcedOut;
+
+        eval.Top2 = next;
         eval.Score = score;
         _ai.CurrentLog.Add( $"Final Score: {score}" );
         return eval;
@@ -166,30 +230,18 @@ public class BattleAI_ActionEvaluation
 
     private ActionEvaluation EvaluateDefensiveSwitchAction( ActionEvaluation eval )
     {
-        var top = eval.Top;
+        var top = eval.Top1;
         int score = eval.Score;
 
         _ai.CurrentLog.Add( $"===[Evaluating Defensive Switch Action (Score: {score})]===" );
-        
-        if( eval.SwitchPayload == null )
-        {
-            _ai.CurrentLog.Add( $"No defensive switch was picked! Returning hopefully tanked score! {score}" );
-            return eval;
-        }
-
-        if( score == -999 )
-        {
-            _ai.CurrentLog.Add( $"Score was tanked at the heuristic level! Skipping! Score: {score}" );
-            return eval;
-        }
 
         //--Switched mon dies on entry
         if( top.Attacker_EndOfTurnHP <= 0f )
         {
             score = -999;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Switch in (attacker) faints on switch in! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
         //--Critically low after entry. Will have to be careful here, end game switching might be more heavily penalized, which is somewhat reasonable.
@@ -218,11 +270,11 @@ public class BattleAI_ActionEvaluation
 
         if( weDie )
         {
-            score -= 50;
+            score -= 60;
         }
         else if( theyThreatenUs )
         {
-            score -= 35;
+            score -= 45;
         }
 
         //--Reward tanks for taking very little damage the turn after switching in.
@@ -275,6 +327,7 @@ public class BattleAI_ActionEvaluation
             score += 35;
         }
 
+        eval.Top2 = next;
         eval.Score = score;
         return eval;
     }
@@ -282,33 +335,21 @@ public class BattleAI_ActionEvaluation
     private ActionEvaluation EvaluateOffensiveSwitchAction( ActionEvaluation eval )
     {
         int score = eval.Score;
-        var top = eval.Top;
+        var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Switch Action (Score: {score})]===" );
 
-        if( eval.SwitchPayload == null )
-        {
-            _ai.CurrentLog.Add( $"No offensive switch was picked! Returning hopefully tanked score! {score}" );
-            return eval;
-        }
-
-        if( score == -999 )
-        {
-            _ai.CurrentLog.Add( $"Score was tanked at the heuristic level! Skipping! Score: {score}" );
-            return eval;
-        }
-
         float entryDamage = 1 - top.Attacker_EndOfTurnHP;
 
-        if( entryDamage > 0.6f )
-            score -= 35;
+        if( entryDamage > 0.4f )
+            score -= 45;
 
         _ai.CurrentLog.Add( $"Attacker's Entry Damage: {entryDamage}. Score: {score}" );
 
         if( top.Attacker_EndOfTurnHP <= 0f )
-            score -= 100;
+            score -= 150;
         else if( top.Attacker_EndOfTurnHP <= 0.2f )
-            score -= 60;
+            score -= 75;
 
         _ai.CurrentLog.Add( $"Attacker end of turn HP: {top.Attacker_EndOfTurnHP}. Score: {score}" );
 
@@ -344,19 +385,20 @@ public class BattleAI_ActionEvaluation
 
         bool weDie = next.Attacker_DiesBeforeActing || next.Attacker_EndOfTurnHP <= 0f;
         if( weDie )
-            score -= 80;
+            score -= 100;
 
         bool weAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP ) >= 0.8f;
         if( weAreForcedOut )
-            score -= 60;
+            score -= 75;
 
         float damageTakenRaw = top.Attacker.CurrentHPR - next.Attacker_EndOfTurnHP;
         float damageTaken = NormalizeDamage( damageTakenRaw, top.Attacker.CurrentHPR );
         bool noPressure = next.AttackerPTKO < PotentialToKO.TwoHKO;
 
         if( noPressure && ( damageTaken >= 0.4f || oppHPLoss < 0.2f && damageTaken >= 0.3f ) )
-            score -= 40;
+            score -= 50;
 
+        eval.Top2 = next;
         eval.Score = score;
         return eval;
     }
@@ -370,21 +412,9 @@ public class BattleAI_ActionEvaluation
         const int SETUP_FORCE_SWITCH_BONUS         = 30;
 
         int score = eval.Score;
-        var top = eval.Top;
+        var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Setup Action (Score: {score})]===" );
-
-        if( eval.MovePayload == null )
-        {
-            _ai.CurrentLog.Add( $"No setup move selected! Returning hopefully tanked score! Score: {score}" );
-            return eval;
-        }
-
-        if( score == -999 )
-        {
-            _ai.CurrentLog.Add( $"Score was tanked at the heuristic level! Skipping! Score: {score}" );
-            return eval;
-        }
 
         bool weForceSwitch = _ai.UnitSim.PredictSwitchProbability( top.AttackerPTKO, top.OpponentPTKO, top.AttackerMovedFirst, top.Attacker.CurrentHPR, top.Opponent.CurrentHPR ) >= 0.85f;
 
@@ -392,18 +422,18 @@ public class BattleAI_ActionEvaluation
         if( top.Attacker_DiesBeforeActing && !weForceSwitch )
         {
             score -= DIE_BEFORE_ACTING_PENALTY;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker dies before setup completes! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
         //--We get KOd even if we setup
         if( top.Attacker_EndOfTurnHP <= 0 && !weForceSwitch )
         {
             score -= SETUP_DIES_AFTER_ACTING_PENALTY;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker faints after setting up! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
         //--Severe damage taken while setting up
@@ -413,57 +443,49 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Took big damage! Score: {score}" );
         }
 
-        // foreach( var kvp in top.Attacker.StatStages )
-        //     Debug.Log( $"[Stat Stage Check] Attacker: {top.Attacker.Name}, Stat: {kvp.Key}, Change: {kvp.Value}" );
-
-        // foreach( var kvp in top.Opponent.StatStages )
-        //     Debug.Log( $"[Stat Stage Check] Opponent: {top.Opponent.Name}, Stat: {kvp.Key}, Change: {kvp.Value}" );
-
         //--"Slight Look ahead" //--maybe add fork for switch
-        var nextRoundMTR = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent, "Evaluate Setup Action" ); //--stat change issues
-        var nextTOP = nextRoundMTR.Top;
-
-        if( nextTOP.Attacker_DiesBeforeActing )
+        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent, "Evaluate Setup Action" ).Top;
+        if( next.Attacker_DiesBeforeActing )
         {
             score -= DIE_BEFORE_ACTING_PENALTY;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker dies before setup completes! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
-        if( nextTOP.Attacker_EndOfTurnHP <= 0f )
+        if( next.Attacker_EndOfTurnHP <= 0f )
         {
             score -= SETUP_DIES_AFTER_ACTING_PENALTY;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker faints after setting up! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
-        if( nextTOP.Opponent_DiesBeforeActing )
+        if( next.Opponent_DiesBeforeActing )
         {
             score += SETUP_THREATEN_KO_NEXT_TURN + 15;
             _ai.CurrentLog.Add( $"Setup likely KO without taking damage next turn! Score: {score}" );
         }
-        else if( nextTOP.Opponent_EndOfTurnHP <= 0f )
+        else if( next.Opponent_EndOfTurnHP <= 0f )
         {
             score += SETUP_THREATEN_KO_NEXT_TURN;
             _ai.CurrentLog.Add( $"Setup likely KO next turn! Score: {score}" );
         }
 
-        if( nextTOP.OpponentPTKO < top.OpponentPTKO )
+        if( next.OpponentPTKO < top.OpponentPTKO )
         {
             score += 15;
             _ai.CurrentLog.Add( $"Setup is more defensive next turn! Score: {score}" );
         }
         
-        if( (int)nextTOP.OpponentPTKO - 1 < (int)top.OpponentPTKO )
+        if( (int)next.OpponentPTKO - 1 < (int)top.OpponentPTKO )
         {
             score += 10;
             _ai.CurrentLog.Add( $"Setup walls hard next turn! Score: {score}" );
         }
 
-        float damageTakenRaw = nextTOP.Attacker.CurrentHPR - nextTOP.Attacker_EndOfTurnHP;
-        float damageTaken = NormalizeDamage( damageTakenRaw, nextTOP.Attacker.CurrentHPR );
+        float damageTakenRaw = next.Attacker.CurrentHPR - next.Attacker_EndOfTurnHP;
+        float damageTaken = NormalizeDamage( damageTakenRaw, next.Attacker.CurrentHPR );
         if( damageTaken <= 0.25f )
         {
             score += 15;
@@ -476,8 +498,8 @@ public class BattleAI_ActionEvaluation
         }
 
         //--Opponent is now in KO range next turn
-        bool movesFirst = nextTOP.Attacker.Speed > nextTOP.Opponent.Speed;
-        bool weForceSwitchNextTurn = _ai.UnitSim.PredictSwitchProbability( nextTOP.AttackerPTKO, nextTOP.OpponentPTKO, movesFirst, nextTOP.Attacker.CurrentHPR, nextTOP.Opponent.CurrentHPR ) >= 0.8f;
+        bool movesFirst = next.Attacker.Speed > next.Opponent.Speed;
+        bool weForceSwitchNextTurn = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, movesFirst, next.Attacker.CurrentHPR, next.Opponent.CurrentHPR ) >= 0.8f;
 
         if( weForceSwitchNextTurn )
         {
@@ -485,9 +507,9 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Setup forces opponent to switch! {score}" );
         }
 
-        var oppTeam = _ai.GetRemainingOpposingPokemon( nextTOP.Attacker.PID );
+        var oppTeam = _ai.GetRemainingOpposingPokemon( next.Attacker.PID );
         int fasterBonus = 0;
-        bool weKO = nextTOP.Opponent_DiesBeforeActing || nextTOP.Opponent_EndOfTurnHP <= 0f;
+        bool weKO = next.Opponent_DiesBeforeActing || next.Opponent_EndOfTurnHP <= 0f;
         bool sweepBeginning = weKO || weForceSwitchNextTurn;
 
         if( sweepBeginning )
@@ -496,7 +518,7 @@ public class BattleAI_ActionEvaluation
             {
                 int oppSpeed = _ai.GetUnitContextualSpeed( opp );
 
-                if( nextTOP.Attacker.Speed > oppSpeed )
+                if( next.Attacker.Speed > oppSpeed )
                     fasterBonus += 5;
             }
 
@@ -504,6 +526,8 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Outspeeds {fasterBonus / 5} opposing Pokémon after setup! {score}" );
         }
 
+        eval.Top2 = next;
+        eval.Top2.AttackerHasSweepHorizon = sweepBeginning;
         eval.Score = score;
         return eval;
     }
@@ -511,7 +535,7 @@ public class BattleAI_ActionEvaluation
     private ActionEvaluation EvaluateOffensiveStatusAction( ActionEvaluation eval )
     {
         int score = eval.Score;
-        var top = eval.Top;
+        var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Status Action (Score: {score})]===" );
 
@@ -520,17 +544,17 @@ public class BattleAI_ActionEvaluation
         if( top.Attacker_DiesBeforeActing && !weForceSwitch )
         {
             score -= 120;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker Dies Before Acting! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
         if( top.Attacker_EndOfTurnHP <= 0f && !weForceSwitch )
         {
             score -= 90;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker Dies! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
         if( top.Attacker_EndOfTurnHP <= 0.35f )
@@ -591,17 +615,17 @@ public class BattleAI_ActionEvaluation
         if( next.Attacker_DiesBeforeActing )
         {
             score -= 60;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker dies before acting! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
         if( next.Attacker_EndOfTurnHP <= 0f )
         {
             score -= 50;
-            eval.Score = score;
+            // eval.Score = score;
             _ai.CurrentLog.Add( $"Attacker dies! Score: {score}" );
-            return eval;
+            // return eval;
         }
 
         bool weForceSwitchNextTurn = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP ) >= 0.8f;
@@ -620,7 +644,7 @@ public class BattleAI_ActionEvaluation
 
         _ai.CurrentLog.Add( $"Damage Taken: {damageTaken}. Score: {score}" );
 
-        List<CourtConditionID> courtConditions = new();
+        Dictionary<CourtConditionID, int> courtConditions = new();
         if( top.Opponent.CourtLocation == CourtLocation.TopCourt )
             courtConditions = top.Field.TopCourtConditions;
         else if( top.Opponent.CourtLocation == CourtLocation.BottomCourt )
@@ -636,7 +660,7 @@ public class BattleAI_ActionEvaluation
             float hazardDamage = 0f;
 
             foreach( var condition in oppCourtConditions )
-                hazardDamage += _ai.Get_EntryHazardDamage( top.Opponent, condition );
+                hazardDamage += _ai.Get_EntryHazardDamage( top.Opponent, condition.Key );
 
             int hazardScore = Mathf.FloorToInt( hazardDamage * 120f );
             score += hazardScore;
@@ -647,6 +671,7 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"We have hazard pressure! Hazard Damage: {hazardDamage}, Hazard Score: {hazardScore} Score: {score}" );
         }
 
+        eval.Top2 = next;
         eval.Score = score;
         return eval;
     }
@@ -661,16 +686,16 @@ public class BattleAI_ActionEvaluation
         switch( sac.Type )
         {
             case ActionType.Attack:
-                    score += Mathf.FloorToInt( ( 1 - sac.Top.Opponent_EndOfTurnHP ) * 30 );
+                    score += Mathf.FloorToInt( ( 1 - sac.Top1.Opponent_EndOfTurnHP ) * 30 );
                 break;
 
             case ActionType.DefensiveSwitch:
-                    if( sac.Top.Attacker_EndOfTurnHP > 0.3f )
+                    if( sac.Top1.Attacker_EndOfTurnHP > 0.3f )
                         score += 20;
                 break;
 
             case ActionType.OffensiveSwitch:
-                    if( sac.Top.AttackerMovedFirst && sac.Top.AttackerPTKO >= PotentialToKO.Risky )
+                    if( sac.Top1.AttackerMovedFirst && sac.Top1.AttackerPTKO >= PotentialToKO.Risky )
                         score += 25;
                 break;
 
@@ -691,7 +716,7 @@ public class BattleAI_ActionEvaluation
     {
         int score = 0;
 
-        bool weDieThisTurn = eval.Top.Attacker_EndOfTurnHP <= 0 || eval.Top.Attacker_DiesBeforeActing;
+        bool weDieThisTurn = eval.Top1.Attacker_EndOfTurnHP <= 0 || eval.Top1.Attacker_DiesBeforeActing;
 
         //--Don't want to bias toward accidental survival. I guess.
         if( !weDieThisTurn )
@@ -701,13 +726,13 @@ public class BattleAI_ActionEvaluation
 
         //--Get Next round Pokemon
         BattleAI_PokemonAdapter revengeCandidate = null;
-        if( eval.Top.Attacker_DiesBeforeActing || eval.Top.Attacker_EndOfTurnHP <= 0 )
+        if( eval.Top1.Attacker_DiesBeforeActing || eval.Top1.Attacker_EndOfTurnHP <= 0 )
         {
             var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.OpposingUnits ).Pokemon;
             if( switchCandidate != null )
                 revengeCandidate = new( switchCandidate, _ai  );
         }
-        else if( eval.Top.AttackerPTKO <= PotentialToKO.Safe && eval.Top.OpponentPTKO >= PotentialToKO.TwoHKO )
+        else if( eval.Top1.AttackerPTKO <= PotentialToKO.Safe && eval.Top1.OpponentPTKO >= PotentialToKO.TwoHKO )
         {
             var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.OpposingUnits ).Pokemon;
             if( switchCandidate != null )
@@ -718,10 +743,10 @@ public class BattleAI_ActionEvaluation
         if( revengeCandidate != null )
             nextPokemon = revengeCandidate;
         else
-            nextPokemon = eval.Top.Attacker;
+            nextPokemon = eval.Top1.Attacker;
 
         //--Look ahead at the next round
-        var followUp = _ai.MoveCommand.GetMove_BestAttack( nextPokemon, eval.Top.Opponent ).Top;
+        var followUp = _ai.MoveCommand.GetMove_BestAttack( nextPokemon, eval.Top1.Opponent ).Top;
 
         //--Revenge Kill Success
         if( followUp.Opponent_DiesBeforeActing )
@@ -753,7 +778,7 @@ public class BattleAI_ActionEvaluation
         }
 
         //--Opponent HP after sac, before next turn starts
-        float oppHP_before = eval.Top.Opponent_EndOfTurnHP;
+        float oppHP_before = eval.Top1.Opponent_EndOfTurnHP;
         score += Mathf.FloorToInt( ( 1 - oppHP_before ) * 80 );
         _ai.CurrentLog.Add( $"Opponent's HP After Sacrificing, before next turn starts: {oppHP_before}. Score: {score}" );
 
@@ -771,7 +796,7 @@ public class BattleAI_ActionEvaluation
         _ai.CurrentLog.Add( $"Attacker Moves first in follow up round? {followUp.AttackerMovedFirst} Score: {score}" );
 
         //--Forced Switch check on follow up turn. we use the next pokemon's current hpr and eval TOP opponent's end of turn hpr because that's the hp they will start the follow up round with. we want to know if we force a switch during that round, not after.
-        if( _ai.UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, nextPokemon.CurrentHPR, eval.Top.Opponent_EndOfTurnHP ) >= 0.8 )
+        if( _ai.UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, nextPokemon.CurrentHPR, eval.Top1.Opponent_EndOfTurnHP ) >= 0.8 )
         {
             score += 30;
             _ai.CurrentLog.Add( $"Opponent is likely forced to switch in follow up! Score: {score}" );
@@ -785,7 +810,7 @@ public class BattleAI_ActionEvaluation
         }
 
         //--Piece Value death penalty
-        if( _ai.TeamPieceValues.TryGetValue( eval.Top.Attacker.PID, out var pieceValue ) )
+        if( _ai.TeamPieceValues.TryGetValue( eval.Top1.Attacker.PID, out var pieceValue ) )
         {
             int deathValuePenalty = Mathf.FloorToInt( pieceValue.OffensiveValue * 0.5f );
             score -= deathValuePenalty;
@@ -824,10 +849,1014 @@ public class BattleAI_ActionEvaluation
         _ai.CurrentLog.Add( $"Pressure Score: {doomedOutcome.PressureScore}. Multiplier: {pressureMultiplier}. Score: {score}" );
         _ai.CurrentLog.Add( $"Final Sacrifice Evaluation Score for {eval.Type} decision line: {score}" );
 
-        eval.Top = followUp;
+        eval.Top1 = followUp;
         eval.Score = score;
         return eval;
     }
 
+    public int EvaluateThreatResponse( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
+    {
+        int score = 0;
+        float sackScalar = 0.7f;
+        var expendability = bc.MyExpendability;
+        float sackModifier = ( 1 - expendability * sackScalar );
 
+        var top1 = action.Top1;
+        var top2 = action.Top2;
+
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"===================================================" );
+        _ai.CurrentLog.Add( $"=====[Evaluating Threat Response for {action.Type}]=====" );
+        _ai.CurrentLog.Add( $"===================================================" );
+        _ai.CurrentLog.Add( $"" );
+
+        _ai.CurrentLog.Add( $"Threat Type is {threat.Type}." );
+
+        float damageDealt = top1.Opponent.BeginningHPR - top1.Opponent_EndOfTurnHP;
+        _ai.CurrentLog.Add( $"Damage Dealt to threat: {damageDealt}. Score: {score}" );
+
+        switch( threat.Type )
+        {
+            case ThreatType.BurstDamage:
+
+                if( top1.Attacker_EndOfTurnHP <= 0f )
+                {
+                    score -= Mathf.RoundToInt( 70 * sackModifier );
+                    _ai.CurrentLog.Add( $"Attacker doesn't survive burst damage threat from opponent. Penalizing. Score: {score}" );
+                }
+                else
+                {
+                    if( damageDealt >= 0.33f )
+                    {
+                        score += 25;
+                        _ai.CurrentLog.Add( $"Attacker survives the round and does 33% damage or more. Score: {score}" );
+                    }
+                }
+
+                if( top1.Attacker_EndOfTurnHP > 0 && ( top1.AttackerPTKO >= PotentialToKO.Risky && top1.AttackerMovedFirst || top1.AttackerPTKO >= PotentialToKO.Dangerous ) )
+                {
+                    score += 40;
+                    _ai.CurrentLog.Add( $"Attacker survives and threatens big damage on burst damage threat opponent. Score: {score}" );
+                }
+
+                if( top1.Opponent_EndOfTurnHP <= 0f )
+                {
+                    score += 50;
+                    _ai.CurrentLog.Add( $"Opponent is KO'd this round! Score: {score}" );
+                }
+
+                if( top1.OpponentPTKO >= PotentialToKO.Risky && top2.OpponentPTKO < PotentialToKO.Risky )
+                {
+                    score += 25;
+                    _ai.CurrentLog.Add( $"Opponent's PTKO {top1.OpponentPTKO} during this round is lessened to {top2.OpponentPTKO} next round! Score: {score}" );
+                }
+
+                if( threat.ThreatensImmediateKO && action.Type == ActionType.DefensiveSwitch )
+                {
+                    score += 25;
+                    _ai.CurrentLog.Add( $"Opponent threatens an immediate KO, pushing defensive switching. Score: {score}" );
+                }
+
+                if( action.Type == ActionType.DefensiveSwitch && action.Top2.Attacker_EndOfTurnHP > 0 )
+                {
+                    score += 40;
+                    _ai.CurrentLog.Add( $"Defensive switch candidate survives the burst damage on incoming and next turn! Score: {score}" );
+                }
+
+                if( action.Type == ActionType.OffensiveSwitch )
+                {
+                    score += 15;
+                    _ai.CurrentLog.Add( $"Flat reward for an offensive switch that may neutralize the current burst damage threat. Score: {score}" );
+
+                    if( action.Top2.Attacker_EndOfTurnHP > 0 && action.Top2.AttackerPTKO >= PotentialToKO.Dangerous )
+                    {
+                        score += 25;
+                        _ai.CurrentLog.Add( $"Offensive switch candidate survives next round and threatens big damage! Score: {score}" );
+                    }
+                }
+
+                if( threat.ConstraintPressure >= 2f && action.Type == ActionType.DefensiveSwitch )
+                {
+                    score += 15;
+                    _ai.CurrentLog.Add( $"Constraint Pressure: {threat.ConstraintPressure}, rewarding defensive switch lightly. Score: {score}" );
+                }
+
+            break;
+
+            case ThreatType.Pressure:
+
+                score += Mathf.FloorToInt( damageDealt * 60 );
+                _ai.CurrentLog.Add( $"Flat damage dealt reward for general pressure, * 60( {damageDealt * 60}). Score: {score}" );
+
+                if( top2.AttackerPTKO >= PotentialToKO.Risky )
+                {
+                    score += 15;
+                    _ai.CurrentLog.Add( $"Attacker threatens good damage next round. Score: {score}" );
+                }
+
+                if( action.Type == ActionType.OffensiveSwitch && top2.AttackerPTKO >= PotentialToKO.Dangerous && top2.Attacker_EndOfTurnHP > 0 )
+                {
+                    score += 25;
+                    _ai.CurrentLog.Add( $"Offensive switch candidate survives next round and threatens big damage. Score: {score}" );
+                }
+
+            break;
+
+            case ThreatType.Setup:
+
+                score += Mathf.FloorToInt( damageDealt * 75 );
+                _ai.CurrentLog.Add( $"Flat damage dealt reward on a threat that might setup, * 75( {damageDealt * 75}). Score: {score}" );
+
+                if( top1.AttackerPTKO >= PotentialToKO.Risky )
+                {
+                    score += 20;
+                    _ai.CurrentLog.Add( $"We threaten decent damage to the setup mon. Score: {score}" );
+                }
+
+                if( top1.AttackerMovedFirst )
+                {
+                    score += 10;
+                    _ai.CurrentLog.Add( $"We're faster than the setup threat. Score: {score}" );
+                }
+
+                if( top1.Attacker_EndOfTurnHP > 0 && top2.Opponent_EndOfTurnHP <= 0 )
+                {
+                    score += 30;
+                    _ai.CurrentLog.Add( $"We survive this round and KO the setup threat next round. Score: {score}" );
+
+                    if( top2.AttackerMovedFirst )
+                    {
+                        score += 10;
+                        _ai.CurrentLog.Add( $"We're faster than the setup threat next round. Score: {score}" );
+                    }
+                }
+
+            break;
+
+            case ThreatType.Tank:
+
+                if( damageDealt < 0.2f )
+                {
+                    score -= 40;
+                    _ai.CurrentLog.Add( $"We don't do meaningful chip to the tank threat. Penalizing. Score: {score}" );
+                }
+
+                if( damageDealt >= 0.33f )
+                {
+                    score += 40;
+                    _ai.CurrentLog.Add( $"We do 33% damage or more to a tank. Score: {score}" );
+                }
+                else if( damageDealt >= 0.2f )
+                {
+                    score += 20;
+                    _ai.CurrentLog.Add( $"We do 20% or more to a tank. Score: {score}" );
+                }
+
+                if( top2.AttackerPTKO >= PotentialToKO.Risky || top2.AttackerPTKO > top1.AttackerPTKO  )
+                {
+                    score += 25; //--Future breaking potential
+                    _ai.CurrentLog.Add( $"We threaten good damage next round, or we improve our PTKO from current round into next round. This is good break potential. Score: {score}" );
+                }
+
+                if( action.Type == ActionType.Setup )
+                {
+                    if( action.Top2.Attacker_EndOfTurnHP > 0 && action.Top2.AttackerPTKO >= PotentialToKO.Dangerous )
+                    {
+                        score += 50;
+                        _ai.CurrentLog.Add( $"Attacker survives setting up on the opposing tank this round and threatens big damage next round. Score: {score}" );
+                    }
+                    else if( action.Top2.Attacker_EndOfTurnHP > 0 )
+                    {
+                        score += 25; //--Setup is good vs tanks
+                        _ai.CurrentLog.Add( $"Attacker survives setting up on the opposing tank this round and survives next round. Score: {score}" );
+                    }
+                    else
+                    {
+                        score += 10;
+                        _ai.CurrentLog.Add( $"Setting up on tanks is usually good. We may not survive or threaten significant damage, but still giving a small reward for tje scenario. Score: {score}" );
+                    }
+                }
+
+                if( action.Type == ActionType.OffensiveStatus )
+                {
+                    if( !top1.OpponentCanAct || !top2.OpponentCanAct && top2.Attacker_EndOfTurnHP > 0 )
+                    {
+                        score += 25;
+                        _ai.CurrentLog.Add( $"We prevent the tank from acting this round, or next round and we survive next round. Rewarding. Score: {score}" );
+                    }
+
+                    if( top1.Opponent.SevereStatus == SevereConditionID.None && top2.Opponent.SevereStatus != SevereConditionID.None )
+                    {
+                        score += 25;
+                        _ai.CurrentLog.Add( $"We apply a status effect to the tank, likely crippling it or allowing for guaranteed residual chip damage. Score: {score}" );
+                    }
+
+                    if( bc.BattlefieldState.EntryHazardsOn_TheirSide <= 0 && _ai.UnitSim.MoveIsEntryHazard( action.MovePayload ) && top1.Attacker_EndOfTurnHP > 0f )
+                    {
+                        score += 25;
+                        _ai.CurrentLog.Add( $"We don't have hazards setup yet, and we survive the turn. We should take advantage of the tank and seize some field control. Score: {score}" );
+                    }
+                }
+
+                if( action.Type == ActionType.DefensiveSwitch )
+                {
+                    score -= 30;
+                    _ai.CurrentLog.Add( $"Defensively switching against the tank is likely not the best idea. Score: {score}" );
+                }
+
+                if( action.Type == ActionType.OffensiveSwitch )
+                {
+                    score += 20;
+                    _ai.CurrentLog.Add( $"Offensively switching against a tank is likely a safe tempo grab. Score: {score}" );
+
+                    if( action.Top2.Attacker_EndOfTurnHP > 0 && action.Top2.AttackerPTKO >= PotentialToKO.Dangerous )
+                    {
+                        score += 25;
+                        _ai.CurrentLog.Add( $"We survive switching in, survive next turn, and threaten big damage next turn. Score: {score}" );
+                    }
+                }
+
+                if( threat.ConstraintPressure >= 2f )
+                {
+                    score -= 20;
+                    _ai.CurrentLog.Add( $"Constraint Pressure {threat.ConstraintPressure} > 2. Score: {score}" );
+                }
+
+            break;
+
+            case ThreatType.Utility:
+
+                if( action.Type == ActionType.Setup )
+                {
+                    score -= 20;
+                    _ai.CurrentLog.Add( $"Setting up against a utility mon could cripple us. Score: {score}" );
+                }
+
+                if( action.Type == ActionType.OffensiveStatus && !_ai.UnitSim.MoveIsEntryHazard( action.MovePayload ) )
+                {
+                    score += 25;
+                    _ai.CurrentLog.Add( $"We could potentially cripple the utility threat. Score: {score}" );
+                }
+
+                if( damageDealt >= 0.5f )
+                {
+                    score += 30;
+                    _ai.CurrentLog.Add( $"We deal 50% or more damage to a utility threat. Score: {score}" );
+                }
+                else if( damageDealt >= 0.3f )
+                {
+                    score += 20;
+                    _ai.CurrentLog.Add( $"We deal 30% or more damage to a utility threat. Score: {score}" );
+                }
+
+                if( action.Type == ActionType.DefensiveSwitch )
+                {
+                    score -= 30;
+                    _ai.CurrentLog.Add( $"Defensively switching might result in a crippled tank. Score: {score}" );
+                }
+
+                if( action.Type == ActionType.OffensiveSwitch )
+                {
+                    score += 20;
+                    _ai.CurrentLog.Add( $"Offensively switching might cripple us, but it may also give us a tempo grab. Score: {score}" );
+
+                    if( action.Top2.Attacker_EndOfTurnHP > 0 && action.Top2.AttackerPTKO >= PotentialToKO.Dangerous )
+                    {
+                        score += 25;
+                        _ai.CurrentLog.Add( $"We survive next round and threaten big damage. Score: {score}" );
+                    }
+                }
+
+                if( threat.ConstraintPressure >= 2f )
+                {
+                    score -= 30;
+                    _ai.CurrentLog.Add( $"Constraint Pressure: {threat.ConstraintPressure} > 2. Score: {score}" );
+                }
+
+            break;
+        }
+
+        //--------------------
+        //--Universal Scores--
+        //--------------------
+
+        if( top1.Opponent_DiesBeforeActing )
+        {
+            score += 50; //--Outright removes threat
+            _ai.CurrentLog.Add( $"Current simulation detects we out-right remove the threat. Score: {score}" );
+        }
+
+        if( action.Top2.AttackerMovedFirst && threat.OutspeedsCurrent )
+        {
+            score += 40;
+            _ai.CurrentLog.Add( $"This action changes speed dynamic in our favor. Score: {score}" );
+        }
+
+        float theySwitchProbability = _ai.UnitSim.PredictSwitchProbability( top1.AttackerPTKO, top1.OpponentPTKO, top1.AttackerMovedFirst, top1.Attacker.BeginningHPR, top1.Opponent.BeginningHPR );
+        _ai.CurrentLog.Add( $"Switch Probability: {theySwitchProbability}" );
+        if( theySwitchProbability >= 0.8f )
+        {
+            score += 35;
+            _ai.CurrentLog.Add( $"The threat switches. Score: {score}" );
+        }
+
+        bool canKillNow = top1.AttackerPTKO >= PotentialToKO.Dangerous && top1.AttackerMovedFirst;
+        if( canKillNow && action.Type != ActionType.Attack )
+        {
+            score -= 75;
+            _ai.CurrentLog.Add( $"Current action is: {action.Type}. The attack line very likely to get an immediate KO. Penalizing. Score: {score}" );
+        }
+
+        float urgencyMultiplier = 1f;
+        if( threat.Urgency >= ThreatUrgency.High )
+        {
+            if( top1.Opponent_EndOfTurnHP <= 0f )
+            {
+                score += 50;
+                _ai.CurrentLog.Add( $"Threat Urgency is: {threat.Urgency}. Opponent ends round at 0 hp. Rewarding. Score: {score}" );
+            }
+
+            if( top1.Attacker_EndOfTurnHP <= 0f )
+            {
+                score -= Mathf.RoundToInt( 50 * sackModifier );
+                _ai.CurrentLog.Add( $"Threat Urgency is: {threat.Urgency}. We end the round at 0 hp. Penalizing. Score: {score}" );
+            }
+        }
+
+        switch( threat.Urgency )
+        {
+            case ThreatUrgency.Medium:      urgencyMultiplier = 1.1f; break;
+            case ThreatUrgency.High:        urgencyMultiplier = 1.25f; break;
+            case ThreatUrgency.Critical:    urgencyMultiplier = 1.5f; break;
+        }
+
+        score = Mathf.FloorToInt( score * urgencyMultiplier );
+        _ai.CurrentLog.Add( $"Threat Urgency Multiplier: {urgencyMultiplier}. Score: {score}" );
+
+        //--Doomed potential
+        //--Sweep check
+        if( doomed.SweepIncoming && ( top1.Opponent_EndOfTurnHP < 0.5f || top2.Opponent_EndOfTurnHP <= 0f ) )
+        {
+            score += 25;
+            _ai.CurrentLog.Add( $"Doomed Turn Sweep Detected. This action threatens to shut it down! Score: {score}" );
+        }
+
+        if( doomed.NoTempoRecoveryLine && top2.AttackerPTKO >= PotentialToKO.Risky && top2.Attacker_EndOfTurnHP > 0 )
+        {
+            score += 20;
+            _ai.CurrentLog.Add( $"Doomed turn No Tempo Recovery detected. This Action appears to break opponent tempo! Score: {score}" );
+        }
+
+        //--Strategic Sacrifice to regain control\
+        if( top1.Attacker_EndOfTurnHP <= 0f && ( top2.AttackerPTKO >= PotentialToKO.Risky && top2.AttackerMovedFirst || top2.AttackerPTKO >= PotentialToKO.Dangerous && top2.Attacker_EndOfTurnHP > 0f ) )
+        {
+            score += Mathf.RoundToInt( 50 * sackModifier );
+            _ai.CurrentLog.Add( $"Strategic sacrifice here results in revenge/tempo next turn! Score: {score}" );
+        }
+
+        _ai.CurrentLog.Add( $"{action.Type}'s Final Threat Response Score: {score}" );
+        _ai.CurrentLog.Add( $"===================================================" );
+        _ai.CurrentLog.Add( $"" );
+
+        return score;
+    }
+
+    public int EvaluateBattlefieldState( ActionEvaluation action, BoardContext boardContext )
+    {
+        return action.Type switch
+        {
+            ActionType.Attack               => EvaluateBattlefieldFor_Attack( action, boardContext ),
+            ActionType.DefensiveSwitch      => EvaluateBattlefieldFor_DefensiveSwitch( action, boardContext ),
+            ActionType.OffensiveSwitch      => EvaluateBattlefieldFor_OffensiveSwitch( action, boardContext ),
+            ActionType.Setup                => EvaluateBattlefieldFor_Setup( action, boardContext ),
+            ActionType.OffensiveStatus      => EvaluateBattlefieldFor_OffensiveStatus( action, boardContext ),
+            _ => 0,
+        };
+    }
+
+    private int EvaluateBattlefieldFor_Attack( ActionEvaluation action, BoardContext boardContext )
+    {
+        int score = 0;
+        var bfs = boardContext.BattlefieldState;
+        var top1 = action.Top1;
+
+        var attackerMon = top1.Attacker.Pokemon;
+        var opponentMon = top1.Opponent.Pokemon;
+
+        bool isMidGame = bfs.Round > 6 && bfs.Round < 16;
+        bool isLateGame = bfs.Round > 15;
+
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"============================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Battlefield for Attacking]===" );
+        _ai.CurrentLog.Add( $"============================================" );
+        _ai.CurrentLog.Add( $"" );
+
+        if( bfs.IsEarlyGame && top1.AttackerPTKO != PotentialToKO.OHKO )
+        {
+            if( top1.AttackerPTKO <= PotentialToKO.Dangerous )
+                score -= 15;
+            else if( top1.AttackerPTKO <= PotentialToKO.TwoHKO )
+                score -= 25;
+
+            _ai.CurrentLog.Add( $"It's still early game and we don't have a guaranteed OHKO! Penalizing. Score: {score}" );
+        }
+
+        int hazardDelta = bfs.EntryHazardsOn_TheirSide - bfs.EntryHazardsOn_MySide;
+        if( bfs.IsEarlyGame && hazardDelta <= 0 )
+        {
+            score -= 20;
+            _ai.CurrentLog.Add( $"It's still early game and we are behind on hazard pressure! Penalizing. Score: {score}" );
+        }
+
+        if( isLateGame )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"Late Game Attack bonus. Score: {score}" );
+        }
+        
+        int weatherContext = _ai.UnitSim.Get_WeatherContextScore( attackerMon );
+        int terrainContext = _ai.UnitSim.Get_TerrainContextScore( attackerMon );
+        int trickRoomContext = _ai.UnitSim.Get_TrickRoomContextScore( attackerMon );
+        int contextScore = weatherContext + terrainContext + trickRoomContext;
+
+        score += contextScore;
+        _ai.CurrentLog.Add( $"[Attacker's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+
+        int oppWeatherContext = _ai.UnitSim.Get_WeatherContextScore( opponentMon );
+        int oppTerrainContext = _ai.UnitSim.Get_TerrainContextScore( opponentMon );
+        int oppTrickRoomContext = _ai.UnitSim.Get_TrickRoomContextScore( opponentMon );
+        int oppContextScore = oppWeatherContext + oppTerrainContext + oppTrickRoomContext;
+
+        score -= oppContextScore;
+        _ai.CurrentLog.Add( $"[Opponent's Battlefield Context] Weather: {oppWeatherContext}, Terrian: {oppTerrainContext}, TRoom: {oppTrickRoomContext}. Total Context Score: {oppContextScore}. Score: {score}" );
+
+        if( bfs.WeHave_Tailwind )
+        {
+            score += bfs.OurTailwindDuration * 2;
+            _ai.CurrentLog.Add( $"We're benefiting from tailwind! Score: {score}" );
+
+            if( bfs.OurTailwindDuration == 1 )
+            {
+                score += 5;
+                _ai.CurrentLog.Add( $"Last round of tailwind! Extra bump for attacking with speed advantage! Score: {score}" );
+            }
+        }
+
+        if( bfs.TheyHave_Tailwind )
+        {
+            score -= bfs.TheirTailwindDuration * 2;
+            _ai.CurrentLog.Add( $"They have speed control. Should we try to disrupt, match, or stall out? Score: {score}" );
+
+            if( bfs.TheirTailwindDuration == 1 )
+            {
+                score -= 5;
+                _ai.CurrentLog.Add( $"Opponent's last round of tailwind! A small penalty to encourage stalling it out for a potential advantage next round. Score: {score}" );
+            }
+        }
+
+        if( bfs.TrickRoomActive )
+        {
+            if( bfs.WeHave_TrickRoomAdvantage )
+            {
+                score += bfs.TrickRoomDuration * 2;
+                _ai.CurrentLog.Add( $"We're benefiting from Trick Room! Score: {score}" );
+            }
+            else if( bfs.TheyHave_TrickRoomAdvantage )
+            {
+                score -= bfs.TrickRoomDuration * 2;
+                _ai.CurrentLog.Add( $"They have advantage in Trick Room. Should we try to disrupt or stall out? Score: {score}" );
+            }
+        }
+
+        if( bfs.TheyHave_Reflect && action.MovePayload.MoveSO.MoveCategory == MoveCategory.Physical )
+        {
+            score -= bfs.TheirReflectDuration * 3;
+            _ai.CurrentLog.Add( $"The opponent's reflect weakens our attack. Score: {score}" );
+        }
+
+        if( bfs.TheyHave_LightScreen && action.MovePayload.MoveSO.MoveCategory == MoveCategory.Special )
+        {
+            score -= bfs.TheirLightScreenDuration * 3;
+            _ai.CurrentLog.Add( $"The opponent's light screen weakens our attack. Score: {score}" );
+        }
+
+        if( bfs.TheyHave_AuroraVeil )
+        {
+            score -= bfs.TheirAuroraVeilDuration * 4;
+            _ai.CurrentLog.Add( $"The opponent's aurora veil weakens our attack. Score: {score}" );
+        }
+
+        if( bfs.WeHave_Reflect )
+        {
+            score += bfs.OurReflectDuration * 2;
+            _ai.CurrentLog.Add( $"We're likely protected via Reflect! Let's take advantage and attack! Score: {score}" );
+        }
+
+        if( bfs.WeHave_LightScreen )
+        {
+            score += bfs.OurLightScreenDuration * 2;
+            _ai.CurrentLog.Add( $"We're likely protected via Light Screen! Let's take advantage and attack! Score: {score}" );
+        }
+
+        if( bfs.WeHave_AuroraVeil )
+        {
+            score += bfs.OurAuroraVeilDuration * 3;
+            _ai.CurrentLog.Add( $"We're likely protected via Aurora Veil! Let's take advantage and attack! Score: {score}" );
+        }
+
+        score += Mathf.Clamp( bfs.FieldControlDelta, -5, 5 );
+        _ai.CurrentLog.Add( $"Adding field control delta (clamped). Delta: {bfs.FieldControlDelta}. Score: {score}" );
+
+        if( bfs.TheyHave_FieldControl && contextScore < 5 )
+        {
+            score -= 5;
+            _ai.CurrentLog.Add( $"They're in control of the field and we have minimal benefit from field effects. Minor penalty to encourage disruption. Score: {score}" );
+        }
+
+        _ai.CurrentLog.Add( $"Final Battlefield State for Attacking Score: {score}" );
+        _ai.CurrentLog.Add( $"" );
+
+        return score;
+    }
+
+    private int EvaluateBattlefieldFor_DefensiveSwitch( ActionEvaluation action, BoardContext boardContext )
+    {
+        int score = 0;
+
+        var bfs = boardContext.BattlefieldState;
+        var top1 = action.Top1;
+
+        var attackerMon = top1.Attacker.Pokemon; //--This unit should actually be the switch candidate, but i will get the candidate directly just in case. I will confirm this 100% soon. --04/22/26
+        var opponentMon = top1.Opponent.Pokemon;
+        var switchCandidate = action.SwitchPayload;
+
+        bool isMidGame = bfs.Round > 6 && bfs.Round < 16;
+        bool isLateGame = bfs.Round > 15;
+
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Battlefield for Defensive Switching]===" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"TOP1 Attacker: {top1.Attacker.Name}" );
+        _ai.CurrentLog.Add( $"Switch Candidate: {switchCandidate.NickName}" );
+
+        if( bfs.Round <= 1 && top1.OpponentPTKO != PotentialToKO.OHKO && !top1.AttackerMovedFirst )
+        {
+            score -= 30;
+            _ai.CurrentLog.Add( $"It's first round and we're not immediately threatened with death. Can we do something else other than switch? Score: {score}" );
+        }
+        else if( bfs.IsEarlyGame && top1.OpponentPTKO < PotentialToKO.Dangerous )
+        {
+            score -= 15;
+            _ai.CurrentLog.Add( $"It's early game and we're not in immediate danger. Should we try something else? Score: {score}" );
+        }
+
+        if( bfs.EntryHazardsOn_MySide > 0 )
+        {
+            if( bfs.IsEarlyGame || isMidGame )
+            {
+                score -= 20;
+                _ai.CurrentLog.Add( $"Entry hazards detected on our side. Let's make sure it's worth switching into them. Score: {score}" );
+            }
+            else if( isLateGame )
+            {
+                score -= 5;
+                _ai.CurrentLog.Add( $"Entry hazards detected on our side, but it's late game. We can probably tolerate switching into them. Score: {score}" );
+            }
+
+            if( bfs.EntryHazardsOn_MySide > 1 )
+                score -= 5;
+        }
+
+        int weatherContext = _ai.UnitSim.Get_WeatherContextScore( switchCandidate );
+        int terrainContext = _ai.UnitSim.Get_TerrainContextScore( switchCandidate );
+        int trickRoomContext = _ai.UnitSim.Get_TrickRoomContextScore( switchCandidate );
+        int contextScore = weatherContext + terrainContext + trickRoomContext;
+
+        score += contextScore;
+        _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+
+        bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherAbility( switchCandidate );
+        bool switchChangesWeather = false;
+        WeatherConditionID candidatesWeather = WeatherConditionID.None;
+
+        if( switchSetsWeather )
+        {
+            switch( switchCandidate.AbilityID )
+            {
+                case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
+                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
+                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
+                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+            }
+
+            if( candidatesWeather != WeatherConditionID.None && candidatesWeather != bfs.Weather )
+                switchChangesWeather = true;
+        }
+
+        if( !bfs.WeHave_WeatherControl && switchChangesWeather )
+        {
+            int myNewWeatherContext = _ai.UnitSim.Get_WeatherContextScore( switchCandidate, candidatesWeather );
+            int theirNewWeatherContext = _ai.UnitSim.Get_WeatherContextScore( opponentMon, candidatesWeather );
+
+            if( myNewWeatherContext > theirNewWeatherContext )
+            {
+                score += 10;
+                _ai.CurrentLog.Add( $"Switch candidate can swing the weather in our favor! Score: {score}" );
+            }
+            else
+            {
+                score -= 5;
+                _ai.CurrentLog.Add( $"Switch candidate changes weather in our opponent's favor! Penalizing slightly. Score: {score}" );
+            }
+        }
+
+        if( bfs.WeHave_Tailwind && bfs.OurTailwindDuration >= 2 )
+        {
+            score += 5;
+            _ai.CurrentLog.Add( $"We may be able to take advantage of our tailwind. Score {score}" );
+        }
+
+        var oppMoveCat = top1.Opponent.MTR.Move.MoveSO.MoveCategory;
+        if( bfs.WeHave_Reflect && bfs.OurReflectDuration >= 2 && oppMoveCat == MoveCategory.Physical )
+        {
+            score += 5;
+            _ai.CurrentLog.Add( $"We're protected on incoming by Reflect. Score {score}" );
+        }
+
+        if( bfs.WeHave_LightScreen && bfs.OurLightScreenDuration >= 2 && oppMoveCat == MoveCategory.Special )
+        {
+            score += 5;
+            _ai.CurrentLog.Add( $"We're protected on incoming by Light Screen. Score {score}" );
+        }
+
+        if( bfs.WeHave_AuroraVeil && bfs.OurAuroraVeilDuration >= 2 )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"We're protected on incoming by Aurora Veil. Score {score}" );
+        }
+
+        _ai.CurrentLog.Add( $"Final Battlefield State for Defensive Switching Score: {score}" );
+        _ai.CurrentLog.Add( $"" );
+
+        return score;
+    }
+
+    private int EvaluateBattlefieldFor_OffensiveSwitch( ActionEvaluation action, BoardContext boardContext )
+    {
+        int score = 0;
+
+        var bfs = boardContext.BattlefieldState;
+        var top1 = action.Top1;
+        var top2 = action.Top2;
+
+        bool isMidGame = bfs.Round > 6 && bfs.Round < 16;
+        bool isLateGame = bfs.Round > 15;
+
+        var attackerMon = top1.Attacker.Pokemon; //--This unit should actually be the switch candidate, but i will get the candidate directly just in case. I will confirm this 100% soon. --04/22/26
+        var opponentMon = top1.Opponent.Pokemon;
+        var switchCandidate = action.SwitchPayload;
+
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Battlefield for Offensive Switching]===" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"TOP1 Attacker: {top1.Attacker.Name}" );
+        _ai.CurrentLog.Add( $"Switch Candidate: {switchCandidate.NickName}" );
+
+        if( bfs.Round <= 1 && top1.OpponentPTKO != PotentialToKO.OHKO && !top1.AttackerMovedFirst )
+        {
+            score -= 10;
+            _ai.CurrentLog.Add( $"It's first round and we're not immediately threatened with death. Can we do something else other than switch? Score: {score}" );
+        }
+        
+        if( bfs.IsEarlyGame )
+        {
+            if( top2.AttackerPTKO < PotentialToKO.Dangerous)
+            {
+                score -= 15;
+                _ai.CurrentLog.Add( $"It's early game and we're not threatening powerful offense next turn. Should we try something else? Score: {score}" );
+            }
+            else if( top2.AttackerPTKO >= PotentialToKO.Dangerous )
+            {
+                score +=5;
+                _ai.CurrentLog.Add( $"It's early game and we threaten powerful offense next turn. Giving a small nudge for early-game tempo grab/battlefield control. Score: {score}" );
+            }
+        }
+
+        if( isMidGame && top2.AttackerPTKO >= PotentialToKO.Dangerous  )
+        {
+            score += 15;
+            _ai.CurrentLog.Add( $"It's mid game and we threaten powerful offense next turn. Giving a slight boost for mid game phase tempo grab. Score: {score}" );
+        }
+
+        if( isLateGame && top2.AttackerPTKO != PotentialToKO.OHKO )
+        {
+            score -= 5;
+            _ai.CurrentLog.Add( $"It's late game and we don't threaten a KO next turn. Tiny tiny penalty. Score: {score}" );
+        }
+
+        if( bfs.EntryHazardsOn_MySide > 0 )
+        {
+            score -= 15;
+            _ai.CurrentLog.Add( $"Entry hazards detected on our side. Let's make sure it's worth switching into them. Score: {score}" );
+
+            if( bfs.EntryHazardsOn_MySide > 1 )
+                score -= 5;
+        }
+
+        int weatherContext = _ai.UnitSim.Get_WeatherContextScore( switchCandidate );
+        int terrainContext = _ai.UnitSim.Get_TerrainContextScore( switchCandidate );
+        int trickRoomContext = _ai.UnitSim.Get_TrickRoomContextScore( switchCandidate );
+        int contextScore = weatherContext + terrainContext + trickRoomContext;
+
+        score += contextScore;
+        _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+
+        bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherAbility( switchCandidate );
+        bool switchChangesWeather = false;
+        WeatherConditionID candidatesWeather = WeatherConditionID.None;
+
+        if( switchSetsWeather )
+        {
+            switch( switchCandidate.AbilityID )
+            {
+                case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
+                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
+                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
+                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+            }
+
+            if( candidatesWeather != WeatherConditionID.None && candidatesWeather != bfs.Weather )
+                switchChangesWeather = true;
+        }
+
+        if( !bfs.WeHave_WeatherControl && switchChangesWeather )
+        {
+            int myNewWeatherContext = _ai.UnitSim.Get_WeatherContextScore( switchCandidate, candidatesWeather );
+            int theirNewWeatherContext = _ai.UnitSim.Get_WeatherContextScore( opponentMon, candidatesWeather );
+
+            if( myNewWeatherContext > theirNewWeatherContext )
+            {
+                score += 10;
+                _ai.CurrentLog.Add( $"Switch candidate can swing the weather in our favor! Score: {score}" );
+            }
+            else
+            {
+                score -= 5;
+                _ai.CurrentLog.Add( $"Switch candidate changes weather in our opponent's favor! Penalizing slightly. Score: {score}" );
+            }
+        }
+
+        if( bfs.WeHave_Tailwind && bfs.OurTailwindDuration >= 2 )
+        {
+            score += 5;
+            _ai.CurrentLog.Add( $"We may be able to take advantage of our tailwind. Score {score}" );
+        }
+
+        if( bfs.TheyHave_Tailwind && bfs.TheirTailwindDuration == 1 )
+        {
+            score += 5;
+            _ai.CurrentLog.Add( $"Opponent's last turn of tailwind. Perhaps we can stall it out and gain offense next turn. Score: {score}" );
+        }
+
+        var oppMoveCat = top1.Opponent.MTR.Move.MoveSO.MoveCategory;
+        if( bfs.WeHave_Reflect && bfs.OurReflectDuration >= 2 && oppMoveCat == MoveCategory.Physical )
+        {
+            score += 2;
+            _ai.CurrentLog.Add( $"We're protected on incoming by Reflect. Score {score}" );
+        }
+
+        if( bfs.WeHave_LightScreen && bfs.OurLightScreenDuration >= 2 && oppMoveCat == MoveCategory.Special )
+        {
+            score += 2;
+            _ai.CurrentLog.Add( $"We're protected on incoming by Light Screen. Score {score}" );
+        }
+
+        if( bfs.WeHave_AuroraVeil && bfs.OurAuroraVeilDuration >= 2 )
+        {
+            score += 5;
+            _ai.CurrentLog.Add( $"We're protected on incoming by Aurora Veil. Score {score}" );
+        }
+
+        _ai.CurrentLog.Add( $"Final Battlefield State for Offensive Switching Score: {score}" );
+        _ai.CurrentLog.Add( $"" );
+
+        return score;
+    }
+
+    private int EvaluateBattlefieldFor_Setup( ActionEvaluation action, BoardContext boardContext )
+    {
+        int score = 0;
+
+        var bfs = boardContext.BattlefieldState;
+        var top1 = action.Top1;
+        var top2 = action.Top2;
+
+        bool isMidGame = bfs.Round > 6 && bfs.Round < 16;
+        bool isLateGame = bfs.Round > 15;
+
+        var attackerMon = top1.Attacker.Pokemon;
+        var opponentMon = top1.Opponent.Pokemon;
+
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Battlefield for Setup]===" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"" );
+
+        if( bfs.IsEarlyGame && top1.OpponentPTKO < PotentialToKO.Dangerous )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"It's first round and we're not immediately threatened with death. Can we take this opportunity to setup? Score: {score}" );
+
+            if( top2.AttackerMovedFirst )
+                score += 5;
+        }
+
+        if( isMidGame )
+        {
+            if( top2.AttackerPTKO >= PotentialToKO.Dangerous )
+                score += 10;
+            else
+                score += 5;
+
+            _ai.CurrentLog.Add( $"Mid game setup. Score: {score}" );
+        }
+
+        if( isLateGame )
+        {
+            score -= 10;
+            _ai.CurrentLog.Add( $"Late Game Setup Penalty. Score: {score}" );
+        }
+
+        int weatherContext = _ai.UnitSim.Get_WeatherContextScore( attackerMon );
+        int terrainContext = _ai.UnitSim.Get_TerrainContextScore( attackerMon );
+        int trickRoomContext = _ai.UnitSim.Get_TrickRoomContextScore( attackerMon );
+        int contextScore = weatherContext + terrainContext + trickRoomContext;
+
+        score += contextScore;
+        _ai.CurrentLog.Add( $"[Attacker's Setup Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+
+        if( contextScore >= 10 )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"Field context greater than 10. Setting up scales with field advantage. Rewarding. Score: {score}" );
+        }
+
+        if( bfs.TheyHave_Reflect )
+        {
+            score -= bfs.TheirReflectDuration * 2;
+            _ai.CurrentLog.Add( $"The opponent's behind a reflect. Let's stall and improve our chances of breaking through by setting up Score: {score}" );
+        }
+
+        if( bfs.TheyHave_LightScreen )
+        {
+            score -= bfs.TheirLightScreenDuration * 2;
+            _ai.CurrentLog.Add( $"The opponent's behind a light. Let's stall and improve our chances of breaking through by setting up. Score: {score}" );
+        }
+
+        if( bfs.TheyHave_AuroraVeil )
+        {
+            score -= bfs.TheirAuroraVeilDuration * 2;
+            _ai.CurrentLog.Add( $"The opponent's behind a aurora. Let's stall and improve our chances of breaking through by setting up. Score: {score}" );
+        }
+
+        if( bfs.WeHave_Reflect )
+        {
+            score += bfs.OurReflectDuration * 2;
+            _ai.CurrentLog.Add( $"We're behind a reflect. We're likely protected enough to try setting up! Score: {score}" );
+        }
+
+        if( bfs.WeHave_LightScreen )
+        {
+            score += bfs.OurLightScreenDuration * 2;
+            _ai.CurrentLog.Add( $"We're likely behind a light. We're likely protected enough to try setting up! Score: {score}" );
+        }
+
+        if( bfs.WeHave_AuroraVeil )
+        {
+            score += bfs.OurAuroraVeilDuration * 2;
+            _ai.CurrentLog.Add( $"We're likely behind a aurora. We're likely protected enough to try setting up! Score: {score}" );
+        }
+
+        _ai.CurrentLog.Add( $"Final Battlefield State for Setting Up Score: {score}" );
+        _ai.CurrentLog.Add( $"" );
+
+        return score;
+    }
+
+    private int EvaluateBattlefieldFor_OffensiveStatus( ActionEvaluation action, BoardContext boardContext )
+    {
+        int score = 0;
+
+        var bfs = boardContext.BattlefieldState;
+        var top1 = action.Top1;
+        var top2 = action.Top2;
+
+        bool isMidGame = bfs.Round > 6 && bfs.Round < 16;
+        bool isLateGame = bfs.Round > 15;
+
+        var attackerMon = top1.Attacker.Pokemon;
+        var opponentMon = top1.Opponent.Pokemon;
+
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Battlefield for Setup]===" );
+        _ai.CurrentLog.Add( $"======================================================" );
+        _ai.CurrentLog.Add( $"" );
+
+        if( bfs.Round <= 1 && top1.OpponentPTKO < PotentialToKO.Dangerous )
+        {
+            if( top2.Attacker_EndOfTurnHP > 0 && top2.AttackerMovedFirst )
+            {
+                score += 35;
+                _ai.CurrentLog.Add( $"It's first round and we're not immediately threatened with death, and we have tempo next turn. Can we take this opportunity to place hazards or cripple our opponent with status? Score: {score}" );
+            }
+            else
+            {
+                score += 15;
+                _ai.CurrentLog.Add( $"It's first round and we're not immediately threatened with death. Can we take this opportunity to place hazards or cripple our opponent with status? Score: {score}" );
+            }
+        }
+        else if( bfs.IsEarlyGame && top1.OpponentPTKO < PotentialToKO.Dangerous )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"It's early game and we're not immediately threatened with death. Can we take this opportunity to place hazards or cripple our opponent with status? Score: {score}" );
+
+            if( top2.AttackerMovedFirst )
+                score += 5;
+        }
+
+        if( isLateGame )
+        {
+            score -= 10;
+            _ai.CurrentLog.Add( $"Late Game Offensive Status Penalty. Score: {score}" );
+        }
+
+        int weatherContext = _ai.UnitSim.Get_WeatherContextScore( attackerMon );
+        int terrainContext = _ai.UnitSim.Get_TerrainContextScore( attackerMon );
+        int trickRoomContext = _ai.UnitSim.Get_TrickRoomContextScore( attackerMon );
+        int contextScore = weatherContext + terrainContext + trickRoomContext;
+
+        score += contextScore;
+        _ai.CurrentLog.Add( $"[Attacker's Offensive Status Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+
+        //--Hazard Value based on remaining opponents
+        int remainingOpps = boardContext.OppRemainingPieces;
+        int hazardValue = Mathf.Clamp( remainingOpps, 1, 4 );
+
+        if( isLateGame )
+        {
+            hazardValue = Mathf.Max( 1, hazardValue - 2 );
+            score += hazardValue;
+        }
+        else
+            score += hazardValue * 5;
+
+        _ai.CurrentLog.Add( $"Computed hazard value based on remaining opponents. Hazard Value * 5: {hazardValue * 5}. Score: {score}" );
+
+        int hazardDelta = bfs.EntryHazardsOn_TheirSide - bfs.EntryHazardsOn_MySide;
+        if( hazardDelta > 0 )
+        {
+            score += 5;
+            _ai.CurrentLog.Add( $"Checked Hazard delta. Score: {score}" );
+        }
+
+        if( action.MovePayload.MoveSO.MoveEffects.CourtCondition == CourtConditionID.None )
+        {
+            if( !top1.OpponentCanAct || top2.AttackerPTKO >= PotentialToKO.Dangerous )
+            {
+                if( bfs.IsEarlyGame )
+                {
+                    score += 10;
+                    _ai.CurrentLog.Add( $"Early game status effect prevents the opponent from acting this turn or rewards us with a chance to KO next round! Score: {score}" );
+                }
+                else if( isMidGame )
+                {
+                    score += 15;
+                    _ai.CurrentLog.Add( $"Mid game status effect prevents the opponent from acting this turn or rewards us with a chance to KO next round! Score: {score}" );
+                }
+                else if( isLateGame )
+                {
+                    score += 5;
+                    _ai.CurrentLog.Add( $"Late game status effect prevents the opponent from acting this turn or rewards us with a chance to KO next round! Score: {score}" );
+                }
+            }
+        }
+
+        if( bfs.TheyHave_FieldControl )
+        {
+            score += 10;
+            _ai.CurrentLog.Add( $"They have control of the field. We should try disrupting or reclaiming field control via hazards. Score: {score}" );
+        }
+
+        _ai.CurrentLog.Add( $"Final Battlefield State for Offensive Status Score: {score}" );
+        _ai.CurrentLog.Add( $"" );
+
+        return score;
+    }
 }

@@ -295,7 +295,7 @@ public class PokemonAnimator : MonoBehaviour
         Vector3 readyPos = targetPos.position - direction;
 
         var sequence = DOTween.Sequence();
-        _pokemonTransform.DOMove( readyPos, 0.75f ).WaitForCompletion();   //--Move to Strike position
+        _pokemonTransform.DOMove( readyPos, 0.5f ).WaitForCompletion();   //--Move to Strike position
         sequence.AppendInterval( 0.5f );
         yield return sequence.WaitForCompletion();
     }
@@ -307,7 +307,7 @@ public class PokemonAnimator : MonoBehaviour
         Vector3 readyPos = _pokemonTransform.position - direction;
 
         var sequence = DOTween.Sequence();
-        _pokemonTransform.DOMove( readyPos, 0.75f ).WaitForCompletion();
+        _pokemonTransform.DOMove( readyPos, 0.5f ).WaitForCompletion();
         sequence.AppendInterval( 0.5f );
         yield return sequence.WaitForCompletion();
     }
@@ -352,11 +352,11 @@ public class PokemonAnimator : MonoBehaviour
     {
         Vector3 direction = _pokemonTransform.position - targetPos.position;
         direction.Normalize();
-        Vector3 attackPos = _pokemonTransform.position - direction;
+        Vector3 attackPos = _pokemonTransform.position - ( direction * 0.35f ) ;
 
         var sequence = DOTween.Sequence();
         sequence.AppendInterval( 0.25f );
-        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.75f ) ).WaitForCompletion();
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.25f ) ).WaitForCompletion();
         sequence.AppendInterval( 0.25f );
         sequence.Append( _pokemonTransform.DOShakePosition( 0.5f, 0.25f, 8 ) ).WaitForCompletion();
         sequence.AppendCallback( cameraCallback ).WaitForCompletion();
@@ -400,12 +400,11 @@ public class PokemonAnimator : MonoBehaviour
     {
         yield return null;
         Vector3 direction = targetPos.position - _pokemonTransform.position;
-        direction.Normalize();
-        Vector3 attackPos = targetPos.position + new Vector3( 0f, 0f, 1f );
+        Vector3 attackPos = targetPos.position + ( direction * 0.5f );
 
         var sequence = DOTween.Sequence();
-        sequence.AppendInterval( 0.25f );
-        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.1f ) ).WaitForCompletion();
+        sequence.AppendInterval( 0.15f );
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.05f ) ).WaitForCompletion();
         sequence.AppendInterval( 0.5f );
         sequence.Append( _pokemonTransform.DOMove( _originalPos, 0.01f ) ).WaitForCompletion();
 
@@ -422,11 +421,11 @@ public class PokemonAnimator : MonoBehaviour
 
         var sequence = DOTween.Sequence();
         sequence.AppendInterval( 0.25f );
-        sequence.Append( _pokemonTransform.DOMove( readyPos, 0.25f ) ).WaitForCompletion();
+        sequence.Append( _pokemonTransform.DOMove( readyPos, 0.1f ) ).WaitForCompletion();
         sequence.AppendInterval( 0.25f );
-        sequence.Append( _pokemonTransform.DOMove( fakeoutPos, 0.25f ) ).WaitForCompletion();
+        sequence.Append( _pokemonTransform.DOMove( fakeoutPos, 0.1f ) ).WaitForCompletion();
         sequence.AppendInterval( 0.25f );
-        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.25f ) ).WaitForCompletion();
+        sequence.Append( _pokemonTransform.DOMove( attackPos, 0.1f ) ).WaitForCompletion();
         sequence.AppendInterval( 0.25f );
         sequence.Append( _pokemonTransform.DOMove( _originalPos, 0.01f ) ).WaitForCompletion();
 

@@ -1,0 +1,123 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 304c8617ebf0f4b478be9c28916cfd77, type: 3}
+  m_Name: NoxFirstSinglesTeam_Enhanced
+  m_EditorClassIdentifier: 
+  _rentalTeam:
+  - _pokemon: {fileID: 11400000, guid: fb5da8217f41db343b561c7adc662aca, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 8
+    _ability: 23
+    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    _hpEVs: 252
+    _attackEVs: 0
+    _defenseEVs: 168
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 88
+    _ball: 2
+    _moves:
+    - {fileID: 11400000, guid: 4095d344166f78f47a19679885bbd675, type: 2}
+    - {fileID: 11400000, guid: 8432c297d2bcb4846909a6a2abd61dc4, type: 2}
+    - {fileID: 11400000, guid: d95b1deb705becb43a097aeaf268e137, type: 2}
+    - {fileID: 11400000, guid: e0a513386b824f04a84ef45c984f45f6, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 42fea52d1abeae7448a3c262cc9c23de, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 4
+    _ability: 5
+    _heldItem: {fileID: 11400000, guid: f04ed53fb2be00649ba51ddac255c264, type: 2}
+    _hpEVs: 0
+    _attackEVs: 252
+    _defenseEVs: 4
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: 7eeabd8921196b441b74022de78201a2, type: 2}
+    - {fileID: 11400000, guid: b68b576a456f3c544b3769b08dd17450, type: 2}
+    - {fileID: 11400000, guid: e357dbca633e1ad49a4226e449be1fe9, type: 2}
+    - {fileID: 11400000, guid: 41ebdf6a5bc4ec84d85132981314bec8, type: 2}
+  - _pokemon: {fileID: 11400000, guid: f31e0f9cd436efd45bd375678c2044cc, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 14
+    _ability: 56
+    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
+    _hpEVs: 4
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 252
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 2
+    _moves:
+    - {fileID: 11400000, guid: c83c0173d55591d4d9866e24269a5ed3, type: 2}
+    - {fileID: 11400000, guid: 5a322c01babb63f44bf58fb6f2d13511, type: 2}
+    - {fileID: 11400000, guid: 056d8ff300075024ba9e40188d19068f, type: 2}
+    - {fileID: 11400000, guid: 4e768a347da8abf47b483a0dc46f8e82, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 9348ebf76ce137e41af34e0574a1bd6d, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 14
+    _ability: 76
+    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    _hpEVs: 0
+    _attackEVs: 0
+    _defenseEVs: 188
+    _spattackEVs: 252
+    _spdefenseEVs: 0
+    _speedEVs: 68
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: 056d8ff300075024ba9e40188d19068f, type: 2}
+    - {fileID: 11400000, guid: 4e768a347da8abf47b483a0dc46f8e82, type: 2}
+    - {fileID: 11400000, guid: 34b86dd1642d43b44ac3ebea22af4e34, type: 2}
+    - {fileID: 11400000, guid: 2d656263757319c4c811fd279773ecba, type: 2}
+  - _pokemon: {fileID: 11400000, guid: bd2a55e57577b3d4389bb5fa1c0d6478, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 18
+    _ability: 56
+    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    _hpEVs: 24
+    _attackEVs: 0
+    _defenseEVs: 252
+    _spattackEVs: 0
+    _spdefenseEVs: 232
+    _speedEVs: 0
+    _ball: 3
+    _moves:
+    - {fileID: 11400000, guid: 1326f8648c8756f4480b05ad736404bb, type: 2}
+    - {fileID: 11400000, guid: 948f522354e4047408d3e47230d3b9a5, type: 2}
+    - {fileID: 11400000, guid: 34b86dd1642d43b44ac3ebea22af4e34, type: 2}
+    - {fileID: 11400000, guid: 81bdb2ed4d7a1144b958f1cb2f1cb089, type: 2}
+  - _pokemon: {fileID: 11400000, guid: 1a07c48c49a9c134c999404d103a10e8, type: 2}
+    _nickName: 
+    _level: 100
+    _nature: 4
+    _ability: 1
+    _heldItem: {fileID: 11400000, guid: f7cdb5117198a254689e63af5f47d4b6, type: 2}
+    _hpEVs: 0
+    _attackEVs: 252
+    _defenseEVs: 4
+    _spattackEVs: 0
+    _spdefenseEVs: 0
+    _speedEVs: 252
+    _ball: 1
+    _moves:
+    - {fileID: 11400000, guid: cb64ca34ed31be74eadb8f10598d3a64, type: 2}
+    - {fileID: 11400000, guid: 9a511c0bf97ee294ba3c15499c68d46e, type: 2}
+    - {fileID: 11400000, guid: 8011f40b7362b894084547e267e3a2ec, type: 2}
+    - {fileID: 11400000, guid: 260af45a2c0aae34fb8d01253992df28, type: 2}

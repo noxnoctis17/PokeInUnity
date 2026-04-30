@@ -6,7 +6,7 @@ using UnityEngine;
 public class BattleAI_PokemonAdapter : IBattleAIUnit
 {
     private BattleAI _ai;
-    public Pokemon Pokemon { get; private set; }
+    public Pokemon Pokemon { get; set; }
     public string Name { get; set; }
     public string PID { get; set; }
     public float BeginningHPR { get; set; }

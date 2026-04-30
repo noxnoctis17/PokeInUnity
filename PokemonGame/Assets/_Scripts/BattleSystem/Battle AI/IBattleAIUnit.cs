@@ -4,6 +4,7 @@ using UnityEngine;
 
 public interface IBattleAIUnit
 {
+    public Pokemon Pokemon { get; set; }
     public string Name { get; set; }
     public string PID { get; set; }
     public float BeginningHPR { get; set; }

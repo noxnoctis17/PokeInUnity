@@ -8,28 +8,38 @@ public class BattleHUD : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI _nameText;
     [SerializeField] private TextMeshProUGUI _levelText;
-    [SerializeField] private TextMeshProUGUI _currentHPText;
-    [SerializeField] private TextMeshProUGUI _maxHPText;
+    [SerializeField] private TextMeshProUGUI _hpText;
     [SerializeField] private Image _battlePortrait;
     [SerializeField] private Image _type1Color, _type2Color;
     [SerializeField] private GameObject _severeStatusContainer;
     [SerializeField] private Image _severeStatusIcon;
     [SerializeField] private HPBar _hpBar;
     [SerializeField] private GameObject _expBar;
+    [SerializeField] private bool _displayPercentage;
+    private bool _finishedUpdatingHP;
     private Pokemon _pokemon;
     private BattleUnit _battleUnit;
 
     private void Update()
     {
         //--Update HP
-        if( _hpBar.IsUpdating && _currentHPText != null )
-            _currentHPText.text = $"{_hpBar.RedHPSlider.value}";
+        if( _hpBar.IsUpdating && _hpText != null )
+        {
+            UpdateHPText();
+            _finishedUpdatingHP = true;
+        }
+
+        if( _finishedUpdatingHP && !_hpBar.IsUpdating )
+        {
+            UpdateHPText();
+            _finishedUpdatingHP = false;
+        }
     }
 
     public void SetData( Pokemon pokemon, BattleUnit battleUnit )
     {
         if( _pokemon != null )
-            _pokemon.OnStatusChanged        -= SetSevereStatus;
+            _pokemon.OnStatusChanged -= SetSevereStatus;
 
         _pokemon = pokemon;
         _battleUnit = battleUnit;
@@ -45,15 +55,36 @@ public class BattleHUD : MonoBehaviour
         _hpBar.SetHP( pokemon.CurrentHP, pokemon.MaxHP );
         SetExp();
 
-        if( _currentHPText != null)
-        {
-            _currentHPText.text = $"{_hpBar.RedHPSlider.value}";
-            _maxHPText.text = $"/{_hpBar.RedHPSlider.maxValue}";
-        }
+        UpdateHPText();
 
         SetSevereStatus();
         _pokemon.OnStatusChanged        += SetSevereStatus;
         BattleSystem.OnBattleEnded      += ClearData;
+    }
+
+    private void UpdateHPText()
+    {
+        if( _displayPercentage )
+        {
+            float current = _hpBar.RedHPSlider.value;
+            float max = _hpBar.RedHPSlider.maxValue;
+            float percent = Mathf.Floor( ( current / max ) * 100f );
+
+            if( percent < 1f && current > 0f )
+                percent = 1f;
+            
+            if( _hpBar.IsUpdating )
+                _hpText.text = $"<size=125%>{percent}<size=65%>%</size>";
+            else
+                _hpText.text = $"{percent}<size=65%>%</size>";
+        }
+        else
+        {
+            if( _hpBar.IsUpdating )
+                _hpText.text = $"<size=125%>{_hpBar.RedHPSlider.value}<size=65%>/{_hpBar.RedHPSlider.maxValue}</size>";
+            else
+                _hpText.text = $"{_hpBar.RedHPSlider.value}<size=65%>/{_hpBar.RedHPSlider.maxValue}</size>";
+        }
     }
 
     public IEnumerator UpdateHPCoroutine()
@@ -126,17 +157,12 @@ public class BattleHUD : MonoBehaviour
         _levelText.text = "" + _pokemon.Level;
         _hpBar.SetHP( _pokemon.CurrentHP, _pokemon.MaxHP );
         
-        if( _currentHPText != null )
-        {
-            _currentHPText.text = $"{_hpBar.RedHPSlider.value}";
-            _maxHPText.text = $"/{_hpBar.RedHPSlider.maxValue}";
-        }
+        UpdateHPText();
     }
 
     private void ClearData()
     {
         _pokemon.OnStatusChanged        -= SetSevereStatus;
-        // _pokemon.OnDisplayInfoChanged   -= UpdateHP;
         BattleSystem.OnBattleEnded      -= ClearData;
     }
 

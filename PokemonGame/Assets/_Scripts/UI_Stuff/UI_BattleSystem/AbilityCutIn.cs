@@ -57,15 +57,15 @@ public class AbilityCutIn : MonoBehaviour
 
         if( location == CourtLocation.TopCourt )
         {
-            sequence.Append( rect.DOAnchorPosX( -10f, 0.2f ) ).WaitForCompletion();
-            sequence.Append( rect.DOAnchorPosX( 0f, 0.2f ) ).WaitForCompletion();
+            sequence.Append( rect.DOAnchorPosX( 10f, 0.25f ) ).WaitForCompletion();
+            sequence.Append( rect.DOAnchorPosX( 50f, 0.1f ) ).WaitForCompletion();
             sequence.AppendInterval( 1f );
             sequence.Append( rect.DOAnchorPosX( 550f, 0.2f ) ).WaitForCompletion();
         }
         else
         {
-            sequence.Append( rect.DOAnchorPosX( 10f, 0.2f ) ).WaitForCompletion();
-            sequence.Append( rect.DOAnchorPosX( 0f, 0.2f ) ).WaitForCompletion();
+            sequence.Append( rect.DOAnchorPosX( -10f, 0.2f ) ).WaitForCompletion();
+            sequence.Append( rect.DOAnchorPosX( -50f, 0.2f ) ).WaitForCompletion();
             sequence.AppendInterval( 1f );
             sequence.Append( rect.DOAnchorPosX( -550f, 0.2f ) ).WaitForCompletion();
         }

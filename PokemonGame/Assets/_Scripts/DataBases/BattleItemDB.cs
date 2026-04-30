@@ -175,26 +175,12 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.FocusSash,
 
-                OnEnd = ( BattleUnit unit ) =>
+                OnEnd = ( unit ) =>
                 {
-                    // unit.SetFlagActive( UnitFlags.FocusSash, false );
                     unit.Pokemon.AddStatusEvent( $"{unit.Pokemon.NickName} was able to hold on due to its Focus Sash!" );
                 },
 
-                // OnItemEnter = ( BattleUnit unit ) =>
-                // {
-                //     if( unit.Pokemon.CurrentHP == unit.Pokemon.MaxHP )
-                //             unit.SetFlagActive( UnitFlags.FocusSash, true );
-                //     else
-                //         unit.SetFlagActive( UnitFlags.FocusSash, false );
-                // },
-
-                // OnItemExit = ( BattleUnit unit ) =>
-                // {
-                //     unit.SetFlagActive( UnitFlags.FocusSash, false );
-                // },
-
-                OnTakeMoveDamage = ( BattleUnit attacker, BattleUnit target, Move move, float damage ) =>
+                OnTakeMoveDamage = ( attacker, target, move, damage ) =>
                 {
                     if( target.Pokemon.CurrentHP != target.Pokemon.MaxHP )
                         return (int)damage;
@@ -212,10 +198,8 @@ public class BattleItemDB
                     return (int)damage;
                 },
 
-                OnTakePassiveDamage = ( BattleUnit unit, float damage ) =>
+                OnTakePassiveDamage = ( unit, damage ) =>
                 {
-//                     if( unit.Flags[UnitFlags.FocusSash].IsActive )
-                    // {
                     if( unit.Pokemon.CurrentHP != unit.Pokemon.MaxHP )
                         return;
                     else if( unit.Pokemon.CurrentHP - damage == 0 )
@@ -223,12 +207,9 @@ public class BattleItemDB
                         damage--; //--if damage will kill, we reduce the total damage by 1, leaving the unit with 1hp. damage is clamped to never go over currenthp, so this should always work
                         unit.Pokemon.BattleItemEffect?.OnEnd?.Invoke( unit );
                     }
-                    // else
-                    //     unit.SetFlagActive( UnitFlags.FocusSash, false );
 
                     Debug.Log( $"{unit.Pokemon.NickName} lost its Focus Sash!" );
                     unit.Pokemon.RemoveHeldItem();
-                    // }
                 },
             }
         },
@@ -237,7 +218,19 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.SitrusBerry,
 
-                OnAfterTakeDamage = ( unit ) =>
+                OnAfterTargetTakeDamage = ( unit ) =>
+                {
+                    Debug.Log( $"{unit.Pokemon.NickName} is holding a Sitrus Berry!" );
+                    if( unit.Pokemon.IsBelowHPPercent( 50 ) && unit.Pokemon.CurrentHP > 0 )
+                    {
+                        int healBy = Mathf.FloorToInt( unit.Pokemon.MaxHP / 4f );
+                        unit.Pokemon.IncreaseHP( healBy );
+                        unit.Pokemon.AddStatusEvent( StatusEventType.Heal, $"{unit.Pokemon.NickName} ate its Sitrus Berry to restore HP!" );
+                        unit.Pokemon.RemoveHeldItem();
+                    }
+                },
+
+                OnTakePassiveDamage = ( unit, damage ) =>
                 {
                     Debug.Log( $"{unit.Pokemon.NickName} is holding a Sitrus Berry!" );
                     if( unit.Pokemon.IsBelowHPPercent( 50 ) && unit.Pokemon.CurrentHP > 0 )
@@ -255,7 +248,7 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.Leftovers,
 
-                OnItemRoundEnd = ( Pokemon pokemon ) =>
+                OnItemRoundEnd = ( pokemon ) =>
                 {
                     Debug.Log( $"Leftovers Triggered!" );
                     if( pokemon.CurrentHP < pokemon.MaxHP )
@@ -274,9 +267,9 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.BlackSludge,
 
-                OnItemRoundEnd = ( Pokemon pokemon ) =>
+                OnItemRoundEnd = ( pokemon ) =>
                 {
-                    Debug.Log( $"Leftovers Triggered!" );
+                    Debug.Log( $"Black Sludge Triggered!" );
                     if( pokemon.CheckTypes( PokemonType.Poison ) )
                     {
                         int healBy = Mathf.FloorToInt( pokemon.MaxHP / 16 );
@@ -357,13 +350,15 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.RockyHelmet,
 
-                OnMoveContact = ( BattleUnit attacker, BattleUnit target, Move move ) =>
+                OnMoveContactTarget = ( attacker, target, move ) =>
                 {
                     if( move.MoveSO.HasFlag( MoveFlags.Contact ) )
                     {
                         int damage = Mathf.FloorToInt( attacker.Pokemon.MaxHP / 6f );
                         attacker.Pokemon.DecreaseHP( damage );
                         attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} is hurt by {target.Pokemon.NickName}'s Rocky Helmet!" );
+
+                        attacker.Pokemon.BattleItemEffect?.OnTakePassiveDamage( attacker, damage );
                     }
                 },
             }
@@ -398,6 +393,13 @@ public class BattleItemDB
                     else
                         return 1f;
                 }
+            }
+        },
+        {
+            BattleItemEffectID.HeavyDutyBoots, new()
+            {
+                ID = BattleItemEffectID.HeavyDutyBoots,
+                //--Effect for this item is handled in all places entry hazard damage is checked, including the AI system.
             }
         }
     };

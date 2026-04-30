@@ -23,8 +23,7 @@ MonoBehaviour:
   _statOverride: 0
   _power: 20
   _accuracy: 90
-  _accuracyType: 0
-  _alwaysHits: 0
+  _accuracyType: 1
   _pp: 10
   _movePriority: 7
   _critBehavior: 0

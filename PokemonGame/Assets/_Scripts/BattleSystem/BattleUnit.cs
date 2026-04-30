@@ -410,7 +410,7 @@ public class BattleUnit : MonoBehaviour
         float auroraVeilModifier = 1f;
 
         //--Actually set Screens Damage Reduction modifiers if applicable
-        if( attacker.Pokemon.Ability?.ID != AbilityID.Infiltrator )
+        if( attacker.Pokemon.Ability?.ID != AbilityID.Infiltrator || critical <= 1f ) //--If a pokemon has the infiltrator ability, it bypasses screens. if the attacker rolled a critical hit, we bypass screens. either of these need to be true to bypass screens.
         {
             if( Flags[UnitFlags.Reflect].IsActive && move.MoveSO.MoveCategory == MoveCategory.Physical )
                 reflectModifier = SCREENS_MODIFIER;
@@ -438,7 +438,7 @@ public class BattleUnit : MonoBehaviour
         if( move.MoveSO.MoveCategory == MoveCategory.Physical )
         {
             attackStat = attacker.Pokemon.Attack;
-            defenseStat = target.Defense;
+            defenseStat = critical > 1f ? target.Stats[Stat.Defense] : target.Defense; //--this should have crit bypass all defensive modifiers, whether from stat stages or direct modifier pool
 
             //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow.
             attackStat = attacker.Pokemon.Modify_ATK( attackStat, target, move );
@@ -447,7 +447,7 @@ public class BattleUnit : MonoBehaviour
         else if( move.MoveSO.MoveCategory == MoveCategory.Special )
         {
             attackStat = attacker.Pokemon.SpAttack;
-            defenseStat = target.SpDefense;
+            defenseStat = critical > 1f ? target.Stats[Stat.SpDefense] : target.SpDefense;
 
             //--In case of ability modifying attack stat, such as Blaze, Torrent, or Overgrow.
             attackStat = attacker.Pokemon.Modify_SpATK( attackStat, target, move );
