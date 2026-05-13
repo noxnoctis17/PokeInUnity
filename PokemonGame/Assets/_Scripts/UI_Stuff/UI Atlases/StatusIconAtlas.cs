@@ -37,14 +37,18 @@ public class StatusIconAtlas : MonoBehaviour
     [SerializeField] private Sprite _fnt;
     [SerializeField] private Color _fntColor;
     [SerializeField] private GameObject _fntVFX;
+    public static Sprite FNT;
+    public static Color FNTColor;
 
     public static Dictionary<SevereConditionID, StatusObject> StatusIcons;
 
-    private void OnEnable(){
+    private void OnEnable()
+    {
         InitializeDictionary();
     }
 
-    private void InitializeDictionary(){
+    private void InitializeDictionary()
+    {
         StatusIcons = new()
         {
             { SevereConditionID.PSN, new( _psn, _psnColor, _psnVFX ) },
@@ -53,9 +57,10 @@ public class StatusIconAtlas : MonoBehaviour
             { SevereConditionID.FBT, new( _fbt, _fbtColor, _fbtVFX ) },
             { SevereConditionID.PAR, new( _par, _parColor, _parVFX ) },
             { SevereConditionID.SLP, new( _slp, _slpColor, _slpVFX ) },
-            { SevereConditionID.FNT, new( _fnt, _fntColor, _fntVFX ) },
-
         };
+
+        FNT = _fnt;
+        FNTColor = _fntColor;
     }
 }
 

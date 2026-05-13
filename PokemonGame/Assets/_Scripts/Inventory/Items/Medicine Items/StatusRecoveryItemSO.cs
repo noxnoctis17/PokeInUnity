@@ -15,7 +15,7 @@ public class StatusRecoveryItemSO : ItemSO
 
     public override bool Use( Pokemon pokemon ){
         //--Revive
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT ){
+        if( pokemon.IsFainted ){
             if( _revive ){
                 pokemon.CureSevereStatus();
                 pokemon.IncreaseHP( pokemon.MaxHP/2 );
@@ -70,7 +70,7 @@ public class StatusRecoveryItemSO : ItemSO
             return false;
 
         //--Revive Item
-        if( _revive && pokemon.SevereStatus.ID == SevereConditionID.FNT || _maxRevive && pokemon.SevereStatus.ID == SevereConditionID.FNT )
+        if( _revive && pokemon.IsFainted || _maxRevive && pokemon.IsFainted )
             return true;
 
         //--Status Item

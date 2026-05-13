@@ -752,7 +752,7 @@ public enum GrowthRate
 
 public class TypeChart
 {
-    static float[][] chart = 
+    static readonly float[][] chart = 
     {
         //--Types                    NOR FIR WAT ELE GRA ICE FIG POI GRO FLY PSY BUG ROC GHO DRA DAR STE FAI
 

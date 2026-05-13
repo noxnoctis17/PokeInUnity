@@ -33,6 +33,8 @@ MonoBehaviour:
   _drainPercentage: 0
   _healType: 0
   _healAmount: 0
+  _setDamageType: 2
+  _setDamageAmount: 0
   _hitRange: {x: 0, y: 0}
   _flags: 
   _moveEffects:

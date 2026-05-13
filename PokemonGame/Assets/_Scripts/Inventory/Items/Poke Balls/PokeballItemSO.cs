@@ -24,7 +24,7 @@ public class PokeballItemSO : ItemSO
         }
 
         //--Overworld Use to change Pokemon's current Ball
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
+        if( pokemon.IsFainted )
             return false;
         
         if( pokemon.CurrentBallType == _ballType )

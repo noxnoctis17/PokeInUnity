@@ -128,6 +128,13 @@ public class PartyScreen_Pause : State<UI_PauseMenuStateMachine>, IPartyScreen
             _statusIcon.gameObject.SetActive( true );
         }
 
+        //--Faint
+        if( pokemon.IsFainted )
+        {
+            _statusIcon.sprite = StatusIconAtlas.FNT;
+            _statusIcon.gameObject.SetActive( true );
+        }
+
         //--Set Ability
         if( pokemon.Ability != null )
         {
@@ -146,7 +153,7 @@ public class PartyScreen_Pause : State<UI_PauseMenuStateMachine>, IPartyScreen
         else
         {
             _heldItemText.text = $"-";
-            _heldItemIcon.sprite = pokemon.HeldItem.Icon;
+            _heldItemIcon.sprite = null;
             _heldItemIcon.gameObject.SetActive( false );
         }
 

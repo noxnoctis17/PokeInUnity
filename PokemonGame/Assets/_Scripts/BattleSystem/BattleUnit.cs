@@ -59,16 +59,19 @@ public class BattleUnit : MonoBehaviour
 
         Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
 
-        if( _isAI )
-        {
-            _battleAI.enabled = true;
-            GetComponent<BattleAI>().InitializeAI( _battleSystem, this );
-            UpdateAITeamPieceValue();
-        }
-        else
-        {
+        // if( _isAI ) //--We need to initialize ai from battle arena, after setting up both ai units. this is probably a good change, as now we don't need to check, we can just handle it implicitly when we know there is supposed to be an ai unit during setup.
+        // {
+        //     _battleAI.enabled = true;
+        //     _battleAI.InitializeAI( _battleSystem, this );
+        //     UpdateAITeamPieceValue();
+        // }
+        // else
+        // {
+        //     _battleAI.enabled = false;
+        // }
+
+        if( !_isAI )
             _battleAI.enabled = false;
-        }
     }
 
     public void UpdateUnit( Pokemon pokemon )
@@ -88,10 +91,19 @@ public class BattleUnit : MonoBehaviour
             _battleAI.ResetSetupAmount();
     }
 
+    public void InitializeAI()
+    {
+        _battleAI.enabled = true;
+        _battleAI.InitializeAI( _battleSystem, this );
+        UpdateAITeamPieceValue();
+    }
+
     public void UpdateAITeamPieceValue()
     {
-        var allyTeam = _battleSystem.GetAllyParty( Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
-        _battleAI.RefreshTeamPieceValues( allyTeam );
+        var ourTeam = _battleSystem.GetAllyParty( Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+        var theirTeam = _battleSystem.GetOpposingParty( Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
+        
+        _battleAI.RefreshTeamPieceValues( ourTeam, theirTeam );
     }
 
     public void TempUsage( Pokemon pokemon )

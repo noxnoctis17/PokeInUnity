@@ -9,7 +9,7 @@ public class PPItemSO : ItemSO
 
 
     public override bool Use( Pokemon pokemon ){
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
+        if( pokemon.IsFainted )
             return false;
 
         int fullPPmoves = 0;
@@ -36,7 +36,7 @@ public class PPItemSO : ItemSO
     }
 
     public override bool CheckIfUsable( Pokemon pokemon ){
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
+        if( pokemon.IsFainted )
             return false;
 
         //--PP Restore

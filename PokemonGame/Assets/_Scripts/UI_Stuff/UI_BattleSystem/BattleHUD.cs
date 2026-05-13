@@ -141,14 +141,22 @@ public class BattleHUD : MonoBehaviour
 
     private void SetSevereStatus()
     {
-        if( _pokemon.SevereStatus == null ){
-            _severeStatusContainer.gameObject.SetActive( false );
+        if( _pokemon.SevereStatus == null )
+        {
+            _severeStatusContainer.SetActive( false );
             _battleUnit.PokeAnimator.SetStatusColor( Color.white );
             return;
         }
 
+        if( _pokemon.IsFainted )
+        {
+            _severeStatusIcon.sprite = StatusIconAtlas.FNT;
+            _battleUnit.PokeAnimator.SetStatusColor( StatusIconAtlas.FNTColor );
+            return;
+        }
+
         _severeStatusIcon.sprite = StatusIconAtlas.StatusIcons[_pokemon.SevereStatus.ID].Icon;
-        _severeStatusContainer.gameObject.SetActive( true );
+        _severeStatusContainer.SetActive( true );
         _battleUnit.PokeAnimator.SetStatusColor( StatusIconAtlas.StatusIcons[_pokemon.SevereStatus.ID].Color );
     }
 

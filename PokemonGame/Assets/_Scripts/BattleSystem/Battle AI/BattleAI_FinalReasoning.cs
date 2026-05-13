@@ -150,13 +150,22 @@ public class BattleAI_FinalReasoning
             _ai.CurrentLog.Add( $"Attacker has sweep horizon detected from setup. Advantage." );
         }
 
-        bool weHaveToSwitchNextTurn = _ai.UnitSim.PredictSwitchProbability( setup.Top2.OpponentPTKO, setup.Top2.AttackerPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Opponent.BeginningHPR, setup.Top2.Attacker.BeginningHPR ) >= 0.8f;
-        bool weForceSwitchNextTurn = _ai.UnitSim.PredictSwitchProbability( setup.Top2.AttackerPTKO, setup.Top2.OpponentPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Attacker.BeginningHPR, setup.Top2.Opponent.BeginningHPR ) >= 0.8f;
+        float weSwitchProbability = _ai.UnitSim.PredictSwitchProbability( setup.Top2.OpponentPTKO, setup.Top2.AttackerPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Opponent.BeginningHPR, setup.Top2.Attacker.BeginningHPR, setup.Top2.Attacker.Expendability, true, $"{setup.Top2.Attacker.Name}" );
+        float theySwitchProbability = _ai.UnitSim.PredictSwitchProbability( setup.Top2.AttackerPTKO, setup.Top2.OpponentPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Attacker.BeginningHPR, setup.Top2.Opponent.BeginningHPR, setup.Top2.Opponent.Expendability, true, $"{setup.Top2.Opponent.Name}" );
+        bool weHaveToSwitchNextTurn = weSwitchProbability >= 0.5f;
+        bool weForceSwitchNextTurn = theySwitchProbability >= 0.7f;
+
+        _ai.CurrentLog.Add( $"We switch next turn probability: {weSwitchProbability}, They Switch next turn probability: {theySwitchProbability}" );
         
-        if( weForceSwitchNextTurn )
+        if( weForceSwitchNextTurn && !weHaveToSwitchNextTurn )
         {
             setupAdvantages++;
             _ai.CurrentLog.Add( $"Setting up causes the opponent to switch next turn. Advantage." );
+        }
+        else if( weHaveToSwitchNextTurn )
+        {
+            setupRisks++;
+            _ai.CurrentLog.Add( $"We may end up having to switch out next turn. Risk." );
         }
 
         if( context.Plan.Type == PlanType.EnableSweep && setup.Top1.Attacker_EndOfTurnHP > 0 && setup.Top2.AttackerMovedFirst )
@@ -189,10 +198,10 @@ public class BattleAI_FinalReasoning
         }
 
         int setupPressureDelta = setup.PBS.PressureScore - attack.PBS.PressureScore;
-        if( setupPressureDelta >= 0 )
+        if( setupPressureDelta > 0 )
         {
             setupAdvantages++;
-            _ai.CurrentLog.Add( $"Setup Pressure Delta: {setupPressureDelta} >= 0. Rewarding." );
+            _ai.CurrentLog.Add( $"Setup Pressure Delta: {setupPressureDelta} > 0. Rewarding." );
         }
 
         float attackHPleft = attack.Top2.Attacker_EndOfTurnHP;
@@ -210,10 +219,62 @@ public class BattleAI_FinalReasoning
             _ai.CurrentLog.Add( "Setup preserves equivalent HP to attack. Advantage." );
         }
 
-        if( !setup.Top2.AttackerCanAct || setup.Top1.Attacker.Pokemon != setup.Top2.Attacker.Pokemon || weHaveToSwitchNextTurn )
+        if( !setup.Top2.AttackerCanAct )
         {
             setupRisks++;
-            _ai.CurrentLog.Add( $"Setting up this turn causes us to be unable to act next turn, or forces us out via switch or phaze next turn. Risk." );
+            _ai.CurrentLog.Add( $"Setting up this turn causes us to be unable to act next turn. Risk." );
+        }
+
+        if(  setup.Top1.Attacker.Pokemon != setup.Top2.Attacker.Pokemon || weHaveToSwitchNextTurn )
+        {
+            setupRisks++;
+            _ai.CurrentLog.Add( $"Setting up this turn causes us to be forced out via switch or phaze next turn. Risk." );
+        }
+
+        //--Consecutive setup penalty should be somewhat heavy.
+        setupRisks += _ai.SetupAmount;
+        _ai.CurrentLog.Add( $"Already used a setup move {_ai.SetupAmount} times in a row. Greater than 0 is a Risk." );
+
+        //-------------------------------
+        //--------Attack Reasoning-------//--This will simply run counter to setup as risks, and also acting like a further check against not going for an attack aftert setting up.
+        //-------------------------------
+
+        if( attack.Top1.Opponent_EndOfTurnHP <= 0f && attack.Top1.Attacker_EndOfTurnHP > 0f && _ai.SetupAmount > 0 )
+        {
+            setupRisks++;
+            _ai.CurrentLog.Add( $"Already used a setup move {_ai.SetupAmount} times, and we threaten a KO this turn. Sweep likely beginning, don't through away power advantage. Risk." );
+        }
+
+        if( attack.Top1.Opponent_DiesBeforeActing )
+        {
+            setupRisks++;
+            _ai.CurrentLog.Add( $"We get an immediate KO this turn and either have to switch or don't KO next turn. Risk." );
+
+            if( weHaveToSwitchNextTurn || setup.Top2.Opponent_EndOfTurnHP > 0f )
+            {
+                setupRisks++;
+                _ai.CurrentLog.Add( $"We either have to switch next turn after setting up or we don't KO next turn after setting up, and we get an immediate OHKO this turn if we attack. Risk." );
+            }
+        }
+
+        var attackMove = attack.Top1.Attacker.MTR.Move;
+        if( attackMove.MoveSO.MoveCategory != MoveCategory.Status && attackMove.MoveSO.MoveEffects.StatChangeList?.Count > 0 )
+        {
+            int positive = 0;
+            var statChanges = attackMove.MoveSO.MoveEffects.StatChangeList;
+
+            for( int i = 0; i < statChanges.Count; i++ )
+            {
+                var sc = statChanges[i];
+                if( sc.Change > 0 )
+                    positive++;
+            }
+
+            if( positive > 0 )
+            {
+                setupRisks++; //--we increase setup risks to favor using an attack that also increases our stats. This runs counter to the auto-win for setup guaranteeing a stat boost.
+                _ai.CurrentLog.Add( $"Attacking provides a stat boost, so raw setup is probably less valuable. Risk." );
+            }
         }
 
         //-------------------------------
@@ -222,21 +283,26 @@ public class BattleAI_FinalReasoning
 
         if( attack.Score > setup.Score )
         {
-            if( koOutcomeEquivalent && setupAdvantages >= 3 && setupRisks <= 1 )
+            if( weSwitchProbability > 0.7f )
+            {
+                _ai.CurrentLog.Add( $"We have a high likelyhood of switching next turn after setting up. Setting up may waste our turn. Going with original attack." );
+                return context;
+            }
+
+            bool strongSetupCase = koOutcomeEquivalent && Mathf.Abs( setupHPleft - attackHPleft ) < 0.05f;
+            if( strongSetupCase && setupRisks == 0 )
+            {
+                context.HasDecision = true;
+                context.ChosenAction = setup;
+                _ai.CurrentLog.Add( $"Setup found to be better than Attack. Selecting Setup." );
+            }
+            else if( koOutcomeEquivalent && setupAdvantages >= 3 && setupRisks <= 1 )
             {
                 context.HasDecision = true;
                 context.ChosenAction = setup;
                 _ai.CurrentLog.Add( $"Setup found to be better than Attack. Selecting Setup." );
             }
             else if( setupAdvantages >= 5 && setupRisks <= 2 )
-            {
-                context.HasDecision = true;
-                context.ChosenAction = setup;
-                _ai.CurrentLog.Add( $"Setup found to be better than Attack. Selecting Setup." );
-            }
-
-            bool strongSetupCase = koOutcomeEquivalent && Mathf.Abs( setupHPleft - attackHPleft ) < 0.05f;
-            if( strongSetupCase && setupRisks == 0 )
             {
                 context.HasDecision = true;
                 context.ChosenAction = setup;
@@ -295,14 +361,18 @@ public class BattleAI_FinalReasoning
         var attackerHPR = attack.Top1.Attacker.BeginningHPR;
         var opponentHPR = attack.Top1.Opponent.BeginningHPR;
         var movesFirst = attack.Top1.AttackerMovedFirst;
+        var oppExpendability = attack.Top1.Opponent.Expendability;
 
-        float theySwitchProb = _ai.UnitSim.PredictSwitchProbability( attackerPTKO, opponentPTKO, movesFirst, attackerHPR, opponentHPR );
+        float theySwitchProb = _ai.UnitSim.PredictSwitchProbability( attackerPTKO, opponentPTKO, movesFirst, attackerHPR, opponentHPR, oppExpendability, true, attack.Top1.Opponent.Name );
 
-        if( theySwitchProb < 0.75f )
+        if( theySwitchProb < 0.7f )
+        {
+            _ai.CurrentLog.Add( $"Skipping Switch Prediction (Opponent Switch probability: {theySwitchProb})" );
             return context;
+        }
 
         _ai.CurrentLog.Add( $"" );
-        _ai.CurrentLog.Add( $"===[Rule Found: {context.Rule} (Switch Probability: {theySwitchProb} >= 0.75f)]===" );
+        _ai.CurrentLog.Add( $"===[Rule Found: {context.Rule} (Switch Probability: {theySwitchProb} >= 0.7f)]===" );
         _ai.CurrentLog.Add( $"Beginning Reasoning checks..." );
 
         if( attack.Top1.Opponent_EndOfTurnHP <= 0f && attack.Top1.AttackerMovedFirst && theySwitchProb < 0.9f )
@@ -324,7 +394,7 @@ public class BattleAI_FinalReasoning
             int coverageMovePTKOs = 0;
             var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
             var ourActiveAdapters = _ai.CreateBattleAIUnits_FromBattleUnits( ourActivePokemon );
-            var likelyCandidates = _ai.GetLikelyDefensiveSwitches( ourActiveAdapters, attack.Top1.Opponent );
+            var likelyCandidates = _ai.GetLikelyDefensiveSwitches( attack.Top1.Opponent );
             List<IBattleAIUnit> likelySwitches = new();
             var ourMon = _ai.ThisUnitAdapter;
             int chosenMovePTKOs = 0;
@@ -339,7 +409,7 @@ public class BattleAI_FinalReasoning
             //--Convert candidates into IBattleAIUnits
             for( int i = 0; i < likelyCandidates.Count; i++ )
             {
-                BattleAI_PokemonAdapter opp = new( likelyCandidates[i], _ai );
+                BattleAI_PokemonAdapter opp = _ai.GetPokemonAs_Adapter( likelyCandidates[i] );
                 likelySwitches.Add( opp );
                 _ai.CurrentLog.Add( $"Adding switch candidate adapter {opp.Name} ({likelyCandidates[i].NickName})." );
             }
@@ -450,6 +520,17 @@ public class BattleAI_FinalReasoning
 
     private ReasoningContext AttackVSHazards( ReasoningContext context)
     {
+        return context;
+    }
+
+    private ReasoningContext DefensiveSwitchOverride( ReasoningContext context )
+    {
+        //--This is to decide whether we should make an attempt to override the currently selected defensive switch
+        //--scenarios would be where we decide to read that they're going to use a coverage move - essentially read that they read the switch
+        //--possibly there can be some other factor or probability scenario as well that feeds more into player probability rather than ai vs ai
+        //--the player can very easily begin exploiting defensive switches if they get a good enough idea of how the ai works. this is to help combat
+        //--that, as well as just in general allow the ai to play slightly more interesting competitive singles by occasionally not doing something dumb like
+        //--making an obvious defensive switch into an ohko by coverage move (for example, switching roserade in to take starmie's surf, but starmie actually clicked psychic, obliterating roserade on incoming)
         return context;
     }
 }

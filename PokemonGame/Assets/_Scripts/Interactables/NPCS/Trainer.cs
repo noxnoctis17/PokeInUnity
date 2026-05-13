@@ -119,11 +119,9 @@ public class Trainer : MonoBehaviour, IInteractable, ISavable
         yield return null;
 
         //--Build This Trainer
-        // var thisParty = BuildTrainerParty();
         BattleTrainer thisBattleTrainer = BattleTrainerFactory.FromNPC( this );
 
         //--Build Opposing Trainer
-        // var opposingParty = _opposingTrainer.BuildTrainerParty();
         BattleTrainer opposingBattleTrainer = BattleTrainerFactory.FromNPC( _opposingTrainer );
 
         BattleController.Instance.InitAITrainerBattle( BattleType, thisBattleTrainer, opposingBattleTrainer );

@@ -20,11 +20,11 @@ MonoBehaviour:
     _ability: 23
     _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
     _hpEVs: 252
-    _attackEVs: 0
-    _defenseEVs: 168
+    _attackEVs: 4
+    _defenseEVs: 252
     _spattackEVs: 0
     _spdefenseEVs: 0
-    _speedEVs: 88
+    _speedEVs: 0
     _ball: 2
     _moves:
     - {fileID: 11400000, guid: 4095d344166f78f47a19679885bbd675, type: 2}
@@ -35,8 +35,8 @@ MonoBehaviour:
     _nickName: 
     _level: 100
     _nature: 4
-    _ability: 5
-    _heldItem: {fileID: 11400000, guid: f04ed53fb2be00649ba51ddac255c264, type: 2}
+    _ability: 53
+    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
     _hpEVs: 0
     _attackEVs: 252
     _defenseEVs: 4
@@ -54,7 +54,7 @@ MonoBehaviour:
     _level: 100
     _nature: 14
     _ability: 56
-    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
+    _heldItem: {fileID: 0}
     _hpEVs: 4
     _attackEVs: 0
     _defenseEVs: 0
@@ -90,7 +90,7 @@ MonoBehaviour:
     _level: 100
     _nature: 18
     _ability: 56
-    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
+    _heldItem: {fileID: 0}
     _hpEVs: 24
     _attackEVs: 0
     _defenseEVs: 252
@@ -106,7 +106,7 @@ MonoBehaviour:
   - _pokemon: {fileID: 11400000, guid: 1a07c48c49a9c134c999404d103a10e8, type: 2}
     _nickName: 
     _level: 100
-    _nature: 4
+    _nature: 10
     _ability: 1
     _heldItem: {fileID: 11400000, guid: f7cdb5117198a254689e63af5f47d4b6, type: 2}
     _hpEVs: 0

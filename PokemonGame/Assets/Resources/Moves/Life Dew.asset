@@ -24,7 +24,6 @@ MonoBehaviour:
   _power: 0
   _accuracy: 0
   _accuracyType: 2
-  _alwaysHits: 1
   _pp: 10
   _movePriority: 7
   _critBehavior: 0
@@ -34,10 +33,12 @@ MonoBehaviour:
   _drainPercentage: 0
   _healType: 1
   _healAmount: 25
+  _setDamageType: 0
+  _setDamageAmount: 0
   _hitRange: {x: 0, y: 0}
   _flags: 06000000
   _moveEffects:
-    _target: 0
+    _target: 3
     _trigger: 0
     _statChangeList: []
     _severeStatus: 0

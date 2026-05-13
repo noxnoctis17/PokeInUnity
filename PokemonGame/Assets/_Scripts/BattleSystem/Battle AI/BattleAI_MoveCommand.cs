@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -42,17 +43,17 @@ public class BattleAI_MoveCommand
                 targets.Add( _ai.Unit );
             else if( move.MoveSO.MoveTarget == MoveTarget.OpposingSide )
             {
-                for( int t = 0; t < _ai.OpposingUnits.Count; t++ )
+                for( int t = 0; t < _ai.TheirBattleAIUnits.Count; t++ )
                 {
-                    var tar = _ai.GetBattleUnit( _ai.OpposingUnits[t].PID );
+                    var tar = _ai.GetBattleUnit( _ai.TheirBattleAIUnits[t].Pokemon );
                     targets.Add( tar );
                 }
             }
             else if( move.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
             {
-                for( int t = 0; t < _ai.OpposingUnits.Count; t++ )
+                for( int t = 0; t < _ai.TheirBattleAIUnits.Count; t++ )
                 {
-                    var tar = _ai.GetBattleUnit( _ai.OpposingUnits[t].PID );
+                    var tar = _ai.GetBattleUnit( _ai.TheirBattleAIUnits[t].Pokemon );
                     targets.Add( tar );
                 }
 
@@ -81,7 +82,7 @@ public class BattleAI_MoveCommand
 
     private AIDecisionType ChooseAttackStyle()
     {
-        return Random.value < _ai.TrainerSkillModifier ? AIDecisionType.ChosenMove : AIDecisionType.RandomMove;
+        return UnityEngine.Random.value < _ai.TrainerSkillModifier ? AIDecisionType.ChosenMove : AIDecisionType.RandomMove;
     }
 
     private Move GetRandomMove( BattleUnit target )
@@ -106,7 +107,7 @@ public class BattleAI_MoveCommand
         Move randMove = null;
         if( usableMoves != null && usableMoves.Count > 0 )
         {
-            int r = Random.Range( 0, usableMoves.Count );
+            int r = UnityEngine.Random.Range( 0, usableMoves.Count );
             randMove = usableMoves[r];
             usableMoves.Clear();
         }
@@ -202,13 +203,11 @@ public class BattleAI_MoveCommand
 
         _ai.CurrentLog.Add( $"===[Is Behind: {context.IsBehind}. Final Attack Score: {score}]===" );
 
-        //--Attacking Based on Switch Pressure (replaced flat weight bonus simply for attacking)
-        if( eval.OpponentSwitches )
-        {
-            score += 15;
-            _ai.CurrentLog.Add( $"Opponent likey forced to switch. Score: {score}" );
-        }
-        else if( eval.ExchangeState == ExchangeState.Pressure )
+        //--Attacking Based on Switch Pressure
+        score += Mathf.FloorToInt( 10f * eval.OpponentSwitchProbability );
+        _ai.CurrentLog.Add( $"Opponent likey forced to switch. Score: {score}" );
+        
+        if( eval.ExchangeState == ExchangeState.Pressure )
         {
             score += 10;
             _ai.CurrentLog.Add( $"The pressure is on! Score: {score}" );
@@ -218,7 +217,7 @@ public class BattleAI_MoveCommand
         {
             if( eval.AttackerThreatensKO )
                 score += 25;
-            else if( eval.AttackerPTKOR.PTKO >= PotentialToKO.Safe || eval.OpponentSwitches )
+            else if( eval.AttackerPTKOR.PTKO > PotentialToKO.Safe )
                 score += 15;
         }
 
@@ -242,8 +241,8 @@ public class BattleAI_MoveCommand
         var attackerName = eval.AttackerName;
         var targetName = eval.OpponentName;
 
-        var myPTKO_onTarget = setup.AfterPTKOR;
-        var theirPTKO_onMe = eval.OpponentPTKOR;
+        var myPTKO_AfterSetup = setup.AfterPTKOR;
+        var theirPTKO = eval.OpponentPTKOR;
 
         string moveName = "NONE";
 
@@ -256,26 +255,26 @@ public class BattleAI_MoveCommand
         }
 
         //--These are much tighter/more risky because setting up can drastically change an outcome. defensive setup can swing ptko chances, while offensive setup can threaten KOs across entire teams, making your current hp potentially irrelevant
-        if( theirPTKO_onMe.PTKO >= PotentialToKO.Dangerous && !eval.AttackerMovesFirst )
+        if( theirPTKO.PTKO >= PotentialToKO.Dangerous && !eval.AttackerMovesFirst )
         {
             _ai.CurrentLog.Add( $"We're likely to die if we setup now! Tanking Score!" );
             return -999;
         }
 
-        if( theirPTKO_onMe.PTKO == PotentialToKO.OHKO )
+        if( theirPTKO.PTKO == PotentialToKO.OHKO )
         {
             _ai.CurrentLog.Add( $"We're likely to die if we setup now! Tanking Score!" );
             return -999;
         }
 
-        _ai.CurrentLog.Add( $"===[Beginning Setup Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them after setup: {myPTKO_onTarget.PTKO}, their PTKO on me now: {theirPTKO_onMe.PTKO}]===" );
+        _ai.CurrentLog.Add( $"===[Beginning Setup Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them after setup: {myPTKO_AfterSetup.PTKO}, their PTKO on me now: {theirPTKO.PTKO}]===" );
 
         //--Setup Value base
         score += setup.SetupValue;
         _ai.CurrentLog.Add( $"Added setup value. Score: {score}" );
 
         //--Discourage setup if we can already KO AND we aren't very tanky vs our current opponent. We DO want to setup if we can take some hits, especially if we're defensively setting up or going for iron defense body press.
-        if( eval.AttackerThreatensKO && theirPTKO_onMe.PTKO < PotentialToKO.TwoHKO )
+        if( eval.AttackerThreatensKO && theirPTKO.PTKO < PotentialToKO.TwoHKO )
         {
             if( eval.AttackerMovesFirst )
                 score -= 60;
@@ -284,13 +283,13 @@ public class BattleAI_MoveCommand
         }
 
         //--If we are likely to KO next turn
-        if( myPTKO_onTarget.PTKO >= PotentialToKO.Dangerous && eval.AttackerMovesFirst )
+        if( myPTKO_AfterSetup.PTKO >= PotentialToKO.Dangerous && eval.AttackerMovesFirst )
             score += 30;
-        else if( myPTKO_onTarget.PTKO >= PotentialToKO.Risky )
+        else if( myPTKO_AfterSetup.PTKO >= PotentialToKO.Risky )
             score += 20;
-        else if( myPTKO_onTarget.PTKO <= PotentialToKO.Risky && !eval.AttackerMovesFirst )
+        else if( myPTKO_AfterSetup.PTKO <= PotentialToKO.Risky && !eval.AttackerMovesFirst )
             score -= 45;
-        else if( myPTKO_onTarget.PTKO <= PotentialToKO.Risky )
+        else if( myPTKO_AfterSetup.PTKO <= PotentialToKO.Risky )
             score -= 35;
 
         _ai.CurrentLog.Add( $"Checked current PTKO. Score: {score}" );
@@ -309,12 +308,23 @@ public class BattleAI_MoveCommand
         _ai.CurrentLog.Add( $"Checked Sweep Count. Score: {score}" );
 
         //--If the opponent is likely to switch, we should consider setting up. If they don't, maybe it's not the best idea even if we survive.
-        if( setup.OpponentSwitches )
-            score += 25;
-        else if( !setup.OpponentSwitches && theirPTKO_onMe.PTKO >= PotentialToKO.TwoHKO )
-            score -= 60;
-        else if( !setup.OpponentSwitches )
-            score -= 15;
+        float switchProb = eval.OpponentSwitchProbability;
+
+        float dangerWeight =
+            theirPTKO.PTKO >= PotentialToKO.OHKO ? 1.25f :
+            theirPTKO.PTKO >= PotentialToKO.Dangerous ? 1.0f :
+            theirPTKO.PTKO >= PotentialToKO.Risky ? 0.75f :
+            theirPTKO.PTKO >= PotentialToKO.TwoHKO ? 0.5f : 0.25f;
+
+        if( eval.OpponentMovesFirst )
+            dangerWeight *= 1.5f;
+
+        float penalty = 60f * dangerWeight;
+
+        score += Mathf.FloorToInt( switchProb * 25f );
+        score -= Mathf.FloorToInt( ( 1f - switchProb ) * penalty );
+
+        _ai.CurrentLog.Add( $"Opponent Switch Probability: {switchProb}. Score: {score}" );
 
         score += _ai.Setup_TempoModifier( tempo );
         _ai.CurrentLog.Add( $"Checked Tempo Modifier. Score: {score}" );
@@ -407,18 +417,30 @@ public class BattleAI_MoveCommand
 
             _ai.CurrentLog.Add( $"Does attack equivalent ({attackEquivalent}) outweigh immediate impact ({status.ImmediateImpact})?. Score: {score}" );
 
-            if( eval.OpponentSwitches ) //--Minor bonus for punishing a switch with a status effect move like sleep powder or thunder wave
-                score += 10;
+            //--Bonus for punishing a switch with a status effect move like sleep powder or thunder wave
+            score += Mathf.FloorToInt( 25f * eval.OpponentSwitchProbability );
         }
 
-        if( eval.OpponentSwitches )
-            score += 50;
-        else if( eval.ExchangeState == ExchangeState.Pressure )
+        if( eval.ExchangeState == ExchangeState.Pressure )
             score += 15;
-        else
-            score -= 40;
 
-        _ai.CurrentLog.Add( $"Opponent Switches: {eval.OpponentSwitches}. Score: {score}" );
+        float switchProb = eval.OpponentSwitchProbability;
+
+        float dangerWeight =
+            theirPTKO_onMe.PTKO >= PotentialToKO.OHKO ? 1.25f :
+            theirPTKO_onMe.PTKO >= PotentialToKO.Dangerous ? 1.0f :
+            theirPTKO_onMe.PTKO >= PotentialToKO.Risky ? 0.75f :
+            theirPTKO_onMe.PTKO >= PotentialToKO.TwoHKO ? 0.5f : 0.25f;
+
+        if( eval.OpponentMovesFirst )
+            dangerWeight *= 1.5f;
+
+        float penalty = 50f * dangerWeight;
+
+        score += Mathf.FloorToInt( switchProb * 75f );
+        score -= Mathf.FloorToInt( ( 1f - switchProb ) * penalty );
+
+        _ai.CurrentLog.Add( $"Opponent Switch Probability: {switchProb}. Score: {score}" );
 
         //--Don’t overuse if attack is better
         if( eval.AttackerThreatensKO )
@@ -464,23 +486,20 @@ public class BattleAI_MoveCommand
         return score;
     }
 
-    public MoveThreatResult GetMove_BestAttack( IBattleAIUnit attacker, IBattleAIUnit target, string source = "NO SOURCE", int depth = 0 )
+    public MoveThreatResult GetMove_BestAttack( IBattleAIUnit attacker, IBattleAIUnit target, bool actionSelect = false, string source = "NO SOURCE", int depth = 0 )
     {
         // CustomLogSession moveLog = new();
         int bestScore = int.MinValue;
         float bestModifier = 1f;
         Move bestMove = null;
         TurnOutcomeProjection bestTop = new();
-        // var materialStatus = _proj.GetMaterialStatus( attacker );
 
         //--Create Target's PTKO on attacker & target's sim unit once for use in each attacker's move's simulation
         
         var fieldSim = _ai.UnitSim.BuildSimField();
 
-        bool isFaster = _ai.GetUnitContextualSpeed( attacker ) > _ai.GetUnitContextualSpeed( target );
-
         // moveLog.Add( $"===[Beginning Scoring for {attacker.Name}'s Best Simulated Attack vs {target.Name}, called from {source}]===" );
-        if( attacker.PID == target.PID || attacker == target )
+        if( attacker.Pokemon == target.Pokemon )
             Debug.LogError( $"===[Beginning Scoring for {attacker.Name}'s Best Simulated Attack vs {target.Name}, called from {source}]===" );
 
         foreach( var move in attacker.ActiveMoves )
@@ -500,7 +519,7 @@ public class BattleAI_MoveCommand
                 continue;
 
             //--choice lock detection goes here
-            var attackerUnit = _ai.GetBattleUnit( attacker.PID );
+            var attackerUnit = _ai.GetBattleUnit( attacker.Pokemon );
             if( attackerUnit != null )
             {
                 if( attackerUnit.Flags[UnitFlags.ChoiceItem].IsActive && attackerUnit.LastUsedMove != null && attackerUnit.LastUsedMove != move )
@@ -516,7 +535,7 @@ public class BattleAI_MoveCommand
 
             float attHPR                    = _ai.Get_HPRatio( attacker );
             float tarHPR                    = _ai.Get_HPRatio( target );
-            var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, source, depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
+            var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, false, "Opponent's best attack (recursion)", depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
             var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
             PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attHPR );
 
@@ -617,7 +636,7 @@ public class BattleAI_MoveCommand
 
             float attHPR                    = _ai.Get_HPRatio( attacker );
             float tarHPR                    = _ai.Get_HPRatio( target );
-            var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, source, depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
+            var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, false, source, depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
             var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
             PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attHPR );
 
@@ -641,11 +660,12 @@ public class BattleAI_MoveCommand
         }
 
         // moveLog.Add( $"[Best Simulated Move] Final Chosen move & Score for {attacker.Name}'s {bestMove.MoveSO.Name} on {target.Name} Score: {bestScore}." );
+        // Debug.Log( $"[Best Simulated Move] Final Chosen move & Score for {attacker.Name}'s {bestMove.MoveSO.Name} on {target.Name} Score: {bestScore}." );
 
         // Debug.Log( moveLog.ToString() );
         // moveLog.Clear();
 
-        return new()
+        MoveThreatResult finalMtr = new()
         {
             Score = bestScore,
             Modifier = bestModifier,
@@ -653,9 +673,16 @@ public class BattleAI_MoveCommand
             Move = bestMove,
             Top = bestTop,
         };
+
+        if( actionSelect )
+        {
+            finalMtr.TargetBattleUnit = _ai.GetBattleUnit( target.Pokemon );
+        }
+
+        return finalMtr;
     }
 
-    public SetupThreatResult GetMove_Setup( IBattleAIUnit attacker, IBattleAIUnit target )
+    public SetupThreatResult GetMove_Setup( IBattleAIUnit attacker, IBattleAIUnit target, bool actionSelect = false )
     {
         SetupThreatResult best = new();
 
@@ -675,26 +702,26 @@ public class BattleAI_MoveCommand
             return best;
 
         //--Get opposing team's remaining pokemon.
-        var oppTeam = _ai.GetRemainingOpposingPokemon( attacker.PID );
+        var oppTeam = _ai.GetAllyTeamAs_Adapter( target.Pokemon );
 
         //--Hp Ratios
         float attHPR                            = _ai.Get_HPRatio( attacker );
         float tarHPR                            = _ai.Get_HPRatio( target );
 
         //--Get the best attack before using a boosting move and its PTKO.
-        var attackerMTRbefore                   = GetMove_BestAttack( attacker, target, "Best Simulated Setup (Attacker MTR Before)" );
+        var attackerMTRbefore                   = GetMove_BestAttack( attacker, target, false, "Best Simulated Setup (Attacker MTR Before)" );
         var attEDRbefore                        = _proj.Get_EstimatedDamageResult( attacker, target, attackerMTRbefore );
         PotentialToKOResult attPTKObefore       = _proj.Get_PotentialToKOResult( attEDRbefore, attackerMTRbefore, tarHPR );
 
         //--Create Target's PTKO on attacker
-        var tarMTRbefore                        = GetMove_BestAttack( target, attacker, "Best Simulated Setup (Target MTR Before)", 1 ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
+        var tarMTRbefore                        = GetMove_BestAttack( target, attacker, false, "Best Simulated Setup (Target MTR Before)", 1 ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
         var tarEDRbefore                        = _proj.Get_EstimatedDamageResult( target, attacker, tarMTRbefore );
         PotentialToKOResult tarPTKORbefore      = _proj.Get_PotentialToKOResult( tarEDRbefore, tarMTRbefore, attHPR );
         
         //--Create Sim field
         var fieldSim                            = _ai.UnitSim.BuildSimField();
 
-        bool currentlyFaster = _ai.GetUnitContextualSpeed( attacker ) > _ai.GetUnitContextualSpeed( target );
+        bool currentlyFaster = attacker.Speed > target.Speed;
 
         foreach( var move in setupMoves )
         {
@@ -704,8 +731,8 @@ public class BattleAI_MoveCommand
             var attackerSetupSim = _unitSim.BuildSimUnit_WithStageDelta( attacker, attHPR, attackerMTRbefore, fieldSim, stageDelta );
 
             //--Get the best attacks after the attacker uses the current setup move.
-            var attackerMTRafter   = GetMove_BestAttack( attackerSetupSim, target, "Best Simulated Setup (after)" );
-            var targetMTRafter     = GetMove_BestAttack( target, attackerSetupSim, "Best Simulated Setup (after)" );
+            var attackerMTRafter   = GetMove_BestAttack( attackerSetupSim, target, false, "Best Simulated Setup (after)" );
+            var targetMTRafter     = GetMove_BestAttack( target, attackerSetupSim, false, "Best Simulated Setup (after)" );
 
             //--Post Setup Walling Scores
             var attEDRafter = _proj.Get_EstimatedDamageResult( attackerSetupSim, target, attackerMTRafter );
@@ -721,16 +748,14 @@ public class BattleAI_MoveCommand
             //--Opposing Team Sweep Comparison
             int sweepValue = 0;
             int sweepCount = 0;
-            foreach( var opp in oppTeam )
+            foreach( var oppAdapter in oppTeam )
             {
-                BattleAI_PokemonAdapter oppAdapter = new( opp, _ai );
-
                 float oppHRP = _ai.Get_HPRatio( oppAdapter );
-                var bestVSopp = GetMove_BestAttack( attackerSetupSim, oppAdapter, "Best Simulated Setup (best vs target)" );
+                var bestVSopp = GetMove_BestAttack( attackerSetupSim, oppAdapter, false, "Best Simulated Setup (best vs target)" );
                 var vsOppWSR = _proj.Get_EstimatedDamageResult( attackerSetupSim, oppAdapter, bestVSopp );
                 PotentialToKOResult PTKOvsOpp = _proj.Get_PotentialToKOResult( vsOppWSR, bestVSopp, oppHRP );
 
-                bool faster = _ai.GetUnitContextualSpeed( attackerSetupSim ) > _ai.GetUnitContextualSpeed( oppAdapter );
+                bool faster = attackerSetupSim.Speed > oppAdapter.Speed;
 
                 if( PTKOvsOpp.PTKO >= PotentialToKO.Dangerous && faster )
                 {
@@ -750,21 +775,19 @@ public class BattleAI_MoveCommand
             //--Opposing Team's offensive threat reduction comparison
             int wallValue = 0;
             int improvedPTKOs = 0;
-            foreach( var opp in oppTeam )
+            foreach( var oppAdapter in oppTeam )
             {
-                BattleAI_PokemonAdapter oppAdapter = new( opp, _ai );
-
                 //--Opp PTKO us Before Setup
-                var vsUsMTRbefore = GetMove_BestAttack( oppAdapter, attacker, "Best Simulated Setup (Opponent PTKO us before)" );
+                var vsUsMTRbefore = GetMove_BestAttack( oppAdapter, attacker, false, "Best Simulated Setup (Opponent PTKO us before)" );
                 var vsUsWSRbefore = _proj.Get_EstimatedDamageResult( oppAdapter, attacker, vsUsMTRbefore );
                 PotentialToKOResult OppPTKObefore = _proj.Get_PotentialToKOResult( vsUsWSRbefore, vsUsMTRbefore, attHPR );
 
                 //--Opp PTKO us After Setup
-                var vsUsMTRafter = GetMove_BestAttack( oppAdapter, attackerSetupSim, "Best Simulated Setup (Opponent PTKO us after)" );
+                var vsUsMTRafter = GetMove_BestAttack( oppAdapter, attackerSetupSim, false, "Best Simulated Setup (Opponent PTKO us after)" );
                 var vsUsWSRafter = _proj.Get_EstimatedDamageResult( oppAdapter, attackerSetupSim, vsUsMTRafter );
                 PotentialToKOResult OppPTKOafter = _proj.Get_PotentialToKOResult( vsUsWSRafter, vsUsMTRafter, attHPR );
 
-                bool faster = _ai.GetUnitContextualSpeed( attackerSetupSim ) > _ai.GetUnitContextualSpeed( oppAdapter );
+                bool faster = attackerSetupSim.Speed > oppAdapter.Speed;
 
                 //--Compare before after defensive ptko from the entire team vs us here
                 if( OppPTKOafter.PTKO < OppPTKObefore.PTKO )
@@ -800,7 +823,8 @@ public class BattleAI_MoveCommand
         var battleSimContext = _battleSim.Get_BattleSimContext( attPTKObefore.PTKO, tarPTKORbefore.PTKO, attackerSim, opponentSim, fieldSim );
 
         TurnOutcomeProjection top;
-        bool opponentSwitches = _unitSim.PredictSwitchProbability( attPTKObefore.PTKO, tarPTKORbefore.PTKO, currentlyFaster, attHPR, tarHPR ) >= 0.8f;
+        float opponentSwitchProb = _unitSim.PredictSwitchProbability( attPTKObefore.PTKO, tarPTKORbefore.PTKO, currentlyFaster, attHPR, tarHPR, target.Expendability );
+        bool opponentSwitches =  UnityEngine.Random.value <= opponentSwitchProb;
 
         if( opponentSwitches )
             top = _battleSim.SimulatedSetupRound( battleSimContext, false, true, true, false ); //--attacker is switch, opponent is switch, attacker is setup, opponent setup
@@ -821,6 +845,9 @@ public class BattleAI_MoveCommand
             OpponentSwitches = opponentSwitches,
         };
 
+        if( actionSelect )
+            best.TargetBattleUnit = _ai.GetBattleUnit( target.Pokemon );
+
         return best;
     }
 
@@ -834,7 +861,7 @@ public class BattleAI_MoveCommand
         public int Impact;
         public int TotalValue;
     }
-    public StatusThreatResult GetMove_OffensiveStatus( IBattleAIUnit attacker, IBattleAIUnit target )
+    public StatusThreatResult GetMove_OffensiveStatus( IBattleAIUnit attacker, IBattleAIUnit target, bool actionSelect = false )
     {
         var offensiveStatusMoves = _ai.UnitSim.GetOffensiveStatusMoves( attacker.ActiveMoves );
 
@@ -853,7 +880,7 @@ public class BattleAI_MoveCommand
         OffensiveStatusType bestType = OffensiveStatusType.None;
 
         Move bestMove = null;
-        CustomLogSession log = new();
+        // CustomLogSession log = new();
 
         //--Pre Status Use Simulation for comparison. "Before".
         //--HP Ratios
@@ -878,7 +905,7 @@ public class BattleAI_MoveCommand
         var targetSim = _unitSim.BuildSimUnit( target, targetHPR_Before, targetMTR_Before, field_Before );
         var context = _battleSim.Get_BattleSimContext( attackerPTKOR_Before.PTKO, targetPTKOR_Before.PTKO, attackerSim, targetSim, field_Before );
 
-        log.Add( $"===[[Get Move Offensive Status] Getting Offensive Status Move for {attacker.Name} vs {target.Name}]===" );
+        // log.Add( $"===[[Get Move Offensive Status] Getting Offensive Status Move for {attacker.Name} vs {target.Name}]===" );
 
         foreach( var move in offensiveStatusMoves )
         {
@@ -897,7 +924,7 @@ public class BattleAI_MoveCommand
             bool hazard         = move.MoveEffects.CourtCondition   != CourtConditionID.None;
             bool debuff         = move.MoveEffects.StatChangeList?.Count > 0 && ( move.MoveSO.MoveEffects.Target == EffectTarget.Enemy || move.MoveSO.MoveEffects.Target == EffectTarget.OpposingSide );
 
-            log.Add( $"=[Evaluating {move.MoveSO.Name}. Severe: {severe}, Volatile: {vol}, Transient: {trans}, Hazard: {hazard}, Debuff: {debuff}]=" );
+            // log.Add( $"=[Evaluating {move.MoveSO.Name}. Severe: {severe}, Volatile: {vol}, Transient: {trans}, Hazard: {hazard}, Debuff: {debuff}]=" );
 
             if( statusEffect )
             {
@@ -908,7 +935,7 @@ public class BattleAI_MoveCommand
                     continue;
 
                 type = OffensiveStatusType.StatusEffect;
-                log.Add( $"[{move.MoveSO.Name}] Move is a {type}!" );
+                // log.Add( $"[{move.MoveSO.Name}] Move is a {type}!" );
             }
             else if( hazard )
             {
@@ -922,12 +949,12 @@ public class BattleAI_MoveCommand
                     continue;
 
                 type = OffensiveStatusType.EntryHazard;
-                log.Add( $"[{move.MoveSO.Name}] Move is an {type}!" );
+                // log.Add( $"[{move.MoveSO.Name}] Move is an {type}!" );
             }
             else if( debuff )
             {
                 type = OffensiveStatusType.StatDebuff;
-                log.Add( $"[{move.MoveSO.Name}] Move is a {type}!" );
+                // log.Add( $"[{move.MoveSO.Name}] Move is a {type}!" );
             }
             else
                 continue;
@@ -936,15 +963,15 @@ public class BattleAI_MoveCommand
             {
                 case OffensiveStatusType.StatusEffect:
                     //--Simulate status application and score results based on before/after minor lookahead
-                    statusValue = ScoreOffensiveStatusEffectMove( attackerPTKOR_Before, targetPTKOR_Before, attackerSim, targetSim, move, context, log );
+                    statusValue = ScoreOffensiveStatusEffectMove( attackerPTKOR_Before, targetPTKOR_Before, attackerSim, targetSim, move, context/*, log*/ );
                     break;
 
                 case OffensiveStatusType.EntryHazard:
-                    statusValue = ScoreOffensiveEntryHazardMove( attackerPTKOR_Before, targetPTKOR_Before, attackerSim, targetSim, move, context, log );
+                    statusValue = ScoreOffensiveEntryHazardMove( attackerPTKOR_Before, targetPTKOR_Before, attackerSim, targetSim, move, context/*, log*/ );
                     break;
 
                 case OffensiveStatusType.StatDebuff:
-                    statusValue = ScoreStatDebuffMove( attackerPTKOR_Before, targetPTKOR_Before, attackerSim, targetSim, move, context, log );
+                    statusValue = ScoreStatDebuffMove( attackerPTKOR_Before, targetPTKOR_Before, attackerSim, targetSim, move, context/*, log*/ );
                     break;
             }
 
@@ -966,7 +993,8 @@ public class BattleAI_MoveCommand
             attackerSim.MTR = statusMove;
         }
 
-        bool opponentSwitches = _unitSim.PredictSwitchProbability( attackerPTKOR_Before.PTKO, targetPTKOR_Before.PTKO, context.AttackerMovesFirst, attackerHPR_Before, targetHPR_Before ) >= 0.8f;
+        float opponentSwitchProb = _unitSim.PredictSwitchProbability( attackerPTKOR_Before.PTKO, targetPTKOR_Before.PTKO, context.AttackerMovesFirst, attackerHPR_Before, targetHPR_Before, target.Expendability );
+        bool opponentSwitches = UnityEngine.Random.value <= opponentSwitchProb;
 
         TurnOutcomeProjection top;
         if( opponentSwitches )
@@ -974,11 +1002,11 @@ public class BattleAI_MoveCommand
         else
             top = _battleSim.SimulateOffensiveStatusRound( context, true, false, false, false ); //--attacker status, opponent status, attacker switch, opponent switch
 
-        log.Add( top.SimulationLog );
-        Debug.Log( log.ToString() );
-        log.Clear();
+        // log.Add( top.SimulationLog );
+        // Debug.Log( log.ToString() );
+        // log.Clear();
 
-        return new()
+        StatusThreatResult best = new()
         {
             Type = bestType,
             Score = bestScore,
@@ -996,9 +1024,14 @@ public class BattleAI_MoveCommand
             OpponentPTKOR = targetPTKOR_Before,
             OpponentSwitches = opponentSwitches,
         };
+
+        if( actionSelect )
+            best.TargetBattleUnit = _ai.GetBattleUnit( target.Pokemon );
+
+        return best;
     }
 
-    private StatusValue ScoreOffensiveStatusEffectMove( PotentialToKOResult attackerPTKOR_Before, PotentialToKOResult targetPTKOR_Before, IBattleAIUnit attackerSim, IBattleAIUnit targetSim, Move move, BattleSimContext context, CustomLogSession log )
+    private StatusValue ScoreOffensiveStatusEffectMove( PotentialToKOResult attackerPTKOR_Before, PotentialToKOResult targetPTKOR_Before, IBattleAIUnit attackerSim, IBattleAIUnit targetSim, Move move, BattleSimContext context/*, CustomLogSession log*/ )
     {
         int uniqueScore = 0;
         int coverage = 0;
@@ -1008,7 +1041,7 @@ public class BattleAI_MoveCommand
 
         var moveEffects = move.MoveSO.MoveEffects;
 
-        log.Add( $"[{move.MoveSO.Name}] Beginning Sub Scoring Module for Offensive Status Effect Move..." );
+        // log.Add( $"[{move.MoveSO.Name}] Beginning Sub Scoring Module for Offensive Status Effect Move..." );
 
         //--Team Coverage-----------------------------------------
         var oppTeam = _ai.GetRemainingOpposingPokemon( attackerSim.PID );
@@ -1024,7 +1057,7 @@ public class BattleAI_MoveCommand
             var mon = oppTeam[i];
             bool affected = true;
             int weight = 0;
-            BattleAI_PokemonAdapter adapter = new( mon, _ai );
+            BattleAI_PokemonAdapter adapter = _ai.GetPokemonAs_Adapter( mon );
             var monMTR = GetMove_BestAttack( adapter, attackerSim );
             float powerScale = monMTR.Move.MovePower / 85f;
 
@@ -1107,7 +1140,7 @@ public class BattleAI_MoveCommand
         float switchRatio = teamAnal.Their_LikelySwitches / (float)oppTeam.Count;
 
         coverage = Mathf.RoundToInt( averageWeight + ( applicationRatio * 20f ) + ( switchRatio * 10f ) - ( resistCount * 2f ) );
-        log.Add( $"[{move.MoveSO.Name}] Status Weight: {statusWeight}, Their Likely Switches {teamAnal.Their_LikelySwitches}, Affected Count: {affectedCount}, Resist Count: {resistCount}. Coverage Score: {coverage}" );
+        // log.Add( $"[{move.MoveSO.Name}] Status Weight: {statusWeight}, Their Likely Switches {teamAnal.Their_LikelySwitches}, Affected Count: {affectedCount}, Resist Count: {resistCount}. Coverage Score: {coverage}" );
 
         //--Board Ambiguity---------------------------------------
         float switchAmbiguity = teamAnal.Their_LikelySwitches / (float)oppTeam.Count;
@@ -1117,8 +1150,8 @@ public class BattleAI_MoveCommand
 
         //--Final Board Ambiguity Score
         ambiguity = Mathf.FloorToInt( ( switchAmbiguity * 20f ) + ( threatAmbiguity * 10f ) + ( ptkoSpreadAmbiguity * 10f ) );
-        log.Add( $"[{move.MoveSO.Name}] Our Remaining Pokemon: {ourTeam.Count}. Their Likely Switches: {teamAnal.Their_LikelySwitches}, Their Threat Count: {teamAnal.Their_ThreatCount}, Their Best PTKO: {teamAnal.Their_BestPTKO}, Their Average PTKO: {teamAnal.Their_AveragePTKO}" );
-        log.Add( $"[{move.MoveSO.Name}] Switch Ambiguity: {switchAmbiguity}, Threat Ambiguity: {threatAmbiguity}, PTKO Ambiguity: {ptkoSpreadAmbiguity}. Board Ambiguity Value: {ambiguity}" );
+        // log.Add( $"[{move.MoveSO.Name}] Our Remaining Pokemon: {ourTeam.Count}. Their Likely Switches: {teamAnal.Their_LikelySwitches}, Their Threat Count: {teamAnal.Their_ThreatCount}, Their Best PTKO: {teamAnal.Their_BestPTKO}, Their Average PTKO: {teamAnal.Their_AveragePTKO}" );
+        // log.Add( $"[{move.MoveSO.Name}] Switch Ambiguity: {switchAmbiguity}, Threat Ambiguity: {threatAmbiguity}, PTKO Ambiguity: {ptkoSpreadAmbiguity}. Board Ambiguity Value: {ambiguity}" );
 
         //--Reliability-------------------------------------------
         int acc = move.MoveSO.Accuracy;
@@ -1126,18 +1159,18 @@ public class BattleAI_MoveCommand
         if( acc < 80 ) accuracyScore -= 10;
         else if( acc < 90 ) accuracyScore -= 5;
 
-        log.Add( $"[{move.MoveSO.Name}] Accuracy: {acc}. Score: {accuracyScore}" );
+        // log.Add( $"[{move.MoveSO.Name}] Accuracy: {acc}. Score: {accuracyScore}" );
         int applicationScore = Mathf.RoundToInt( applicationRatio * 15 );
-        log.Add( $"[{move.MoveSO.Name}] Affected Mons: {affectedCount}/{oppTeam.Count}. Application Score: {applicationScore}" );
+        // log.Add( $"[{move.MoveSO.Name}] Affected Mons: {affectedCount}/{oppTeam.Count}. Application Score: {applicationScore}" );
 
         //--Prediction Reliability
         int predictedSwitches = teamAnal.Their_LikelySwitches;
         int predictionScore = Mathf.RoundToInt( switchRatio * 5f );
-        log.Add( $"[{move.MoveSO.Name}] Predicted Switch Pressure: {predictedSwitches}. Prediction Score: {predictionScore}" );
+        // log.Add( $"[{move.MoveSO.Name}] Predicted Switch Pressure: {predictedSwitches}. Prediction Score: {predictionScore}" );
 
         //--Final Reliability Score
         reliability = accuracyScore + applicationScore + predictionScore;
-        log.Add( $"[{move.MoveSO.Name}] Reliability Value: {reliability}" );
+        // log.Add( $"[{move.MoveSO.Name}] Reliability Value: {reliability}" );
 
         //--Immediate Impact--------------------------------------
         var targetSim_Statused = _unitSim.BuildSimUnit_WithStatus( targetSim, targetSim.CurrentHPR, targetSim.MTR, context.Field );
@@ -1156,31 +1189,31 @@ public class BattleAI_MoveCommand
 
         //--Score both sets of PTKOs to get overall value - value in a vacuum, and value in using this turn
         impact += ( attackerPTKOR_After.Score - attackerPTKOR_Before.Score ) * 2;
-        log.Add( $"[{move.MoveSO.Name}] Attacker PTKO Score After - Before: {attackerPTKOR_After.Score} - {attackerPTKOR_Before.Score} = {attackerPTKOR_After.Score - attackerPTKOR_Before.Score}. Score: {impact}" );
+        // log.Add( $"[{move.MoveSO.Name}] Attacker PTKO Score After - Before: {attackerPTKOR_After.Score} - {attackerPTKOR_Before.Score} = {attackerPTKOR_After.Score - attackerPTKOR_Before.Score}. Score: {impact}" );
 
         impact += ( targetPTKOR_Before.Score - targetPTKOR_After.Score ) * 2;
-        log.Add( $"[{move.MoveSO.Name}] Target PTKO Score Before - After: {targetPTKOR_Before.Score} - {targetPTKOR_After.Score} = {targetPTKOR_Before.Score - targetPTKOR_After.Score}. Score: {impact}" );
+        // log.Add( $"[{move.MoveSO.Name}] Target PTKO Score Before - After: {targetPTKOR_Before.Score} - {targetPTKOR_After.Score} = {targetPTKOR_Before.Score - targetPTKOR_After.Score}. Score: {impact}" );
 
         bool deniesTurn = ( targetSim_Statused.SevereStatus == SevereConditionID.PAR || targetSim_Statused.SevereStatus == SevereConditionID.SLP ) && targetSim_Statused.SevereStatusTime > 0;
         bool burnMatters = targetSim_Statused.SevereStatus == SevereConditionID.BRN && targetSim_Statused.MTR.Move.MoveSO.MoveCategory == MoveCategory.Physical;
         bool frostMatters = targetSim_Statused.SevereStatus == SevereConditionID.FBT && targetSim_Statused.MTR.Move.MoveSO.MoveCategory == MoveCategory.Special;
         bool reducesDamage = burnMatters || frostMatters;
 
-        log.Add( $"[{move.MoveSO.Name}] Denies Turn: {deniesTurn}, Burn Matters: {burnMatters}, Frostbite Matters: {frostMatters}, Reduces Damage: {reducesDamage}." );
+        // log.Add( $"[{move.MoveSO.Name}] Denies Turn: {deniesTurn}, Burn Matters: {burnMatters}, Frostbite Matters: {frostMatters}, Reduces Damage: {reducesDamage}." );
 
         if( deniesTurn )
             impact += 70;
 
-        log.Add( $"[{move.MoveSO.Name}] Denies Turn: {deniesTurn}. Score: {impact}" );
+        // log.Add( $"[{move.MoveSO.Name}] Denies Turn: {deniesTurn}. Score: {impact}" );
 
         if( reducesDamage )
             impact += 40;
 
-        log.Add( $"[{move.MoveSO.Name}] Reduces Damage: {reducesDamage}. Score: {impact}" );
+        // log.Add( $"[{move.MoveSO.Name}] Reduces Damage: {reducesDamage}. Score: {impact}" );
 
         int finalValue = coverage + ambiguity + reliability + impact;
         int candidateScore = coverage + ambiguity + reliability + impact + uniqueScore;
-        log.Add( $"[{move.MoveSO.Name}] Coverage: {coverage}, Ambiguity: {ambiguity}, Reliability: {reliability}, Impact: {impact}, Unique Score: {uniqueScore}. Final Value: {finalValue}" );
+        // log.Add( $"[{move.MoveSO.Name}] Coverage: {coverage}, Ambiguity: {ambiguity}, Reliability: {reliability}, Impact: {impact}, Unique Score: {uniqueScore}. Final Value: {finalValue}" );
 
         return new()
         {
@@ -1193,7 +1226,7 @@ public class BattleAI_MoveCommand
         };
     }
 
-    private StatusValue ScoreOffensiveEntryHazardMove( PotentialToKOResult attackerPTKOR_Before, PotentialToKOResult targetPTKOR_Before, IBattleAIUnit attackerSim, IBattleAIUnit targetSim, Move move, BattleSimContext context, CustomLogSession log )
+    private StatusValue ScoreOffensiveEntryHazardMove( PotentialToKOResult attackerPTKOR_Before, PotentialToKOResult targetPTKOR_Before, IBattleAIUnit attackerSim, IBattleAIUnit targetSim, Move move, BattleSimContext context/*, CustomLogSession log*/ )
     {
         int uniqueScore = 0;
         int coverage = 0;
@@ -1203,7 +1236,7 @@ public class BattleAI_MoveCommand
 
         var moveEffects = move.MoveSO.MoveEffects;
 
-        log.Add( $"[{move.MoveSO.Name}] Beginning Sub Scoring Module for Offensive Entry Hazard Move..." );
+        // log.Add( $"[{move.MoveSO.Name}] Beginning Sub Scoring Module for Offensive Entry Hazard Move..." );
 
         //--Team Coverage----------------------
         //--Remaining Opposing Team
@@ -1217,7 +1250,7 @@ public class BattleAI_MoveCommand
         
         //--Final Coverage Score
         coverage = Mathf.FloorToInt( ( remaining * 5f ) + ( totalTeamHPR * 8f ) );
-        log.Add( $"[{move.MoveSO.Name}] Opponent's Remaining Pokemon: {remaining}. Total Team HPR: {totalTeamHPR}. Coverage Value: {coverage}" );
+        // log.Add( $"[{move.MoveSO.Name}] Opponent's Remaining Pokemon: {remaining}. Total Team HPR: {totalTeamHPR}. Coverage Value: {coverage}" );
 
         //--Board Ambiguity--------------------
         var ourTeam = _ai.GetRemainingAllyPokemon( attackerSim.PID );
@@ -1230,13 +1263,13 @@ public class BattleAI_MoveCommand
 
         //--Final Board Ambiguity Score
         ambiguity = Mathf.FloorToInt( ( switchAmbiguity * 40f ) + ( threatAmbiguity * 30f ) + ( ptkoSpreadAmbiguity * 30f ) );
-        log.Add( $"[{move.MoveSO.Name}] Our Remaining Pokemon: {ourTeam.Count}. Their Likely Switches: {teamAnal.Their_LikelySwitches}, Their Threat Count: {teamAnal.Their_ThreatCount}, Their Best PTKO: {teamAnal.Their_BestPTKO}, Their Average PTKO: {teamAnal.Their_AveragePTKO}" );
-        log.Add( $"[{move.MoveSO.Name}] Switch Ambiguity: {switchAmbiguity}, Threat Ambiguity: {threatAmbiguity}, PTKO Ambiguity: {ptkoSpreadAmbiguity}. Board Ambiguity Value: {ambiguity}" );
+        // log.Add( $"[{move.MoveSO.Name}] Our Remaining Pokemon: {ourTeam.Count}. Their Likely Switches: {teamAnal.Their_LikelySwitches}, Their Threat Count: {teamAnal.Their_ThreatCount}, Their Best PTKO: {teamAnal.Their_BestPTKO}, Their Average PTKO: {teamAnal.Their_AveragePTKO}" );
+        // log.Add( $"[{move.MoveSO.Name}] Switch Ambiguity: {switchAmbiguity}, Threat Ambiguity: {threatAmbiguity}, PTKO Ambiguity: {ptkoSpreadAmbiguity}. Board Ambiguity Value: {ambiguity}" );
 
         //--Reliability
         // hazards have good accuracy and provide near-guaranteed team-wide chip and ko pressure 
         int accuracyScore = Mathf.RoundToInt( move.Accuracy * 0.2f );
-        log.Add($"[{move.MoveSO.Name}] Accuracy: {move.Accuracy}. Score: {accuracyScore}");
+        // log.Add($"[{move.MoveSO.Name}] Accuracy: {move.Accuracy}. Score: {accuracyScore}");
 
         //--Affect & Persistence
         int affectedCount = 0;
@@ -1283,11 +1316,11 @@ public class BattleAI_MoveCommand
 
         float applicationRatio = affectedCount / (float)oppTeam.Count;
         int applicationScore = Mathf.RoundToInt( applicationRatio * 25 );
-        log.Add( $"[{move.MoveSO.Name}] Affected Mons: {affectedCount}/{oppTeam.Count}. Application Score: {applicationScore}" );
+        // log.Add( $"[{move.MoveSO.Name}] Affected Mons: {affectedCount}/{oppTeam.Count}. Application Score: {applicationScore}" );
 
         float removalRatio = removalThreat / (float)oppTeam.Count;
         int persistenceScore = Mathf.RoundToInt( ( 1f - removalRatio ) * 20 );
-        log.Add( $"[{move.MoveSO.Name}] Hazard Removal Threats: {removalThreat}. Persistence Score: {persistenceScore}" );
+        // log.Add( $"[{move.MoveSO.Name}] Hazard Removal Threats: {removalThreat}. Persistence Score: {persistenceScore}" );
 
         //--Reliability--------------------------------------------
         //--Prediction Reliability
@@ -1295,11 +1328,11 @@ public class BattleAI_MoveCommand
         float switchRatio = predictedSwitches / (float)oppTeam.Count;
 
         int predictionScore = Mathf.RoundToInt( switchRatio * 5f );
-        log.Add( $"[{move.MoveSO.Name}] Predicted Switch Pressure: {predictedSwitches}. Prediction Score: {predictionScore}" );
+        // log.Add( $"[{move.MoveSO.Name}] Predicted Switch Pressure: {predictedSwitches}. Prediction Score: {predictionScore}" );
 
         //--Final Reliability Score
         reliability = accuracyScore + applicationScore + persistenceScore + predictionScore;
-        log.Add( $"[{move.MoveSO.Name}] Reliability Value: {reliability}" );
+        // log.Add( $"[{move.MoveSO.Name}] Reliability Value: {reliability}" );
 
         //--Immediate Impact
         int threatImpact = 0;
@@ -1328,7 +1361,7 @@ public class BattleAI_MoveCommand
         //--tempoSwing += turn denial
 
         impact = threatImpact + disruptionValue + tempoSwing;
-        log.Add( $"[{move.MoveSO.Name}] We Are Faster: {weMoveFirst}. Threat Impact: {threatImpact}, Disruption Value {disruptionValue}, Tempo Swing: {tempoSwing}. Immediate Impact Value: {impact}" );
+        // log.Add( $"[{move.MoveSO.Name}] We Are Faster: {weMoveFirst}. Threat Impact: {threatImpact}, Disruption Value {disruptionValue}, Tempo Swing: {tempoSwing}. Immediate Impact Value: {impact}" );
 
         //--Layer logic
         Dictionary<CourtConditionID, int> courtConditions = new();
@@ -1344,30 +1377,30 @@ public class BattleAI_MoveCommand
         else
             uniqueScore += 10;
 
-        log.Add( $"[{move.MoveSO.Name}] Hazards Already Set?: {alreadySet}. Score: {uniqueScore}" );
+        // log.Add( $"[{move.MoveSO.Name}] Hazards Already Set?: {alreadySet}. Score: {uniqueScore}" );
 
         // 5. Type-specific bonuses
         switch( moveEffects.CourtCondition )
         {
             case CourtConditionID.ToxicSpikes:
                 uniqueScore += 30;
-                log.Add( $"[{move.MoveSO.Name}] Toxic Spikes Bonus. Score: {uniqueScore}" );
+                // log.Add( $"[{move.MoveSO.Name}] Toxic Spikes Bonus. Score: {uniqueScore}" );
                 break;
 
             case CourtConditionID.StickyWeb:
                 uniqueScore += 35;
-                log.Add( $"[{move.MoveSO.Name}] Sticky Web Bonus. Score: {uniqueScore}" );
+                // log.Add( $"[{move.MoveSO.Name}] Sticky Web Bonus. Score: {uniqueScore}" );
                 break;
             
             case CourtConditionID.LeechSeed:
                 uniqueScore += 35;
-                log.Add( $"[{move.MoveSO.Name}] Leech Seed Bonus. Score: {uniqueScore}" );
+                // log.Add( $"[{move.MoveSO.Name}] Leech Seed Bonus. Score: {uniqueScore}" );
                 break;
         }
 
         int finalValue = coverage + ambiguity + reliability + impact;
         int candidateScore = coverage + ambiguity + reliability + impact + uniqueScore;
-        log.Add( $"[{move.MoveSO.Name}] Coverage: {coverage}, Ambiguity: {ambiguity}, Reliability: {reliability}, Impact: {impact}, Unique Score: {uniqueScore}. Final Value: {finalValue}" );
+        // log.Add( $"[{move.MoveSO.Name}] Coverage: {coverage}, Ambiguity: {ambiguity}, Reliability: {reliability}, Impact: {impact}, Unique Score: {uniqueScore}. Final Value: {finalValue}" );
 
         return new()
         {
@@ -1380,7 +1413,7 @@ public class BattleAI_MoveCommand
         };
     }
 
-    private StatusValue ScoreStatDebuffMove( PotentialToKOResult attackerPTKOR_Before, PotentialToKOResult targetPTKOR_Before, IBattleAIUnit attackerSim, IBattleAIUnit targetSim, Move move, BattleSimContext context, CustomLogSession log )
+    private StatusValue ScoreStatDebuffMove( PotentialToKOResult attackerPTKOR_Before, PotentialToKOResult targetPTKOR_Before, IBattleAIUnit attackerSim, IBattleAIUnit targetSim, Move move, BattleSimContext context/*, CustomLogSession log*/ )
     {
         int uniqueScore = 0;
         int coverage = 0;
@@ -1494,7 +1527,7 @@ public class BattleAI_MoveCommand
                     break;
 
                 case Stat.Speed:
-                    bool weBecomeFaster = _ai.GetUnitContextualSpeed( attackerSim ) <= _ai.GetUnitContextualSpeed( targetSim ) && _ai.GetUnitContextualSpeed( attackerSim ) > _ai.GetUnitContextualSpeed( targetSim_Debuffed );
+                    bool weBecomeFaster = attackerSim.Speed <= targetSim.Speed && attackerSim.Speed > targetSim_Debuffed.Speed;
 
                     if( weBecomeFaster )
                         impact += 30;

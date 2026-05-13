@@ -16,7 +16,7 @@ public class ComboRecoveryItemSO : ItemSO
 
     public override bool Use( Pokemon pokemon )
     {
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
+        if( pokemon.IsFainted )
             return false;
         
         //--Potion Item
@@ -42,10 +42,10 @@ public class ComboRecoveryItemSO : ItemSO
     {
         //--Revive Item
         if( _revive || _maxRevive )
-            if( pokemon.SevereStatus.ID != SevereConditionID.FNT )
+            if( !pokemon.IsFainted )
                 return false;
         
-        if( pokemon.SevereStatus != null && pokemon.SevereStatus.ID == SevereConditionID.FNT )
+        if( pokemon.IsFainted )
             return false;
 
         //--Potion Item

@@ -33,6 +33,8 @@ public class MoveSO : ScriptableObject
     [SerializeField] private int _drainPercentage;
     [SerializeField] private HealType _healType;
     [SerializeField] private int _healAmount;
+    [SerializeField] private SetDamageType _setDamageType;
+    [SerializeField] private int _setDamageAmount;
     [SerializeField] private Vector2Int _hitRange;
     [SerializeField] private List<MoveFlags> _flags;
     [SerializeField] private MoveEffects _moveEffects;
@@ -54,6 +56,8 @@ public class MoveSO : ScriptableObject
     public HealType HealType => _healType;
     public int HealAmount => _healAmount;
     public Vector2Int HitRange => _hitRange;
+    public SetDamageType SetDamageType => _setDamageType;
+    public int SetDamageAmount => _setDamageAmount;
     public List<MoveFlags> Flags => _flags;
     public MoveEffects MoveEffects => _moveEffects;
     public List<SecondaryMoveEffects> SecondaryMoveEffects => _secondaryMoveEffects;
@@ -206,7 +210,7 @@ public class MoveSO : ScriptableObject
 
 public enum MoveCategory { Physical, Special, Status, Other };
 public enum MoveEffectTrigger { PerHit, LastHit }
-public enum EffectTarget { Enemy, Self, OpposingSide, AllySide }
+public enum EffectTarget { Enemy, Self, OpposingSide, AllySide, }
 public enum AccuracyType { Once, PerHit, AlwaysHits }
 
 [Serializable]
@@ -303,6 +307,7 @@ public enum CritBehavior { None, HighCritRatio, AlwaysCrits, NeverCrits, }
 public enum RecoilType { None, RecoilByMaxHP, RecoilByCurrentHP, RecoilByDamage, }
 public enum HealType { None, PercentOfMaxHP }
 public enum SwitchEffectType { None, SelfPivot, ForceOpponentOut, }
+public enum SetDamageType { None, Static, Level, HP }
 
 public enum MovePriority { Neg_7, Neg_6, Neg_5, Neg_4, Neg_3, Neg_2, Neg_1, Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine }
 

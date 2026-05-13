@@ -11,16 +11,20 @@ public interface IBattleAIUnit
     public float CurrentHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
     public int Level { get; set; }
-    public int HPBaseStat { get; set; }
+    public int HP { get; set; }
     public int Attack { get; set; }
     public int Defense { get; set; }
     public int SpAttack { get; set; }
     public int SpDefense { get; set; }
     public int Speed { get; set; }
+    public RoleProfile RoleProfile { get; set; }
+    public StatSpread StatSpread { get; set; }
     public MoveThreatResult MTR { get; set; }
     public List<Move> ActiveMoves { get; set; }
     public bool HasPriority { get; set; }
     public bool IsUngrounded { get; set; }
+
+    public float Expendability { get; set; }
 
     public AbilityID Ability { get; set; }
     public BattleItemEffectID Item { get; set; }

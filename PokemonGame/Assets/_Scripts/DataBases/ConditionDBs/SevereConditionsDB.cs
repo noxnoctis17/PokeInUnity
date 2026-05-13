@@ -49,7 +49,6 @@ public class SevereConditionsDB
                         pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by poison!" );
                     }}
             },
-                    
             {   //--TOXIC
                 SevereConditionID.TOX, new()
                 {
@@ -79,7 +78,6 @@ public class SevereConditionsDB
                     }
                 }
             },
-
             {   //--BURN
                 SevereConditionID.BRN, new()
                 {
@@ -107,7 +105,6 @@ public class SevereConditionsDB
                         pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by its burn!" );
                     }}
             },
-
             {   //--FROSTBITE
                 SevereConditionID.FBT, new()
                 {
@@ -129,7 +126,6 @@ public class SevereConditionsDB
                         pokemon.AddStatusEvent( StatusEventType.SevereStatusDamage, $"{pokemon.NickName} is hurt by its frostbite!" );
                     }}
             },
-
             {   //-PARAYLSIS
                 SevereConditionID.PAR, new()
                 {
@@ -166,7 +162,6 @@ public class SevereConditionsDB
                         return false;
                     }}
             },
-
             {   //--SLEEP
                 SevereConditionID.SLP, new()
                 {
@@ -194,18 +189,6 @@ public class SevereConditionsDB
                         pokemon.SevereStatusTime--;
                         return false;
                     }}
-            },
-
-            {   //--FAINT
-                SevereConditionID.FNT, new()
-                {
-                    Name = "Faint",
-                    StatusIcon = StatusIconAtlas.StatusIcons[SevereConditionID.FNT].Icon,
-                    OnAfterTurn = ( Pokemon pokemon ) =>
-                    {
-                        pokemon.CurrentHP = 0;
-                    }
-                }
             },
         };
     }
@@ -239,7 +222,4 @@ public enum SevereConditionID
     FBT, //--Frostbite. 1/16th max hp at the end of every round, cuts special attack by 25% as part of the SpecialStatChange attribute
     PAR, //--Paralysis. cuts speed by 75% as part of the SpecialStatChange attribute, only first turn full para
     SLP, //--Sleep. Guaranteed 2 turns of inactivity
-
-    //--Faint
-    FNT, //-You're fuckin dead bro
 }

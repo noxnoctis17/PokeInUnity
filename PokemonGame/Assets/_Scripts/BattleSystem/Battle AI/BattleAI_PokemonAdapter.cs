@@ -13,16 +13,20 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
     public float CurrentHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
     public int Level { get; set; }
-    public int HPBaseStat { get; set; }
+    public int HP { get; set; }
     public int Attack { get; set; }
     public int Defense { get; set; }
     public int SpAttack { get; set; }
     public int SpDefense { get; set; }
     public int Speed { get; set; }
+    public RoleProfile RoleProfile { get; set; }
+    public StatSpread StatSpread { get; set; }
     public MoveThreatResult MTR { get; set; }
     public List<Move> ActiveMoves { get; set; }
     public bool HasPriority { get; set; }
     public bool IsUngrounded { get; set; }
+
+    public float Expendability { get; set; }
 
     public AbilityID Ability { get; set; }
     public BattleItemEffectID Item { get; set; }
@@ -36,8 +40,6 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
 
     public Dictionary<Stat, int> StatStages { get; set; }
     public Dictionary<Stat, Dictionary<DirectModifierCause, float>> DirectStatModifiers{ get; set; }
-
-    private CustomLogSession _buildLog;
 
     public BattleAI_PokemonAdapter( Pokemon mon, BattleAI ai )
     {
@@ -57,12 +59,6 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         Type = ( pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 );
 
         Level = pokemon.Level;
-        HPBaseStat = _ai.GetBaseStat( pokemon, Stat.HP );
-        Attack = _ai.GetBaseStat( pokemon, Stat.Attack );
-        Defense = _ai.GetBaseStat( pokemon, Stat.Defense );
-        SpAttack = _ai.GetBaseStat( pokemon, Stat.SpAttack );
-        SpDefense = _ai.GetBaseStat( pokemon, Stat.SpDefense );
-        Speed = _ai.GetBaseStat( pokemon, Stat.Speed );
 
         ActiveMoves = new( pokemon.ActiveMoves );
 
@@ -79,49 +75,57 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         StatStages = pokemon.CloneStatStages();
         DirectStatModifiers = pokemon.CloneDirectModifiers();
 
-        // _buildLog = new();
-        // _buildLog.Add( $"===[Built Adapter for (Lv. {Level}) {Name}]===" );
-        // _buildLog.Add( $"PID: {PID}" );
-        // _buildLog.Add( $"Current HPR: {CurrentHPR}" );
-        // _buildLog.Add( $"Type One: {Type.One}, Type Two: {Type.Two}" );
-        // _buildLog.Add( $"" );
-        // _buildLog.Add( $"HP: {MaxHP}" );
-        // _buildLog.Add( $"Attack: {Attack}" );
-        // _buildLog.Add( $"Defense: {Defense}" );
-        // _buildLog.Add( $"SpAttack: {SpAttack}" );
-        // _buildLog.Add( $"SpDefense: {SpDefense}" );
-        // _buildLog.Add( $"Speed: {Speed}" );
+        RoleProfile = _ai.RoleDetection.GetPokemonRole( this );
+        StatSpread = _ai.StatSpreads.AssignStatSpread( this );
 
-        // _buildLog.Add( $"" );
-        // _buildLog.Add( $"=[Move List]=" );
-        // for( int i = 0; i < ActiveMoves.Count; i++ )
-            // _buildLog.Add( $"Move {i+1}: {ActiveMoves[i].MoveSO.Name}" );
+        CalculateStats();
+    }
 
-        // _buildLog.Add( $"" );
-        // _buildLog.Add( $"Ability: {Ability}" );
-        // _buildLog.Add( $"Item: {Item}" );
-        // _buildLog.Add( $"" );
-        // _buildLog.Add( $"Severe Status: {SevereStatus}" );
-        // _buildLog.Add( $"Volatile Statuses: {VolatileStatuses.Count}" );
-        // _buildLog.Add( $"Binding Statuses: {Bindings.Count}" );
-        // _buildLog.Add( $"" );
-        // _buildLog.Add( $"Court Location: {CourtLocation}" );
-        // _buildLog.Add( $"" );
+    public void SetExpendability()
+    {
+        Expendability = _ai.Projection.GetExpendability( this, BeginningHPR );
+    }
 
-        // _buildLog.Add( $"=[Stat Stages]=" );
-        // foreach( var kvp in StatStages )
-            // _buildLog.Add( $"Stat: {kvp.Key}, Stage: {kvp.Value}" );
+    public void CalculateStats()
+    {
+        HP = _ai.GetCalculatedStat( this, Stat.HP );
+        Attack = _ai.GetCalculatedStat( this, Stat.Attack );
+        Defense = _ai.GetCalculatedStat( this, Stat.Defense );
+        SpAttack = _ai.GetCalculatedStat( this, Stat.SpAttack );
+        SpDefense = _ai.GetCalculatedStat( this, Stat.SpDefense );
+        Speed = _ai.GetCalculatedStat( this, Stat.Speed );
 
-        // _buildLog.Add( $"=[Direct Modifiers]=" );
-        // foreach( var stat in DirectStatModifiers )
-        // {
-            // foreach( var cause in stat.Value )
-            // {
-                // _buildLog.Add( $"Stat: {stat.Key}, Cause: {cause.Key}, Modifier: {cause.Value}" );
-            // }
-        // }
+        CustomLogSession log = new();
+        log.Add( $"==============================================" );
+        log.Add( $"=====[Calculating Adapter Stats ({Name})]=====" );
+        log.Add( $"==============================================" );
+        log.Add( $"" );
+        log.Add( $"[HP]         Assumed: {HP}, Real: {Pokemon.Stats[Stat.HP]}" );
+        log.Add( $"[Attack]     Assumed: {Attack}, Real: {Pokemon.Stats[Stat.Attack]}" );
+        log.Add( $"[Defense]    Assumed: {Defense}, Real: {Pokemon.Stats[Stat.Defense]}" );
+        log.Add( $"[SpAttack]   Assumed: {SpAttack}, Real: {Pokemon.Stats[Stat.SpAttack]}" );
+        log.Add( $"[SpDefense]  Assumed: {SpDefense}, Real: {Pokemon.Stats[Stat.SpDefense]}" );
+        log.Add( $"[Speed]      Assumed: {Speed}, Real: {Pokemon.Stats[Stat.Speed]}" );
+        log.Add( $"" );
+        log.Add( $"===[Adapter's Inferred Stats ({Name})]===" );
 
-        // Debug.Log( _buildLog.ToString() );
-        // _buildLog.Clear();
+        HP = _ai.GetUnitInferredStat( this, Stat.HP );
+        Attack = _ai.GetUnitInferredStat( this, Stat.Attack );
+        Defense = _ai.GetUnitInferredStat( this, Stat.Defense );
+        SpAttack = _ai.GetUnitInferredStat( this, Stat.SpAttack );
+        SpDefense = _ai.GetUnitInferredStat( this, Stat.SpDefense );
+        Speed = _ai.GetUnitInferredStat( this, Stat.Speed );
+
+        log.Add( $"[HP]         Assumed: {HP}, Real: {Pokemon.MaxHP}" );
+        log.Add( $"[Attack]     Assumed: {Attack}, Real: {Pokemon.Attack}" );
+        log.Add( $"[Defense]    Assumed: {Defense}, Real: {Pokemon.Defense}" );
+        log.Add( $"[SpAttack]   Assumed: {SpAttack}, Real: {Pokemon.SpAttack}" );
+        log.Add( $"[SpDefense]  Assumed: {SpDefense}, Real: {Pokemon.SpDefense}" );
+        log.Add( $"[Speed]      Assumed: {Speed}, Real: {Pokemon.Speed}" );
+        log.Add( $"==============================================" );
+        log.Add( $"" );
+
+        Debug.Log( log.ToString() );
+        log.Clear();
     }
 }

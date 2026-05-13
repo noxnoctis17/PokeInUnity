@@ -168,6 +168,7 @@ public class BattleSystem : MonoBehaviour
 //======================================[ ROUND LOG ]=========================================================
     public CustomLogSession RoundLog { get; private set; }
     public int Rounds { get; private set; }
+    public Action OnNewRound;
 
 //============================================================================================================
 //============================================================================================================
@@ -206,10 +207,13 @@ public class BattleSystem : MonoBehaviour
         TotalPartyEffortGain = 0;
         BattleIsActive = true;
         OnBattleStarted?.Invoke();
+
+        OnNewRound += IncrementRounds;
     }
 
     private void OnDisable()
     {
+        OnNewRound -= IncrementRounds;
         _roundEndPhaseState.Clear();
         Instance = null;
     }
@@ -686,6 +690,8 @@ public class BattleSystem : MonoBehaviour
 
         yield return new WaitForSeconds( 0.25f );
 
+        IncrementRounds();
+
         if( BattleType == BattleType.AI_Singles || BattleType == BattleType.AI_Doubles )
             PushState( _aiTurnState );
         else
@@ -780,16 +786,22 @@ public class BattleSystem : MonoBehaviour
     {
         if( _playerUnits.Contains( unit ) )
             return _playerUnits;
-        else
+        else if( _enemyUnits.Contains( unit ) )
             return _enemyUnits;
+        
+        Debug.LogError( $"Unit not found! Uh oh!" );
+        return null;
     }
 
     public List<BattleUnit> GetOpposingUnits( BattleUnit unit )
     {
         if( _playerUnits.Contains( unit ) )
             return _enemyUnits;
-        else
+        else if( _enemyUnits.Contains( unit ) )
             return _playerUnits;
+        
+        Debug.LogError( $"Unit not found! Uh oh!" );
+        return null;
     }
 
     public List<Pokemon> GetAllyParty( Pokemon pokemon )
@@ -1044,7 +1056,7 @@ public class BattleSystem : MonoBehaviour
             }
         }
 
-        if( move.MoveTarget == MoveTarget.Ally && ( BattleType == BattleType.AI_Singles || BattleType == BattleType.TrainerSingles || target.Pokemon.IsFainted() ) )
+        if( move.MoveTarget == MoveTarget.Ally && ( BattleType == BattleType.AI_Singles || BattleType == BattleType.TrainerSingles || target.Pokemon.IsFainted ) )
         {
             if( !aiCheck )
                 AddDialogue( $"But the move failed!" );
@@ -1186,11 +1198,13 @@ public class BattleSystem : MonoBehaviour
     //--and then once after game board update in the case of statuses like BRN, FRST, PSN, TOX
     public IEnumerator CheckForFaint( BattleUnit checkUnit )
     {
-        Debug.Log( $"[Move Command][UI Queue][Check For Faint] Checking for faint on {checkUnit.Pokemon.NickName}" );
+        // Debug.Log( $"[Move Command][UI Queue][Check For Faint] Checking for faint on {checkUnit.Pokemon.NickName}" );
         if( checkUnit.Pokemon.CurrentHP >= 1 )
-            yield break; //--if the pokemon's hp is above 0 we simply leave, it hasn't fainted yet.
+            yield break;
+        else
+            checkUnit.Pokemon.CurrentHP = 0;
 
-        if( checkUnit.Pokemon.IsFainted() )
+        if( checkUnit.Pokemon.IsFainted )
             yield break; //--If the pokemon has already fainted from an earlier phase check, we shouldn't run this
 
         checkUnit.Pokemon.CureSevereStatus(); //--Clear any potential Severe Status, which would prevent FNT from being assigned
@@ -1279,7 +1293,7 @@ public class BattleSystem : MonoBehaviour
 
             //--In a singles battle, if the alive pokemon has a command in the queue that targets the fainted pokemon (in the case a pokemon fainted from recoil or something),
             //--then we need to grab it up for removal. Attacking moves do not go off post-faint in single battles. I may be able to clean up my double battle re-targeting
-            //--by handling that here instead of where ever the hell it's handled in the run queue state. And i really do need to clean that logic up lol it's ugly as hell. --03/25/26.
+            //--by handling that here instead of where ever the hell it's handled in the run queue state. And i really do need to clean that logic up lol it's ugly as hell. --03/25/26. --this was taken care of a couple of weeks ago. doubles re-targeting was left alone and ugly, though. --5/12/26
             if( BattleType == BattleType.TrainerSingles || BattleType == BattleType.AI_Singles )
             {
                 if( CommandQueue.Count == 1 && command is UseMoveCommand moveCommand )
@@ -1342,7 +1356,8 @@ public class BattleSystem : MonoBehaviour
         {
             //--For singles BattleTypes, we immediately clear the queue. In the case of an enemy trainer,
             //--we send out their next available pokemon, and if not, the battle is ended because the player won
-            if( faintedUnit.Pokemon == _wildPokemon ){
+            if( faintedUnit.Pokemon == _wildPokemon )
+            {
                 yield return HandleExpGain( faintedUnit );
                 yield return PostBattleScreen();
             }

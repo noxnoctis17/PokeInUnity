@@ -2,11 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEngine.Windows.Speech;
 
 public class BattleAI_Projection
 {
@@ -20,8 +17,16 @@ public class BattleAI_Projection
         _unitSim = _ai.UnitSim;
     }
 
-    public ProjectedBoardState BuildPBS( TurnOutcomeProjection top1, TurnOutcomeProjection top2, ExchangeEvaluation immediateExchangeEval, int myRemainingPieces, int oppRemainingPieces )
+    public ProjectedBoardState BuildPBS( ActionEvaluation action, BoardContext bc, SurvivalClass sc )
     {
+        var top1 = action.Top1;
+        var top2 = action.Top2;
+
+        int myRemainingPieces = bc.MyRemainingPieces;
+        int oppRemainingPieces = bc.OppRemainingPieces;
+
+        var ee = action.ExchangeEvaluation;
+
         bool iAmKO = top1.Attacker_EndOfTurnHP <= 0;
         bool oppIsKO = top1.Opponent_EndOfTurnHP <= 0 ;
 
@@ -48,19 +53,19 @@ public class BattleAI_Projection
             _ai.CurrentLog.Add( $"[Build PBS] Opponent faints this turn! Opponent's remaining pieces reduced from {oppRemainingPieces + 1} to {oppRemainingPieces}! Opponent KO is {oppIsKO}." );
         }
 
-        var myTeam = _ai.GetPartyAsIBattleAIUnits( top1.Attacker.PID );
-        var oppTeam = _ai.GetPartyAsIBattleAIUnits( top1.Opponent.PID );
-        var myTeamPieceValues = _ai.GetTeamPieceValues( myTeam );
-        var oppTeamPieceValues = _ai.GetTeamPieceValues( oppTeam );
-        int myValue = myTeamPieceValues[top1.Attacker.PID].OffensiveValue;
-        int oppValue = oppTeamPieceValues[top1.Opponent.PID].OffensiveValue;
+        var myTeam = _ai.GetRemainingPartyAs_IBattleAIUnits( top1.Attacker.Pokemon );
+        var oppTeam = _ai.GetRemainingPartyAs_IBattleAIUnits( top1.Opponent.Pokemon );
+        var myTeamPieceValues = _ai.OurTeamPieceValues;
+        var oppTeamPieceValues = _ai.TheirTeamPieceValues;
+        int myValue = myTeamPieceValues[top1.Attacker.Pokemon].OffensiveValue;
+        int oppValue = oppTeamPieceValues[top1.Opponent.Pokemon].OffensiveValue;
 
         //--Turn Economy
         //--My Turns
-        int myTurnsRemaining = immediateExchangeEval.AttackerMovesFirst ? ( top1.Attacker_EndOfTurnHP > 0 ? 1 : 0 ) : ( immediateExchangeEval.AttackerSurvives ? 1 : 0 );
+        int myTurnsRemaining = ee.AttackerMovesFirst ? ( top1.Attacker_EndOfTurnHP > 0 ? 1 : 0 ) : ( ee.AttackerSurvives ? 1 : 0 );
 
         //--Opponent Turns
-        int oppTurnsRemaining = immediateExchangeEval.OpponentMovesFirst ? ( top1.Opponent_EndOfTurnHP > 0 ? 1 : 0 ) : ( immediateExchangeEval.OpponentSurvives ? 1 : 0 );
+        int oppTurnsRemaining = ee.OpponentMovesFirst ? ( top1.Opponent_EndOfTurnHP > 0 ? 1 : 0 ) : ( ee.OpponentSurvives ? 1 : 0 );
 
         _ai.CurrentLog.Add( $"[Build PBS] My Turns Remaining {myTurnsRemaining}. Opponent Turns Remaining: {oppTurnsRemaining}" );
 
@@ -81,16 +86,83 @@ public class BattleAI_Projection
         _ai.CurrentLog.Add( $"[Build PBS] Future → I Live: {iSurviveNext}, Opp Lives: {oppSurviveNext}" );
         _ai.CurrentLog.Add( $"[Build PBS] Future Threat → I Threaten: {iThreatenNext}, Opp Threatens: {oppThreatenNext}" );
 
+        //--Utility Checks
+        bool iCreatesDecisiveState = false;
+        bool iCreatesPressureState = false;
+        bool oppCreatesDecisiveState = false;
+        bool oppCreatesPressureState = false;
+        bool hazardsSetOnOpp = false;
+        bool hazardsSetOnUs = false;
+        var attStatus1 = top1.Attacker.SevereStatus;
+        var attStatus2 = top2.Attacker.SevereStatus;
+        var oppStatus1 = top1.Opponent.SevereStatus;
+        var oppStatus2 = top2.Opponent.SevereStatus;
+        var attackerMove1 = top1.Attacker.MTR.Move;
+        var opponentMove1 = top1.Opponent.MTR.Move;
+        var attCourt = top1.Attacker.CourtLocation;
+        var oppCourt = top1.Opponent.CourtLocation;
+        var attCourtConditions = attCourt == CourtLocation.TopCourt ? top1.Field.TopCourtConditions : top1.Field.BottomCourtConditions;
+        var oppCourtConditions = oppCourt == CourtLocation.TopCourt ? top1.Field.TopCourtConditions : top1.Field.BottomCourtConditions;
+
+        //--Our Utility Flags
+        if( oppCourtConditions.ContainsKey( CourtConditionID.StealthRock ) || oppCourtConditions.ContainsKey( CourtConditionID.LeechSeed ) || oppCourtConditions.ContainsKey( CourtConditionID.Spikes ) || oppCourtConditions.ContainsKey( CourtConditionID.ToxicSpikes ) || oppCourtConditions.ContainsKey( CourtConditionID.StickyWeb ) )
+            hazardsSetOnOpp = true;
+
+        if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.SLP || oppStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
+            iCreatesDecisiveState = true;
+
+        if( attackerMove1.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+            iCreatesDecisiveState = true;
+
+        if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.BRN || oppStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
+            iCreatesPressureState = true;
+
+        if( _unitSim.PokemonHasLoweredStats( top2.Opponent.Pokemon ) )
+            iCreatesPressureState = true;
+
+        if( _unitSim.CheckHasPhazeMove( top1.Attacker.Pokemon ) && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+            iCreatesPressureState = true;
+
+        //--Their Utility Flags
+        if( attCourtConditions.ContainsKey( CourtConditionID.StealthRock ) || attCourtConditions.ContainsKey( CourtConditionID.LeechSeed ) || attCourtConditions.ContainsKey( CourtConditionID.Spikes ) || attCourtConditions.ContainsKey( CourtConditionID.ToxicSpikes ) || attCourtConditions.ContainsKey( CourtConditionID.StickyWeb ) )
+            hazardsSetOnUs = true;
+
+        if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.SLP || attStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
+            oppCreatesDecisiveState = true;
+
+        if( opponentMove1.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+            oppCreatesDecisiveState = true;
+
+        if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.BRN || attStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
+            oppCreatesPressureState = true;
+
+        if( _unitSim.PokemonHasLoweredStats( top2.Attacker.Pokemon ) )
+            oppCreatesPressureState = true;
+
+        if( _unitSim.CheckHasPhazeMove( top1.Opponent.Pokemon ) && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+            oppCreatesPressureState = true;
+
         //--Role Fulfillment
         float attackerDamageTaken = top1.Attacker.BeginningHPR - top1.Attacker_EndOfTurnHP;
         bool attackRoleFulfilled = iThreaten || oppIsKO;
         bool tankRoleFulfilled = attackerDamageTaken <= 0.3f && !oppThreatens;
-        bool attackerFulfilledRole = !iAmKO && ( attackRoleFulfilled || tankRoleFulfilled );
 
         float opponentDamageTaken = top1.Opponent.BeginningHPR - top1.Opponent_EndOfTurnHP;
         bool oppAttackRoleFulfilled = oppThreatens || iAmKO;
         bool oppTankRoleFulfilled = opponentDamageTaken <= 0.3f && !iThreaten;
-        bool opponentFulfilledRole = !oppIsKO && ( oppAttackRoleFulfilled || oppTankRoleFulfilled );
+
+        bool attackerInflictedSevere = top1.Opponent.SevereStatus == SevereConditionID.None && top2.Opponent.SevereStatus != SevereConditionID.None;
+        var oppCourtConditions2 = oppCourt == CourtLocation.TopCourt ? top2.Field.TopCourtConditions : top2.Field.BottomCourtConditions;
+        bool attackerSetHazards = bc.BattlefieldState.EntryHazardsOn_TheirSide <= 0 && ( oppCourtConditions2.ContainsKey( CourtConditionID.StealthRock ) || oppCourtConditions2.ContainsKey( CourtConditionID.LeechSeed ) || oppCourtConditions2.ContainsKey( CourtConditionID.Spikes ) || oppCourtConditions2.ContainsKey( CourtConditionID.ToxicSpikes ) || oppCourtConditions2.ContainsKey( CourtConditionID.StickyWeb ) );
+        bool attackerUtilityRoleFulfilled = attackerInflictedSevere || attackerSetHazards;
+
+        bool opponentInflictedSevere = top1.Attacker.SevereStatus == SevereConditionID.None && top2.Attacker.SevereStatus != SevereConditionID.None;
+        var attackerCourtConditions2 = attCourt == CourtLocation.TopCourt ? top2.Field.TopCourtConditions : top2.Field.BottomCourtConditions;
+        bool opponentSetHazards = bc.BattlefieldState.EntryHazardsOn_MySide <= 0 && ( attackerCourtConditions2.ContainsKey( CourtConditionID.StealthRock ) || attackerCourtConditions2.ContainsKey( CourtConditionID.LeechSeed ) || attackerCourtConditions2.ContainsKey( CourtConditionID.Spikes ) || attackerCourtConditions2.ContainsKey( CourtConditionID.ToxicSpikes ) || attackerCourtConditions2.ContainsKey( CourtConditionID.StickyWeb ) );
+        bool opponentUtilityRoleFulfilled = opponentInflictedSevere || opponentSetHazards;
+
+        bool attackerFulfilledRole = !iAmKO && ( attackRoleFulfilled || tankRoleFulfilled ) || attackerUtilityRoleFulfilled;
+        bool opponentFulfilledRole = !oppIsKO && ( oppAttackRoleFulfilled || oppTankRoleFulfilled ) || opponentUtilityRoleFulfilled;
 
         //--Stability
         bool iAmStable = iSurviveNext && !( oppKillNext || ( oppThreatenNext && !futureExchangeEval.AttackerMovesFirst ) );
@@ -147,9 +219,17 @@ public class BattleAI_Projection
             IAmStable = iAmStable,
             OppIsStable = oppIsStable,
 
+            //--Utility
+            ICreateDecisiveState = iCreatesDecisiveState,
+            ICreatePressureState = iCreatesPressureState,
+            OppCreatesDecisiveState = oppCreatesDecisiveState,
+            OppCreatesPressureState = oppCreatesPressureState,
+
             //--Role Fulfillment
             AttackerFulfilledRole = attackerFulfilledRole,
             OpponentFulfilledRole = opponentFulfilledRole,
+            AttackerFulfilledUtilityRole = attackerUtilityRoleFulfilled,
+            OpponentFulfilledUtilityRole = opponentUtilityRoleFulfilled,
 
             //--Tempo
             RevengeScore = revengeScore,
@@ -261,15 +341,22 @@ public class BattleAI_Projection
 
         int pressureScore = 0;
 
-        float myThreat = GetThreatMultiplier( pbs.IKillNext, pbs.IThreatenNext, pbs.AttackerWillMoveFirst, pbs.IWillSurviveNext, pbs.MyActiveValue_AfterTurn );
-        float oppThreat = GetThreatMultiplier( pbs.OppKillNext, pbs.OppThreatenNext, pbs.OpponentWillMoveFirst, pbs.OppWillSurviveNext, pbs.OppActiveValue_AfterTurn );
+        //--KO Pressure
+        float myKOThreat = GetKOThreatMultiplier( pbs.IKillNext, pbs.IThreatenNext, pbs.AttackerWillMoveFirst, pbs.IWillSurviveNext, pbs.MyActiveValue_AfterTurn );
+        float oppKOThreat = GetKOThreatMultiplier( pbs.OppKillNext, pbs.OppThreatenNext, pbs.OpponentWillMoveFirst, pbs.OppWillSurviveNext, pbs.OppActiveValue_AfterTurn );
 
-        float threatDelta = myThreat - oppThreat;
+        //--Utility Pressure
+        float myUtilityThreat = GetUtilityThreatMultiplier( pbs.ICreateDecisiveState, pbs.ICreatePressureState, pbs.AttackerWillMoveFirst, pbs.IWillSurviveNext, pbs.MyActiveValue_AfterTurn, pbs.OppActiveValue_AfterTurn );
+        float oppUtilityThreat = GetUtilityThreatMultiplier( pbs.OppCreatesDecisiveState, pbs.OppCreatesPressureState, pbs.OpponentWillMoveFirst, pbs.OppWillSurviveNext, pbs.OppActiveValue_AfterTurn, pbs.MyActiveValue_AfterTurn );
+        float myTotalPressure = myKOThreat + myUtilityThreat;
+        float oppTotalPressure = oppKOThreat + oppUtilityThreat;
+
+        float threatDelta = myTotalPressure - oppTotalPressure;
 
         pressureScore = Mathf.RoundToInt( Mathf.Clamp( threatDelta * 0.75f, -25f, 25f ) );
 
         score += pressureScore;
-        _ai.CurrentLog.Add( $"[PBS] Pressure Score: {pressureScore} (My: {myThreat}, Opp: {oppThreat}). Score: {score}" );
+        _ai.CurrentLog.Add( $"[PBS] Pressure Score: {pressureScore} (My KO Threat: {myKOThreat}, Opp KO Threat: {oppKOThreat}, My Utility Threat: {myUtilityThreat}, Opp Utility Threat: {oppUtilityThreat}). Score: {score}" );
 
         //--------------------------------------------------
         //--Role Fulfillment
@@ -281,8 +368,12 @@ public class BattleAI_Projection
             roleScore += 15;
         else if( !pbs.AttackerFulfilledRole && pbs.OpponentFulfilledRole )
             roleScore -= 15;
-        else if( !pbs.AttackerFulfilledRole && !pbs.OpponentFulfilledRole )
-            roleScore -= 5;
+
+        //--Utility being effective bias
+        if( pbs.AttackerFulfilledUtilityRole && !pbs.OpponentFulfilledRole )
+            roleScore += 10;
+        else if( pbs.OpponentFulfilledUtilityRole && pbs.AttackerFulfilledRole )
+            roleScore -= 10;
 
         score += roleScore;
         _ai.CurrentLog.Add( $"[PBS] Role Score: {roleScore}. Score: {score}" );
@@ -393,7 +484,7 @@ public class BattleAI_Projection
         return score;
     }
 
-    private float GetThreatMultiplier( bool getsKill, bool threatens, bool movesFirst, bool survives, int pieceValue )
+    private float GetKOThreatMultiplier( bool getsKill, bool threatens, bool movesFirst, bool survives, int pieceValue )
     {
         //--Outcome severity
         float severity = getsKill ? 1.0f : threatens ? 0.6f : 0.25f;
@@ -423,6 +514,39 @@ public class BattleAI_Projection
         return result;
     }
 
+    private float GetUtilityThreatMultiplier( bool createsDecisive, bool createsPressure, bool movesfirst, bool survives, int ourPieceValue, int theirPieceValue )
+    {
+        float severity = 0f;
+
+        severity += createsDecisive ? 1.0f : 0.1f;
+        severity += createsPressure ? 0.5f : 0.15f;
+
+        float speedMod = movesfirst ? 1.15f : 0.85f;
+
+        float survivalMod = 1.0f;
+
+        if( !survives )
+        {
+            if( createsDecisive && createsPressure )
+                survivalMod = 0.85f;
+            else if( createsDecisive )
+                survivalMod = 0.7f;
+            else if( createsPressure )
+                survivalMod = 0.5f;
+            else
+                survivalMod = 0.3f;
+        }
+
+        bool hasAgency = createsDecisive || createsPressure;
+        if( !hasAgency )
+            survivalMod *= 0.7f;
+
+        float valueFactor = ( ourPieceValue * 0.4f + theirPieceValue * 0.6f );
+
+        float result = valueFactor * severity * speedMod * survivalMod;
+        return result;
+    }
+
     public TempoStateResult GetTempoState( ExchangeEvaluation eval )
     {
         // Debug.Log( $"[AI Scoring][Get Tempo] Starting Tempo State Check for Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
@@ -436,18 +560,18 @@ public class BattleAI_Projection
         return new(){ TempoState = tempo, AttackerHasPriority = attackerHasPriorityAdvantage, TargetHasPriority = targetHasPriorityAdvantage };
     }
 
-    public ExchangeEvaluation EvaluateExchange( IBattleAIUnit attacker, IBattleAIUnit target )
+    public ExchangeEvaluation EvaluateExchange( IBattleAIUnit attacker, IBattleAIUnit target, bool log = false )
     {
         //--Potential to KO
         //--Attacker PTKO Target
-        var attackerMTR = _ai.MoveCommand.GetMove_BestAttack( attacker, target, "Evaluate Exchange (attacker vs target)" );
+        var attackerMTR = _ai.MoveCommand.GetMove_BestAttack( attacker, target, false, "Evaluate Exchange (attacker vs target)" );
         var targetWSR = Get_EstimatedDamageResult( attacker, target, attackerMTR );
         float targetHP = target.BeginningHPR;
 
         PotentialToKOResult attackerPTKO_target = Get_PotentialToKOResult( targetWSR, attackerMTR, targetHP );
 
         //--Target PTKO Attacker
-        var targetMTR = _ai.MoveCommand.GetMove_BestAttack( target, attacker, "Evaluate Exchange (target vs attacker)" );
+        var targetMTR = _ai.MoveCommand.GetMove_BestAttack( target, attacker, false, "Evaluate Exchange (target vs attacker)" );
         var attackerWSR = Get_EstimatedDamageResult( target, attacker, targetMTR );
         float attackerHP = attacker.BeginningHPR;
 
@@ -484,14 +608,17 @@ public class BattleAI_Projection
         // Debug.Log( $"[AI Scoring][Get Tempo] Final Comparisons Made! Results: Attacker Threatens KO: {attackerThreatensKO_onTarget}, Target Threatens KO: {targetThreatensKO_onAttacker}, Attacker Survives: {attackerSurvives_targetAttack}, Target Survives: {targetSurvives_attackerAttack}" );
         
         //--Predict Forced Switch for this turn
-        bool attackerForcesSwitch = _unitSim.PredictSwitchProbability( attackerPTKO_target.PTKO, targetPTKO_attacker.PTKO, attackerMovesFirst, attackerHP, targetHP ) > 0.8f;
-        bool targetForcesSwitch = _unitSim.PredictSwitchProbability( targetPTKO_attacker.PTKO, attackerPTKO_target.PTKO, targetMovesFirst, targetHP, attackerHP ) > 0.8f;
+        float attackerSwitchesProbability = _unitSim.PredictSwitchProbability( targetPTKO_attacker.PTKO, attackerPTKO_target.PTKO, targetMovesFirst, targetHP, attackerHP, attacker.Expendability, log, attacker.Name );
+        float opponentSwitchesProbability = _unitSim.PredictSwitchProbability( attackerPTKO_target.PTKO, targetPTKO_attacker.PTKO, attackerMovesFirst, attackerHP, targetHP, target.Expendability, log, target.Name );
+        bool attackerForcesSwitch = opponentSwitchesProbability > 0.7f;
+        bool targetForcesSwitch = attackerSwitchesProbability > 0.7f;
 
         ExchangeState state = ExchangeState.Neutral;
 
         if( attackerForcesSwitch )
             state = ExchangeState.OpponentForcedOut;
-        else if( attackerThreatensKO_onTarget && !targetThreatensKO_onAttacker )
+        
+        if( attackerThreatensKO_onTarget && !targetThreatensKO_onAttacker )
             state = ExchangeState.Pressure;
 
         ExchangeEvaluation eval = new()
@@ -648,10 +775,10 @@ public class BattleAI_Projection
             if( mon != _ai.Unit.Pokemon )
             {
                 var pivotHP = _ai.Get_HPRatio( mon );
-                if( !mon.IsFainted() && pivotHP > 0.35f )
+                if( !mon.IsFainted && pivotHP > 0.35f )
                 {
-                    BattleAI_PokemonAdapter monAdapter = new( mon, _ai );
-                    var targetThreateningMove = _ai.MoveCommand.GetMove_BestAttack( opponent, monAdapter, "Get Safe Pivot" );
+                    BattleAI_PokemonAdapter monAdapter = _ai.GetPokemonAs_Adapter( mon );
+                    var targetThreateningMove = _ai.MoveCommand.GetMove_BestAttack( opponent, monAdapter, false, "Get Safe Pivot" );
                     var attackerWSR = Get_EstimatedDamageResult( opponent, monAdapter, targetThreateningMove );
                     float targetHP = _ai.Get_HPRatio( opponent );
                     PotentialToKOResult pivotPTKO_target = Get_PotentialToKOResult( attackerWSR, targetThreateningMove, targetHP );
@@ -711,8 +838,11 @@ public class BattleAI_Projection
             score += 0.2f;
 
         // Debug.Log( $"HP Ratio: {hp}, Score: {score}" );
+        var team = _ai.GetTeamAs_IBattleAIUnit( mon.Pokemon );
+        var pv = _ai.GetPokemon_PieceValue( mon.Pokemon );
+        float offensiveWeight;
 
-        float offensiveWeight = _ai.TeamPieceValues[mon.PID].OffensiveValue / 100f;
+        offensiveWeight = pv.OffensiveValue / 100f;
 
         score -= offensiveWeight * 0.4f;
 
@@ -727,8 +857,8 @@ public class BattleAI_Projection
 
     public EstimatedDamageResult Get_EstimatedDamageResult( IBattleAIUnit attacker, IBattleAIUnit target, MoveThreatResult moveThreat )
     {
-        const float STAT_SCALAR = 0.29f;
-        const float DAMAGE_ROLL = 0.925f;
+        const float MID_ROLL = 0.925f;
+        const float LOW_ROLL = 0.85f;
         float attack = 1f;
         float defense = 1f;
         Stat attackingStat = Stat.Attack;
@@ -764,13 +894,13 @@ public class BattleAI_Projection
         }
 
         //--Get Stats used
-        if( _ai.UniqueWallScores.ContainsKey( key ) )
+        if( _ai.UniqueStatCalls.ContainsKey( key ) )
         {
             // Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Unique Wall Scores found move {moveThreat.Move.MoveSO.Name} in its dictionary with key: {key}" );
-            attackingStat = _ai.UniqueWallScores[key].AttackingStat;
-            defendingStat = _ai.UniqueWallScores[key].DefendingStat;
-            attack = _ai.GetUnitInferredStat( attacker, attackingStat );
-            defense = _ai.GetUnitInferredStat( target, defendingStat );
+            attackingStat = _ai.UniqueStatCalls[key].AttackingStat;
+            defendingStat = _ai.UniqueStatCalls[key].DefendingStat;
+            attack = _ai.GetUnitStatValue( attacker, attackingStat );
+            defense = _ai.GetUnitStatValue( target, defendingStat );
         }
         else
         {
@@ -785,8 +915,8 @@ public class BattleAI_Projection
             {
                 attackingStat = Stat.Attack;
                 defendingStat = Stat.Defense;
-                attack = _ai.GetUnitInferredStat( attacker, attackingStat );
-                defense = _ai.GetUnitInferredStat( target, defendingStat );
+                attack = _ai.GetUnitStatValue( attacker, attackingStat );
+                defense = _ai.GetUnitStatValue( target, defendingStat );
 
                 if( attacker.SevereStatus == SevereConditionID.BRN && attacker.Ability != AbilityID.Guts )
                     brnOrfbt = 0.5f;
@@ -795,8 +925,8 @@ public class BattleAI_Projection
             {
                 attackingStat = Stat.SpAttack;
                 defendingStat = Stat.SpDefense;
-                attack = _ai.GetUnitInferredStat( attacker, attackingStat );
-                defense = _ai.GetUnitInferredStat( target, defendingStat );
+                attack = _ai.GetUnitStatValue( attacker, attackingStat );
+                defense = _ai.GetUnitStatValue( target, defendingStat );
 
                 if( attacker.SevereStatus == SevereConditionID.FBT )
                     brnOrfbt = 0.5f;
@@ -804,32 +934,48 @@ public class BattleAI_Projection
             else
             {
                 //--Status move used, we may need to alter this somehow
-                attack = 1f;
-                defense = 1f;
+                attack = attacker.Attack;
+                defense = target.Defense;
             }
         }
 
-        float targetMHP = _ai.GetBaseStat( target, Stat.HP );
+        float targetMHP = target.HP;
         float levelFactor = ( 2f * attacker.Level / 5f + 2f );
+        float damage = 0f;
+        float damagePercentage = 0f;
+        float lowRoll = 0f;
+        float lowRollPercentage = 0f;
 
-        float damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * DAMAGE_ROLL;
-        float normalizedDamage = ( damage / targetMHP ) * STAT_SCALAR;
-        
-        float lowRoll = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * 0.85f;
-        float lowRollScaled = ( lowRoll / targetMHP ) * STAT_SCALAR;
+        if( moveSO.SetDamageType != SetDamageType.None )
+        {
+            if( moveSO.SetDamageType == SetDamageType.Level )
+            {
+                damage = targetMHP - attacker.Level;
+                damagePercentage = Mathf.Floor( ( damage / targetMHP ) * 1000f ) / 1000f;
+            }
+
+        }
+        else
+        {
+            damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * MID_ROLL;
+            damagePercentage = Mathf.Floor( ( damage / targetMHP ) * 1000f ) / 1000f;
+            
+            lowRoll = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * LOW_ROLL;
+            lowRollPercentage = Mathf.Floor( ( lowRoll / targetMHP ) * 1000f ) / 1000f;
+        }
 
         if( !_unitSim.CanActOnTurn( attacker ) )
-            normalizedDamage = 0;
+            damagePercentage = 0;
 
-        moveThreat.EstimatedDamage = normalizedDamage; //--store damage in MTR for sim use
+        moveThreat.EstimatedDamage = damagePercentage; //--store damage in MTR for sim use
 
-        // Debug.Log( $"[AI Scoring][Get Walling Score] Getting Walling Score! Target {target.Name}'s Defending Stat: {defendingStat}, {defense}, Base HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Attacking stat {attackingStat}, {attack}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}. Final Damage Estimate: {damage}, Normalized: {normalizedDamage}" );
+        // Debug.Log( $"[AI Scoring][Estimated Damage Result] Calculation Results: Target {target.Name}'s Assumed Defending Stat: {defendingStat}, {defense}, Assumed Max HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Assumed Attacking stat {attackingStat}, {attack}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}, BRN/FBT: {brnOrfbt}. Final Damage Estimate: {damage}, Percentage of target's assumed Max HP: {damagePercentage}" );
         
         EstimatedDamageResult edr = new()
         {
             // Score = score,
-            DamageEstimate = normalizedDamage,
-            LowRollEstimate = lowRollScaled,
+            DamageEstimate = damagePercentage,
+            LowRollEstimate = lowRollPercentage,
             AttackingStatStage = attacker.StatStages[attackingStat],
             DefendingStatStage = target.StatStages[defendingStat],
 
@@ -912,14 +1058,16 @@ public class BattleAI_Projection
         float lowRoll = edr.LowRollEstimate / targetHPR;
         // Debug.Log( $"[AI Scoring][Get Walling Score] Damage Estimate: {damageEstimate}, Target HPR: {targetHPR}, Final Damage Done Ratio: {damage}" );
 
+        if( lowRoll > 0.98f )           return PotentialToKO.OHKO;
+
         if( damage <= 0f )              return PotentialToKO.Untouchable;
         else if( damage <= 0.15f )      return PotentialToKO.HardWall;
         else if( damage <= 0.30f )      return PotentialToKO.Sturdy;
-        else if( damage <= 0.47f )      return PotentialToKO.Safe;
-        else if( damage <= 0.63f )      return PotentialToKO.TwoHKO;
-        else if( damage <= 0.80f )      return PotentialToKO.Risky;
-        else if( damage <= 0.97f )      return PotentialToKO.Dangerous;
-        else if( lowRoll > 0.97f )      return PotentialToKO.OHKO;
+        else if( damage <= 0.49f )      return PotentialToKO.Safe;
+        else if( damage <= 0.59f )      return PotentialToKO.TwoHKO;
+        else if( damage <= 0.78f )      return PotentialToKO.Risky;
+        else if( damage <= 0.98f )      return PotentialToKO.Dangerous;
+        else if( damage >= 0.99f )       return PotentialToKO.OHKO;
         else                            return PotentialToKO.TwoHKO;
     }
 
@@ -955,11 +1103,11 @@ public class BattleAI_Projection
         //--Anal
         for( int i = 0; i < ourTeam.Count; i++ )
         {
-            BattleAI_PokemonAdapter ourMon = new( ourTeam[i], _ai );
+            BattleAI_PokemonAdapter ourMon = _ai.GetPokemonAs_Adapter( ourTeam[i] );
 
             for( int t = 0; t < theirTeam.Count; t++ )
             {
-                BattleAI_PokemonAdapter theirMon = new( theirTeam[t], _ai );
+                BattleAI_PokemonAdapter theirMon = _ai.GetPokemonAs_Adapter( theirTeam[t] );
 
                 //--MTRs
                 var ourMTR = _ai.MoveCommand.GetMove_BestAttack( ourMon, theirMon );
@@ -1089,7 +1237,7 @@ public class BattleAI_Projection
         bool iAmStable = ee.AttackerSurvives && ( !ee.OpponentThreatensKO || ee.AttackerThreatensKO );
         bool oppIsStable = ee.OpponentSurvives && ( !ee.AttackerThreatensKO || ee.OpponentThreatensKO );
 
-        _ai.CurrentLog.Add( $"[Win Con] Gathered some context. Material Delta: {materialDelta}. I am Stable: {iAmStable}, Opp is Stable : {oppIsStable}" );
+        _ai.CurrentLog.Add( $"[Current Plan] Gathered some context. Material Delta: {materialDelta}. I am Stable: {iAmStable}, Opp is Stable : {oppIsStable}" );
 
         //----------------------------------------
         //--Stabilize
@@ -1101,7 +1249,7 @@ public class BattleAI_Projection
         stabilizeScore += tp.Urgency >= ThreatUrgency.High ? 2f : 0f;
         stabilizeScore += tp.ThreatensImmediateKO ? 1.5f : 0f;
         stabilizeScore += tp.ForcesSwitch ? 1.0f : 0f;
-        _ai.CurrentLog.Add( $"[Win Con] Stabilize Score: {stabilizeScore}" );
+        _ai.CurrentLog.Add( $"[Current Plan] Stabilize Score: {stabilizeScore}" );
 
         //----------------------------------------
         //--Prevent Sweep
@@ -1117,7 +1265,7 @@ public class BattleAI_Projection
             preventSweepScore += 2f;
 
         preventSweepScore += tp.Urgency >= ThreatUrgency.High ? 1.5f : 0f;
-        _ai.CurrentLog.Add( $"[Win Con] Prevent Sweep Score: {preventSweepScore}" );
+        _ai.CurrentLog.Add( $"[Current Plan] Prevent Sweep Score: {preventSweepScore}" );
 
         //----------------------------------------
         //--Enable Sweep
@@ -1167,7 +1315,7 @@ public class BattleAI_Projection
         if( !iAmStable )
             enableSweepScore -= 1.5f;
 
-        _ai.CurrentLog.Add( $"[Win Con] Enable Sweep Score: {enableSweepScore}" );
+        _ai.CurrentLog.Add( $"[Current Plan] Enable Sweep Score: {enableSweepScore}" );
 
         //----------------------------------------
         //--Aggress them
@@ -1204,7 +1352,7 @@ public class BattleAI_Projection
         if( tp.Type == ThreatType.Tank || tp.ConstraintPressure >= 2f )
             aggressScore += 2f;
 
-        _ai.CurrentLog.Add( $"[Win Con] Aggress Score: {aggressScore}" );
+        _ai.CurrentLog.Add( $"[Current Plan] Aggress Score: {aggressScore}" );
 
         //----------------------------------------
         //--Trade
@@ -1266,6 +1414,10 @@ public class BattleAI_Projection
 
         finalPlan.AllowSacrifice = allowSacrifice;
 
+        _ai.CurrentLog.Add( $"[Current Plan] Final Plan: {finalPlan.Type}, Confidence: {finalPlan.Confidence}, Sacrifice Allowed: {finalPlan.AllowSacrifice}" );
+        _ai.CurrentLog.Add( $"===================================================================================================" );
+        _ai.CurrentLog.Add( $"" );
+
         return finalPlan;
     }
 
@@ -1278,16 +1430,22 @@ public class BattleAI_Projection
         }
         else if( prev != null && prev.Type != next.Type )
         {
-            float threshold = prev.Confidence + 0.2f;
+            float decay = 0.05f * prev.TurnsActive;
+            float threshold = prev.Confidence + 0.1f;
+
+            threshold -= decay;
 
             if( next.Confidence < threshold && tp.Urgency < ThreatUrgency.High )
+            {
+                prev.Confidence *= 0.9f;
                 return prev;
+            }
         }
 
         return next;
     }
 
-    public int GetCurrentPlanBias( ActionEvaluation action, ProjectedBoardState pbs, BoardContext bc, CurrentPlan plan )
+    public int GetCurrentPlanBias( ActionEvaluation action, ProjectedBoardState pbs, BoardContext bc, CurrentPlan plan, SurvivalClass sc )
     {
         int score = 0;
         var top1 = action.Top1;
@@ -1664,11 +1822,11 @@ public class BattleAI_Projection
 
         if( pbs.IControlNextTurn )
         {
-            score += 10;
+            score += 20;
         }
         else if( pbs.OppControlNextTurn )
         {
-            score -= 10;
+            score -= 25;
         }
 
         if( action.Target == null || action.Target.Pokemon == null )
@@ -1679,11 +1837,52 @@ public class BattleAI_Projection
         {
             if( action.Target.Pokemon == plan.FocusMon )
             {
-                score += 10;
+                score += 15;
             }
         }
 
+        //------------------------
         //--if plan aligns with broader win condition from future long term strategy planning function, reward all
+        //------------------------
+
+        //---------------------------------------------------
+        //----------------Survival Class Bias----------------
+        //---------------------------------------------------
+
+        if( sc == SurvivalClass.Safe )
+        {
+            if( plan.Type == PlanType.Stabilize || plan.Type == PlanType.EnableSweep )
+                score += 10;
+        }
+
+        if( sc == SurvivalClass.FragileCounterPressure )
+        {
+            if( plan.Type == PlanType.Aggress )
+                score += 15;
+
+            if( plan.Type == PlanType.Stabilize )
+                score -= 10;
+        }
+
+        if( sc == SurvivalClass.UsefulSacrifice )
+        {
+            if( plan.Type == PlanType.Trade )
+                score += Mathf.RoundToInt( 15f * sackModifier );
+
+            if( plan.Type == PlanType.PreventSweep )
+                score += 10;
+
+            if( plan.Type == PlanType.Stabilize )
+                score -= 15;
+        }
+
+        if( sc == SurvivalClass.FailedSacrifice )
+        {
+            score -= Mathf.RoundToInt( 40f * sackModifier );
+
+            if( plan.Type == PlanType.PreventSweep )
+                score -= 20;
+        }
 
         return score;
     }
@@ -1845,7 +2044,7 @@ public class BattleAI_Projection
         for( int i = 0; i < topRemaining.Count; i++ )
         {
             var mon = topRemaining[i];
-            if( _unitSim.PokemonHasWeatherAbility( mon ) )
+            if( _unitSim.PokemonHasWeatherSetter_Ability( mon ) )
             {
                 switch( mon.AbilityID )
                 {
@@ -1859,7 +2058,7 @@ public class BattleAI_Projection
                 break;
             }
 
-            if( _unitSim.PokemonHasWeatherMove( mon ) )
+            if( _unitSim.PokemonHasWeatherSetter_Move( mon ) )
             {
                 for( int m = 0; m < mon.ActiveMoves.Count; m++ )
                 {
@@ -1882,7 +2081,7 @@ public class BattleAI_Projection
         for( int i = 0; i < bottomRemaining.Count; i++ )
         {
             var mon = bottomRemaining[i];
-            if( _unitSim.PokemonHasWeatherAbility( mon ) )
+            if( _unitSim.PokemonHasWeatherSetter_Ability( mon ) )
             {
                 switch( mon.AbilityID )
                 {
@@ -1896,7 +2095,7 @@ public class BattleAI_Projection
                 break;
             }
 
-            if( _unitSim.PokemonHasWeatherMove( mon ) )
+            if( _unitSim.PokemonHasWeatherSetter_Move( mon ) )
             {
                 for( int m = 0; m < mon.ActiveMoves.Count; m++ )
                 {
@@ -2280,6 +2479,73 @@ public class BattleAI_Projection
 
         return bfs;
     }
+
+    public SurvivalClass ClassifySurvival( ActionEvaluation eval, DoomedOutcome doomed )
+    {
+        TurnOutcomeProjection top1 = eval.Top1;
+        TurnOutcomeProjection top2 = eval.Top2;
+
+        //--Bools
+        //--This turn KOs
+        bool weDieThisTurn = top1.Attacker_EndOfTurnHP <= 0f;
+        bool theyDieThisTurn = top1.Opponent_EndOfTurnHP <= 0f;
+        bool weDieBeforeActing = top1.Attacker_DiesBeforeActing;
+        bool theyDieBeforeActing = top1.Opponent_DiesBeforeActing;
+
+        //--Next turn survival
+        bool weSurviveNextTurn = top2.Attacker_EndOfTurnHP > 0f;
+        bool theySurviveNextTurn = top2.Opponent_EndOfTurnHP > 0f;
+        bool weThreatenNextTurn = top2.AttackerPTKO >= PotentialToKO.Dangerous;
+        bool theyThreatenNextTurn = top2.OpponentPTKO >= PotentialToKO.Dangerous;
+
+        //--Other
+        bool breaksSweep = false;
+        if( doomed.SweepIncoming && ( top1.Opponent_EndOfTurnHP < 0.55f || top2.Opponent_EndOfTurnHP <= 0f ) )
+            breaksSweep = true;
+
+        float theySwitchNextTurnProb = _unitSim.PredictSwitchProbability( top2.AttackerPTKO, top2.OpponentPTKO, top2.AttackerMovedFirst, top2.Attacker.BeginningHPR, top2.Opponent.BeginningHPR, top2.Opponent.Expendability );
+        bool theySwitchNextTurn = UnityEngine.Random.value <= theySwitchNextTurnProb;
+
+        //------------------------
+        //----Failed Sacrifice----
+        //------------------------
+        if( weDieThisTurn && !theyDieThisTurn && !breaksSweep )
+        {
+            eval.SurvivalClass = SurvivalClass.FailedSacrifice;
+            return SurvivalClass.FailedSacrifice;
+        }
+
+        //------------------------
+        //----Useful Sacrifice----
+        //------------------------
+        if( weDieThisTurn || breaksSweep )
+        {
+            eval.SurvivalClass = SurvivalClass.UsefulSacrifice;
+            return SurvivalClass.UsefulSacrifice;
+        }
+
+        //------------------------
+        //----------Safe----------
+        //------------------------
+        if( !weDieThisTurn && weSurviveNextTurn && !theyThreatenNextTurn )
+        {
+            eval.SurvivalClass = SurvivalClass.Safe;
+            return SurvivalClass.Safe;
+        }
+
+        //--------------------------------
+        //----Fragile Counter Pressure----
+        //--------------------------------
+        if( !weDieThisTurn && ( weThreatenNextTurn || theySwitchNextTurn ) && theyThreatenNextTurn )
+        {
+            eval.SurvivalClass = SurvivalClass.FragileCounterPressure;
+            return SurvivalClass.FragileCounterPressure;
+        }
+
+        //--Fallback
+        eval.SurvivalClass = SurvivalClass.FragileCounterPressure;
+        return SurvivalClass.FragileCounterPressure;
+    }
 }
 
 public struct TeamVSTeamAnalysis
@@ -2379,9 +2645,17 @@ public struct ProjectedBoardState
     public int RevengeScore;
     public TempoState FutureTempoState;
 
+    //--Utility
+    public bool ICreateDecisiveState;
+    public bool ICreatePressureState;
+    public bool OppCreatesDecisiveState;
+    public bool OppCreatesPressureState;
+
     //--Role Fulfillment
     public bool AttackerFulfilledRole;
     public bool OpponentFulfilledRole;
+    public bool AttackerFulfilledUtilityRole;
+    public bool OpponentFulfilledUtilityRole;
 
     //--Individual Scores
     public int MaterialScore;

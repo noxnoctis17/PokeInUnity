@@ -247,7 +247,7 @@ public class CourtConditionDB
                             if( drainedUnit.Pokemon.CurrentHP <= 0 || healedUnit.Pokemon.CurrentHP <= 0 )
                                 continue;
 
-                            if( drainedUnit.Pokemon.IsFainted() || healedUnit.Pokemon.IsFainted() ) //--just for shits n giggles to be extra safe
+                            if( drainedUnit.Pokemon.IsFainted || healedUnit.Pokemon.IsFainted ) //--just for shits n giggles to be extra safe
                                 continue;
 
                             if( drainedUnit == unit )

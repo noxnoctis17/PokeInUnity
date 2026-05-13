@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Triple Axel
   m_EditorClassIdentifier: 
   _moveName: Triple Axel
-  _hasTM: 0
+  _hasTM: 1
   _description: A consecutive three-kick attack that becomes more powerful with each
     successful hit.
   _moveCategory: 0

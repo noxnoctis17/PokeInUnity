@@ -142,16 +142,16 @@ public class AbilityDB
                 Name = "Quick Feet",
                 Description = "If this Pokemon has a non-volatile status condition, its Speed is multiplied by 1.5. This Pokemon ignores the Speed reduction effect of Paralysis.",
 
-                OnModify_SPD = ( float spd, Pokemon attacker, Pokemon target, Move move ) =>
+                OnModify_SPD = ( spe, attacker, target, move ) =>
                 {
                     if( attacker.SevereStatus != null )
                     {
                         Debug.Log( "Quick Feet is active!" );
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
-                        spd = spd * 1.5f;
+                        spe *= 1.5f;
                     }
 
-                    return spd;
+                    return spe;
                 }
             }
         },
@@ -161,11 +161,11 @@ public class AbilityDB
             AbilityID.CompoundEyes, new()
             {
                 Name = "Compound Eyes",
-                Description = "This Pokemon's moves have their accuracy multiplied by 1.3.",
+                Description = "This Pokemon's moves have their accuracy increased by 30% (x1.3).",
 
                 OnModify_ACC = ( float acc, Pokemon attacker, Pokemon target, Move move ) =>
                 {
-                    Debug.Log( "Quick Feet is active!" );
+                    Debug.Log( "Compound Eyes is active!" );
                     return acc * 1.3f;
                 }
             }
@@ -812,7 +812,7 @@ public class AbilityDB
                         attacker.Pokemon.DecreaseHP( damage );
                         attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} is hurt by {target.Pokemon.NickName}'s Rough Skin" );
 
-                        attacker.Pokemon.BattleItemEffect?.OnTakePassiveDamage( attacker, damage );
+                        attacker.Pokemon.BattleItemEffect?.OnTakePassiveDamage?.Invoke( attacker, damage );
                     }
                 },
             }
@@ -1858,4 +1858,9 @@ public enum AbilityID
     ArenaTrap,
     LightningRod,
     StormDrain,
+    Regenerator,
+    DrySkin,
+    RainDish,
+    ShadowTag,
+    PoisonHeal,
 }

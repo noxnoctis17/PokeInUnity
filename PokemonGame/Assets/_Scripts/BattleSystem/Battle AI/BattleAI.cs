@@ -2,37 +2,66 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using System;
+using System.Collections.ObjectModel;
 
 public enum AIDecisionType { Attack, RandomMove, ChosenMove, OffensiveSwitch, DefensiveSwitch, SpeedControl, Weather, FakeOut, Protect, }
 public enum PotentialToKO { Untouchable, HardWall, Sturdy, Safe, TwoHKO, Risky, Dangerous, OHKO }
 public enum TempoState { WinningHard, Winning, Neutral, Losing, LosingHard }
 public enum ExchangeState { Neutral, Pressure, OpponentForcedOut }
+public enum SurvivalClass { FailedSacrifice, UsefulSacrifice, Safe, FragileCounterPressure, }
 public class BattleAI : MonoBehaviour
 {
     private int _round;
     private BattleAI_ActionEvaluation _actionEval;
     public BattleSystem BattleSystem { get; private set; }
     public BattleTrainer Trainer { get; private set; }
-    // public List<IBattleAIUnit> OurTeamAIUnits { get; private set; }
+
+//-----------------------------------------------------------------------------------------------------
+//-------------------------------[AI SYSTEM CLASSES]---------------------------------------------------
+//-----------------------------------------------------------------------------------------------------
+
     public BattleAI_MoveCommand MoveCommand { get; private set; }
     public BattleAI_SwitchCommand SwitchCommand { get; private set; }
     public BattleAI_Projection Projection { get; private set; }
     public BattleAI_BattleSim BattleSim { get; private set; }
     public BattleAI_UnitSim UnitSim { get; private set; }
     public BattleAI_FinalReasoning Final { get; private set; }
-    public BattleUnit Unit { get; private set; }
-    public BattleAI_PokemonAdapter ThisUnitAdapter { get; private set; }
-    public Pokemon LastSentInPokemon { get; private set; }
-    public List<IBattleAIUnit> LastOpposingPokemon { get; private set; }
+    public BattleAI_RoleDetection RoleDetection { get; private set; }
+    public BattleAI_StatSpreads StatSpreads { get; private set; }
+
+//-----------------------------------------------------------------------------------------------------
+//-------------------------------------[TRACKERS]------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------
+
     public float TrainerSkillModifier { get; private set; }
     public int SwitchAmount { get; private set; }
     public int SetupAmount { get; private set; }
-    public Dictionary<string, UniqueWallingScoreMove> UniqueWallScores { get; private set; }
-    public Dictionary<string, PieceValue> TeamPieceValues { get; private set; }
-    public CustomLogSession CurrentLog { get; private set; }
-    public List<IBattleAIUnit> OpposingUnits { get; private set; }
     public int Round => _round;
     public CurrentPlan CurrentPlan { get; private set; }
+    public Dictionary<string, UniqueWallingScoreMove> UniqueStatCalls { get; private set; }
+    public List<string> LevelDamageMoves { get; private set; }
+    public Dictionary<Pokemon, PieceValue> OurTeamPieceValues { get; private set; }
+    public Dictionary<Pokemon, PieceValue> TheirTeamPieceValues { get; private set; }
+    public CustomLogSession CurrentLog { get; private set; }
+
+//-----------------------------------------------------------------------------------------------------
+//---------------------------------[UNIT REFERENCES]---------------------------------------------------
+//-----------------------------------------------------------------------------------------------------
+
+    public BattleUnit Unit { get; private set; }
+    public ReadOnlyCollection<Pokemon> OurTeamPokemon { get; private set; }
+    public ReadOnlyCollection<Pokemon> TheirTeamPokemon { get; private set; }
+    public Dictionary<Pokemon, BattleAI_PokemonAdapter> OurTeamAdapters { get; private set; }
+    public Dictionary<Pokemon, BattleAI_PokemonAdapter> TheirTeamAdapters { get; private set; }
+    public BattleAI_PokemonAdapter ThisUnitAdapter { get; private set; }
+    public Pokemon LastSentInPokemon { get; private set; }
+    public List<IBattleAIUnit> LastOpposingPokemon { get; private set; }
+    public List<IBattleAIUnit> TheirBattleAIUnits { get; private set; }
+    public List<IBattleAIUnit> OurBattleAIUnits { get; private set; }
+
+//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------
 
     public void InitializeAI( BattleSystem battleSystem, BattleUnit battleUnit )
     {
@@ -50,17 +79,125 @@ public class BattleAI : MonoBehaviour
         SwitchCommand   = new( this );
         _actionEval     = new( this );
         Final           = new( this );
+        RoleDetection   = new( this );
+        StatSpreads     = new( this );
 
         _round = 0;
         SetupAmount = 0;
 
-        InitializeUniqueWallScores();
+        OurTeamPieceValues = new();
+        TheirTeamPieceValues = new();
+        TheirBattleAIUnits = new();
+        OurBattleAIUnits = new();
+
+        OurTeamPokemon = new( Trainer.Party );
+        TheirTeamPokemon = new( BattleSystem.GetOpposingParty( Unit.Pokemon ) );
+
+        InitializeUniqueStatCalls();
+        SetupTeamAdapters();
+        SetActiveBattleAIUnits();
+
+        BattleSystem.OnNewRound += UpdateTeamAdapters;
     }
 
-    public void CleanupAI()
+    private void SetupTeamAdapters()
     {
-        MoveCommand = null;
-        SwitchCommand = null;
+        OurTeamAdapters = new();
+        TheirTeamAdapters = new();
+
+        var ourTeam = BattleSystem.GetAllyParty( Unit.Pokemon );
+        var theirTeam = BattleSystem.GetOpposingParty( Unit.Pokemon );
+
+        for( int i = 0; i < ourTeam.Count; i++ )
+        {
+            var mon = ourTeam[i];
+            BattleAI_PokemonAdapter adapter = new( mon, this );
+            OurTeamAdapters.Add( adapter.Pokemon, adapter );
+        }
+
+        for( int i = 0; i < theirTeam.Count; i++ )
+        {
+            var mon = theirTeam[i];
+            BattleAI_PokemonAdapter adapter = new( mon, this );
+            TheirTeamAdapters.Add( adapter.Pokemon, adapter );
+        }
+    }
+
+    public void UpdateTeamAdapters()
+    {
+        var ourTeam = BattleSystem.GetAllyParty( Unit.Pokemon );
+        var theirTeam = BattleSystem.GetOpposingParty( Unit.Pokemon );
+
+        Action<Pokemon, Dictionary<Pokemon, BattleAI_PokemonAdapter>> update = ( mon, adapters ) =>
+        {
+            if( adapters.TryGetValue( mon, out var adapter ) )
+            {
+                adapter.BeginningHPR = Get_HPRatio( mon );
+                adapter.CurrentHPR = adapter.BeginningHPR;
+
+                adapter.Type = ( mon.PokeSO.Type1, mon.PokeSO.Type2 ); //--Once type changes are possible, update this
+
+                adapter.ActiveMoves.Clear();
+                adapter.ActiveMoves = new( mon.ActiveMoves );
+
+                adapter.Ability = mon.AbilityID;
+                adapter.Item = mon.BattleItemEffect != null ? mon.BattleItemEffect.ID : BattleItemEffectID.None;
+
+                adapter.SevereStatus = mon.SevereStatus != null ? mon.SevereStatus.ID : SevereConditionID.None;
+                adapter.SevereStatusTime = mon.SevereStatusTime;
+                adapter.VolatileStatuses = new( mon.VolatileStatuses.Keys );
+                adapter.Bindings = new( mon.BindingStatuses.Keys );
+                adapter.StatStages = mon.CloneStatStages();
+                adapter.DirectStatModifiers = mon.CloneDirectModifiers();
+
+                adapter.CalculateStats();
+                adapter.SetExpendability();
+
+                adapters[mon] = adapter;
+            }
+        };
+
+        for( int i = 0; i < ourTeam.Count; i++ )
+        {
+            var mon = ourTeam[i];
+            update( mon, OurTeamAdapters );
+        }
+
+        for( int i = 0; i < theirTeam.Count; i++ )
+        {
+            var mon = theirTeam[i];
+            update( mon, TheirTeamAdapters );   
+        }
+    }
+
+    private void SetActiveBattleAIUnits()
+    {
+        var ourUnits = BattleSystem.GetAllyUnits( Unit );
+        var theirUnits = BattleSystem.GetOpposingUnits( Unit );
+
+        // Debug.LogError( $"Our Units Count: {ourUnits.Count}, Their Units Count: {theirUnits.Count}" );
+
+        OurBattleAIUnits.Clear();
+        TheirBattleAIUnits.Clear();
+
+        for( int i = 0; i < ourUnits.Count; i++ )
+        {
+            // Debug.LogError( $"Our unit is: {ourUnits[i].Pokemon.NickName}" );
+            if( OurTeamAdapters.TryGetValue( ourUnits[i].Pokemon, out var adapter ) )
+            {
+                OurBattleAIUnits.Add( adapter );
+            }
+        }
+
+        for( int i = 0; i < theirUnits.Count; i++ )
+        {
+            // Debug.LogError( $"Checking Their Team Adapters for unit key. Their Team Adapter Count: {TheirTeamAdapters.Count}" );
+            // Debug.LogError( $"Their unit is: {theirUnits[i].Pokemon.NickName}." );
+            if( TheirTeamAdapters.TryGetValue( theirUnits[i].Pokemon, out var adapter ) )
+            {
+                TheirBattleAIUnits.Add( adapter );
+            }
+        }
     }
 
     public int Get_ConsecutiveSwitchPenalty()
@@ -122,64 +259,191 @@ public class BattleAI : MonoBehaviour
         return BattleSystem.GetOpposingParty( pid ).Where( p => p.CurrentHP > 0 ).ToList();
     }
 
-    public List<IBattleAIUnit> GetPartyAsIBattleAIUnits( string pid )
+    public List<IBattleAIUnit> GetRemainingPartyAs_IBattleAIUnits( Pokemon pokemon )
     {
-        var allyParty = GetRemainingAllyPokemon( pid );
-        var aiParty = CreateBattleAIUnits_FromPokemon( allyParty );
-        return aiParty;
+        List<IBattleAIUnit> remaining = new();
+        var party = GetTeamAs_IBattleAIUnit( pokemon );
+
+        for( int i = 0; i < party.Count; i++ )
+        {
+            var mon = party[i];
+            if( mon.CurrentHPR > 0f )
+                remaining.Add( mon );
+            else
+                continue;
+        }
+
+        return remaining;
     }
 
-    public List<BattleUnit> GetOpposingUnits( string pid )
+    public List<BattleAI_PokemonAdapter> GetAllyTeamAs_Adapter( Pokemon pokemon )
     {
-        List<BattleUnit> oppUnits = new();
+        List<BattleAI_PokemonAdapter> adapters = new();
 
+        if( OurTeamAdapters.ContainsKey( pokemon ) )
+        {
+            foreach( var kvp in OurTeamAdapters )
+            {
+                adapters.Add( kvp.Value );
+            }
+
+            return adapters;
+        }
+
+        if( TheirTeamAdapters.ContainsKey( pokemon ) )
+        {
+            foreach( var kvp in TheirTeamAdapters )
+            {
+                adapters.Add( kvp. Value );
+            }
+
+            return adapters;
+        }
+
+        if( adapters.Count <= 0 )
+            Debug.LogError( $"Pokemon not found in either team! You're fucked!" );
+
+        return adapters;
+    }
+
+    public BattleAI_PokemonAdapter GetPokemonAs_Adapter( Pokemon pokemon )
+    {
+        if( OurTeamAdapters.TryGetValue( pokemon, out var ourAdapter ) )
+        {
+            return ourAdapter;
+        }
+
+        if( TheirTeamAdapters.TryGetValue( pokemon, out var theirAdapter ) )
+        {
+            return theirAdapter;
+        }
+
+        Debug.LogError( $"Pokemon not found in either team! You're fucked!" );
+        return null;
+    }
+
+    public List<IBattleAIUnit> GetTeamAs_IBattleAIUnit( Pokemon pokemon )
+    {
+        List<IBattleAIUnit> adapters = new();
+
+        if( OurTeamAdapters.ContainsKey( pokemon ) )
+        {
+            foreach( var kvp in OurTeamAdapters )
+            {
+                adapters.Add( kvp.Value );
+            }
+
+            return adapters;
+        }
+
+        if( TheirTeamAdapters.ContainsKey( pokemon ) )
+        {
+            foreach( var kvp in TheirTeamAdapters )
+            {
+                adapters.Add( kvp.Value );
+            }
+
+            return adapters;
+        }
+
+        if( adapters.Count <= 0 )
+            Debug.LogError( $"Pokemon not found in either team! You're fucked!" );
+
+        return adapters;
+    }
+
+    public List<IBattleAIUnit> GetOpposingTeamAs_IBattleAIUnit( Pokemon pokemon )
+    {
+        List<IBattleAIUnit> adapters = new();
+
+        if( OurTeamAdapters.ContainsKey( pokemon ) )
+        {
+            foreach( var kvp in TheirTeamAdapters )
+            {
+                adapters.Add( kvp.Value );
+            }
+
+            return adapters;
+        }
+
+        if( TheirTeamAdapters.ContainsKey( pokemon ) )
+        {
+            foreach( var kvp in OurTeamAdapters )
+            {
+                adapters.Add( kvp.Value );
+            }
+
+            return adapters;
+        }
+
+        if( adapters.Count <= 0 )
+            Debug.LogError( $"Pokemon not found in either team! You're fucked!" );
+
+        return adapters;
+    }
+
+    public BattleAI_PokemonAdapter GetPokemonAs_IBattleAIUnit( Pokemon pokemon )
+    {
+        if( OurTeamAdapters.TryGetValue( pokemon, out var ourAdapter ) )
+        {
+            return ourAdapter;
+        }
+
+        if( TheirTeamAdapters.TryGetValue( pokemon, out var theirAdapter ) )
+        {
+            return theirAdapter;
+        }
+
+        Debug.LogError( $"Pokemon not found in either team! You're fucked!" );
+        return null;
+    }
+
+    public List<IBattleAIUnit> GetActiveAllyUnits_AsBattleAIUnits( Pokemon pokemon )
+    {
+        if( OurTeamAdapters.ContainsKey( pokemon ) )
+        {
+            return OurBattleAIUnits;
+        }
+
+        if( TheirTeamAdapters.ContainsKey( pokemon ) )
+        {
+            return TheirBattleAIUnits;
+        }
+
+        Debug.LogError( $"Pokemon not found in either side's active units! You're fucked!" );
+        return null;
+    }
+
+    public List<IBattleAIUnit> GetActiveOpposingUnits_AsBattleAIUnits( Pokemon pokemon )
+    {
+        if( OurTeamAdapters.ContainsKey( pokemon ) )
+        {
+            return TheirBattleAIUnits;
+        }
+
+        if( TheirTeamAdapters.ContainsKey( pokemon ) )
+        {
+            return OurBattleAIUnits;
+        }
+
+        Debug.LogError( $"Pokemon not found in either side's active units! You're fucked!" );
+        return null;
+    }
+
+    public BattleUnit GetBattleUnit( Pokemon pokemon )
+    {
         for( int i = 0; i < BattleSystem.PlayerUnits.Count; i++ )
         {
             var unit = BattleSystem.PlayerUnits[i];
-            if( unit.Pokemon?.PID == pid )
-            {
-                oppUnits = BattleSystem.GetOpposingUnits( unit );
-            }
-            else
-                continue;
+            if( unit.Pokemon == pokemon )
+                return unit;
         }
 
         for( int i = 0; i < BattleSystem.EnemyUnits.Count; i++ )
         {
             var unit = BattleSystem.EnemyUnits[i];
-            if( unit.Pokemon?.PID == pid )
-            {
-                oppUnits = BattleSystem.GetOpposingUnits( unit );
-            }
-            else
-                continue;
-        }
-
-        return oppUnits;
-    }
-
-    public BattleUnit GetBattleUnit( string pid )
-    {
-        for( int i = 0; i < BattleSystem.PlayerUnits.Count; i++ )
-        {
-            var unit = BattleSystem.PlayerUnits[i];
-            if( unit.Pokemon?.PID == pid )
-            {
+            if( unit.Pokemon == pokemon )
                 return unit;
-            }
-            else
-                continue;
-        }
-
-        for( int i = 0; i < BattleSystem.EnemyUnits.Count; i++ )
-        {
-            var unit = BattleSystem.EnemyUnits[i];
-            if( unit.Pokemon?.PID == pid )
-            {
-                return unit;
-            }
-            else
-                continue;
         }
 
         return null;
@@ -191,7 +455,7 @@ public class BattleAI : MonoBehaviour
 
         for( int i = 0; i < units.Count; i++ )
         {
-            BattleAI_PokemonAdapter monAdapter = new( units[i].Pokemon, this );
+            BattleAI_PokemonAdapter monAdapter = GetPokemonAs_Adapter( units[i].Pokemon );
             aiUnits.Add( monAdapter );
         }
 
@@ -204,55 +468,27 @@ public class BattleAI : MonoBehaviour
 
         for( int i = 0; i < party.Count; i++ )
         {
-            BattleAI_PokemonAdapter monAdapter = new( party[i], this );
+            BattleAI_PokemonAdapter monAdapter = GetPokemonAs_Adapter( party[i] );
             aiUnits.Add( monAdapter );
         }
 
         return aiUnits;
     }
 
-    public Pokemon GetPokemonFromPID( string pid )
-    {
-        var myTeam = BattleSystem.GetAllyParty( Unit.Pokemon );
-        var oppTeam = BattleSystem.GetOpposingParty( Unit.Pokemon );
-
-        for( int i = 0; i < myTeam.Count; i++ )
-        {
-            var mon = myTeam[i];
-            if( mon?.PID == pid )
-            {
-                return mon;
-            }
-            else
-                continue;
-        }
-
-        for( int i = 0; i < oppTeam.Count; i++ )
-        {
-            var mon = oppTeam[i];
-            if( mon?.PID == pid )
-            {
-                return mon;
-            }
-            else
-                continue;
-        }
-
-        return null;
-    }
-
     public void ChooseCommand()
     {
         CurrentLog = new();
 
-        _round++;
+        _round = BattleSystem.Rounds;
 
-        //--Set Unit Adapter
-        ThisUnitAdapter = new( Unit.Pokemon, this );
+        //--Handle Adapters
+        // UpdateTeamAdapters();
+        SetActiveBattleAIUnits();
+        ThisUnitAdapter = GetPokemonAs_Adapter( Unit.Pokemon );
 
-        CurrentLog.Add( $"=====[Choose Command][TURN {_round} - {ThisUnitAdapter.Name}, Offensive Piece Value: {TeamPieceValues[ThisUnitAdapter?.PID].OffensiveValue}]=====" );
+        CurrentLog.Add( $"=====[Choose Command][TURN {_round} - {ThisUnitAdapter.Name}, Offensive Piece Value: {OurTeamPieceValues[ThisUnitAdapter?.Pokemon].OffensiveValue}]=====" );
 
-        if( Unit.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || Unit.Pokemon.CurrentHP == 0 )
+        if( Unit.Pokemon.IsFainted || Unit.Pokemon.CurrentHP == 0 )
             return;
 
         //--Handle Two Turn/Charge/Recharge Moves
@@ -270,16 +506,15 @@ public class BattleAI : MonoBehaviour
             return;
 
         //--Opposing Threats
-        OpposingUnits = CreateBattleAIUnits_FromBattleUnits( BattleSystem.GetOpposingUnits( Unit ) );
-        var damageThreat = GetThreat_ImmediateDamage( OpposingUnits, ThisUnitAdapter );
+        var damageThreat = GetThreat_ImmediateDamage( TheirBattleAIUnits, ThisUnitAdapter );
         
         //--Get Best Action based on high level heuristics, turn outcome simulation, flat board analysis, and simulaiton result adjustments.
-        var bestAction = GetBestAction( damageThreat, OpposingUnits );
+        var bestAction = GetBestAction( damageThreat, TheirBattleAIUnits );
 
         CurrentLog.Add( $"===[FINAL DECISION: {Unit.Pokemon.NickName} chose the {bestAction.Type} Action! Final Score: {bestAction.Score}]===" );
         Debug.Log( CurrentLog.ToString() );
         string path = Application.persistentDataPath + "/BattleAI_ChooseCommandLog.txt";
-        System.IO.File.AppendAllText( path, CurrentLog.ToString() + "\n" );
+        System.IO.File.AppendAllText( path, CurrentLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
         CurrentLog.Clear();
 
         switch( bestAction.Type )
@@ -313,11 +548,11 @@ public class BattleAI : MonoBehaviour
         CurrentPlan         = currentPlan;
 
         //--Action Candidates + TOP
-        var bestAttack              = MoveCommand.GetMove_BestAttack( ThisUnitAdapter, damageThreat.Unit, "Get Best Action" );
-        var defensiveSwitch         = SwitchCommand.GetSwitch_Defensive( opposingUnits );
-        var offensiveSwitch         = SwitchCommand.GetSwitch_Offensive( opposingUnits );
-        var bestSetup               = MoveCommand.GetMove_Setup( ThisUnitAdapter, damageThreat.Unit );
-        var bestOffensiveStatus     = MoveCommand.GetMove_OffensiveStatus( ThisUnitAdapter, damageThreat.Unit );
+        var bestAttack              = MoveCommand.GetMove_BestAttack( ThisUnitAdapter, damageThreat.Unit, true, "Get Best Action" );
+        var defensiveSwitch         = SwitchCommand.GetSwitch_Defensive( ThisUnitAdapter );
+        var offensiveSwitch         = SwitchCommand.GetSwitch_Offensive( ThisUnitAdapter );
+        var bestSetup               = MoveCommand.GetMove_Setup( ThisUnitAdapter, damageThreat.Unit, true );
+        var bestOffensiveStatus     = MoveCommand.GetMove_OffensiveStatus( ThisUnitAdapter, damageThreat.Unit, true );
 
         List<ActionEvaluation> actions = new();
 
@@ -383,17 +618,18 @@ public class BattleAI : MonoBehaviour
             for( int i = 0; i < actions.Count; i++ )
             {
                 actions[i] = _actionEval.EvaluateAction( actions[i] );
+                var survivalClass = Projection.ClassifySurvival( actions[i], doomedOutcome );
 
                 if( threatProfile.Exists )
-                    actions[i].Score += _actionEval.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext );
+                    actions[i].Score += _actionEval.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext, survivalClass );
                 
                 //--PBS
-                var pbs = Projection.BuildPBS( actions[i].Top1, actions[i].Top2, actions[i].ExchangeEvaluation, boardContext.MyRemainingPieces, boardContext.OppRemainingPieces );
+                var pbs = Projection.BuildPBS( actions[i], boardContext, survivalClass );
                 int futureScore = Projection.EvaluatePBS( pbs );
                 CurrentLog.Add( $"Action: {actions[i].Type}. Future Score from EvaluatePBS: {futureScore}" );
                 actions[i].PBS = pbs;
 
-                int winConBias = Projection.GetCurrentPlanBias( actions[i], pbs, boardContext, CurrentPlan );
+                int winConBias = Projection.GetCurrentPlanBias( actions[i], pbs, boardContext, CurrentPlan, survivalClass );
                 CurrentLog.Add( $"Action: {actions[i].Type}. Current Plan is: {CurrentPlan.Type}. Bias: {winConBias}" );
                 CurrentLog.Add( $"" );
 
@@ -401,11 +637,25 @@ public class BattleAI : MonoBehaviour
             }
         }
 
-        string attackActionText             = bestAttack.Move != null ?             $"Attack ({bestAttack.Move?.MoveSO.Name}): {attackActionEval.Score}"                                    : $"Attack not found!";
-        string defensiveSwitchActionText    = defensiveSwitch.Pokemon != null ?     $"Defensive Switch ({defensiveSwitch.Pokemon?.NickName}): {defSwitchActionEval.Score}"                  : $"Defensive Switch not found!";
-        string offensiveSwitchActionText    = offensiveSwitch.Pokemon != null ?     $"Offensive Switch ({offensiveSwitch.Pokemon?.NickName}): {offSwitchActionEval.Score}"                  : $"Offensive Switch not found!";
-        string setupActionText              = bestSetup.Move != null ?              $"Setup Move ({bestSetup.Move?.MoveSO.Name}): {setupActionEval.Score}"                                  : $"Setup move not found!";
-        string offensiveStatusActionText    = bestOffensiveStatus.Move != null ?    $"Offensive Status Move ({bestOffensiveStatus.Move?.MoveSO.Name}): {offensiveStatusActionEval.Score}"   : $"Offensive Status move not found!";
+        //--Attack Action Text
+        string attackActionText = bestAttack.Move != null ?
+        $"Attack ({bestAttack.Move?.MoveSO.Name}): {attackActionEval.Score} (Survival Class: {attackActionEval.SurvivalClass})" : $"Attack not found!";
+
+        //--Defensive Switch Action Text
+        string defensiveSwitchActionText = defensiveSwitch.Pokemon != null ?
+        $"Defensive Switch ({defensiveSwitch.Pokemon?.NickName}): {defSwitchActionEval.Score} (Survival Class: {defSwitchActionEval.SurvivalClass})" : $"Defensive Switch not found!";
+
+        //--Offensive Switch Action Text
+        string offensiveSwitchActionText = offensiveSwitch.Pokemon != null ?
+        $"Offensive Switch ({offensiveSwitch.Pokemon?.NickName}): {offSwitchActionEval.Score} (Survival Class: {offSwitchActionEval.SurvivalClass})" : $"Offensive Switch not found!";
+
+        //--Setup Action Text
+        string setupActionText = bestSetup.Move != null ?
+        $"Setup Move ({bestSetup.Move?.MoveSO.Name}): {setupActionEval.Score} (Survival Class: {setupActionEval.SurvivalClass})" : $"Setup move not found!";
+
+        //--Offensive Status Action Text
+        string offensiveStatusActionText = bestOffensiveStatus.Move != null ?
+        $"Offensive Status Move ({bestOffensiveStatus.Move?.MoveSO.Name}): {offensiveStatusActionEval.Score} (Survival Class: {offensiveStatusActionEval.SurvivalClass})" : $"Offensive Status move not found!";
 
         CurrentLog.Add( $"===[Final Option Scores]===" );
         CurrentLog.Add( attackActionText );
@@ -459,7 +709,7 @@ public class BattleAI : MonoBehaviour
                 var switchLookAhead = MoveCommand.GetMove_BestAttack( action.Top1.Attacker, action.Top1.Opponent ).Top;
 
                 //--We use the look ahead PTKOs because those are the PTKOs that would be in effect for the following round. we use the "current" switch simulation HP Ratios because those would be the values we start the following round with.
-                bool forceSwitchNextRound = UnitSim.PredictSwitchProbability( switchLookAhead.AttackerPTKO, switchLookAhead.OpponentPTKO, switchLookAhead.AttackerMovedFirst, action.Top1.Attacker.CurrentHPR, action.Top1.Opponent.CurrentHPR ) >= 0.9f;
+                bool forceSwitchNextRound = UnitSim.PredictSwitchProbability( switchLookAhead.AttackerPTKO, switchLookAhead.OpponentPTKO, switchLookAhead.AttackerMovedFirst, switchLookAhead.Attacker.BeginningHPR, switchLookAhead.Opponent.BeginningHPR, switchLookAhead.Opponent.Expendability ) > 0.7f;
 
                 //--Does this line enable a revenge kill?
                 bool canKO = switchLookAhead.AttackerPTKO >= PotentialToKO.Dangerous;
@@ -491,22 +741,25 @@ public class BattleAI : MonoBehaviour
         bool theyKO;
         bool sweepBeginning;
         bool sweepIncoming;
+
         for( int i = 0; i < actions.Count; i++ )
         {
             var action = actions[i];
-            
             BattleAI_PokemonAdapter revengeCandidate = null;
+            float switchProb = UnitSim.PredictSwitchProbability( action.Top1.OpponentPTKO, action.Top1.AttackerPTKO, action.Top1.AttackerMovedFirst, action.Top1.Opponent.CurrentHPR, action.Top1.Attacker.CurrentHPR, action.Top1.Attacker.Expendability );
+            bool readSwitch = UnityEngine.Random.value <= switchProb;
+
             if( action.Top1.Attacker_DiesBeforeActing || action.Top1.Attacker_EndOfTurnHP <= 0 )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Revenge( OpposingUnits ).Pokemon;
+                var switchCandidate = SwitchCommand.GetSwitch_Revenge( TheirBattleAIUnits ).Pokemon;
                 if( switchCandidate != null )
-                    revengeCandidate = new( switchCandidate, this  );
+                    revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
-            else if( UnitSim.PredictSwitchProbability( action.Top1.OpponentPTKO, action.Top1.AttackerPTKO, action.Top1.AttackerMovedFirst, action.Top1.Opponent.CurrentHPR, action.Top1.Attacker.CurrentHPR ) >= 0.8f )
+            else if( readSwitch )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Defensive( OpposingUnits ).Pokemon;
+                var switchCandidate = SwitchCommand.GetSwitch_Defensive( ThisUnitAdapter ).Pokemon;
                 if( switchCandidate != null )
-                    revengeCandidate = new( switchCandidate, this  );
+                    revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
 
             IBattleAIUnit nextPokemon;
@@ -520,7 +773,7 @@ public class BattleAI : MonoBehaviour
             
             ourTeamToBeSwept = GetRemainingAllyPokemon( nextPokemon.PID );
             bool movesFirst = opponentSweepTOP.Attacker.Speed > opponentSweepTOP.Opponent.Speed;
-            bool theyForceSwitch = UnitSim.PredictSwitchProbability( opponentSweepTOP.AttackerPTKO, opponentSweepTOP.OpponentPTKO, movesFirst, opponentSweepTOP.Attacker.CurrentHPR, opponentSweepTOP.Opponent.CurrentHPR ) >= 0.8f;
+            bool theyForceSwitch = UnitSim.PredictSwitchProbability( opponentSweepTOP.AttackerPTKO, opponentSweepTOP.OpponentPTKO, movesFirst, opponentSweepTOP.Attacker.CurrentHPR, opponentSweepTOP.Opponent.CurrentHPR, opponentSweepTOP.Opponent.Expendability ) > 0.7f;
 
             theyKO = opponentSweepTOP.Opponent_DiesBeforeActing || opponentSweepTOP.Opponent_EndOfTurnHP <= 0f;
             sweepBeginning = theyKO || theyForceSwitch;
@@ -534,7 +787,7 @@ public class BattleAI : MonoBehaviour
                     if( opponentSweepTOP.Attacker.Speed > allySpeed )
                         fasterThan++;
 
-                    BattleAI_PokemonAdapter us = new( ally, this );
+                    BattleAI_PokemonAdapter us = GetPokemonAs_Adapter( ally );
                     var ptko = Projection.Get_NeutralPTKO( opponentSweepTOP.Attacker, us );
                     if( ptko >= PotentialToKO.TwoHKO && opponentSweepTOP.Attacker.Speed > allySpeed || ptko >= PotentialToKO.Risky )
                         threatCount++;
@@ -553,19 +806,21 @@ public class BattleAI : MonoBehaviour
         for( int i = 0; i < actions.Count; i++ )
         {
             var action = actions[i];
-
             BattleAI_PokemonAdapter revengeCandidate = null;
+            float switchProb = UnitSim.PredictSwitchProbability( action.Top1.AttackerPTKO, action.Top1.OpponentPTKO, action.Top1.AttackerMovedFirst, action.Top1.Attacker.CurrentHPR, action.Top1.Opponent.CurrentHPR, action.Top1.Attacker.Expendability );
+            bool readSwitch = UnityEngine.Random.value <= switchProb;
+
             if( action.Top1.Attacker_DiesBeforeActing || action.Top1.Attacker_EndOfTurnHP <= 0 )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Revenge( OpposingUnits ).Pokemon;
+                var switchCandidate = SwitchCommand.GetSwitch_Revenge( TheirBattleAIUnits ).Pokemon;
                 if( switchCandidate != null )
-                    revengeCandidate = new( switchCandidate, this  );
+                    revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
-            else if( UnitSim.PredictSwitchProbability( action.Top1.AttackerPTKO, action.Top1.OpponentPTKO, action.Top1.AttackerMovedFirst, action.Top1.Attacker.CurrentHPR, action.Top1.Opponent.CurrentHPR ) >= 0.8 )
+            else if( readSwitch )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Revenge( OpposingUnits ).Pokemon;
+                var switchCandidate = SwitchCommand.GetSwitch_Revenge( TheirBattleAIUnits ).Pokemon;
                 if( switchCandidate != null )
-                    revengeCandidate = new( switchCandidate, this  );
+                    revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
 
             IBattleAIUnit nextPokemon;
@@ -578,8 +833,8 @@ public class BattleAI : MonoBehaviour
 
             bool revengeKill = followUp.Opponent_DiesBeforeActing || followUp.Opponent_EndOfTurnHP <= 0 || ( followUp.OpponentPTKO >= PotentialToKO.TwoHKO && followUp.AttackerMovedFirst );
 
-            float switchProb = UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, nextPokemon.CurrentHPR, action.Top1.Opponent.CurrentHPR );
-            bool forcesSwitch = switchProb >= 0.8f;
+            float switchNextProb = UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, followUp.Attacker.BeginningHPR, action.Top1.Opponent.CurrentHPR, action.Top1.Opponent.Expendability );
+            bool forcesSwitch = switchNextProb >= 0.7f;
 
             bool favorableTrade = action.Top1.Opponent_EndOfTurnHP <= 0f || action.Top1.MutualKO;
 
@@ -748,8 +1003,37 @@ public class BattleAI : MonoBehaviour
         else
             profile.Type = ThreatType.None;
 
+        //--Decay
+        float decayScore = 0f;
+
+        //--Self Debuffs
+        bool oppHasSelfDebuffMove = UnitSim.CheckHasSelfDebuffMove( opponent.ActiveMoves );
+        bool oppHasRecoilMove = UnitSim.CheckHasRecoilMove( opponent.ActiveMoves );
+
+        if( oppHasSelfDebuffMove )
+            decayScore += 2f;
+
+        if( opponent.Item == BattleItemEffectID.LifeOrb || oppHasRecoilMove )
+        {
+            decayScore += 1f;
+
+            if( opponent.CurrentHPR <= 0.55f )
+                decayScore += 1f;
+        }
+
+        if( exchangeEval.AttackerSurvives && exchangeEval.AttackerThreatensKO )
+            decayScore += 1f;
+
+        profile.DecayScore = decayScore;
+        profile.IsDecaying = decayScore >= 2f;
+
         //--Pressure
-        profile.PressureScore = CalculateThreatPressure( profile );
+        float basePressure = CalculateThreatPressure( profile );
+
+        //--Decay reduces the persistence of a threat
+        float decayMultiplier = 1f - Mathf.Clamp( profile.DecayScore * 0.15f, 0f, 0.5f );
+
+        profile.PressureScore = basePressure * decayMultiplier;
         profile.OffensivePressure = offensivePressure;
         profile.DefensiveBulk = defensiveBulk;
 
@@ -799,7 +1083,7 @@ public class BattleAI : MonoBehaviour
         int attackScore = MoveCommand.AttackScore( tempo, exchangeEval, boardContext, bestAttack );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Attack Score: {attackScore}" );
         CurrentLog.Add( $"" );
-        var attackActionEval = _actionEval.BuildActionEvaluation( ActionType.Attack, attackScore, bestAttack.Target, bestAttack.Move, bestAttack.Top, exchangeEval );
+        var attackActionEval = _actionEval.BuildActionEvaluation( ActionType.Attack, attackScore, bestAttack.Target, bestAttack.TargetBattleUnit, bestAttack.Move, bestAttack.Top, exchangeEval );
         CurrentLog.Add( $"" );
         attackActionEval.Score += _actionEval.EvaluateBattlefieldState( attackActionEval, boardContext );
 
@@ -811,7 +1095,7 @@ public class BattleAI : MonoBehaviour
         int defSwitchScore = SwitchCommand.DefensiveSwitchScore( tempo, exchangeEval, defensiveSwitch, boardContext );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Defensive Switch Score: {defSwitchScore} via Candidate: {defensiveSwitch.Pokemon?.NickName}" );
         CurrentLog.Add( $"" );
-        var defSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.DefensiveSwitch, defSwitchScore, null, defensiveSwitch.Pokemon, defensiveSwitch.Top, exchangeEval );
+        var defSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.DefensiveSwitch, defSwitchScore, null, null, defensiveSwitch.Pokemon, defensiveSwitch.Top, exchangeEval );
         CurrentLog.Add( $"" );
         defSwitchActionEval.Score += _actionEval.EvaluateBattlefieldState( defSwitchActionEval, boardContext );
 
@@ -823,7 +1107,7 @@ public class BattleAI : MonoBehaviour
         int offSwitchScore = SwitchCommand.OffensiveSwitchScore( tempo, exchangeEval, offensiveSwitch, boardContext );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Offensive Switch Score: {offSwitchScore} via Candidate: {offensiveSwitch.Pokemon?.NickName}" );
         CurrentLog.Add( $"" );
-        var offSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveSwitch, offSwitchScore, null, offensiveSwitch.Pokemon, offensiveSwitch.Top, exchangeEval );
+        var offSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveSwitch, offSwitchScore, null, null, offensiveSwitch.Pokemon, offensiveSwitch.Top, exchangeEval );
         CurrentLog.Add( $"" );
         offSwitchActionEval.Score += _actionEval.EvaluateBattlefieldState( offSwitchActionEval, boardContext );
 
@@ -835,7 +1119,7 @@ public class BattleAI : MonoBehaviour
         int setupScore = MoveCommand.SetupScore( tempo, exchangeEval, boardContext, bestSetup );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Setup Score: {setupScore}" );
         CurrentLog.Add( $"" );
-        var setupActionEval = _actionEval.BuildActionEvaluation( ActionType.Setup, setupScore, bestSetup.Target, bestSetup.Move, bestSetup.Top, exchangeEval );
+        var setupActionEval = _actionEval.BuildActionEvaluation( ActionType.Setup, setupScore, bestSetup.Target, bestSetup.TargetBattleUnit, bestSetup.Move, bestSetup.Top, exchangeEval );
         CurrentLog.Add( $"" );
         setupActionEval.Score += _actionEval.EvaluateBattlefieldState( setupActionEval, boardContext );
 
@@ -847,7 +1131,7 @@ public class BattleAI : MonoBehaviour
         int statusScore = MoveCommand.OffensiveStatusScore( tempo, exchangeEval, boardContext, bestOffensiveStatus );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Offensive Status Score: {statusScore}" );
         CurrentLog.Add( $"" );
-        var statusActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveStatus, statusScore, bestOffensiveStatus.Target, bestOffensiveStatus.Move, bestOffensiveStatus.Top, exchangeEval );
+        var statusActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveStatus, statusScore, bestOffensiveStatus.Target, bestOffensiveStatus.TargetBattleUnit, bestOffensiveStatus.Move, bestOffensiveStatus.Top, exchangeEval );
         CurrentLog.Add( $"" );
         statusActionEval.Score += _actionEval.EvaluateBattlefieldState( statusActionEval, boardContext );
 
@@ -898,10 +1182,24 @@ public class BattleAI : MonoBehaviour
         return SwitchCommand.GetSwitch_Vacuum();
     }
 
+    public int GetUnitStatValue( IBattleAIUnit pokemon, Stat stat )
+    {
+        return stat switch
+        {
+            Stat.HP => pokemon.HP,
+            Stat.Attack => pokemon.Attack,
+            Stat.Defense => pokemon.Defense,
+            Stat.SpAttack => pokemon.SpAttack,
+            Stat.SpDefense => pokemon.SpDefense,
+            Stat.Speed => pokemon.Speed,
+            _ => 100
+        };
+    }
+
     public int GetUnitInferredStat( Pokemon pokemon, Stat stat )
     {
         // Debug.Log( $"[AI Scoring][Get Walling Score] Getting {pokemon.NickName}'s inferred {stat}" );
-        float statValue = GetBaseStat( pokemon, stat );
+        float statValue = GetCalculatedStat( pokemon, stat );
         // Debug.Log( $"[AI Scoring][Get Walling Score] {pokemon.NickName}'s base {stat} value is: {statValue}" );
 
         int stage = pokemon.StatStages[stat];
@@ -923,10 +1221,16 @@ public class BattleAI : MonoBehaviour
         return final;
     }
 
+    //--This function does stat stage and direct modifier calcluation on stats. this is the same as the GetStat() function in the Pokemon class.
+    //--Stat property calls from Pokemon return GetStat(). We should do essentially the same here by creating a snapshot of all active pokemon via the now static Adapter dictionaries.
+    //--This means that each turn, all pokemon will get their stats changed to "inferred stats" with stat stage and direct modifiers calculated. luckily, neither of these things are available
+    //--for benched pokemon, which means they should, theoretically, never have oddly calculated stats. the only time a benched pokemon's stats should be different is when we want to speed-check
+    //--a benched pokemon for candidate selection - we should know its effective speed if it were on the field, not what its speed is on the bench. for that, we will use GetContextualSpeed().
+    //--Great plan, let's see how much we break. --05/06/26
     public int GetUnitInferredStat( IBattleAIUnit pokemon, Stat stat )
     {
         // Debug.Log( $"[AI Scoring][Get Walling Score] Getting {pokemon.Name}'s inferred {stat}" );
-        float statValue = GetBaseStat( pokemon, stat );
+        float statValue = GetUnitStatValue( pokemon, stat );
 
         int stage = pokemon.StatStages[stat];
         var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
@@ -975,8 +1279,19 @@ public class BattleAI : MonoBehaviour
 
     public int GetUnitContextualSpeed( IBattleAIUnit pokemon )
     {
-        int speed = GetUnitInferredStat( pokemon, Stat.Speed );
+        int speed = pokemon.Speed;
         var weather = BattleSystem.Field.Weather;
+        var courtConditions = BattleSystem.Field.ActiveCourts[pokemon.CourtLocation].Conditions;
+
+        //--This function no longer serves active pokemon. Active pokemon receive direct modifiers to their speed when they have a weather speed ability.
+        //--This function is now used to contextually check incoming switch candidates.
+        var activeAllies = GetActiveAllyUnits_AsBattleAIUnits( pokemon.Pokemon );
+        for( int i = 0; i < activeAllies.Count; i++ )
+        {
+            var ally = activeAllies[i];
+            if( ally.Pokemon == pokemon.Pokemon )
+                return speed;
+        }
 
         if( weather != null )
         {
@@ -991,6 +1306,11 @@ public class BattleAI : MonoBehaviour
 
             if( weather.ID == WeatherConditionID.SNOW && pokemon.Ability == AbilityID.SlushRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
                 speed *= 2;
+        }
+        
+        if( courtConditions.ContainsKey( CourtConditionID.Tailwind ) )
+        {
+            speed *= 2;
         }
 
         return speed;
@@ -1010,11 +1330,13 @@ public class BattleAI : MonoBehaviour
         };
     }
 
-    public int GetBaseStat( IBattleAIUnit pokemon, Stat stat )
+    public int GetBaseStat( IBattleAIUnit unit, Stat stat )
     {
+        var pokemon = unit.Pokemon.PokeSO;
+
         return stat switch
         {
-            Stat.HP         => pokemon.HPBaseStat,
+            Stat.HP         => pokemon.MaxHP,
             Stat.Attack     => pokemon.Attack,
             Stat.Defense    => pokemon.Defense,
             Stat.SpAttack   => pokemon.SpAttack,
@@ -1022,6 +1344,99 @@ public class BattleAI : MonoBehaviour
             Stat.Speed      => pokemon.Speed,
             _ => 0
         };
+    }
+
+    public int GetCalculatedStat( IBattleAIUnit pokemon, Stat stat, bool useStatSpread = true )
+    {
+        int baseStat = GetBaseStat( pokemon, stat );
+        int level = pokemon.Level;
+        int iv = 31;
+        int ev = 0;
+        int calculatedStat;
+        var mon = pokemon.Pokemon;
+        NatureID nature = NatureID.Neutral;
+
+        if( useStatSpread )
+        {
+            if( pokemon.StatSpread.Spread.TryGetValue( stat, out var value ) )
+                ev = CalcEVs( value );
+
+            nature = pokemon.StatSpread.Nature;
+        }
+
+        if( stat == Stat.Accuracy || stat == Stat.CritRatio || stat == Stat.Evasion ) //--These should probably be moved to their own enum tbh. It's just much safer.
+        {
+            Debug.LogError( $"Passed non stat-stat somehow!" );
+            return 100;
+        }
+
+        if( stat == Stat.HP )
+        {
+            calculatedStat = Mathf.FloorToInt( ( ( 2 * baseStat + iv + ev  ) * level / 100f + level ) + 10 );
+        }
+        else
+        {
+            calculatedStat = Mathf.FloorToInt( ( ( ( 2 * baseStat + iv + ev ) * level / 100f ) + 5 ) * GetNatureModifier( mon, nature, stat ) );
+        }
+
+        return calculatedStat;
+    }
+
+    public int GetCalculatedStat( Pokemon pokemon, Stat stat, bool useStatSpread = true )
+    {
+        int baseStat = GetBaseStat( pokemon, stat );
+        int level = pokemon.Level;
+        int iv = 31;
+        int ev = 0;
+        int calculatedStat;
+        var mon = pokemon;
+
+        NatureID nature = NatureID.Neutral;
+
+        if( useStatSpread )
+        {
+            var adapter = GetPokemonAs_Adapter( pokemon );
+            
+            if( adapter.StatSpread.Spread.TryGetValue( stat, out var value ) )
+                ev = CalcEVs( value );
+
+            nature = adapter.StatSpread.Nature;
+        }
+
+        if( stat == Stat.Accuracy || stat == Stat.CritRatio || stat == Stat.Evasion ) //--These should probably be moved to their own enum tbh. It's just much safer.
+        {
+            Debug.LogError( $"Passed non stat-stat {stat} somehow!" );
+            return 100;
+        }
+
+        if( stat == Stat.HP )
+        {
+            calculatedStat = Mathf.FloorToInt( ( ( 2 * baseStat + iv + ev  ) * level / 100f + level ) + 10 );
+        }
+        else
+        {
+            calculatedStat = Mathf.FloorToInt( ( ( ( 2 * baseStat + iv + ev ) * level / 100f ) + 5 ) * GetNatureModifier( mon, nature, stat ) );
+        }
+
+        return calculatedStat;
+    }
+
+    private int CalcEVs( int statEVs )
+    {
+        int ev = statEVs / 4;
+        return Mathf.Max( 0, ev );
+    }
+
+    private float GetNatureModifier( Pokemon pokemon, NatureID natureID, Stat stat )
+    {
+        var nature = pokemon.Natures[natureID];
+
+        if( stat == nature.PositiveStat )
+            return 1.1f;
+        else if( stat == nature.NegativeStat )
+            return 0.9f;
+        else
+            return 1f;
     }
 
     public int Attack_TempoModifier( TempoStateResult tempo )
@@ -1089,8 +1504,8 @@ public class BattleAI : MonoBehaviour
             // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] Starting threat check on {threat.Pokemon.NickName}. Starting Score: {threatScore}" );
 
             //--Offensive Pressure
-            int atk = GetUnitInferredStat( threat, Stat.Attack );
-            int spatk = GetUnitInferredStat( threat, Stat.SpAttack );
+            int atk = threat.Attack;
+            int spatk = threat.SpAttack;
 
             float offensivePressure;
 
@@ -1119,7 +1534,7 @@ public class BattleAI : MonoBehaviour
 
                 if( threat.VolatileStatuses.Contains( VolatileConditionID.ChoiceLocked ) )
                 {
-                    var unit = GetBattleUnit( threat.PID );
+                    var unit = GetBattleUnit( threat.Pokemon );
                     if( unit != null && move != unit.LastUsedMove )
                         continue;
                 }
@@ -1245,7 +1660,7 @@ public class BattleAI : MonoBehaviour
 
     public bool CanUseFakeOut( IBattleAIUnit attacker, IBattleAIUnit target )
     {
-        var attackerUnit = GetBattleUnit( attacker.PID );
+        var attackerUnit = GetBattleUnit( attacker.Pokemon );
 
         if( attackerUnit == null )
             return false;
@@ -1294,31 +1709,6 @@ public class BattleAI : MonoBehaviour
 
             if( effectiveness == 0 )
                 continue;
-
-            // float stab              = UnitSim.CheckTypes( move.MoveType, attacker ) ? 1.5f : 1f;
-            // float weather           = 1f;
-            // float terrain           = 1f;
-            // float item              = 1f;
-
-            // var field = BattleSystem.Field;
-
-            // if( field.Weather != null && !preview )
-            // {
-            //     if( UnitSim.WeatherDMGModifiers.TryGetValue( field.Weather.ID, out var mod ) )
-            //         weather = mod( move );
-            // }
-
-            // if( field.Terrain != null && !preview )
-            // {
-            //     if( UnitSim.TerrainDMGModifiers.TryGetValue( field.Terrain.ID, out var mod ) )
-            //         terrain = mod( move );
-            // }
-
-            // if( attacker.Item != BattleItemEffectID.None )
-            // {
-            //     if( UnitSim.ItemDMGModifiers.TryGetValue( attacker.Item, out var mod ) )
-            //         item = mod( attacker, target, move );
-            // }
 
             // Debug.Log( $"[AI Scoring][Most Threatening Move][{attacker.NickName}][{move.MoveSO.Name}] Effectiveness: {effectiveness}, STAB: {stab}, Weather: {weather}, Terrain: {terrain}, Item: {item}" );
 
@@ -1392,7 +1782,7 @@ public class BattleAI : MonoBehaviour
 
             //--If the attacker is choice-locked, when we get to the move we're locked into we log all of the scores and force-break from the loop
             //--because we cannot use any other move, and should always return this move as the "most threatening" because it is the ONLY threatening move.
-            var attUnit = GetBattleUnit( attacker.PID );
+            var attUnit = GetBattleUnit( attacker.Pokemon );
             if( attUnit != null )
             {
                 if( attUnit.Flags[UnitFlags.ChoiceItem].IsActive )
@@ -1418,11 +1808,11 @@ public class BattleAI : MonoBehaviour
     public List<(int PTKO, Pokemon Mon )> GetTopThreats( List<Pokemon> team, Pokemon me )
     {
         List<( int ptko, Pokemon mon )> threats = new();
-        BattleAI_PokemonAdapter ourMon = new( me, this );
+        BattleAI_PokemonAdapter ourMon = GetPokemonAs_Adapter( me );
 
         for( int i = 0; i < team.Count; i ++ )
         {
-            BattleAI_PokemonAdapter theirMon = new( team[i], this );
+            BattleAI_PokemonAdapter theirMon = GetPokemonAs_Adapter( team[i] );
 
             //--MTRs
             var ourMTR = MoveCommand.GetMove_BestAttack( ourMon, theirMon );
@@ -1445,28 +1835,45 @@ public class BattleAI : MonoBehaviour
         return threats;
     }
 
-    public void RefreshTeamPieceValues( List<Pokemon> team )
+    public void RefreshTeamPieceValues( List<Pokemon> ourTeam, List<Pokemon> theirTeam )
     {
-        List<IBattleAIUnit> teamAIUnits = new();
+        List<IBattleAIUnit> ourTeamAIUnits = new();
         
-        for( int i =0; i < team.Count; i++ )
+        for( int i = 0; i < ourTeam.Count; i++ )
         {
-            BattleAI_PokemonAdapter mon = new( team[i], this );
-            teamAIUnits.Add( mon );
-
-            // if( team[i] == Unit.Pokemon ) //--This hack sucks...
-                // ThisUnitAdapter = mon;
+            BattleAI_PokemonAdapter mon = GetPokemonAs_Adapter( ourTeam[i] );
+            ourTeamAIUnits.Add( mon );
         }
 
-        TeamPieceValues = GetTeamPieceValues( teamAIUnits );
+        OurTeamPieceValues = CalculateTeamPieceValues( ourTeamAIUnits );
+
+        List<IBattleAIUnit> theirTeamAIUnits = new();
+        
+        for( int i = 0; i < theirTeam.Count; i++ )
+        {
+            BattleAI_PokemonAdapter mon = GetPokemonAs_Adapter( theirTeam[i] );
+            theirTeamAIUnits.Add( mon );
+        }
+
+        TheirTeamPieceValues = CalculateTeamPieceValues( theirTeamAIUnits );
+
+        foreach( var kvp in OurTeamAdapters )
+        {
+            kvp.Value.SetExpendability();
+        }
+
+        foreach( var kvp in TheirTeamAdapters )
+        {
+            kvp.Value.SetExpendability();
+        }
     }
 
-    public Dictionary<string, PieceValue> GetTeamPieceValues( List<IBattleAIUnit> team )
+    public Dictionary<Pokemon, PieceValue> CalculateTeamPieceValues( List<IBattleAIUnit> team )
     {
         // Debug.Log( $"[AI Scoring][Piece Value] Refreshing Team Piece Values!" );
-        Dictionary<string, PieceValue> teamPieceValues = new();
+        Dictionary<Pokemon, PieceValue> teamPieceValues = new();
 
-        var attackingTiers = PV_GetRankBonuses( team, mon => Mathf.Max( GetUnitInferredStat( mon, Stat.Attack ), GetUnitInferredStat( mon, Stat.SpAttack ) ) );
+        var attackingTiers = PV_GetRankBonuses( team, mon => Mathf.Max( mon.Attack, mon.SpAttack ) );
         var speedTiers = PV_GetRankBonuses( team, mon => GetUnitContextualSpeed( mon ) );
 
         for( int i = 0; i < team.Count; i++ )
@@ -1482,16 +1889,31 @@ public class BattleAI : MonoBehaviour
                 SpeedScore = speedScore,
             };
 
-            teamPieceValues.Add( mon.PID, value );
+            teamPieceValues.Add( mon.Pokemon, value );
             // Debug.Log( $"[AI Scoring][Piece Value] {mon.Name} value assigned! Offensive Value: {value.OffensiveValue}, Speed Score: {value.SpeedScore}" );
         }
 
         return teamPieceValues;
     }
 
+    public PieceValue GetPokemon_PieceValue( Pokemon pokemon )
+    {
+        if( OurTeamPieceValues.TryGetValue( pokemon, out var ourPV ) )
+        {
+            return ourPV;
+        }
+
+        if( TheirTeamPieceValues.TryGetValue( pokemon, out var theirPV ) )
+        {
+            return theirPV;
+        }
+
+        return default;
+    }
+
     private ( int OffensiveValue, int threatCount, int SpeedScore ) PV_GetOffensiveValue( IBattleAIUnit pokemon, Dictionary<IBattleAIUnit, int> attackingRanks, Dictionary<IBattleAIUnit, int> speedRanks )
     {
-        var oppTeam = BattleSystem.GetOpposingParty( pokemon.PID ).Where( p => p.CurrentHP > 0 ).ToList();
+        var oppTeam = BattleSystem.GetOpposingParty( pokemon.Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
         int score = 50;
 
         score += attackingRanks[pokemon];
@@ -1502,7 +1924,7 @@ public class BattleAI : MonoBehaviour
         int spreadPressure = 0;
         for( int i = 0; i < oppTeam.Count; i++ )
         {
-            BattleAI_PokemonAdapter opp = new( oppTeam[i], this );
+            BattleAI_PokemonAdapter opp = GetPokemonAs_Adapter( oppTeam[i] );
             var ptko = Projection.Get_NeutralPTKO( pokemon, opp );
             if( ptko >= PotentialToKO.TwoHKO )
                 threatCount++;
@@ -1695,19 +2117,19 @@ public class BattleAI : MonoBehaviour
         return damage;
     }
 
-    private void InitializeUniqueWallScores()
+    private void InitializeUniqueStatCalls()
     {
-        UniqueWallScores = new()
+        UniqueStatCalls = new()
         {
             { "Body Press", new(){ AttackingStat = Stat.Defense, DefendingStat = Stat.Defense } },
         };
     }
 
-    public List<Pokemon> GetLikelyDefensiveSwitches( List<IBattleAIUnit> ourActiveMons, IBattleAIUnit theirActiveMon )
+    public List<Pokemon> GetLikelyDefensiveSwitches( IBattleAIUnit theirActiveMon )
     {
         List<Pokemon> likelySwitches = new();
 
-        var scr = SwitchCommand.GetSwitch_Defensive( ourActiveMons, true, theirActiveMon, true );
+        var scr = SwitchCommand.GetSwitch_Defensive( theirActiveMon, true );
         List<( Pokemon Pokemon, int Score )> allCandidates = new();
 
         CurrentLog.Add( $"" );
@@ -1761,6 +2183,7 @@ public class MoveThreatResult
     public float Score { get; set; }
     public float Modifier { get; set; }
     public IBattleAIUnit Target { get; set; }
+    public BattleUnit TargetBattleUnit { get; set; }
     public Move Move { get; set; }
     public float EstimatedDamage { get; set; }
     public TurnOutcomeProjection Top { get; set; }
@@ -1770,6 +2193,7 @@ public struct SetupThreatResult
 {
     public Move Move;
     public IBattleAIUnit Target;
+    public BattleUnit TargetBattleUnit;
     public TurnOutcomeProjection Top;
 
     public StatStageDelta StageDelta;
@@ -1791,6 +2215,7 @@ public struct StatusThreatResult
     public int StatusValue;
     public Move Move;
     public IBattleAIUnit Target;
+    public BattleUnit TargetBattleUnit;
     public TurnOutcomeProjection Top;
 
     public int TeamCoverage;
@@ -1890,6 +2315,8 @@ public struct ExchangeEvaluation
 
     public bool OpponentSwitches;
     public bool AttackerSwitches;
+    public float OpponentSwitchProbability;
+    public float AttackerSwitchProbability;
 
     public string AttackerMoveName;
     public string OpponentMoveName;
@@ -1952,6 +2379,8 @@ public class ActionEvaluation
 
     public bool NextTurn_WeAreForcedOut;
     public bool NextTurn_TheyAreForcedOut;
+
+    public SurvivalClass SurvivalClass;
 }
 
 public struct MaterialStatus
@@ -2017,6 +2446,10 @@ public struct ThreatProfile
     public float PressureScore;
     public float ConstraintPressure;
     public ThreatUrgency Urgency;
+
+    //--Decay
+    public float DecayScore;
+    public bool IsDecaying;
 }
 
 public struct BattlefieldState

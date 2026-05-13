@@ -27,6 +27,8 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         }
         else
             _battleSystem.PushState( _battleSystem.ActionSelectState );
+
+        _battleSystem.OnNewRound?.Invoke();
     }
 
     public void DetermineCommandOrder()
@@ -68,31 +70,31 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         if( _battleSystem.CommandQueue.Peek() is UseMoveCommand )
         {
             var moveCommand = _battleSystem.CommandQueue.Peek() as UseMoveCommand;
-            if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null )
+            if( moveCommand.SingleTarget.Pokemon.IsFainted || moveCommand.SingleTarget.Pokemon == null )
             {
                 //--change target if current target is fainted. if the new target has also fainted, we remove the command from the queue.
                 if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[0] )
                 {
                     moveCommand.ChangeTarget( _battleSystem.EnemyUnits[1] );
-                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                    if( moveCommand.SingleTarget.Pokemon.IsFainted || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                         _battleSystem.CommandQueue.Dequeue();
                 }
                 else if( moveCommand.SingleTarget == _battleSystem.EnemyUnits[1] )
                 {
                     moveCommand.ChangeTarget( _battleSystem.EnemyUnits[0] );
-                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                    if( moveCommand.SingleTarget.Pokemon.IsFainted || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                         _battleSystem.CommandQueue.Dequeue();
                 }
                 else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[0] )
                 {
                     moveCommand.ChangeTarget( _battleSystem.PlayerUnits[1] );
-                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                    if( moveCommand.SingleTarget.Pokemon.IsFainted || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                         _battleSystem.CommandQueue.Dequeue();
                 }
                 else if( moveCommand.SingleTarget == _battleSystem.PlayerUnits[1] )
                 {
                     moveCommand.ChangeTarget( _battleSystem.PlayerUnits[0] );
-                    if( moveCommand.SingleTarget.Pokemon.SevereStatus?.ID == SevereConditionID.FNT || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
+                    if( moveCommand.SingleTarget.Pokemon.IsFainted || moveCommand.SingleTarget.Pokemon == null || moveCommand.SingleTarget.Pokemon.CurrentHP == 0 )
                         _battleSystem.CommandQueue.Dequeue();
                 }
             }
@@ -120,7 +122,7 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         yield return null;
         yield return _battleSystem.WaitForEventQueue();
 
-        if( user != null && user.Pokemon.IsFainted() )
+        if( user != null && user.Pokemon.IsFainted )
         {
             _battleSystem.SetHandleFaintCompleted( false );
             yield return _battleSystem.HandleFaintedPokemon( user );
@@ -141,7 +143,7 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         yield return null;
         yield return _battleSystem.WaitForEventQueue();
 
-        if( user != null && user.Pokemon.IsFainted() )
+        if( user != null && user.Pokemon.IsFainted )
         {
             _battleSystem.SetHandleFaintCompleted( false );
             yield return _battleSystem.HandleFaintedPokemon( user );
@@ -262,7 +264,6 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
 
     public IEnumerator ExecuteCommandQueue()
     {
-        _battleSystem.IncrementRounds();
         yield return new WaitForEndOfFrame();
         yield return new WaitForSeconds( 0.25f );
 
@@ -298,14 +299,14 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
             }
 
             yield return null;
-            if( user.Pokemon.IsFainted() )
+            if( user.Pokemon.IsFainted )
                 yield return _battleSystem.CommandQueue.Dequeue();
 
             yield return null;
             if( _battleSystem.CommandQueue.Count == 0 )
                 break;
 
-            if(  moveCommand != null && _battleSystem.BattleType == BattleType.TrainerDoubles && moveCommand.SingleTarget != null && !moveCommand.SingleTarget.Pokemon.IsFainted() )
+            if(  moveCommand != null && _battleSystem.BattleType == BattleType.TrainerDoubles && moveCommand.SingleTarget != null && !moveCommand.SingleTarget.Pokemon.IsFainted )
             {
                 HandleDoublesTargetSwap();
                 yield return null;
@@ -320,7 +321,7 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
                 //--discard the move command because we don't want to attack a fainted pokemon, or the pokemon that replaces it.
                 //--We don't worry about this for multi target moves here, it will be handled in PerformMoveCommand, where we make a temporary list of all targets
                 //--and make sure we don't call TakeDamage() on a pokemon that IsFainted() it.
-                if( command is UseMoveCommand moveComm && moveCommand.SingleTarget != null && moveCommand.SingleTarget.Pokemon.IsFainted() )
+                if( command is UseMoveCommand moveComm && moveCommand.SingleTarget != null && moveCommand.SingleTarget.Pokemon.IsFainted )
                     yield return _battleSystem.CommandQueue.Dequeue();
                 else
                     yield return _battleSystem.CommandQueue.Dequeue().ExecuteBattleCommand();
@@ -379,7 +380,7 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
 
         yield return null;
 
-        Debug.Log( $"[Command Queue] (ROUND {_battleSystem.Rounds}) Completely Finished ExecuteCommandQueue! Popping State..." );
+        // Debug.Log( $"[Command Queue] (ROUND {_battleSystem.Rounds}) Completely Finished ExecuteCommandQueue! Popping State..." );
 
         yield return null;
         if( _battleSystem.StateMachine.CurrentState == this )

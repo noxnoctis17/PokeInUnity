@@ -383,7 +383,7 @@ public class MoveConditionDB
 
                     OnMoveCompleted = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
-                        if( target.Pokemon.HeldItem != null && !attacker.Pokemon.IsFainted() )
+                        if( target.Pokemon.HeldItem != null && !attacker.Pokemon.IsFainted )
                         {
                             target.Pokemon.RemoveHeldItem();
                             target.Pokemon.AddStatusEvent( StatusEventType.Text, $"{target.Pokemon.NickName} had its item knocked away!" ); //--Add knock off status even for unique anim??
@@ -451,7 +451,7 @@ public class MoveConditionDB
                     {
                         if( target.Pokemon.HeldItem == null ) 
                             return;
-                        if( attacker.Pokemon.IsFainted() )
+                        if( attacker.Pokemon.IsFainted )
                             return;
 
                         if( attacker.Pokemon.HeldItem != null )
@@ -1067,7 +1067,7 @@ public class MoveConditionDB
                         for( int i = 0; i < allyParty.Count; i++ )
                         {
                             var mon = allyParty[i];
-                            if( !mon.IsFainted() && ( mon.SevereStatus == null || mon.SevereStatus?.ID != SevereConditionID.None ) )
+                            if( !mon.IsFainted && ( mon.SevereStatus == null || mon.SevereStatus?.ID != SevereConditionID.None ) )
                                 hits++;
                         }
 
@@ -1082,7 +1082,7 @@ public class MoveConditionDB
                         for( int i = 0; i < allyParty.Count; i++ )
                         {
                             var mon = allyParty[i];
-                            if( !mon.IsFainted() && ( mon.SevereStatus == null || mon.SevereStatus?.ID != SevereConditionID.None ) )
+                            if( !mon.IsFainted && ( mon.SevereStatus == null || mon.SevereStatus?.ID != SevereConditionID.None ) )
                             {
                                 beatUppers.Add( mon );
                             }

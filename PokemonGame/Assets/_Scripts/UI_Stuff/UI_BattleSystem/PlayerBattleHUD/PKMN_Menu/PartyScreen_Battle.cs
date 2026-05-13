@@ -94,6 +94,12 @@ public class PartyScreen_Battle : State<PlayerBattleMenu>, IPartyScreen
             _statusIcon.gameObject.SetActive( true );
         }
 
+        if( pokemon.IsFainted )
+        {
+            _statusIcon.sprite = StatusIconAtlas.FNT;
+            _statusIcon.gameObject.SetActive( true );
+        }
+
         //--Set Ability
         if( pokemon.Ability != null )
             _abilityText.text = $"{pokemon.Ability.Name}";

@@ -14,7 +14,7 @@ public class BattleAI_ActionEvaluation
         _ai = ai;
     }
 
-    public ActionEvaluation BuildActionEvaluation( ActionType type, int baseScore, IBattleAIUnit target, object payload, TurnOutcomeProjection top, ExchangeEvaluation exchangeEval )
+    public ActionEvaluation BuildActionEvaluation( ActionType type, int baseScore, IBattleAIUnit target, BattleUnit targetBattleUnit, object payload, TurnOutcomeProjection top, ExchangeEvaluation exchangeEval )
     {
         ActionEvaluation eval = new()
         {
@@ -27,7 +27,14 @@ public class BattleAI_ActionEvaluation
 
         BattleUnit targetUnit = null;
         if( target != null )
-            targetUnit = _ai.GetBattleUnit( target.PID ); //--It's possible that targets are coming back wrong here for attacks?
+        {
+            // targetUnit = _ai.GetBattleUnit( target.Pokemon ); //--It's possible that targets are coming back wrong here for attacks? -- yes, yes they are. we're somehow getting targets passed into this function that aren't even on the field... --5/2/26 @ 2:20am
+            targetUnit = targetBattleUnit;
+            _ai.CurrentLog.Add( $"Intended Target: {target.Name}" );
+            _ai.CurrentLog.Add( $"Battle Unit Pokemon: {targetUnit.Pokemon.NickName}" );
+        }
+        else if( type != ActionType.OffensiveSwitch && type != ActionType.DefensiveSwitch )
+            Debug.LogError( $"Target is null for a move action!" );
 
         _ai.CurrentLog.Add( $"===[Built Action Evaluation for {eval.Type}. ActionScore: {eval.Score}]===" );
 
@@ -37,8 +44,10 @@ public class BattleAI_ActionEvaluation
             case ActionType.Setup:
             case ActionType.OffensiveStatus:
                 eval.Target = targetUnit;
+                _ai.CurrentLog.Add( $"" );
+                _ai.CurrentLog.Add( $"Attack's Target: (passed) {target.Name}" );
                 eval.MovePayload = (Move)payload;
-                _ai.CurrentLog.Add( $"Attack's Target: (passed) {target.Name}, (battle unit searched) {eval.Target.Pokemon.NickName}" );
+                _ai.CurrentLog.Add( $"(battle unit searched) {eval.Target.Pokemon.NickName}" );
                 break;
 
             case ActionType.DefensiveSwitch: //--and--//
@@ -47,6 +56,9 @@ public class BattleAI_ActionEvaluation
                 _ai.CurrentLog.Add( $"Switch Candidate: {eval.SwitchPayload.NickName}" );
                 break;
         }
+
+        _ai.CurrentLog.Add( $"================================================================" );
+        _ai.CurrentLog.Add( $"" );
 
         return eval;
     }
@@ -97,29 +109,48 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Mutual KO! Score: {score}" );
         }
 
-        bool movesFirst = top.Attacker.Speed > top.Opponent.Speed;
+        //--If force a switch, punish the switch in!
+        float theySwitchProbability = eval.ExchangeEvaluation.OpponentSwitchProbability;
+        score += Mathf.FloorToInt( 25f * theySwitchProbability );
+        _ai.CurrentLog.Add( $"Probability the opponent switches: {theySwitchProbability}. Score: {score}" );
 
-        //--We potentially force a switch, punish the switch in!
-        bool weForceSwitch = _ai.UnitSim.PredictSwitchProbability( top.AttackerPTKO, top.OpponentPTKO, movesFirst, top.Attacker.BeginningHPR, top.Opponent.BeginningHPR ) >= 0.8f;
-        if( weForceSwitch )
+        //--Risky survival push
+        var ee = eval.ExchangeEvaluation;
+        bool weMightSurvive = top.OpponentPTKO != PotentialToKO.OHKO && ee.OpponentPTKOR.PTKO >= PotentialToKO.Risky;
+        bool weFaintInSim = top.Attacker_EndOfTurnHP <= 0f;
+
+        if( weMightSurvive && weFaintInSim )
         {
-            score += 25;
-            _ai.CurrentLog.Add( $"We threaten to force a switch! Score: {score}" );
+            int comebackPotential = 0;
+            bool opponentSelfDebuffs = _ai.UnitSim.CheckHasSelfDebuffMove( top.Opponent.ActiveMoves ) && !top.AttackerMovedFirst;
+            bool opponentChipsSelf = ( _ai.UnitSim.CheckHasRecoilMove( top.Opponent.ActiveMoves ) || top.Opponent.Item == BattleItemEffectID.LifeOrb ) && !top.AttackerMovedFirst;
+
+            if( ee.AttackerThreatensKO )
+                comebackPotential += 2;
+
+            if( opponentSelfDebuffs )
+                comebackPotential += 2;
+
+            if( opponentChipsSelf )
+                comebackPotential += 2;
+
+            score += comebackPotential * 25;
         }
 
         //--Look Ahead Section-------------------------
-        var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
-        var ourActiveAdapters = _ai.CreateBattleAIUnits_FromBattleUnits( ourActivePokemon );
+        bool weForceSwitch = UnityEngine.Random.value <= theySwitchProbability;
         
-        var offensiveSwitch = _ai.SwitchCommand.GetSwitch_Offensive( ourActiveAdapters, true, top.Opponent ).Pokemon;
-        var defensiveSwitch = _ai.SwitchCommand.GetSwitch_Defensive( ourActiveAdapters, true, top.Opponent ).Top.Attacker;
+        var ourActiveAdapters = _ai.GetActiveAllyUnits_AsBattleAIUnits( _ai.Unit.Pokemon );
+        
+        var offensiveSwitch = _ai.SwitchCommand.GetSwitch_Revenge( ourActiveAdapters ).Pokemon;
+        var defensiveSwitch = _ai.SwitchCommand.GetSwitch_Defensive( top.Opponent ).Top.Attacker;
 
         SimulatedUnit nextOpponent;
         MoveThreatResult nextOpponentMTR;
 
         if( top.Opponent_EndOfTurnHP <= 0f && offensiveSwitch != null )
         {
-            BattleAI_PokemonAdapter opponentOffensiveSwitchAdapter = new( offensiveSwitch, _ai );
+            BattleAI_PokemonAdapter opponentOffensiveSwitchAdapter = _ai.GetPokemonAs_Adapter( offensiveSwitch );
             nextOpponentMTR = _ai.MoveCommand.GetMove_BestAttack( opponentOffensiveSwitchAdapter, top.Attacker );
             nextOpponent = _ai.UnitSim.BuildSimUnit( opponentOffensiveSwitchAdapter, opponentOffensiveSwitchAdapter.BeginningHPR, nextOpponentMTR, top.Field );
         }
@@ -204,23 +235,18 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Bad Trade detected. Score: {score}" );
         }
 
-        bool weAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP ) >= 0.8f;
-        bool theyAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP ) >= 0.8f;
+        //--Switch Check
+        float weAreForcedOutProb = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP, next.Attacker.Expendability );
+        float theyAreForcedOutProb = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP, next.Opponent.Expendability );
 
-        if( theyAreForcedOut )
-        {
-            score += 25;
-            _ai.CurrentLog.Add( $"We force them to switch next round! Score: {score}" );
-        }
+        score += Mathf.FloorToInt( 25f * weAreForcedOutProb );
+        _ai.CurrentLog.Add( $"We force them to switch next round! Score: {score}" );
 
-        if( weAreForcedOut )
-        {
-            score -= 30;
-            _ai.CurrentLog.Add( $"They force us to switch next round! Score: {score}" );
-        }
+        score -= Mathf.FloorToInt( 30f * theyAreForcedOutProb );
+        _ai.CurrentLog.Add( $"They force us to switch next round! Score: {score}" );
 
-        eval.NextTurn_WeAreForcedOut = weAreForcedOut;
-        eval.NextTurn_TheyAreForcedOut = theyAreForcedOut;
+        eval.NextTurn_WeAreForcedOut = weAreForcedOutProb >= 0.7f;
+        eval.NextTurn_TheyAreForcedOut = theyAreForcedOutProb >= 0.7f;
 
         eval.Top2 = next;
         eval.Score = score;
@@ -251,6 +277,30 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Switch in (attacker) takes big damage on entry, leaving it at {top.Attacker_EndOfTurnHP} HP on switch in! Score: {score}" );
         }
 
+        //--Risky survival push
+        var ee = eval.ExchangeEvaluation;
+        bool weMightSurvive = ee.OpponentPTKOR.PTKO != PotentialToKO.OHKO && ee.OpponentPTKOR.PTKO >= PotentialToKO.Risky;
+        bool weFaintInEval = !ee.AttackerSurvives;
+
+        if( weMightSurvive && weFaintInEval )
+        {
+            int comebackPotential = 0;
+
+            bool opponentSelfDebuffs = _ai.UnitSim.CheckHasSelfDebuffMove( top.Opponent.ActiveMoves ) && !top.AttackerMovedFirst;
+            bool opponentChipsSelf = ( _ai.UnitSim.CheckHasRecoilMove( top.Opponent.ActiveMoves ) || top.Opponent.Item == BattleItemEffectID.LifeOrb ) && !top.AttackerMovedFirst;
+
+            if( ee.AttackerThreatensKO )
+                comebackPotential += 2;
+
+            if( opponentSelfDebuffs )
+                comebackPotential += 2;
+
+            if( opponentChipsSelf )
+                comebackPotential += 2;
+
+            score -= comebackPotential * 10;
+        }
+
         //--Look Ahead Portion-----------------
 
         //--We need to establish PTKOs and the general attack potential of the following round using the switch candidate.
@@ -265,8 +315,10 @@ public class BattleAI_ActionEvaluation
 
         bool weCantThreatenBack = next.AttackerPTKO >= PotentialToKO.TwoHKO && !next.AttackerMovedFirst;
 
-        bool weAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP ) >= 0.8f;
-        bool theyAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP ) >= 0.8f;
+        float weAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP, next.Attacker.Expendability );
+        float theyAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP, next.Opponent.Expendability );
+
+
 
         if( weDie )
         {
@@ -291,9 +343,9 @@ public class BattleAI_ActionEvaluation
         if( oppHPLoss >= 0.3f )             score += 25;
         else if( oppHPLoss >= 0.15f )       score += 10;
 
-        if( weAreForcedOut && weCantThreatenBack )
+        if( weCantThreatenBack )
         {
-            score -= 60;
+            score -= Mathf.FloorToInt( 60f * weAreForcedOut);
             _ai.CurrentLog.Add( $"Switch creates unstable position (forced out next turn)! Score: {score}" );
         }
 
@@ -318,13 +370,14 @@ public class BattleAI_ActionEvaluation
 
         if( reEnteringBadMatchup )
         {
-            score -= 50;
+            score -= 75;
             _ai.CurrentLog.Add( $"Switch Loop detected, chunking score! Score {score}" );
         }
 
-        if( weThreatenThem || weKOThem || theyAreForcedOut )
+        if( weThreatenThem || weKOThem )
         {
             score += 35;
+            score += Mathf.FloorToInt( 30f * theyAreForcedOut );
         }
 
         eval.Top2 = next;
@@ -372,9 +425,8 @@ public class BattleAI_ActionEvaluation
         if( weThreaten )
             score += 35;
 
-        bool theyAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP ) >= 0.8f;
-        if( theyAreForcedOut )
-            score += 40;
+        float theyAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP, next.Opponent.Expendability );
+        score += Mathf.FloorToInt( 40f * theyAreForcedOut );
 
         float oppHPLossRaw = top.Opponent_EndOfTurnHP - next.Opponent_EndOfTurnHP;
         float oppHPLoss = NormalizeDamage( oppHPLossRaw, top.Opponent_EndOfTurnHP );
@@ -387,9 +439,8 @@ public class BattleAI_ActionEvaluation
         if( weDie )
             score -= 100;
 
-        bool weAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP ) >= 0.8f;
-        if( weAreForcedOut )
-            score -= 75;
+        float weAreForcedOut = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, top.Opponent_EndOfTurnHP, top.Attacker_EndOfTurnHP, next.Attacker.Expendability );
+        score -= Mathf.FloorToInt( 75f * weAreForcedOut );
 
         float damageTakenRaw = top.Attacker.CurrentHPR - next.Attacker_EndOfTurnHP;
         float damageTaken = NormalizeDamage( damageTakenRaw, top.Attacker.CurrentHPR );
@@ -405,21 +456,23 @@ public class BattleAI_ActionEvaluation
 
     private ActionEvaluation EvaluateSetupAction( ActionEvaluation eval )
     {
-        const int DIE_BEFORE_ACTING_PENALTY        = 150;
-        const int SETUP_DIES_AFTER_ACTING_PENALTY  = 100;
-        const int HEAVY_SETUP_DAMAGE_PENALTY       = 50;
-        const int SETUP_THREATEN_KO_NEXT_TURN      = 30;
-        const int SETUP_FORCE_SWITCH_BONUS         = 30;
+        const int DIE_BEFORE_ACTING_PENALTY         = 150;
+        const int SETUP_DIES_AFTER_ACTING_PENALTY   = 175;
+        const int HEAVY_SETUP_DAMAGE_PENALTY        = 50;
+        const int SETUP_THREATEN_KO_NEXT_TURN       = 30;
+        const int OPPONENT_SWITCH_WEIGHT            = 50;
+        const int WE_SWITCH_WEIGHT                  = 75;
 
         int score = eval.Score;
         var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Setup Action (Score: {score})]===" );
 
-        bool weForceSwitch = _ai.UnitSim.PredictSwitchProbability( top.AttackerPTKO, top.OpponentPTKO, top.AttackerMovedFirst, top.Attacker.CurrentHPR, top.Opponent.CurrentHPR ) >= 0.85f;
+        float weForceSwitch = eval.ExchangeEvaluation.OpponentSwitchProbability;
+        score += Mathf.FloorToInt( OPPONENT_SWITCH_WEIGHT * weForceSwitch );
 
         //--We died before the setup completed
-        if( top.Attacker_DiesBeforeActing && !weForceSwitch )
+        if( top.Attacker_DiesBeforeActing )
         {
             score -= DIE_BEFORE_ACTING_PENALTY;
             // eval.Score = score;
@@ -428,7 +481,7 @@ public class BattleAI_ActionEvaluation
         }
 
         //--We get KOd even if we setup
-        if( top.Attacker_EndOfTurnHP <= 0 && !weForceSwitch )
+        if( top.Attacker_EndOfTurnHP <= 0 )
         {
             score -= SETUP_DIES_AFTER_ACTING_PENALTY;
             // eval.Score = score;
@@ -436,15 +489,19 @@ public class BattleAI_ActionEvaluation
             // return eval;
         }
 
-        //--Severe damage taken while setting up
+        //--Low HP after setting up
         if( top.Attacker_EndOfTurnHP <= 0.3f )
         {
             score -= HEAVY_SETUP_DAMAGE_PENALTY;
             _ai.CurrentLog.Add( $"Took big damage! Score: {score}" );
         }
 
-        //--"Slight Look ahead" //--maybe add fork for switch
-        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent, "Evaluate Setup Action" ).Top;
+        //--------------------------------
+        //----------Look Ahead------------
+        //--------------------------------
+
+        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent, false, "Evaluate Setup Action (Look Ahead)" ).Top;
+
         if( next.Attacker_DiesBeforeActing )
         {
             score -= DIE_BEFORE_ACTING_PENALTY;
@@ -498,18 +555,26 @@ public class BattleAI_ActionEvaluation
         }
 
         //--Opponent is now in KO range next turn
-        bool movesFirst = next.Attacker.Speed > next.Opponent.Speed;
-        bool weForceSwitchNextTurn = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, movesFirst, next.Attacker.CurrentHPR, next.Opponent.CurrentHPR ) >= 0.8f;
+        bool movesFirst = next.AttackerMovedFirst;
 
-        if( weForceSwitchNextTurn )
-        {
-            score += SETUP_FORCE_SWITCH_BONUS;
-            _ai.CurrentLog.Add( $"Setup forces opponent to switch! {score}" );
-        }
+        float weForceSwitchNextTurnProbability = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, movesFirst, next.Attacker.CurrentHPR, next.Opponent.CurrentHPR, next.Opponent.Expendability, true, $"{next.Opponent.Name} (Setup Look Ahead)" );
+        float theyForceUsToSwitchNextTurnProbability = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, movesFirst, next.Opponent.CurrentHPR, next.Attacker.CurrentHPR, next.Attacker.Expendability, true, $"{next.Attacker.Name} (Setup Look Ahead)" );
+
+        float dangerWeight =
+            next.OpponentPTKO >= PotentialToKO.OHKO ? 1.5f :
+            next.OpponentPTKO >= PotentialToKO.Dangerous ? 1.25f :
+            next.OpponentPTKO >= PotentialToKO.Risky ? 1f :
+            next.OpponentPTKO >= PotentialToKO.TwoHKO ? 0.5f : 0.25f;
+
+        float penalty = WE_SWITCH_WEIGHT * dangerWeight;
+
+        score += Mathf.FloorToInt( OPPONENT_SWITCH_WEIGHT * weForceSwitchNextTurnProbability );
+        score -= Mathf.FloorToInt( ( 1f - theyForceUsToSwitchNextTurnProbability ) * penalty );
 
         var oppTeam = _ai.GetRemainingOpposingPokemon( next.Attacker.PID );
         int fasterBonus = 0;
         bool weKO = next.Opponent_DiesBeforeActing || next.Opponent_EndOfTurnHP <= 0f;
+        bool weForceSwitchNextTurn = weForceSwitchNextTurnProbability >= 0.7f;
         bool sweepBeginning = weKO || weForceSwitchNextTurn;
 
         if( sweepBeginning )
@@ -539,9 +604,7 @@ public class BattleAI_ActionEvaluation
 
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Status Action (Score: {score})]===" );
 
-        bool weForceSwitch = _ai.UnitSim.PredictSwitchProbability( top.AttackerPTKO, top.OpponentPTKO, top.AttackerMovedFirst, top.Attacker.CurrentHPR, top.Opponent.CurrentHPR ) >= 0.85f;
-
-        if( top.Attacker_DiesBeforeActing && !weForceSwitch )
+        if( top.Attacker_DiesBeforeActing )
         {
             score -= 120;
             // eval.Score = score;
@@ -549,7 +612,7 @@ public class BattleAI_ActionEvaluation
             // return eval;
         }
 
-        if( top.Attacker_EndOfTurnHP <= 0f && !weForceSwitch )
+        if( top.Attacker_EndOfTurnHP <= 0f )
         {
             score -= 90;
             // eval.Score = score;
@@ -571,7 +634,7 @@ public class BattleAI_ActionEvaluation
 
         var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent ).Top;
 
-        bool weNowMoveFirst = next.Attacker.Speed > next.Opponent.Speed;
+        bool weNowMoveFirst = next.AttackerMovedFirst;
         if( !top.AttackerMovedFirst && weNowMoveFirst )
         {
             score += 40;
@@ -628,12 +691,9 @@ public class BattleAI_ActionEvaluation
             // return eval;
         }
 
-        bool weForceSwitchNextTurn = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP ) >= 0.8f;
-        if( weForceSwitchNextTurn )
-        {
-            score += 35;
-            _ai.CurrentLog.Add( $"We force a switch! Score: {score}" );
-        }
+        float weForceSwitchNextTurnProb = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, next.Attacker.BeginningHPR, next.Opponent.BeginningHPR, top.Opponent.Expendability );
+        score += Mathf.FloorToInt( 50f * weForceSwitchNextTurnProb );
+        _ai.CurrentLog.Add( $"We force a switch next turn probability: {weForceSwitchNextTurnProb} * 50f. Score: {score}" );
 
         float damageTakenRaw = next.Attacker.CurrentHPR - next.Attacker_EndOfTurnHP;
         float damageTaken = NormalizeDamage( damageTakenRaw, next.Attacker.CurrentHPR );
@@ -655,7 +715,7 @@ public class BattleAI_ActionEvaluation
 
         _ai.CurrentLog.Add( $"Opposing Court's hazard count: {oppCourtConditions.Count}" );
 
-        if( weForceSwitchNextTurn && hasHazards )
+        if( hasHazards )
         {
             float hazardDamage = 0f;
 
@@ -663,10 +723,10 @@ public class BattleAI_ActionEvaluation
                 hazardDamage += _ai.Get_EntryHazardDamage( top.Opponent, condition.Key );
 
             int hazardScore = Mathf.FloorToInt( hazardDamage * 120f );
-            score += hazardScore;
+            score += Mathf.FloorToInt( 25f * weForceSwitchNextTurnProb * hazardScore );
 
             if( !top.OpponentCanAct || weNowMoveFirst )
-                score += 10;
+                score += 25;
 
             _ai.CurrentLog.Add( $"We have hazard pressure! Hazard Damage: {hazardDamage}, Hazard Score: {hazardScore} Score: {score}" );
         }
@@ -728,15 +788,15 @@ public class BattleAI_ActionEvaluation
         BattleAI_PokemonAdapter revengeCandidate = null;
         if( eval.Top1.Attacker_DiesBeforeActing || eval.Top1.Attacker_EndOfTurnHP <= 0 )
         {
-            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.OpposingUnits ).Pokemon;
+            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.TheirBattleAIUnits ).Pokemon;
             if( switchCandidate != null )
-                revengeCandidate = new( switchCandidate, _ai  );
+                revengeCandidate = _ai.GetPokemonAs_Adapter( switchCandidate );
         }
         else if( eval.Top1.AttackerPTKO <= PotentialToKO.Safe && eval.Top1.OpponentPTKO >= PotentialToKO.TwoHKO )
         {
-            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.OpposingUnits ).Pokemon;
+            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.TheirBattleAIUnits ).Pokemon;
             if( switchCandidate != null )
-                revengeCandidate = new( switchCandidate, _ai  );
+                revengeCandidate = _ai.GetPokemonAs_Adapter( switchCandidate );
         }
 
         IBattleAIUnit nextPokemon;
@@ -796,11 +856,9 @@ public class BattleAI_ActionEvaluation
         _ai.CurrentLog.Add( $"Attacker Moves first in follow up round? {followUp.AttackerMovedFirst} Score: {score}" );
 
         //--Forced Switch check on follow up turn. we use the next pokemon's current hpr and eval TOP opponent's end of turn hpr because that's the hp they will start the follow up round with. we want to know if we force a switch during that round, not after.
-        if( _ai.UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, nextPokemon.CurrentHPR, eval.Top1.Opponent_EndOfTurnHP ) >= 0.8 )
-        {
-            score += 30;
-            _ai.CurrentLog.Add( $"Opponent is likely forced to switch in follow up! Score: {score}" );
-        }
+        float weForceSwitchNextTurnProb = _ai.UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, nextPokemon.CurrentHPR, eval.Top1.Opponent_EndOfTurnHP, followUp.Opponent.Expendability );
+        score += Mathf.FloorToInt( 30f * weForceSwitchNextTurnProb );
+        _ai.CurrentLog.Add( $"Opponent's switch probability {weForceSwitchNextTurnProb} * 30f. Score: {score}" );
 
         //--Dead end penalty to punish bad sacrifice lines
         if( ( followUp.Attacker_EndOfTurnHP <= 0 || followUp.Attacker_DiesBeforeActing ) && followUp.Opponent_EndOfTurnHP >= 0.5f )
@@ -810,7 +868,7 @@ public class BattleAI_ActionEvaluation
         }
 
         //--Piece Value death penalty
-        if( _ai.TeamPieceValues.TryGetValue( eval.Top1.Attacker.PID, out var pieceValue ) )
+        if( _ai.OurTeamPieceValues.TryGetValue( eval.Top1.Attacker.Pokemon, out var pieceValue ) )
         {
             int deathValuePenalty = Mathf.FloorToInt( pieceValue.OffensiveValue * 0.5f );
             score -= deathValuePenalty;
@@ -827,7 +885,7 @@ public class BattleAI_ActionEvaluation
             }
         }
 
-        if( nextPokemon != null && _ai.TeamPieceValues.TryGetValue( nextPokemon.PID, out var nextValue ) )
+        if( nextPokemon != null && _ai.OurTeamPieceValues.TryGetValue( nextPokemon.Pokemon, out var nextValue ) )
         {
             int reward = Mathf.FloorToInt( nextValue.OffensiveValue * 0.3f );
 
@@ -854,7 +912,7 @@ public class BattleAI_ActionEvaluation
         return eval;
     }
 
-    public int EvaluateThreatResponse( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
+    public int EvaluateThreatResponse( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc, SurvivalClass sc )
     {
         int score = 0;
         float sackScalar = 0.7f;
@@ -1152,13 +1210,9 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"This action changes speed dynamic in our favor. Score: {score}" );
         }
 
-        float theySwitchProbability = _ai.UnitSim.PredictSwitchProbability( top1.AttackerPTKO, top1.OpponentPTKO, top1.AttackerMovedFirst, top1.Attacker.BeginningHPR, top1.Opponent.BeginningHPR );
-        _ai.CurrentLog.Add( $"Switch Probability: {theySwitchProbability}" );
-        if( theySwitchProbability >= 0.8f )
-        {
-            score += 35;
-            _ai.CurrentLog.Add( $"The threat switches. Score: {score}" );
-        }
+        float theySwitchProbability = _ai.UnitSim.PredictSwitchProbability( top1.AttackerPTKO, top1.OpponentPTKO, top1.AttackerMovedFirst, top1.Attacker.BeginningHPR, top1.Opponent.BeginningHPR, top1.Opponent.Expendability );
+        score += Mathf.FloorToInt( 50f * theySwitchProbability );
+        _ai.CurrentLog.Add( $"Switch Probability: {theySwitchProbability}. Score: {score}" );
 
         bool canKillNow = top1.AttackerPTKO >= PotentialToKO.Dangerous && top1.AttackerMovedFirst;
         if( canKillNow && action.Type != ActionType.Attack )
@@ -1195,7 +1249,7 @@ public class BattleAI_ActionEvaluation
 
         //--Doomed potential
         //--Sweep check
-        if( doomed.SweepIncoming && ( top1.Opponent_EndOfTurnHP < 0.5f || top2.Opponent_EndOfTurnHP <= 0f ) )
+        if( doomed.SweepIncoming && ( top1.Opponent_EndOfTurnHP < 0.55f || top2.Opponent_EndOfTurnHP <= 0f ) )
         {
             score += 25;
             _ai.CurrentLog.Add( $"Doomed Turn Sweep Detected. This action threatens to shut it down! Score: {score}" );
@@ -1438,7 +1492,7 @@ public class BattleAI_ActionEvaluation
         score += contextScore;
         _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
 
-        bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherAbility( switchCandidate );
+        bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherSetter_Ability( switchCandidate );
         bool switchChangesWeather = false;
         WeatherConditionID candidatesWeather = WeatherConditionID.None;
 
@@ -1576,7 +1630,7 @@ public class BattleAI_ActionEvaluation
         score += contextScore;
         _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
 
-        bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherAbility( switchCandidate );
+        bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherSetter_Ability( switchCandidate );
         bool switchChangesWeather = false;
         WeatherConditionID candidatesWeather = WeatherConditionID.None;
 

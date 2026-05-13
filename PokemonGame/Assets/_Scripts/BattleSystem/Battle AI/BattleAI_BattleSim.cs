@@ -857,7 +857,7 @@ public class BattleAI_BattleSim
             {
                 "Fake Out", ( attacker, target, move ) =>
                 {
-                    var attackerUnit = _ai.GetBattleUnit( attacker.PID );
+                    var attackerUnit = _ai.GetBattleUnit( attacker.Pokemon );
 
                     if( attackerUnit.Flags[UnitFlags.TurnsTaken].Count > 0 )
                         return false;

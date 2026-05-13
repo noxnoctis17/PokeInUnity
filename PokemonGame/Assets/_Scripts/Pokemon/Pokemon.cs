@@ -3,9 +3,6 @@ using UnityEngine;
 using System;
 using System.Linq;
 using UnityEditor;
-using System.Runtime.InteropServices;
-using Unity.Collections.LowLevel.Unsafe;
-using System.Threading;
 
 [Serializable]
 public class Pokemon
@@ -69,6 +66,7 @@ public class Pokemon
 //==================[ Events ]===========================================
     public event Action OnStatusChanged;
     public event Action OnDisplayInfoChanged;
+    public bool IsFainted { get; private set; }
 
 //--------------------------------------------------------------------------------------------
 //-----------------------------------[POKEMON STATS]------------------------------------------
@@ -634,7 +632,8 @@ public class Pokemon
         };
     }
 
-    private void InitializeEVs(){
+    private void InitializeEVs()
+    {
         EffortValues = new()
         {
             { Stat.HP,          _hpEVs },
@@ -646,14 +645,17 @@ public class Pokemon
         };
     }
 
-    private float CalcEVs( int statEVs ){
+    private int CalcEVs( int statEVs )
+    {
         float ev = statEVs;
         float value = ev / 4;
+        int floor = Mathf.FloorToInt( value );
 
-        return Mathf.FloorToInt( value );
+        return Mathf.Max( 0, floor );
     }
 
-    private int GetEVs( Stat stat ){
+    private int GetEVs( Stat stat )
+    {
         return EffortValues[stat];
     }
 
@@ -710,7 +712,7 @@ public class Pokemon
             { NatureID.Relaxed,     new(){ PositiveStat = Stat.Defense,     NegativeStat = Stat.Speed } },
             { NatureID.Impish,      new(){ PositiveStat = Stat.Defense,     NegativeStat = Stat.SpAttack } },
             { NatureID.Lax,         new(){ PositiveStat = Stat.Defense,     NegativeStat = Stat.SpDefense } },
-            { NatureID.Timid,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.Defense } },
+            { NatureID.Timid,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.Attack } },
             { NatureID.Hasty,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.Defense } },
             { NatureID.Jolly,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.SpAttack } },
             { NatureID.Naive,       new(){ PositiveStat = Stat.Speed,       NegativeStat = Stat.SpDefense } },
@@ -1317,6 +1319,7 @@ public class Pokemon
 
     public void FullHeal()
     {
+        IsFainted = false;
         CureSevereStatus();
         ClearAllVolatileStatus();
         CureTransientStatus();
@@ -1333,13 +1336,8 @@ public class Pokemon
 
     public void SetFainted()
     {
-        SevereStatus = SevereConditionsDB.Conditions[SevereConditionID.FNT];
         CurrentHP = 0;
-    }
-
-    public bool IsFainted()
-    {
-        return SevereStatus?.ID == SevereConditionID.FNT;
+        IsFainted = true;
     }
 
     public void AddStatusEvent( StatusEventType type, string message, int change = 0 )

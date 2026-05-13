@@ -358,7 +358,7 @@ public class BattleItemDB
                         attacker.Pokemon.DecreaseHP( damage );
                         attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, $"{attacker.Pokemon.NickName} is hurt by {target.Pokemon.NickName}'s Rocky Helmet!" );
 
-                        attacker.Pokemon.BattleItemEffect?.OnTakePassiveDamage( attacker, damage );
+                        attacker.Pokemon.BattleItemEffect?.OnTakePassiveDamage?.Invoke( attacker, damage );
                     }
                 },
             }
@@ -432,5 +432,6 @@ public enum BattleItemEffectID
     BlackSludge,
     AirBalloon,
     MetalCoat,
+    AssaultVest,
 
 }
