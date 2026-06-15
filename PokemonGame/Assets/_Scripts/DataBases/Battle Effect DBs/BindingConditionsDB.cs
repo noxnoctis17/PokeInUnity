@@ -67,7 +67,8 @@ public class BindingConditionsDB
         }
     }
 
-    private static void SetDictionary(){
+    private static void SetDictionary()
+    {
         Conditions = new Dictionary<BindingConditionID, BindingCondition>()
         {
             {
@@ -149,4 +150,6 @@ public enum BindingConditionID
     Bind,
     Wrap,
     AcidTrap,
+    ShadowTag,
+    ArenaTrap,
 }

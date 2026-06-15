@@ -234,6 +234,7 @@ public class MoveEffects
     [SerializeField] private TerrainID _terrain;
     //--Court Conditions (Tailwind, Entry Hazards, Screens, etc.)
     [SerializeField] private CourtConditionID _courtCondition;
+    [SerializeField] private FieldConditionID _fieldCondition;
     [SerializeField] private SwitchEffectType _switchType;
 
     public EffectTarget Target => _target;
@@ -246,6 +247,7 @@ public class MoveEffects
     public WeatherConditionID Weather => _weather;
     public TerrainID Terrain => _terrain;
     public CourtConditionID CourtCondition => _courtCondition;
+    public FieldConditionID FieldCondition => _fieldCondition;
     public SwitchEffectType SwitchType => _switchType;
 
     public MoveEffects()

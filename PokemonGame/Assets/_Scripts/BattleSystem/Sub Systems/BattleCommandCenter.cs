@@ -835,14 +835,6 @@ public class BattleCommandCenter : MonoBehaviour
 
             if( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage != null )
                 BattleSystem.AddDialogue( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.StartMessage );
-            
-            if( effects.CourtCondition == CourtConditionID.TrickRoom )
-            {
-                if( !BattleSystem.BattleFlags[BattleFlag.TrickRoom] )
-                    BattleSystem.AddDialogue( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.TrickRoomStartMessage?.Invoke( BattleSystem, attacker.Pokemon ) );
-                else
-                    BattleSystem.AddDialogue( BattleSystem.Field.ActiveCourts[location]?.Conditions[effects.CourtCondition]?.TrickRoomAlreadyActiveMessage?.Invoke( BattleSystem, attacker.Pokemon ) );
-            }
 
             yield return BattleSystem.WaitForUIQueue();
 
@@ -858,6 +850,24 @@ public class BattleCommandCenter : MonoBehaviour
             BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
             yield return null;
             yield return BattleSystem.WaitForEventQueue();
+        }
+
+        if( effects.FieldCondition != FieldConditionID.None )
+        {
+            if( effects.FieldCondition == FieldConditionID.TrickRoom )
+            {
+                if( !BattleSystem.BattleFlags[BattleFlag.TrickRoom] )
+                {
+                    BattleSystem.Field.AddFieldCondition( FieldConditionID.TrickRoom );
+                    BattleSystem.AddDialogue( BattleSystem.Field.FieldConditions[FieldConditionID.TrickRoom]?.StartMessage?.Invoke( BattleSystem, attacker.Pokemon ) );
+                }
+                else
+                {
+                    BattleSystem.AddDialogue( BattleSystem.Field.FieldConditions[FieldConditionID.TrickRoom]?.StartMessage?.Invoke( BattleSystem, attacker.Pokemon ) ); //--Start Message handles reversal
+                    BattleSystem.Field.FieldConditions[FieldConditionID.TrickRoom].OnEnd?.Invoke( BattleSystem, BattleSystem.Field, attacker );
+                    BattleSystem.Field.RemoveFieldCondition( FieldConditionID.TrickRoom );
+                }
+            }
         }
 
         if( effects.SwitchType != SwitchEffectType.None )
@@ -1104,7 +1114,7 @@ public class BattleCommandCenter : MonoBehaviour
         else
             trainer = BattleSystem.BottomTrainer1;
 
-        BattleSystem.RoundLog.Add( $"{trainer.TrainerName} is switching {unit.Pokemon.NickName} for {pokemon.NickName}" );
+        BattleSystem.RoundLog.Add( $"{trainer.TrainerName} is switching {unit.Pokemon?.NickName} for {pokemon?.NickName}" );
 
         ClearBattleUnit( unit );
 

@@ -385,6 +385,9 @@ public class MoveConditionDB
                     {
                         if( target.Pokemon.HeldItem != null && !attacker.Pokemon.IsFainted )
                         {
+                            if( target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.ChoiceLocked ) )
+                                target.Pokemon.CureVolatileStatus( VolatileConditionID.ChoiceLocked );
+                                
                             target.Pokemon.RemoveHeldItem();
                             target.Pokemon.AddStatusEvent( StatusEventType.Text, $"{target.Pokemon.NickName} had its item knocked away!" ); //--Add knock off status even for unique anim??
                         }

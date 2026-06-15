@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Rendering;
 using UnityEngine;
 
 public class CourtConditionDB
@@ -66,53 +65,6 @@ public class CourtConditionDB
                         Debug.Log( $"{unit.Pokemon.NickName} is about to leave Tailwind! Current Speed: {unit.Pokemon.Speed}" );
                         unit.Pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.Tailwind );
                         Debug.Log( $"{unit.Pokemon.NickName} is no longer in Tailwind! Current Speed: {unit.Pokemon.Speed}" );
-                    }
-                }  
-            },
-            {
-                CourtConditionID.TrickRoom, new( 5, 0 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
-                {
-                    ID = CourtConditionID.TrickRoom,
-                    TrickRoomStartMessage = ( BattleSystem bs, Pokemon pokemon ) =>
-                    {
-                        return $"{pokemon.NickName} has twisted the dimensions of speed!";
-                    },
-
-                    TrickRoomAlreadyActiveMessage = ( BattleSystem bs, Pokemon pokemon ) =>
-                    {
-                        return $"{pokemon.NickName} has returned the dimensions of speed back to normal!";
-                    },
-
-                    EndMessage = "The dimensions of speed have returned to normal.",
-                    //--Duration = 5,
-                    //--DurationModifier = 0,
-
-                    OnStart = ( BattleSystem bs, Battlefield field, CourtLocation location, BattleUnit user ) =>
-                    {
-                        Debug.Log( "Trick Room OnStart" );
-                        if( bs.BattleFlags[BattleFlag.TrickRoom] )
-                        {
-                            Debug.Log( "Trick Room is already up! Reversing Trick Room!" );
-                            field.ActiveCourts[location].Conditions[CourtConditionID.TrickRoom].OnEnd?.Invoke( bs, field );
-                        }
-                        else
-                        {
-                            Debug.Log( "Trick Room Begins Baybeeeeeeeeeeee" );
-                            var court = field.ActiveCourts[location];
-                            int duration = court.Conditions[CourtConditionID.TrickRoom].Duration;
-                            int modifier = court.Conditions[CourtConditionID.TrickRoom].DurationModifier; //--For Posterity when implementing screens + lightclay, this will be the extension lightclay adds to the default duration
-
-                            //--Set/Reset TimeLeft OnStart. For conditions with modifiers, we'll have to probably add the unit using the move and check for their held item or ability or w/e for modifier influence
-                            court.Conditions[CourtConditionID.TrickRoom].SetTimeLeft( duration );
-                            Debug.Log( $"{location}'s Trick Room's duration is: {duration}" );
-                            bs.SetBattleFlag( BattleFlag.TrickRoom, true );
-                        }
-                    },
-
-                    OnEnd = ( BattleSystem bs, Battlefield field ) =>
-                    {
-                        Debug.Log( "Trick Room OnEnd" );
-                        bs.SetBattleFlag( BattleFlag.TrickRoom, false );
                     }
                 }  
             },
@@ -442,7 +394,7 @@ public enum CourtConditionID
 {
     None,
     Tailwind,
-    TrickRoom,
+    FriendGuard,
     Reflect,
     LightScreen,
     LeechSeed,

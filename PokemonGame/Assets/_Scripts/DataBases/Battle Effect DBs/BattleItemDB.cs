@@ -401,6 +401,13 @@ public class BattleItemDB
                 ID = BattleItemEffectID.HeavyDutyBoots,
                 //--Effect for this item is handled in all places entry hazard damage is checked, including the AI system.
             }
+        },
+        {
+            BattleItemEffectID.SafetyGoggles, new()
+            {
+                ID = BattleItemEffectID.SafetyGoggles,
+                //--Effect for this item should be handled in sandstorm damage check + powder move check
+            }
         }
     };
 }
@@ -433,5 +440,7 @@ public enum BattleItemEffectID
     AirBalloon,
     MetalCoat,
     AssaultVest,
+    LumBerry,
+    SafetyGoggles,
 
 }

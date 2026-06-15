@@ -172,6 +172,9 @@ public class BattleAI_UnitSim
             SpDefense = pokemon.SpDefense,
             Speed = _ai.GetUnitContextualSpeed( pokemon ),
 
+            RoleProfile = pokemon.RoleProfile,
+            StatSpread = pokemon.StatSpread,
+
             ActiveMoves = activeMoves,
             MTR = mtr,
 
@@ -768,6 +771,65 @@ public class BattleAI_UnitSim
         return isSetupMove;
     }
 
+    public bool MoveIsOffensiveSetupPlus2( Move move )
+    {
+        if( move.MoveSO.MoveCategory != MoveCategory.Status )
+            return false;
+
+        var statChanges = move.MoveSO.MoveEffects.StatChangeList;
+
+        foreach( var sc in statChanges )
+        {
+            if( ( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack ) && sc.Change > 1 )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool MoveIsDefensiveSetupPlus2( Move move )
+    {
+        if( move.MoveSO.MoveCategory != MoveCategory.Status )
+            return false;
+
+        var statChanges = move.MoveSO.MoveEffects.StatChangeList;
+
+        foreach( var sc in statChanges )
+        {
+            if( ( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense ) && sc.Change > 1 )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool PokemonIsIronDefenseBodyPress( Pokemon pokemon )
+    {
+        var moves = pokemon.ActiveMoves;
+        int count = 0;
+
+        foreach( var move in moves )
+        {
+            if( move.MoveSO.Name == "Iron Defense" )
+                count++;
+
+            if( move.MoveSO.Name == "Body Press" )
+                count++;
+
+            if( count >= 2 )
+                break;
+        }
+
+        if( count >= 2 )
+            return true;
+        else
+            return false;
+    }
+
     public bool MoveIsDebuff( Move move )
     {
         var statChanges = move.MoveSO.MoveEffects.StatChangeList;
@@ -845,16 +907,31 @@ public class BattleAI_UnitSim
             if( courtCon == CourtConditionID.QuickGuard || courtCon == CourtConditionID.WideGuard || courtCon == CourtConditionID.SafeGuard )
                 return true;
 
-            //--Redirection check
-            if( effects.TransientStatus == TransientConditionID.CenterOfAttention )
-                return true;
-
             //--Helping Hand check
             if( effects.VolatileStatus == VolatileConditionID.HelpingHand )
                 return true;
         }
 
+        //--Redirection check
+        if( effects.TransientStatus == TransientConditionID.CenterOfAttention )
+            return true;
+
         return false;
+    }
+
+    public bool MoveIsRedirection( Move move )
+    {
+        var cat = move.MoveSO.MoveCategory;
+        if( cat != MoveCategory.Status )
+            return false;
+
+        var effects = move.MoveSO.MoveEffects;
+
+        //--Redirection check
+        if( effects.TransientStatus == TransientConditionID.CenterOfAttention )
+            return true;
+        else
+            return false;
     }
 
     public bool MoveIsBattlefieldControl( Move move )
@@ -874,7 +951,7 @@ public class BattleAI_UnitSim
         if( effects.CourtCondition == CourtConditionID.Tailwind )
             return true;
 
-        if( effects.CourtCondition == CourtConditionID.TrickRoom )
+        if( effects.FieldCondition != FieldConditionID.None )
             return true;
 
         return false;
@@ -931,6 +1008,21 @@ public class BattleAI_UnitSim
 
             if( cat == MoveCategory.Status && pokemon.AbilityID == AbilityID.Prankster )
                 return true;
+
+            if( prio > MovePriority.Zero )
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool PokemonHasMove_OffensivePriority( Pokemon pokemon )
+    {
+        var moves = pokemon.ActiveMoves;
+
+        foreach( var move in moves )
+        {
+            var prio = move.Priority;
 
             if( prio > MovePriority.Zero )
                 return true;
@@ -1399,29 +1491,6 @@ public class BattleAI_UnitSim
         if( weather == WeatherConditionID.None )
             return 0;
 
-        if( weather == WeatherConditionID.RAIN )
-        {
-            if( pokemon.CheckTypes( PokemonType.Water ) )
-                score += 5;
-
-            if( pokemon.CheckTypes( PokemonType.Fire ) )
-                score -= 5;
-
-            if( pokemon.AbilityID == AbilityID.SwiftSwim /*|| water ability */ )
-                score += 10;
-
-            if( pokemon.CheckHasAttackingMoveOfType( PokemonType.Water ) )
-                score += 5;
-
-            if( pokemon.CheckHasActiveMove( "Thunder" ) )
-                score += 2;
-
-            if( pokemon.CheckHasActiveMove( "Hurricane" ) )
-                score += 2;
-
-            return score;
-        }
-
         if( weather == WeatherConditionID.SUNNY )
         {
             if( pokemon.CheckTypes( PokemonType.Fire ) )
@@ -1441,6 +1510,29 @@ public class BattleAI_UnitSim
 
             if( pokemon.CheckHasActiveMove( "Solar Blade" ) )
                 score += 3;
+
+            return score;
+        }
+
+        if( weather == WeatherConditionID.RAIN )
+        {
+            if( pokemon.CheckTypes( PokemonType.Water ) )
+                score += 5;
+
+            if( pokemon.CheckTypes( PokemonType.Fire ) )
+                score -= 5;
+
+            if( pokemon.AbilityID == AbilityID.SwiftSwim /*|| water ability */ )
+                score += 10;
+
+            if( pokemon.CheckHasAttackingMoveOfType( PokemonType.Water ) )
+                score += 5;
+
+            if( pokemon.CheckHasActiveMove( "Thunder" ) )
+                score += 2;
+
+            if( pokemon.CheckHasActiveMove( "Hurricane" ) )
+                score += 2;
 
             return score;
         }
@@ -1479,12 +1571,17 @@ public class BattleAI_UnitSim
         return score;
     }
 
-    public int Get_TerrainContextScore( Pokemon pokemon )
+    public int Get_TerrainContextScore( Pokemon pokemon, TerrainID checkTerrain = TerrainID.None )
     {
         int score = 0;
         var terrain = _ai.BattleSystem.Field.Terrain;
+        
+        var id = terrain?.ID;
+        
+        if( checkTerrain != TerrainID.None )
+            id = checkTerrain;
 
-        if( terrain == null || terrain?.ID == TerrainID.None )
+        if( terrain == null || id == TerrainID.None )
             return 0;
 
         if( terrain.ID == TerrainID.Blighted )
@@ -1770,6 +1867,7 @@ public class SimulatedField
     public int TerrainDuration;
     public Dictionary<CourtConditionID, int> TopCourtConditions;
     public Dictionary<CourtConditionID, int> BottomCourtConditions;
+    public Dictionary<FieldConditionID, int> FieldConditions;
     public bool TrickRoomActive;
     public int TrickRoomDuration;
 }

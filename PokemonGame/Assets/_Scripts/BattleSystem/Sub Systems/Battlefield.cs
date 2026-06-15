@@ -4,15 +4,19 @@ using UnityEngine;
 
 public class Battlefield
 {
+    private readonly BattleSystem _battleSystem;
     public WeatherCondition Weather { get; set; }
     public int? WeatherDuration { get; set; }
     public TerrainCondition Terrain { get; set; }
     public int? TerrainDuration { get; set; }
     public Dictionary<CourtLocation, Court> ActiveCourts { get; private set; }
+    public Dictionary<FieldConditionID, FieldCondition> FieldConditions { get; private set; }
     
     public Battlefield( BattleSystem bs )
     {
+        _battleSystem = bs;
         ActiveCourts = new();
+        FieldConditions = new();
     }
 
     public void SetWeather( WeatherConditionID id, int duration = 5 )
@@ -36,7 +40,7 @@ public class Battlefield
         if( Weather != null && currentWeather != Weather?.ID )
         {
             if( Weather?.StartByMoveMessage != null )
-                BattleSystem.Instance.AddDialogue( Weather?.StartByMoveMessage );
+                _battleSystem.AddDialogue( Weather?.StartByMoveMessage );
 
             currentWeather = Weather.ID;
         }
@@ -80,7 +84,7 @@ public class Battlefield
         if( Terrain != null && currentTerrain != Terrain?.ID )
         {
             if( Terrain?.StartByMoveMessage != null )
-                BattleSystem.Instance.AddDialogue( Terrain?.StartByMoveMessage );
+                _battleSystem.AddDialogue( Terrain?.StartByMoveMessage );
 
             currentTerrain = Terrain.ID;
         }
@@ -210,6 +214,20 @@ public class Battlefield
         }
 
         return CourtLocation.TopCourt; //--Default to top court. if no trainer is found or the trainer for some reason doesn't have the mon, it's likely an npc/wild battle or something
+    }
+
+    public void AddFieldCondition( FieldConditionID condition )
+    {
+        Debug.Log( $"Adding {condition} to Field Conditions!" );
+        if( !FieldConditions.ContainsKey( condition ) )
+            FieldConditions.Add( condition, FieldConditionDB.Conditions[condition] );
+    }
+
+    public void RemoveFieldCondition( FieldConditionID condition )
+    {
+        Debug.Log( $"Removing {condition} from Field Conditions!" );
+        if( FieldConditions.ContainsKey( condition ) )
+            FieldConditions.Remove( condition );
     }
 
 }

@@ -1749,6 +1749,18 @@ public class AbilityDB
                     }
                 },
             }
+        },
+        {
+            AbilityID.VoltAbsorb, new()
+            {
+                Name = "Volt Absorb",
+            }
+        },
+        {
+            AbilityID.GoodAsGold, new()
+            {
+                Name = "Good As Gold",
+            }
         }
     };
 }
@@ -1863,4 +1875,8 @@ public enum AbilityID
     RainDish,
     ShadowTag,
     PoisonHeal,
+    Unaware,
+    FlashFire,
+    VoltAbsorb,
+    GoodAsGold,
 }

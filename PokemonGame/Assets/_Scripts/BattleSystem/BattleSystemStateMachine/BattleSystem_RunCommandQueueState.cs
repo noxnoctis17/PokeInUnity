@@ -22,9 +22,7 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
     public override void ExitState()
     {
         if( _battleSystem.BattleType == BattleType.AI_Singles || _battleSystem.BattleType == BattleType.AI_Doubles )
-        {
             _battleSystem.PushState( _battleSystem.AITurnState );
-        }
         else
             _battleSystem.PushState( _battleSystem.ActionSelectState );
 
@@ -38,9 +36,8 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         else
             _battleSystem.SetCommandList( _battleSystem.CommandList.OrderByDescending( prio => prio.CommandPriority ).ThenByDescending( prio => prio.AttackPriority ).ThenByDescending( prio => prio.UnitAgility ).ToList() );
 
-        for( int i = 0; i < _battleSystem.CommandList.Count; i++ ){
+        for( int i = 0; i < _battleSystem.CommandList.Count; i++ )
             _battleSystem.AddCommand( _battleSystem.CommandList[i] );
-        }
 
         _battleSystem.CommandList.Clear();
 

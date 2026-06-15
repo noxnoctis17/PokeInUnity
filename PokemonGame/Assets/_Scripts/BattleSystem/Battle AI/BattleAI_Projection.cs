@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -37,8 +38,6 @@ public class BattleAI_Projection
         _ai.CurrentLog.Add( $"=====[BUILDING PBS]=====" );
         _ai.CurrentLog.Add( $"========================" );
         _ai.CurrentLog.Add( $"" );
-        // _ai.CurrentLog.Add( $"===[Displaying Simulation Log from Chosen Action for below PBS logs]===" );
-        // _ai.CurrentLog.Add( top1.SimulationLog );
 
         //--Material
         if( iAmKO )
@@ -53,8 +52,6 @@ public class BattleAI_Projection
             _ai.CurrentLog.Add( $"[Build PBS] Opponent faints this turn! Opponent's remaining pieces reduced from {oppRemainingPieces + 1} to {oppRemainingPieces}! Opponent KO is {oppIsKO}." );
         }
 
-        var myTeam = _ai.GetRemainingPartyAs_IBattleAIUnits( top1.Attacker.Pokemon );
-        var oppTeam = _ai.GetRemainingPartyAs_IBattleAIUnits( top1.Opponent.Pokemon );
         var myTeamPieceValues = _ai.OurTeamPieceValues;
         var oppTeamPieceValues = _ai.TheirTeamPieceValues;
         int myValue = myTeamPieceValues[top1.Attacker.Pokemon].OffensiveValue;
@@ -83,8 +80,8 @@ public class BattleAI_Projection
         bool iKillNext = top2.Opponent_DiesBeforeActing || top2.Opponent_EndOfTurnHP <= 0f;
         bool oppKillNext = top2.Attacker_DiesBeforeActing || top2.Attacker_EndOfTurnHP <= 0f;
 
-        _ai.CurrentLog.Add( $"[Build PBS] Future → I Live: {iSurviveNext}, Opp Lives: {oppSurviveNext}" );
-        _ai.CurrentLog.Add( $"[Build PBS] Future Threat → I Threaten: {iThreatenNext}, Opp Threatens: {oppThreatenNext}" );
+        _ai.CurrentLog.Add( $"[Build PBS] I Live Next Round: {iSurviveNext}, Opp Lives Next Round: {oppSurviveNext}" );
+        _ai.CurrentLog.Add( $"[Build PBS] I Threaten Next Round: {iThreatenNext}, Opp Threatens Next Round: {oppThreatenNext}" );
 
         //--Utility Checks
         bool iCreatesDecisiveState = false;
@@ -143,30 +140,604 @@ public class BattleAI_Projection
             oppCreatesPressureState = true;
 
         //--Role Fulfillment
-        float attackerDamageTaken = top1.Attacker.BeginningHPR - top1.Attacker_EndOfTurnHP;
-        bool attackRoleFulfilled = iThreaten || oppIsKO;
-        bool tankRoleFulfilled = attackerDamageTaken <= 0.3f && !oppThreatens;
+        var ourRP = top1.Attacker.RoleProfile;
+        var oppRP = top1.Opponent.RoleProfile;
 
+        float roleFulfillmentProgress = 0;
+        float maxScore = 0;
+        float progress = 0;
+        float penalties = 0;
+
+        bool utilityRole = false;
+
+        //--General comparisons/data gathering
+        float attackerDamageTaken = top1.Attacker.BeginningHPR - top1.Attacker_EndOfTurnHP;
         float opponentDamageTaken = top1.Opponent.BeginningHPR - top1.Opponent_EndOfTurnHP;
-        bool oppAttackRoleFulfilled = oppThreatens || iAmKO;
-        bool oppTankRoleFulfilled = opponentDamageTaken <= 0.3f && !iThreaten;
+
+        bool weHaveRecovery = ourRP.Traits.Contains( RoleTrait.RecoveryAbility ) || ourRP.Traits.Contains( RoleTrait.RecoveryItem ) || ourRP.Traits.Contains( RoleTrait.RecoveryMove );
+        bool oppHasRecovery = oppRP.Traits.Contains( RoleTrait.RecoveryAbility ) || oppRP.Traits.Contains( RoleTrait.RecoveryItem ) || oppRP.Traits.Contains( RoleTrait.RecoveryMove );
+
+        bool lockedDownAttacker = !top1.Attacker.VolatileStatuses.Contains( VolatileConditionID.Encore ) && top2.Attacker.VolatileStatuses.Contains( VolatileConditionID.Encore ) || !top1.Attacker.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && top2.Attacker.VolatileStatuses.Contains( VolatileConditionID.Taunt );
+        bool lockedDownOpponent = !top1.Opponent.VolatileStatuses.Contains( VolatileConditionID.Encore ) && top2.Opponent.VolatileStatuses.Contains( VolatileConditionID.Encore ) || !top1.Opponent.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && top2.Opponent.VolatileStatuses.Contains( VolatileConditionID.Taunt );
 
         bool attackerInflictedSevere = top1.Opponent.SevereStatus == SevereConditionID.None && top2.Opponent.SevereStatus != SevereConditionID.None;
+        var attackerCourtConditions1 = attCourt == CourtLocation.TopCourt ? _ai.CurrentFieldSnapshot.TopCourtConditions : _ai.CurrentFieldSnapshot.BottomCourtConditions;
+        var attackerCourtConditions2 = attCourt == CourtLocation.TopCourt ? top2.Field.TopCourtConditions : top2.Field.BottomCourtConditions;
         var oppCourtConditions2 = oppCourt == CourtLocation.TopCourt ? top2.Field.TopCourtConditions : top2.Field.BottomCourtConditions;
         bool attackerSetHazards = bc.BattlefieldState.EntryHazardsOn_TheirSide <= 0 && ( oppCourtConditions2.ContainsKey( CourtConditionID.StealthRock ) || oppCourtConditions2.ContainsKey( CourtConditionID.LeechSeed ) || oppCourtConditions2.ContainsKey( CourtConditionID.Spikes ) || oppCourtConditions2.ContainsKey( CourtConditionID.ToxicSpikes ) || oppCourtConditions2.ContainsKey( CourtConditionID.StickyWeb ) );
-        bool attackerUtilityRoleFulfilled = attackerInflictedSevere || attackerSetHazards;
+        bool attackerRemovedHazards = bc.BattlefieldState.EntryHazardsOn_MySide > 0 && ( attackerCourtConditions2.ContainsKey( CourtConditionID.StealthRock ) || attackerCourtConditions2.ContainsKey( CourtConditionID.LeechSeed ) || attackerCourtConditions2.ContainsKey( CourtConditionID.Spikes ) || attackerCourtConditions2.ContainsKey( CourtConditionID.ToxicSpikes ) || attackerCourtConditions2.ContainsKey( CourtConditionID.StickyWeb ) );
 
-        bool opponentInflictedSevere = top1.Attacker.SevereStatus == SevereConditionID.None && top2.Attacker.SevereStatus != SevereConditionID.None;
-        var attackerCourtConditions2 = attCourt == CourtLocation.TopCourt ? top2.Field.TopCourtConditions : top2.Field.BottomCourtConditions;
-        bool opponentSetHazards = bc.BattlefieldState.EntryHazardsOn_MySide <= 0 && ( attackerCourtConditions2.ContainsKey( CourtConditionID.StealthRock ) || attackerCourtConditions2.ContainsKey( CourtConditionID.LeechSeed ) || attackerCourtConditions2.ContainsKey( CourtConditionID.Spikes ) || attackerCourtConditions2.ContainsKey( CourtConditionID.ToxicSpikes ) || attackerCourtConditions2.ContainsKey( CourtConditionID.StickyWeb ) );
-        bool opponentUtilityRoleFulfilled = opponentInflictedSevere || opponentSetHazards;
-
-        bool attackerFulfilledRole = !iAmKO && ( attackRoleFulfilled || tankRoleFulfilled ) || attackerUtilityRoleFulfilled;
-        bool opponentFulfilledRole = !oppIsKO && ( oppAttackRoleFulfilled || oppTankRoleFulfilled ) || opponentUtilityRoleFulfilled;
+        var fieldConditions1 = _ai.CurrentFieldSnapshot.FieldConditions;
+        var fieldConditions2 = top2.Field.FieldConditions;
 
         //--Stability
         bool iAmStable = iSurviveNext && !( oppKillNext || ( oppThreatenNext && !futureExchangeEval.AttackerMovesFirst ) );
         bool oppIsStable = oppSurviveNext && !( iKillNext || ( iThreatenNext && !futureExchangeEval.OpponentMovesFirst ) );
+
+        //--Role Fulfilment Evaluation
+        switch( ourRP.PrimaryRole )
+        {
+            case RoleClass.Sweeper:
+                maxScore = 0;
+
+                maxScore++;
+                if( oppIsKO )
+                    progress += 1;
+                else if( iThreaten && top2.AttackerMovedFirst )
+                    progress += 1;
+                else if( opponentDamageTaken >= 0.35f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    progress += 1;
+                else if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( attackerDamageTaken <= 0.2f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                if( !top2.AttackerMovedFirst && top2.Attacker_EndOfTurnHP <= 0f )
+                    penalties += 1;
+
+                if( iAmKO )
+                    penalties += 1;
+
+            break;
+
+            case RoleClass.BulkyAttacker:
+                maxScore = 0;
+
+                maxScore++;
+                if( oppIsKO )
+                    progress += 1;
+                else if( iThreaten && ( attackerDamageTaken <= 0.25f || top2.Attacker_EndOfTurnHP >= 0.4f ) )
+                    progress += 1;
+                else if( opponentDamageTaken >= 0.25f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( !top1.AttackerMovedFirst && ( attackerDamageTaken <= 0.25f || top2.Attacker_EndOfTurnHP >= 0.4f ) )
+                    progress += 1;
+
+                maxScore++;
+                if( attackerInflictedSevere || top2.AttackerPTKO > top1.AttackerPTKO || !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    progress += 1;
+
+                if( attackerDamageTaken > 0.25f || top2.Attacker_EndOfTurnHP < 0.4f )
+                    penalties += 1;
+
+                if( iAmKO || top1.Attacker_EndOfTurnHP <= 0f )
+                    penalties += 1;
+                
+            break;
+
+            case RoleClass.RevengeKiller:
+                maxScore = 0;
+
+                maxScore++;
+                if( oppIsKO )
+                    progress += 1;
+                else if( iThreaten && top1.Opponent.BeginningHPR < 0.5f )
+                    progress += 1;
+                else if( opponentDamageTaken >= 0.45f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                bool opponentdamaged = top1.Opponent_EndOfTurnHP < 1f;
+                bool weThreatenKO = top1.AttackerPTKO >= PotentialToKO.Dangerous;
+                if( opponentdamaged && weThreatenKO && ( top1.AttackerMovedFirst || attackerDamageTaken < 0.3f ) )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( attackerDamageTaken <= 0.2f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                if( iAmKO )
+                    penalties += 1;
+
+            break;
+
+            case RoleClass.WallBreaker:
+                maxScore = 0;
+
+                maxScore++;
+                if( oppIsKO )
+                    progress += 1;
+                else if( iThreaten && ( oppRP.PrimaryRole == RoleClass.Wall || oppRP.PrimaryRole == RoleClass.DefensiveSetup ) )
+                    progress += 1;
+                else if( opponentDamageTaken >= 0.5f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( !oppIsStable )
+                    progress += 1;
+
+                maxScore++;
+                if( attackerInflictedSevere || top2.AttackerPTKO > top1.AttackerPTKO )
+                    progress += 1;
+                else if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( attackerDamageTaken <= 0.2f && opponentDamageTaken >= 0.25f )
+                    progress += 1;
+                else if( attackerDamageTaken > 0.2f && opponentDamageTaken < 0.25f && oppHasRecovery )
+                    penalties += 1;
+
+                if( opponentDamageTaken < 0.45f && oppHasRecovery )
+                    penalties += 1;
+
+                //--If we're slower the round we came in as a revenge killer and then die next round is the intent here
+                if( !top1.AttackerMovedFirst && top2.Attacker_EndOfTurnHP <= 0f )
+                    penalties += 1;
+
+                if( iAmKO )
+                    penalties += 1;
+
+            break;
+
+            case RoleClass.SetupSweeper:
+                maxScore = 0;
+
+                maxScore++;
+                if( oppIsKO )
+                    progress += 1;
+                else if( iThreaten && top1.AttackerMovedFirst )
+                    progress += 1;
+                else if( opponentDamageTaken >= 0.4f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                bool setupImprovesNextRound = top2.AttackerPTKO > top1.AttackerPTKO || !top1.AttackerMovedFirst && top2.AttackerMovedFirst;
+                if( action.Type == ActionType.Setup && top1.Attacker_EndOfTurnHP > 0 && top2.Attacker_EndOfTurnHP > 0 && setupImprovesNextRound )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( action.Type != ActionType.Setup && top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                maxScore++;
+                if( top1.Attacker_EndOfTurnHP >= 0.55f )
+                    progress += 1;
+                else
+                    penalties += 1;
+
+                if( !top2.AttackerMovedFirst && top2.Attacker_EndOfTurnHP <= 0f )
+                    penalties += 1;
+
+                if( iAmKO )
+                    penalties += 1;
+
+            break;
+
+            case RoleClass.TrickRoomAbuser:
+                maxScore = 0;
+
+                if( top1.Field.TrickRoomActive )
+                {
+                    maxScore++;
+                    if( oppIsKO )
+                        progress += 1;
+                    else if( iThreaten && top2.AttackerMovedFirst )
+                        progress += 1;
+                    else if( opponentDamageTaken >= 0.35f )
+                        progress += 1;
+                    else
+                        penalties += 1;
+
+                    maxScore++;
+                    if( top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                        progress += 1;
+                    else if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                        progress += 1;
+                    else
+                        penalties += 1;
+
+                    maxScore++;
+                    if( attackerDamageTaken <= 0.2f )
+                        progress += 1;
+                    else
+                        penalties += 1;
+
+                    if( !top2.AttackerMovedFirst && top2.Attacker_EndOfTurnHP <= 0f )
+                        penalties += 1;
+
+                    if( iAmKO )
+                        penalties += 1;
+                }
+                else
+                {
+                    maxScore++;
+                    if( oppIsKO )
+                        progress += 1;
+                    else if( iThreaten && ( attackerDamageTaken <= 0.25f || top2.Attacker_EndOfTurnHP >= 0.4f ) )
+                        progress += 1;
+                    else if( opponentDamageTaken >= 0.25f )
+                        progress += 1;
+                    else
+                        penalties += 1;
+
+                    maxScore++;
+                    if( !top1.AttackerMovedFirst && ( attackerDamageTaken <= 0.25f || top2.Attacker_EndOfTurnHP >= 0.4f ) )
+                        progress += 1;
+
+                    maxScore++;
+                    if( attackerInflictedSevere || top2.AttackerPTKO > top1.AttackerPTKO || !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                        progress += 1;
+
+                    if( attackerDamageTaken > 0.25f || top2.Attacker_EndOfTurnHP < 0.4f )
+                        penalties += 1;
+
+                    if( iAmKO || top1.Attacker_EndOfTurnHP <= 0f )
+                        penalties += 1;
+                }
+
+            break;
+
+            case RoleClass.Wall:
+                maxScore = 0;
+
+                maxScore++;
+                if( iAmStable )
+                    progress++;
+
+                maxScore++;
+                if( attackerDamageTaken <= 0.3f )
+                    progress++;
+                else if( opponentDamageTaken > attackerDamageTaken )
+                    progress++;
+
+                maxScore++;
+                bool goodChipNextTurn = top2.Opponent.BeginningHPR - top1.Opponent_EndOfTurnHP >= 0.2f || attackerInflictedSevere;
+                if( goodChipNextTurn )
+                    progress++;
+
+                maxScore++;
+                if( !oppIsStable )
+                    progress++;
+                else if( !oppThreatens )
+                    progress++;
+                else
+                    penalties++;
+                
+                if( attackerDamageTaken >= 0.5f && !weHaveRecovery )
+                    penalties++;
+
+                if( top1.Attacker_EndOfTurnHP < 0 )
+                    penalties++;
+
+                if( top2.Attacker_EndOfTurnHP < 0 && !goodChipNextTurn )
+                    penalties++;
+
+            break;
+
+            case RoleClass.DefensiveSetup:
+                maxScore = 0;
+
+                maxScore++;
+                if( iAmStable )
+                    progress++;
+
+                maxScore++;
+                if( attackerDamageTaken <= 0.3f )
+                    progress++;
+                else if( opponentDamageTaken > attackerDamageTaken )
+                    progress++;
+
+                maxScore++;
+                if( oppThreatens && !oppThreatenNext )
+                    progress++;
+                else if( action.Type == ActionType.Setup && oppThreatenNext )
+                    penalties++;
+
+                maxScore++;
+                bool setupMakesProgress = _unitSim.PokemonIsIronDefenseBodyPress( top1.Attacker.Pokemon ) || top2.AttackerPTKO > top1.AttackerPTKO || top1.OpponentPTKO > top2.OpponentPTKO;
+                if( action.Type == ActionType.Setup && iAmStable )
+                    progress++;
+
+                if( setupMakesProgress )
+                    progress++;
+
+                maxScore++;
+                if( !oppIsStable )
+                    progress++;
+                else if( !oppThreatens )
+                    progress++;
+                else
+                    penalties++;
+                
+                if( attackerDamageTaken >= 0.5f && !weHaveRecovery )
+                    penalties++;
+
+                if( top1.Attacker_EndOfTurnHP < 0 )
+                    penalties++;
+
+            break;
+
+            case RoleClass.UtilitySupport:
+                utilityRole = true;
+                maxScore = 0;
+
+                bool usingStatusMove = action.Type == ActionType.OffensiveStatus || action.Type == ActionType.Support;
+
+                var effectTarget = action.MovePayload.MoveSO.MoveEffects.Target;
+                var moveTarget = action.MovePayload.MoveSO.MoveTarget;
+
+                bool targetsAlly = usingStatusMove && ( effectTarget == EffectTarget.AllySide || moveTarget == MoveTarget.Ally || moveTarget == MoveTarget.AllySide );
+
+                bool iAmCompromised = iAmKO && attackerDamageTaken >= 0.5f;
+                bool usingSupportMove = usingStatusMove && _ai.UnitSim.MoveIsSupport( action.MovePayload );
+                bool settingReflect = usingSupportMove && action.MovePayload.MoveSO.Name == "Reflect" && !attackerCourtConditions1.ContainsKey( CourtConditionID.Reflect );
+                bool settingLightScreen = usingSupportMove && action.MovePayload.MoveSO.Name == "Light Screen" && !attackerCourtConditions1.ContainsKey( CourtConditionID.LightScreen );
+                bool settingAuroraVeil = usingSupportMove && action.MovePayload.MoveSO.Name == "Aurora Veil" && !attackerCourtConditions1.ContainsKey( CourtConditionID.AuroraVeil );
+
+                bool settingScreens = settingReflect || settingLightScreen || settingAuroraVeil;
+
+                bool usingRedirection = usingStatusMove && _ai.UnitSim.MoveIsRedirection( action.MovePayload );
+                bool buffingAlly = _ai.IsDoubleBattle && usingStatusMove && ( action.MovePayload.MoveSO.Name == "Coaching" || action.MovePayload.MoveSO.Name == "Howl" );
+                bool healingAlly = _ai.IsDoubleBattle && usingSupportMove && targetsAlly && action.MovePayload.MoveSO.HealType != HealType.None;
+
+                bool fakeOut = action.Type == ActionType.Attack && _ai.CanUseFakeOut( top1.Attacker, top1.Opponent ) && action.MovePayload.MoveSO.Name == "Fake Out";
+
+                bool acceptableChip = opponentDamageTaken >= 0.2f;
+
+                bool didNothing = !settingReflect && !settingLightScreen && !settingAuroraVeil && !usingRedirection && !buffingAlly && !healingAlly && !fakeOut && !acceptableChip;
+                bool doublesSupport = _ai.IsDoubleBattle && !didNothing;
+
+                maxScore++;
+                if( usingSupportMove && !iAmCompromised )
+                    progress++;
+
+                maxScore++;
+                if( settingScreens && !iAmCompromised )
+                    progress++;
+
+                maxScore++;
+                if( doublesSupport )
+                    progress++;
+
+                if( lockedDownAttacker )
+                    penalties++;
+
+                if( !top1.AttackerMovedFirst && !iAmKO && attackerDamageTaken > 0.5f )
+                    penalties++;
+
+                if( iAmKO || iAmCompromised && didNothing )
+                    penalties++;
+
+            break;
+
+            case RoleClass.Disrupter:
+                utilityRole = true;
+                maxScore = 0;
+
+                maxScore++;
+                if( ( attackerInflictedSevere || attackerSetHazards || attackerRemovedHazards ) && ( !iAmKO || attackerDamageTaken < 0.5f ) )
+                    progress++;
+                else
+                    penalties++;
+                
+                maxScore++;
+                if( ( action.Type == ActionType.OffensiveStatus && !iAmKO && attackerDamageTaken < 0.5f ) || ( action.Type == ActionType.OffensiveStatus && _ai.IsDoubleBattle ) )
+                    progress++;
+                else
+                    penalties++;
+
+                maxScore++;
+                if( ( action.Type == ActionType.Support && !iAmKO && attackerDamageTaken < 0.5f ) || ( action.Type == ActionType.Support && _ai.IsDoubleBattle ) )
+                    progress++;
+                else
+                    penalties++;
+
+                maxScore++;
+                if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                    progress++;
+
+                maxScore++;
+                if( lockedDownOpponent )
+                    progress++;
+
+                maxScore++;
+                if( action.Type == ActionType.Attack && _ai.CanUseFakeOut( top1.Attacker, top1.Opponent ) && action.MovePayload.MoveSO.Name == "Fake Out" )
+                    progress++;
+
+                maxScore++;
+                if( opponentDamageTaken >= 0.2f )
+                    progress++;
+
+                if( lockedDownAttacker )
+                    penalties++;
+
+                if( top2.Attacker_EndOfTurnHP < 0 && ( !lockedDownOpponent || !attackerInflictedSevere || !attackerSetHazards || !attackerRemovedHazards ) )
+                    penalties++;
+
+                if( !top1.AttackerMovedFirst && !iAmKO && attackerDamageTaken > 0.5f )
+                    penalties++;
+
+            break;
+
+            case RoleClass.Pivot:
+                utilityRole = true;
+                maxScore = 0;
+
+                maxScore++;
+                if( top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    progress++;
+                else if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    progress++;
+                else
+                    penalties++;
+
+                maxScore++;
+                if( top2.AttackerPTKO > top1.AttackerPTKO )
+                    progress++;
+                else if( iThreatenNext )
+                    progress++;
+                
+                maxScore++;
+                if( attackerDamageTaken <= 0.3f )
+                    progress++;
+                else
+                    penalties++;
+
+                maxScore++;
+                if( ee.OpponentSwitchProbability >= 0.7f )
+                    progress++;
+
+                maxScore++;
+                if( oppThreatens && !oppThreatenNext )
+                    progress++;
+
+            break;
+
+            case RoleClass.HazardControl:
+                utilityRole = true;
+                maxScore = 0;
+
+                maxScore++;
+                if( attackerSetHazards || attackerRemovedHazards )
+                    progress++;
+
+                if( !attackerSetHazards && !attackerRemovedHazards && iAmKO )
+                    penalties++;
+
+            break;
+
+            case RoleClass.FieldControl:
+                utilityRole = true;
+                maxScore = 0;
+
+                bool weatherChanged = _ai.CurrentFieldSnapshot.Weather != top2.Field.Weather;
+
+                bool sunSetter = top1.Attacker.Ability == AbilityID.Drought || top2.Attacker.Ability == AbilityID.Drought || _ai.UnitSim.CheckHasMove( top1.Attacker, "Sunny Day" );
+                bool rainSetter = top1.Attacker.Ability == AbilityID.Drizzle || top2.Attacker.Ability == AbilityID.Drizzle || _ai.UnitSim.CheckHasMove( top1.Attacker, "Rain Dance" );
+                bool sandSetter = top1.Attacker.Ability == AbilityID.Sandstream || top2.Attacker.Ability == AbilityID.Sandstream || _ai.UnitSim.CheckHasMove( top1.Attacker, "Sandstorm" );
+                bool snowSetter = top1.Attacker.Ability == AbilityID.SnowWarning || top2.Attacker.Ability == AbilityID.SnowWarning || _ai.UnitSim.CheckHasMove( top1.Attacker, "Snowscape" );
+
+                bool sunSet = _ai.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.SUNNY && sunSetter;
+                bool rainSet = _ai.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.RAIN && rainSetter;
+                bool sandSet = _ai.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.SANDSTORM && sandSetter;
+                bool snowSet = _ai.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.SNOW && snowSetter;
+
+                bool setTailwind = top1.Attacker.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) && !attackerCourtConditions1.ContainsKey( CourtConditionID.Tailwind ) && attackerCourtConditions2.ContainsKey( CourtConditionID.Tailwind );
+                bool setTrickRoom = top1.Attacker.RoleProfile.Traits.Contains( RoleTrait.TrickRoomSetter ) && !fieldConditions1.ContainsKey( FieldConditionID.TrickRoom ) && fieldConditions2.ContainsKey( FieldConditionID.TrickRoom );
+                bool setWeather = sunSet || rainSet || sandSet || snowSet;
+
+                didNothing = !setTailwind && !setTrickRoom && !setWeather && opponentDamageTaken < 0.2f;
+
+                maxScore++;
+                if( weatherChanged && setWeather )
+                    progress++;
+
+                maxScore++;
+                if( setTailwind || setTrickRoom )
+                    progress++;
+
+                maxScore++;
+                if( opponentDamageTaken >= 0.2f )
+                    progress++;
+
+                if( didNothing )
+                    penalties++;
+
+                if( iAmKO || ( didNothing && top2.Attacker_EndOfTurnHP < 0f ) )
+                    penalties++;
+
+            break;
+
+            case RoleClass.AllRounder:
+                maxScore = 0;
+
+                bool offensive = opponentDamageTaken >= 0.25f || iThreaten || iThreatenNext;
+                bool defensive = attackerDamageTaken <= 0.3f;
+                bool stability = !oppIsStable || iAmStable;
+                bool improvedPosition = ( !top1.AttackerMovedFirst && top2.AttackerMovedFirst ) || ( top2.AttackerPTKO > top1.AttackerPTKO );
+                bool utility = attackerInflictedSevere || attackerSetHazards || attackerRemovedHazards;
+
+                didNothing = !offensive && !defensive && !stability && !improvedPosition && !utility; 
+
+                maxScore++;
+                if( offensive )
+                    progress++;
+
+                maxScore++;
+                if( defensive )
+                    progress++;
+                
+                maxScore++;
+                if( stability )
+                    progress++;
+
+                maxScore++;
+                if( !iAmKO )
+                    progress++;
+                else
+                    penalties++;
+
+                maxScore++;
+                if( improvedPosition )
+                    progress++;
+
+                maxScore++;
+                if( utility )
+                    progress++;
+
+                if( didNothing )
+                    penalties++;
+
+            break;
+        }
+
+        roleFulfillmentProgress = Mathf.Clamp( ( progress - penalties ) / maxScore, -1f, 1f );
+        _ai.CurrentLog.Add( $"[Build PBS] Role Fulfillment checked. Attacker's Primary Role: {ourRP.PrimaryRole}." );
+        _ai.CurrentLog.Add( $"[Build PBS] Progress: {progress}, Penalties: {penalties}, Max Score: {maxScore}" );
+        _ai.CurrentLog.Add( $"[Build PBS] Role Fulfillment Progress: {roleFulfillmentProgress}" );
 
         //--Post Loss Revenge Quality
         int revengeScore = 0;
@@ -226,10 +797,12 @@ public class BattleAI_Projection
             OppCreatesPressureState = oppCreatesPressureState,
 
             //--Role Fulfillment
-            AttackerFulfilledRole = attackerFulfilledRole,
-            OpponentFulfilledRole = opponentFulfilledRole,
-            AttackerFulfilledUtilityRole = attackerUtilityRoleFulfilled,
-            OpponentFulfilledUtilityRole = opponentUtilityRoleFulfilled,
+            // AttackerFulfilledRole = attackerFulfilledRole,
+            // OpponentFulfilledRole = opponentFulfilledRole,
+            // AttackerFulfilledUtilityRole = attackerUtilityRoleFulfilled,
+            // OpponentFulfilledUtilityRole = opponentUtilityRoleFulfilled,
+            RoleFulfillmentProgress = roleFulfillmentProgress,
+            UtilityRole = utilityRole,
 
             //--Tempo
             RevengeScore = revengeScore,
@@ -364,16 +937,22 @@ public class BattleAI_Projection
 
         int roleScore = 0;
 
-        if( pbs.AttackerFulfilledRole && !pbs.OpponentFulfilledRole )
-            roleScore += 15;
-        else if( !pbs.AttackerFulfilledRole && pbs.OpponentFulfilledRole )
-            roleScore -= 15;
+        // if( pbs.AttackerFulfilledRole && !pbs.OpponentFulfilledRole )
+        //     roleScore += 15;
+        // else if( !pbs.AttackerFulfilledRole && pbs.OpponentFulfilledRole )
+        //     roleScore -= 15;
 
-        //--Utility being effective bias
-        if( pbs.AttackerFulfilledUtilityRole && !pbs.OpponentFulfilledRole )
-            roleScore += 10;
-        else if( pbs.OpponentFulfilledUtilityRole && pbs.AttackerFulfilledRole )
-            roleScore -= 10;
+        // //--Utility being effective bias
+        // if( pbs.AttackerFulfilledUtilityRole && !pbs.OpponentFulfilledRole )
+        //     roleScore += 10;
+        // else if( pbs.OpponentFulfilledUtilityRole && pbs.AttackerFulfilledRole )
+        //     roleScore -= 10;
+
+        roleScore += Mathf.RoundToInt( pbs.RoleFulfillmentProgress * 50f );
+
+        //--Utility Bias
+        if( pbs.UtilityRole )
+            roleScore += Mathf.RoundToInt( pbs.RoleFulfillmentProgress * 25f );
 
         score += roleScore;
         _ai.CurrentLog.Add( $"[PBS] Role Score: {roleScore}. Score: {score}" );
@@ -1203,12 +1782,12 @@ public class BattleAI_Projection
         };
     }
 
-    public CurrentPlan EvaluateCurrentPlan( ExchangeEvaluation ee, BoardContext bc, ThreatProfile tp, CurrentPlan prevPlan )
+    public CurrentPlan EvaluateCurrentPlan( ExchangeEvaluation ee, BoardContext bc, ThreatProfile tp, GamePlan gp, CurrentPlan prevPlan )
     {
         CurrentPlan nextPlan = new()
         {
             Type = PlanType.None,
-            FocusPID = string.Empty,
+            FocusMon = null,
             Confidence = 0f
         };
 
@@ -1264,6 +1843,19 @@ public class BattleAI_Projection
         if( tp.OutspeedsAlliesCount >= bc.MyTeamAlive.Count - 1 )
             preventSweepScore += 2f;
 
+        if( gp.TheirPrimaryWinCon != null )
+        {
+            for( int i = 0; i < _ai.TheirBattleAIUnits.Count; i++ )
+            {
+                var theirUnit = _ai.TheirBattleAIUnits[i];
+                if( theirUnit.Pokemon == gp.TheirPrimaryWinCon )
+                {
+                    _ai.CurrentLog.Add( $"[Current Plan] (Prevent Sweep) Their Primary WinCon is on the field." );
+                    preventSweepScore += 1.5f;
+                }
+            }
+        }
+
         preventSweepScore += tp.Urgency >= ThreatUrgency.High ? 1.5f : 0f;
         _ai.CurrentLog.Add( $"[Current Plan] Prevent Sweep Score: {preventSweepScore}" );
 
@@ -1273,6 +1865,8 @@ public class BattleAI_Projection
 
         Pokemon bestSweeper = null;
         float bestSweepScore = 0f;
+        var winConPR = _ai.GetPokemonAs_Adapter( gp.OurPrimaryWinCon ).RoleProfile.PrimaryRole;
+        bool winConIsOffensiveRole = winConPR == RoleClass.Sweeper || winConPR == RoleClass.BulkyAttacker || winConPR == RoleClass.SetupSweeper || winConPR == RoleClass.WallBreaker;
 
         foreach( var unit in bc.MyTeamAlive )
         {
@@ -1291,6 +1885,11 @@ public class BattleAI_Projection
             }
 
             float score = threats * 1.0f + safeMatchups * 0.5f;
+            if( unit.Pokemon == gp.OurPrimaryWinCon && winConIsOffensiveRole )
+            {
+                score += 1.5f;
+                _ai.CurrentLog.Add( $"[Current Plan] (Enable Sweep) Evaluating our Primary WinCon's sweep potential." );
+            }
             // _ai.CurrentLog.Add( $"[Win Con] Checking for sweep potential for {unit.Name}. Threats: {threats}, Safe Matchups: {safeMatchups}. Score: {score}" );
 
             if( score > bestSweepScore )
@@ -1304,9 +1903,9 @@ public class BattleAI_Projection
 
         if( tp.Urgency >= ThreatUrgency.High )
         {
-            if( tp.Type == ThreatType.BurstDamage || tp.SweepPotential )
+            if( tp.Type == ThreatType.Immediate || tp.SweepPotential )
                 enableSweepScore -= 2.5f;
-            else if( ( tp.Type == ThreatType.Tank || tp.Type == ThreatType.Utility ) && iAmStable )
+            else if( ( tp.Type == ThreatType.Persistent || tp.Type == ThreatType.Disruptive ) && iAmStable )
                 enableSweepScore += 1.5f;
             else
                 enableSweepScore -= 1f;
@@ -1339,6 +1938,12 @@ public class BattleAI_Projection
                     blocks++;
             }
 
+            if( gp.EliminateBlockers.Contains( opp.Pokemon ) )
+            {
+                blocks++;
+                _ai.CurrentLog.Add( $"[Current Plan] (Aggress) Primary blocker still alive. Adding." );
+            }
+
             if( blocks > blockCount )
             {
                 blockCount = blocks;
@@ -1347,9 +1952,9 @@ public class BattleAI_Projection
         }
 
         aggressScore += blockCount;
-        aggressScore += tp.ConstraintPressure >= 2f ? 1.5f : 0f;
+        aggressScore += tp.ConstrainingPressure >= 2f ? 1.5f : 0f;
 
-        if( tp.Type == ThreatType.Tank || tp.ConstraintPressure >= 2f )
+        if( tp.Type == ThreatType.Persistent || tp.ConstrainingPressure >= 4f || gp.EliminateBlockers.Contains( tp.ThreatUnit.Pokemon ) )
             aggressScore += 2f;
 
         _ai.CurrentLog.Add( $"[Current Plan] Aggress Score: {aggressScore}" );
@@ -1467,7 +2072,7 @@ public class BattleAI_Projection
                 {
                     score += 10;
 
-                    if( action.ActorPID == plan.FocusPID )
+                    if( action.Actor == plan.FocusMon )
                         score += 5;
 
                     List<Pokemon> oppTeamAlive = new();
@@ -1526,9 +2131,9 @@ public class BattleAI_Projection
                     }
                 }
 
-                if( pbs.IAmKONow && action.ActorPID == plan.FocusPID )
+                if( pbs.IAmKONow && action.Actor == plan.FocusMon )
                     score -= 25;
-                else if( action.ActorPID == plan.FocusPID )
+                else if( action.Actor == plan.FocusMon )
                     score += 10;
 
                 if( ( action.Type == ActionType.OffensiveSwitch || action.Type == ActionType.DefensiveSwitch ) && action.SwitchPayload == plan.FocusMon )
@@ -2656,6 +3261,8 @@ public struct ProjectedBoardState
     public bool OpponentFulfilledRole;
     public bool AttackerFulfilledUtilityRole;
     public bool OpponentFulfilledUtilityRole;
+    public float RoleFulfillmentProgress;
+    public bool UtilityRole;
 
     //--Individual Scores
     public int MaterialScore;

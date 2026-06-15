@@ -483,4 +483,5 @@ public enum VolatileConditionID
     DestinyBond,
     Perish,
     HealBlocked,
+    Disabled,
 }

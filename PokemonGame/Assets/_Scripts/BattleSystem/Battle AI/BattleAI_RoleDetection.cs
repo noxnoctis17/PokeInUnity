@@ -332,7 +332,7 @@ public class BattleAI_RoleDetection
                         rs.TeamSupport += 10;
                     }
 
-                    if( moveEffects.CourtCondition == CourtConditionID.TrickRoom )
+                    if( moveEffects.FieldCondition == FieldConditionID.TrickRoom )
                     {
                         rs.SpeedControl += 25;
                         rs.TeamSupport += 5;
@@ -1354,7 +1354,7 @@ public class BattleAI_RoleDetection
 
             if( severe == SevereConditionID.PAR )
             {
-                rp.Traits.Add( RoleTrait.ParalysisSupport );
+                rp.Traits.Add( RoleTrait.ParalysisPressure );
                 statusMoveCount++;
             }
 
@@ -1442,6 +1442,9 @@ public class BattleAI_RoleDetection
 
         if( adapter.Pokemon.CheckHasActiveMove( "Taunt" ) )
             rp.Traits.Add( RoleTrait.Taunt );
+
+        if( adapter.Pokemon.CheckHasActiveMove( "Haze" ) )
+            rp.Traits.Add( RoleTrait.Haze );
 
         if( adapter.Pokemon.CheckHasActiveMove( "Trick" ) || adapter.Pokemon.CheckHasActiveMove( "Knock Off" ) || adapter.Pokemon.CheckHasActiveMove( "Covet" ) || adapter.Pokemon.CheckHasActiveMove( "Embargo" ) )
             rp.Traits.Add( RoleTrait.ItemDisruption );
@@ -1561,6 +1564,79 @@ public class BattleAI_RoleDetection
 
         if( coverage >= 3 )
             rp.Traits.Add( RoleTrait.WideMoveCoverage );
+
+        //--Sound Moves
+        foreach( var move in moves )
+        {
+            if( move.MoveSO.Flags.Contains( MoveFlags.Sound ) )
+            {
+                rp.Traits.Add( RoleTrait.SoundMoves );
+                break;
+            }
+        }
+
+        //--Status Immunities
+        bool benefitsFromSevereStatus = _ai.UnitSim.PokemonBenefitsFromSevereStatus( adapter.Pokemon );
+        if( _ai.UnitSim.CheckTypes( PokemonType.Fire, adapter ) || adapter.Ability == AbilityID.FlashFire || benefitsFromSevereStatus )
+            rp.Traits.Add( RoleTrait.BurnImmune );
+
+        if( _ai.UnitSim.CheckTypes( PokemonType.Ice, adapter ) || benefitsFromSevereStatus )
+            rp.Traits.Add( RoleTrait.FrostImmune );
+
+        if( _ai.UnitSim.CheckTypes( PokemonType.Poison, adapter ) || _ai.UnitSim.CheckTypes( PokemonType.Steel, adapter ) || adapter.Ability == AbilityID.PoisonHeal || benefitsFromSevereStatus )
+            rp.Traits.Add( RoleTrait.PoisonToxImmune );
+
+        if( _ai.UnitSim.CheckTypes( PokemonType.Ground, adapter ) || _ai.UnitSim.CheckTypes( PokemonType.Electric, adapter ) || adapter.Ability == AbilityID.LightningRod || adapter.Ability == AbilityID.VoltAbsorb )
+            rp.Traits.Add( RoleTrait.ThunderWaveImmune );
+
+        if( _ai.UnitSim.CheckTypes( PokemonType.Grass, adapter ) || adapter.Item == BattleItemEffectID.SafetyGoggles )
+            rp.Traits.Add( RoleTrait.PowderImmune );
+
+        if( adapter.Ability == AbilityID.Insomnia || adapter.Ability == AbilityID.VitalSpirit )
+            rp.Traits.Add( RoleTrait.SleepImmune );
+
+        if( adapter.Ability == AbilityID.GoodAsGold )
+        {
+            rp.Traits.Add( RoleTrait.StatusMoveImmune );
+            rp.Traits.Add( RoleTrait.TauntImmune );
+            rp.Traits.Add( RoleTrait.ThunderWaveImmune );
+        }
+
+        if( _ai.UnitSim.CheckTypes( PokemonType.Dark, adapter ) )
+            rp.Traits.Add( RoleTrait.PranksterImmune );
+
+        if( adapter.Ability == AbilityID.Oblivious )
+            rp.Traits.Add( RoleTrait.TauntImmune );
+
+        if( _ai.UnitSim.CheckTypes( PokemonType.Ghost, adapter ) || adapter.Ability == AbilityID.InnerFocus )
+            rp.Traits.Add( RoleTrait.FakeOutImmune );
+
+        //--Status Weaknesses
+        if( rp.Biases.Contains( RoleBias.Physical ) && !rp.Traits.Contains( RoleTrait.BurnImmune ) )
+            rp.Traits.Add( RoleTrait.BurnWeak );
+
+        if( rp.Biases.Contains( RoleBias.Special ) && !rp.Traits.Contains( RoleTrait.FrostImmune ) )
+            rp.Traits.Add( RoleTrait.FrostWeak );
+
+        if( ( rp.PrimaryRole == RoleClass.Wall || rp.Biases.Contains( RoleBias.PhysicallyBulky ) || rp.Biases.Contains( RoleBias.SpeciallyBulky ) ) && !rp.Traits.Contains( RoleTrait.PoisonToxImmune ) )
+            rp.Traits.Add( RoleTrait.ToxicWeak );
+
+        if( ( rp.Biases.Contains( RoleBias.FastSpeed ) || rp.Biases.Contains( RoleBias.MiddlingSpeed ) ) && !rp.Traits.Contains( RoleTrait.ThunderWaveImmune ) && !rp.Traits.Contains( RoleTrait.PowderImmune ) )
+            rp.Traits.Add( RoleTrait.ParalysisWeak );
+
+        bool statusMoveHeavy = rp.PrimaryRole == RoleClass.DefensiveSetup || rp.PrimaryRole == RoleClass.SetupSweeper || rp.PrimaryRole == RoleClass.UtilitySupport || rp.PrimaryRole == RoleClass.Disrupter;
+        bool wantsToUseStatusMoves = rp.Traits.Contains( RoleTrait.PhysicallyOffensiveSetup ) || rp.Traits.Contains( RoleTrait.SpeciallyOffensiveSetup ) ||
+            rp.Traits.Contains( RoleTrait.PhysicallyDefensiveSetup ) || rp.Traits.Contains( RoleTrait.SpeciallyDefensiveSetup ) || rp.Traits.Contains( RoleTrait.StatusSpreader ) || rp.Traits.Contains( RoleTrait.RecoveryMove ) ||
+            rp.Traits.Contains( RoleTrait.Taunt ) || rp.Traits.Contains( RoleTrait.Encore );
+
+        if( statusMoveHeavy || wantsToUseStatusMoves )
+            rp.Traits.Add( RoleTrait.TauntWeak );
+
+        if( statusMoveHeavy )
+        {
+            rp.Traits.Add( RoleTrait.EncoreWeak );
+            rp.Traits.Add( RoleTrait.FakeOutWeak );
+        }
     }
 
 }
@@ -1663,7 +1739,7 @@ public enum RoleTrait
     ToxicPressure,
     BurnPressure,
     FrostbitePressure,
-    ParalysisSupport,
+    ParalysisPressure,
     SleepPressure,
 
     //--Pivoting
@@ -1688,6 +1764,7 @@ public enum RoleTrait
     Phazes,
     Encore,
     Taunt,
+    Haze,
     ItemDisruption,
 
     //--Defensive Utility
@@ -1710,9 +1787,31 @@ public enum RoleTrait
     StallBreaker,
     Cleric,
     SpinBlocker,
-
-    //--Wide Coverage
     WideMoveCoverage,
+    Frail,
+    FocusSash,
+    SoundMoves,
+
+    //--Status Immunities
+    BurnImmune,
+    FrostImmune,
+    PoisonToxImmune,
+    ThunderWaveImmune,
+    PowderImmune,
+    SleepImmune,
+    StatusMoveImmune,
+    PranksterImmune,
+    TauntImmune,
+    FakeOutImmune,
+
+    //--Status Weaknesses
+    BurnWeak,
+    FrostWeak,
+    ToxicWeak,
+    ParalysisWeak,
+    TauntWeak,
+    EncoreWeak,
+    FakeOutWeak,
 }
 
 public struct RoleProfile
@@ -1724,30 +1823,6 @@ public struct RoleProfile
     public HashSet<RoleTrait> Traits;
     public Dictionary<RoleClass, int> RoleScores;
     public RoleSignals Signals;
-}
-
-public struct InferredStats
-{
-    //--Stat Spread Key
-    public StatSpreadType StatSpreadType;
-
-    //--Stats Calculated with EVs and Nature
-    public int HP;
-    public int Atk;
-    public int Def;
-    public int SpAtk;
-    public int SpDef;
-    public int Spe;
-
-    //--EV Spread
-    public int HP_EVs;
-    public int Atk_EVs;
-    public int Def_EVs;
-    public int SpAtk_EVs;
-    public int SpDef_EVs;
-    public int Spe_EVs;
-
-    public Nature Nature;
 }
 
 public struct RoleSignals

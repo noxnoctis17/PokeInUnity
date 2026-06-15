@@ -793,20 +793,20 @@ public class BattleAI_SwitchCommand
         List<IBattleAIUnit> allyActiveUnits = new();
         List<IBattleAIUnit> opponentActiveUnits = new();
 
-        //--Convert switching functions to only take in the pokemon that wants to switch. using that pokemon, we will gain access to
-        //--that pokemon's opposing units and their ally bench through helpers in BattleAI. This will make these functions much more
-        //--generic and reusable without the weird readOpponent hacks and potentialy wrong-team comparison errors
-
         allyTeam = _ai.GetOpposingTeamAs_IBattleAIUnit( opponents[0].Pokemon );
         allyActiveUnits = _ai.GetActiveAllyUnits_AsBattleAIUnits( allyTeam[0].Pokemon );
 
-        if( allyTeam.Count > 6 )
-            Debug.LogError( $"how this mf have more than 6 pokemon on his team?" );
+        // if( allyTeam.Count > 6 )
+            // Debug.LogError( $"how this mf have more than 6 pokemon on his team?" );
 
         bench = allyTeam.Where( p => !allyActiveUnits.Any( u => u.Pokemon == p.Pokemon ) && p.Pokemon.CurrentHP > 0  ).ToList();
+        int remaining = allyTeam.Where( p => p.Pokemon.CurrentHP > 0 ).ToList().Count;
         
-        if( bench.Count > 5 )
-            Debug.LogError( $"how this mf have more than 5 pokemon on his bench?" );
+        // if( bench.Count > 5 )
+            // Debug.LogError( $"how this mf have more than 5 pokemon on his bench?" );
+
+        if( bench.Count <= 0 && remaining > 0 )
+            Debug.LogError( $"Ally Count: {remaining}. Somehow we have no mons on the bench but mons remaining on the team. How did a pokemon end up being considered active when it wasn't on the field? possibly in adapter updates..." );
 
         // CustomLogSession log = new();
         // log.Add( $"===[Beginning Revenge Switch Candidate Selection]===" );
@@ -828,8 +828,7 @@ public class BattleAI_SwitchCommand
             float hpRatioAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( candidate );
             if( hpRatioAfterHazards <= 0f && !_ai.Check_IsLastPokemon() )
             {
-                var remaining = _ai.GetRemainingAllyPokemon( candidate.Pokemon );
-                if( remaining.Count > 1 )
+                if( remaining > 1 )
                     continue;
             }
 
@@ -1046,7 +1045,7 @@ public class BattleAI_SwitchCommand
             if( bench.Count > 0 )
                 bestSwitch = bench[Random.Range( 0, bench.Count )].Pokemon;
             else
-                Debug.Log( $"[AI Scoring][Revenge Switch Candidate] No Switch available!" );
+                Debug.LogError( $"[AI Scoring][Revenge Switch Candidate] No Switch available!" );
         }
         else
         {
@@ -1123,7 +1122,7 @@ public class BattleAI_SwitchCommand
 
         if( bestSwitch == null )
         {
-            Debug.Log( $"[AI Scoring][Vacuum Switch Candidate] No Switch available!" );
+            Debug.LogError( $"[AI Scoring][Vacuum Switch Candidate] No Switch available!" );
         }
 
         return bestSwitch;

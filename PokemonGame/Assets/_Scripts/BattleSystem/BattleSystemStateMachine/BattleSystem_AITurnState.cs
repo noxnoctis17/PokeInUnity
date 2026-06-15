@@ -39,12 +39,6 @@ public class BattleSystem_AITurnState : State<BattleSystem>
 
         Debug.Log( $"Amount of AI Units: {_availableAIUnit.Count}" );
 
-        foreach( var unit in _availableAIUnit )
-        {
-            unit.BattleAI.ChooseCommand();
-            _commands++;
-        }
-
         StartCoroutine( AwaitActionSelections() );
     }
 
@@ -52,6 +46,17 @@ public class BattleSystem_AITurnState : State<BattleSystem>
     {
         _commands = 0;
         _availableAIUnit.Clear();
+    }
+
+    private IEnumerator ChooseCommands()
+    {
+        foreach( var unit in _availableAIUnit )
+        {
+            yield return unit.BattleAI.ChooseCommand();
+            _commands++;
+        }
+
+        yield return null;
     }
 
     private IEnumerator AwaitActionSelections()
