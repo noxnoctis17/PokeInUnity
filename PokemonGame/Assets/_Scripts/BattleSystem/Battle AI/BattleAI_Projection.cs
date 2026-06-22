@@ -94,8 +94,8 @@ public class BattleAI_Projection
         var attStatus2 = top2.Attacker.SevereStatus;
         var oppStatus1 = top1.Opponent.SevereStatus;
         var oppStatus2 = top2.Opponent.SevereStatus;
-        var attackerMove1 = top1.Attacker.MTR.Move;
-        var opponentMove1 = top1.Opponent.MTR.Move;
+        var attackerMove1 = top1.Attacker.MTR?.Move ?? null;
+        var opponentMove1 = top1.Opponent.MTR?.Move ?? null;
         var attCourt = top1.Attacker.CourtLocation;
         var oppCourt = top1.Opponent.CourtLocation;
         var attCourtConditions = attCourt == CourtLocation.TopCourt ? top1.Field.TopCourtConditions : top1.Field.BottomCourtConditions;
@@ -108,7 +108,7 @@ public class BattleAI_Projection
         if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.SLP || oppStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
             iCreatesDecisiveState = true;
 
-        if( attackerMove1.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( attackerMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
             iCreatesDecisiveState = true;
 
         if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.BRN || oppStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
@@ -127,7 +127,7 @@ public class BattleAI_Projection
         if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.SLP || attStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
             oppCreatesDecisiveState = true;
 
-        if( opponentMove1.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( opponentMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
             oppCreatesDecisiveState = true;
 
         if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.BRN || attStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
@@ -1258,11 +1258,8 @@ public class BattleAI_Projection
         return TempoState.Neutral;
     }
 
-    public BoardContext GetBoardContext( IBattleAIUnit target, ExchangeEvaluation eval )
+    public BoardContext GetBoardContext( IBattleAIUnit attacker, IBattleAIUnit target, ExchangeEvaluation eval )
     {
-        //--The unit attached to this AI.
-        BattleAI_PokemonAdapter ourAdapter = _ai.ThisUnitAdapter;
-
         //--Safe Pivot Check
         bool safePivotExists = CheckForSafePivot( target );
 
@@ -1272,8 +1269,8 @@ public class BattleAI_Projection
         bool isForced = ( likelyDying && !safePivotExists ) || ( lowHP && eval.OpponentPTKOR.PTKO >= PotentialToKO.Risky );
 
         //--Material Information
-        var myTeamAlive = _ai.CreateBattleAIUnits_FromPokemon( _ai.GetRemainingAllyPokemon( ourAdapter.PID ) );
-        var oppTeamAlive = _ai.CreateBattleAIUnits_FromPokemon( _ai.GetRemainingOpposingPokemon( ourAdapter.PID ) );
+        var myTeamAlive = _ai.GetRemainingPartyAs_IBattleAIUnits( attacker.Pokemon );
+        var oppTeamAlive = _ai.GetRemainingPartyAs_IBattleAIUnits( target.Pokemon );
 
         int myAlive = myTeamAlive.Count;
         int oppAlive = oppTeamAlive.Count;
@@ -1443,18 +1440,39 @@ public class BattleAI_Projection
         Stat attackingStat = Stat.Attack;
         Stat defendingStat = Stat.Defense;
         string key = "none";
-        var moveSO = moveThreat.Move.MoveSO;
-        float movePower = moveThreat.Move.MovePower;
-        float modifier = moveThreat.Modifier;
+        MoveSO moveSO = null;
+        float movePower = 0f;
+        float modifier = 1f;
         float brnOrfbt = 1f;
 
-        //--Unique Wallscore Key check
-        if( moveThreat.Move != null )
+        if( moveThreat != null && moveThreat.Move != null )
         {
             key = moveThreat.Move.MoveSO.Name;
+            moveSO = moveThreat.Move.MoveSO;
+            movePower = moveThreat.Move.MovePower;
+            modifier = moveThreat.Modifier;
 
             if( _unitSim.MovePowerConditions.TryGetValue( key, out var mod ) )
                 movePower = mod( attacker, target, moveThreat.Move );
+        }
+        else if( moveThreat == null || moveThreat.Move == null || moveThreat.Move.MoveSO.MoveCategory == MoveCategory.Status )
+        {
+            EstimatedDamageResult zeroEDR = new()
+            {
+                // Score = score,
+                DamageEstimate = 0f,
+                LowRollEstimate = 0f,
+                AttackingStatStage = attacker.StatStages[attackingStat],
+                DefendingStatStage = target.StatStages[defendingStat],
+
+                AttackingDirectModifier = attacker.DirectStatModifiers[attackingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+                DefendingDirectModifier = target.DirectStatModifiers[defendingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+
+                Attacker = attacker,
+                Target = target,
+            };
+
+            return zeroEDR;
         }
 
         //--Multi hit move power projection
@@ -1571,13 +1589,17 @@ public class BattleAI_Projection
     public PotentialToKOResult Get_PotentialToKOResult( EstimatedDamageResult edr, MoveThreatResult mtr, float targetHPR )
     {
         PotentialToKO ptko = GetPTKO_FromDamageEstimate( edr, targetHPR );
+        int score = Get_PotentialToKOScoreFromEnum( ptko );
+        // Debug.LogError( $"PTKO: {ptko}, Score: {score}");
 
-        return new()
+        PotentialToKOResult ptkor = new()
         {
-            Score = Get_PotentialToKOScoreFromEnum( ptko ),
+            Score = score,
             PTKO = ptko,
-            Modifier = mtr.Modifier,
+            Modifier = mtr != null ? mtr.Modifier : 0f
         };
+
+        return ptkor;
     }
 
     private PotentialToKOResult Get_PTKOResultPreview( EstimatedDamageResult edr, MoveThreatResult mtr )
@@ -1646,7 +1668,7 @@ public class BattleAI_Projection
         else if( damage <= 0.59f )      return PotentialToKO.TwoHKO;
         else if( damage <= 0.78f )      return PotentialToKO.Risky;
         else if( damage <= 0.98f )      return PotentialToKO.Dangerous;
-        else if( damage >= 0.99f )       return PotentialToKO.OHKO;
+        else if( damage >= 0.99f )      return PotentialToKO.OHKO;
         else                            return PotentialToKO.TwoHKO;
     }
 
@@ -1938,7 +1960,7 @@ public class BattleAI_Projection
                     blocks++;
             }
 
-            if( gp.EliminateBlockers.Contains( opp.Pokemon ) )
+            if( gp.TheirBlockers.Contains( opp.Pokemon ) )
             {
                 blocks++;
                 _ai.CurrentLog.Add( $"[Current Plan] (Aggress) Primary blocker still alive. Adding." );
@@ -1954,7 +1976,7 @@ public class BattleAI_Projection
         aggressScore += blockCount;
         aggressScore += tp.ConstrainingPressure >= 2f ? 1.5f : 0f;
 
-        if( tp.Type == ThreatType.Persistent || tp.ConstrainingPressure >= 4f || gp.EliminateBlockers.Contains( tp.ThreatUnit.Pokemon ) )
+        if( tp.Type == ThreatType.Persistent || tp.ConstrainingPressure >= 4f || gp.TheirBlockers.Contains( tp.ThreatUnit.Pokemon ) )
             aggressScore += 2f;
 
         _ai.CurrentLog.Add( $"[Current Plan] Aggress Score: {aggressScore}" );
@@ -2018,6 +2040,7 @@ public class BattleAI_Projection
         };
 
         finalPlan.AllowSacrifice = allowSacrifice;
+        finalPlan.SweepPotential = tp.SweepPotential;
 
         _ai.CurrentLog.Add( $"[Current Plan] Final Plan: {finalPlan.Type}, Confidence: {finalPlan.Confidence}, Sacrifice Allowed: {finalPlan.AllowSacrifice}" );
         _ai.CurrentLog.Add( $"===================================================================================================" );
@@ -2498,6 +2521,8 @@ public class BattleAI_Projection
         {
             Round = _ai.Round,
             IsEarlyGame = _ai.Round <= 5,
+            IsMidGame = _ai.Round > 6 && _ai.Round < 16,
+            IsLateGame = _ai.Round > 15,
             Weather = field.Weather,
             Terrain = field.Terrain,
             WeatherDuration = field.WeatherDuration,

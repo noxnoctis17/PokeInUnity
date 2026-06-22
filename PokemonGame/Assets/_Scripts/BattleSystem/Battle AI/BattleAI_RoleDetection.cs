@@ -939,7 +939,7 @@ public class BattleAI_RoleDetection
         // Will depend on things like hazard presence, taunt, sash, speed, pivot, suicide traits, disruption. need traits assigned before lead can be assigned.
 
         //--Logging
-        CustomLogSession roleLog = new();
+        // CustomLogSession roleLog = new();
 
         int baseHP = adapter.Pokemon.PokeSO.MaxHP;
         int baseAttack = adapter.Pokemon.PokeSO.Attack;
@@ -953,102 +953,102 @@ public class BattleAI_RoleDetection
         string move3 = adapter.ActiveMoves[2] != null ? adapter.ActiveMoves[2].MoveSO.Name : "NONE";
         string move4 = adapter.ActiveMoves[3] != null ? adapter.ActiveMoves[3].MoveSO.Name : "NONE";
 
-        roleLog.Add( $"=========================================" );
-        roleLog.Add( $"====[Begin Role Log ({adapter.Name})]====" );
-        roleLog.Add( $"=========================================" );
-        roleLog.Add( $"[Base Stats] HP: {baseHP}, Atk: {baseAttack}, Def: {baseDefense}, SpAtk: {baseSpAttack}, SpDef: {baseSpDefense}, Spe: {baseSpeed}" );
-        roleLog.Add( $"[Meta Data] Moves: 1. {move1}, 2. {move2}, 3. {move3}, 4. {move4} | Ability: {adapter.Ability} | Item: {adapter.Item}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=====================" );
-        roleLog.Add( $"===[Role Signals]===" );
-        roleLog.Add( $"=====================" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=[Offense]=" );
-        roleLog.Add( $"Physical Offense: {rs.PhysicalOffense}" );
-        roleLog.Add( $"Special Offense: {rs.SpecialOffense}" );
-        roleLog.Add( $"Physical Offense Leaning: {rs.PhysicalOffenseLeaning}" );
-        roleLog.Add( $"Special Offense Leaning: {rs.SpecialOffenseLeaning}" );
-        roleLog.Add( $"Mixed Offense Leaning: {rs.MixedOffenseLeaning}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"Burst Damage: {rs.BurstDamage}" );
-        roleLog.Add( $"Sustained Damage: {rs.SustainedDamage}" );
-        roleLog.Add( $"Passive Pressure: {rs.PassivePressure}" );
-        roleLog.Add( $"Spread Damage Pressure: {rs.SpreadDamagePressure}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=[Bulk]=" );
-        roleLog.Add( $"Physical Bulk: {rs.PhysicalBulk}" );
-        roleLog.Add( $"Special Bulk: {rs.SpecialBulk}" );
-        roleLog.Add( $"Physical Defense Leaning: {rs.PhysicalDefenseLeaning}" );
-        roleLog.Add( $"Special Defense Leaning: {rs.SpecialDefenseLeaning}" );
-        roleLog.Add( $"Mixed Defense Leaning: {rs.MixedDefenseLeaning}" );
-        roleLog.Add( $"Self Sustain: {rs.SelfSustain}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=[Tempo]=" );
-        roleLog.Add( $"Speed Pressure: {rs.SpeedPressure}" );
-        roleLog.Add( $"Speed Control: {rs.SpeedControl}" );
-        roleLog.Add( $"Trick Room Abuser: {rs.TrickRoomBenefits}" );
-        roleLog.Add( $"Pivoting: {rs.Pivoting}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=[Utility]=" );
-        roleLog.Add( $"Offensive Utility: {rs.OffensiveUtility}" );
-        roleLog.Add( $"Support Utility: {rs.SupportUtility}" );
-        roleLog.Add( $"Disruption: {rs.Disruption}" );
-        roleLog.Add( $"Hazard Pressure: {rs.HazardPressure}" );
-        roleLog.Add( $"Battlefield Control: {rs.BattlefieldControl}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=[Setup Intent]=" );
-        roleLog.Add( $"Setup Pressure: {rs.SetupPressure}" );
-        roleLog.Add( $"Offensive Setup Pressure: {rs.OffensiveSetupPressure}" );
-        roleLog.Add( $"Defensive Setup Pressure: {rs.DefensiveSetupPressure}" );
-        roleLog.Add( $"Physical Setup: {rs.PhysicalSetup}" );
-        roleLog.Add( $"Special Setup: {rs.SpecialSetup}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=[Strategic Intent]=" );
-        roleLog.Add( $"Wallbreaking: {rs.Wallbreaking}" );
-        roleLog.Add( $"Revenge Killing: {rs.RevengeKilling}" );
-        roleLog.Add( $"Team Support: {rs.TeamSupport}" );
-        roleLog.Add( $"Damage Absorbing: {rs.DamageAbsorbing}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=[Misc.]=" );
-        roleLog.Add( $"Physical Move Count: {rs.PhysicalAttackCount}" );
-        roleLog.Add( $"Special Move Count: {rs.SpecialAttackCount}" );
-        roleLog.Add( $"Status Move Count: {rs.StatusMoveCount}" );
-        roleLog.Add( $"Setup Move Count: {rs.SetupMoveCount}" );
-        roleLog.Add( $"Hybrid Role Leaning: {rs.HybridRoleLeaning}" );
-        roleLog.Add( $"" );
-        roleLog.Add( $"=====================" );
-        roleLog.Add( $"====[Role Class]=====" );
-        roleLog.Add( $"=====================" );
+        // roleLog.Add( $"=========================================" );
+        // roleLog.Add( $"====[Begin Role Log ({adapter.Name})]====" );
+        // roleLog.Add( $"=========================================" );
+        // roleLog.Add( $"[Base Stats] HP: {baseHP}, Atk: {baseAttack}, Def: {baseDefense}, SpAtk: {baseSpAttack}, SpDef: {baseSpDefense}, Spe: {baseSpeed}" );
+        // roleLog.Add( $"[Meta Data] Moves: 1. {move1}, 2. {move2}, 3. {move3}, 4. {move4} | Ability: {adapter.Ability} | Item: {adapter.Item}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=====================" );
+        // roleLog.Add( $"===[Role Signals]===" );
+        // roleLog.Add( $"=====================" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=[Offense]=" );
+        // roleLog.Add( $"Physical Offense: {rs.PhysicalOffense}" );
+        // roleLog.Add( $"Special Offense: {rs.SpecialOffense}" );
+        // roleLog.Add( $"Physical Offense Leaning: {rs.PhysicalOffenseLeaning}" );
+        // roleLog.Add( $"Special Offense Leaning: {rs.SpecialOffenseLeaning}" );
+        // roleLog.Add( $"Mixed Offense Leaning: {rs.MixedOffenseLeaning}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"Burst Damage: {rs.BurstDamage}" );
+        // roleLog.Add( $"Sustained Damage: {rs.SustainedDamage}" );
+        // roleLog.Add( $"Passive Pressure: {rs.PassivePressure}" );
+        // roleLog.Add( $"Spread Damage Pressure: {rs.SpreadDamagePressure}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=[Bulk]=" );
+        // roleLog.Add( $"Physical Bulk: {rs.PhysicalBulk}" );
+        // roleLog.Add( $"Special Bulk: {rs.SpecialBulk}" );
+        // roleLog.Add( $"Physical Defense Leaning: {rs.PhysicalDefenseLeaning}" );
+        // roleLog.Add( $"Special Defense Leaning: {rs.SpecialDefenseLeaning}" );
+        // roleLog.Add( $"Mixed Defense Leaning: {rs.MixedDefenseLeaning}" );
+        // roleLog.Add( $"Self Sustain: {rs.SelfSustain}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=[Tempo]=" );
+        // roleLog.Add( $"Speed Pressure: {rs.SpeedPressure}" );
+        // roleLog.Add( $"Speed Control: {rs.SpeedControl}" );
+        // roleLog.Add( $"Trick Room Abuser: {rs.TrickRoomBenefits}" );
+        // roleLog.Add( $"Pivoting: {rs.Pivoting}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=[Utility]=" );
+        // roleLog.Add( $"Offensive Utility: {rs.OffensiveUtility}" );
+        // roleLog.Add( $"Support Utility: {rs.SupportUtility}" );
+        // roleLog.Add( $"Disruption: {rs.Disruption}" );
+        // roleLog.Add( $"Hazard Pressure: {rs.HazardPressure}" );
+        // roleLog.Add( $"Battlefield Control: {rs.BattlefieldControl}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=[Setup Intent]=" );
+        // roleLog.Add( $"Setup Pressure: {rs.SetupPressure}" );
+        // roleLog.Add( $"Offensive Setup Pressure: {rs.OffensiveSetupPressure}" );
+        // roleLog.Add( $"Defensive Setup Pressure: {rs.DefensiveSetupPressure}" );
+        // roleLog.Add( $"Physical Setup: {rs.PhysicalSetup}" );
+        // roleLog.Add( $"Special Setup: {rs.SpecialSetup}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=[Strategic Intent]=" );
+        // roleLog.Add( $"Wallbreaking: {rs.Wallbreaking}" );
+        // roleLog.Add( $"Revenge Killing: {rs.RevengeKilling}" );
+        // roleLog.Add( $"Team Support: {rs.TeamSupport}" );
+        // roleLog.Add( $"Damage Absorbing: {rs.DamageAbsorbing}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=[Misc.]=" );
+        // roleLog.Add( $"Physical Move Count: {rs.PhysicalAttackCount}" );
+        // roleLog.Add( $"Special Move Count: {rs.SpecialAttackCount}" );
+        // roleLog.Add( $"Status Move Count: {rs.StatusMoveCount}" );
+        // roleLog.Add( $"Setup Move Count: {rs.SetupMoveCount}" );
+        // roleLog.Add( $"Hybrid Role Leaning: {rs.HybridRoleLeaning}" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=====================" );
+        // roleLog.Add( $"====[Role Class]=====" );
+        // roleLog.Add( $"=====================" );
         foreach( var role in sortedroles )
         {
-            roleLog.Add( $"Role: {role.Key}, Score: {role.Value}" );
+            // roleLog.Add( $"Role: {role.Key}, Score: {role.Value}" );
         }
-        roleLog.Add( $"" );
-        roleLog.Add( $"=====================" );
-        roleLog.Add( $"====[Role Biases]====" );
-        roleLog.Add( $"=====================" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=====================" );
+        // roleLog.Add( $"====[Role Biases]====" );
+        // roleLog.Add( $"=====================" );
         foreach( var bias in rp.Biases )
         {
-            roleLog.Add( $"Role Bias: {bias}" );
+            // roleLog.Add( $"Role Bias: {bias}" );
         }
-        roleLog.Add( $"" );
-        roleLog.Add( $"=====================" );
-        roleLog.Add( $"====[Role Traits]====" );
-        roleLog.Add( $"=====================" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=====================" );
+        // roleLog.Add( $"====[Role Traits]====" );
+        // roleLog.Add( $"=====================" );
         foreach( var trait in rp.Traits )
         {
-            roleLog.Add( $"Role Trait: {trait}" );
+            // roleLog.Add( $"Role Trait: {trait}" );
         }
-        roleLog.Add( $"" );
-        roleLog.Add( $"=========================================" );
-        roleLog.Add( $"=====[End Role Log ({adapter.Name})]=====" );
-        roleLog.Add( $"=========================================" );
-        roleLog.Add( $"" );
+        // roleLog.Add( $"" );
+        // roleLog.Add( $"=========================================" );
+        // roleLog.Add( $"=====[End Role Log ({adapter.Name})]=====" );
+        // roleLog.Add( $"=========================================" );
+        // roleLog.Add( $"" );
 
-        Debug.Log( roleLog.ToString() );
-        string path = Application.persistentDataPath + "/BattleAI_RoleLog.txt";
-        System.IO.File.AppendAllText( path, roleLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
-        roleLog.Clear();
+        // Debug.Log( roleLog.ToString() );
+        // string path = Application.persistentDataPath + "/BattleAI_RoleLog.txt";
+        // System.IO.File.AppendAllText( path, roleLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
+        // roleLog.Clear();
 
         return rp;
     }
@@ -1383,10 +1383,13 @@ public class BattleAI_RoleDetection
                 rp.Traits.Add( RoleTrait.SlowPivot );
         }
 
-        //--Setup
+        //--Setup && Stat Debuffs
         foreach( var move in moves )
         {
-            if( !_us.MoveIsSetup( move ) )
+            var moveIsSetup = _us.MoveIsSetup( move );
+            var moveIsDebuff = _us.MoveIsDebuff( move );
+
+            if( !moveIsSetup && !moveIsDebuff )
                 continue;
 
             var statChanges = move.MoveSO.MoveEffects.StatChangeList;
@@ -1407,6 +1410,24 @@ public class BattleAI_RoleDetection
 
                         if( sc.Stat == Stat.SpDefense )
                             rp.Traits.Add( RoleTrait.SpeciallyDefensiveSetup );
+                    }
+
+                    if( sc.Change < 0 && moveIsDebuff )
+                    {
+                        if( sc.Stat == Stat.Attack )
+                            rp.Traits.Add( RoleTrait.AttackDebuffer );
+
+                        if( sc.Stat == Stat.Defense )
+                            rp.Traits.Add( RoleTrait.DefenseDebuffer );
+
+                        if( sc.Stat == Stat.SpAttack )
+                            rp.Traits.Add( RoleTrait.SpAttackDebuffer );
+
+                        if( sc.Stat == Stat.SpDefense )
+                            rp.Traits.Add( RoleTrait.SpDefenseDebuffer );
+
+                        if( sc.Stat == Stat.Speed )
+                            rp.Traits.Add( RoleTrait.SpeedDebuffer );
                     }
                 }
             }
@@ -1812,6 +1833,14 @@ public enum RoleTrait
     TauntWeak,
     EncoreWeak,
     FakeOutWeak,
+
+    //--Stat Debuffs
+    StatDebuffer,
+    AttackDebuffer,
+    DefenseDebuffer,
+    SpAttackDebuffer,
+    SpDefenseDebuffer,
+    SpeedDebuffer,
 }
 
 public struct RoleProfile

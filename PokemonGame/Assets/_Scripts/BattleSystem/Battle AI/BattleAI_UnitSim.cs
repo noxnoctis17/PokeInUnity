@@ -38,40 +38,40 @@ public class BattleAI_UnitSim
         SevereConditionsDicInit();
     }
 
-    public void LogSimUnit( SimulatedUnit unit )
-    {
-        TurnSimLog.Add( $"===[Simulated Unit: (Lv.{unit.Level}) {unit.Name}]===" );
-        TurnSimLog.Add( $"Current HPR: {unit.CurrentHPR}" );
-        TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
-        TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"MaxHP: {unit.HP}" );
-        TurnSimLog.Add( $"Attack: {unit.Attack}" );
-        TurnSimLog.Add( $"Defense: {unit.Defense}" );
-        TurnSimLog.Add( $"SpAttack: {unit.SpAttack}" );
-        TurnSimLog.Add( $"SpDefense: {unit.SpDefense}" );
-        TurnSimLog.Add( $"Speed: {unit.Speed}" );
-        TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"Move: {unit.MTR.Move.MoveSO.Name}" );
-        TurnSimLog.Add( $"Ungrounded: {unit.IsUngrounded}" );
-        TurnSimLog.Add( $"Ability: {unit.Ability}" );
-        TurnSimLog.Add( $"Item: {unit.Item}" );
-        TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
-        TurnSimLog.Add( $"Toxic Counter: {unit.SevereStatusTime}" );
-        TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
-        TurnSimLog.Add( $"Binding Condition Count: {unit.Bindings.Count}" );
-        TurnSimLog.Add( $"" );
-    }
+    // public void LogSimUnit( SimulatedUnit unit )
+    // {
+    //     TurnSimLog.Add( $"===[Simulated Unit: (Lv.{unit.Level}) {unit.Name}]===" );
+    //     TurnSimLog.Add( $"Current HPR: {unit.CurrentHPR}" );
+    //     TurnSimLog.Add( $"Types: {unit.Type.One} / {unit.Type.Two}" );
+    //     TurnSimLog.Add( $"" );
+    //     TurnSimLog.Add( $"MaxHP: {unit.HP}" );
+    //     TurnSimLog.Add( $"Attack: {unit.Attack}" );
+    //     TurnSimLog.Add( $"Defense: {unit.Defense}" );
+    //     TurnSimLog.Add( $"SpAttack: {unit.SpAttack}" );
+    //     TurnSimLog.Add( $"SpDefense: {unit.SpDefense}" );
+    //     TurnSimLog.Add( $"Speed: {unit.Speed}" );
+    //     TurnSimLog.Add( $"" );
+    //     TurnSimLog.Add( $"Move: {unit.MTR.Move.MoveSO.Name}" );
+    //     TurnSimLog.Add( $"Ungrounded: {unit.IsUngrounded}" );
+    //     TurnSimLog.Add( $"Ability: {unit.Ability}" );
+    //     TurnSimLog.Add( $"Item: {unit.Item}" );
+    //     TurnSimLog.Add( $"" );
+    //     TurnSimLog.Add( $"Severe Status: {unit.SevereStatus}" );
+    //     TurnSimLog.Add( $"Toxic Counter: {unit.SevereStatusTime}" );
+    //     TurnSimLog.Add( $"Volatile Status Count: {unit.VolatileStatuses.Count}" );
+    //     TurnSimLog.Add( $"Binding Condition Count: {unit.Bindings.Count}" );
+    //     TurnSimLog.Add( $"" );
+    // }
 
-    private void LogSimField( SimulatedField field )
-    {
-        TurnSimLog.Add( $"===[Simulated Field]===" );
-        TurnSimLog.Add( $"Weather: {field.Weather}" );
-        TurnSimLog.Add( $"Terrain: {field.Terrain}" );
-        TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
-        TurnSimLog.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
-        TurnSimLog.Add( $"" );
-    }
+    // private void LogSimField( SimulatedField field )
+    // {
+    //     TurnSimLog.Add( $"===[Simulated Field]===" );
+    //     TurnSimLog.Add( $"Weather: {field.Weather}" );
+    //     TurnSimLog.Add( $"Terrain: {field.Terrain}" );
+    //     TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
+    //     TurnSimLog.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
+    //     TurnSimLog.Add( $"" );
+    // }
 
     public void LogTop( TurnOutcomeProjection top )
     {
@@ -119,7 +119,7 @@ public class BattleAI_UnitSim
         for( int i = 0; i < statStages.Count; i++ )
         {
             var stages = statStages[i];
-            pokemon.StatStages[stages.Stat] = stages.Change;
+            unit.StatStages[stages.Stat] = stages.Change;
         }
 
         return unit;

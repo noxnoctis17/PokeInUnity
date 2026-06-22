@@ -25,7 +25,7 @@ public class BattleAI_SwitchCommand
         _ai.BattleSystem.SetSwitchPokemonCommand( incomingPokemon, _ai.Unit, true );
     }
 
-    public int DefensiveSwitchScore( TempoStateResult tempo, ExchangeEvaluation eval, SwitchCandidateResult switchCandidate, BoardContext context )
+    public int DefensiveSwitchScore( TempoStateResult tempo, ExchangeEvaluation eval, SwitchCandidateResult switchCandidate, BoardContext context, TurnOutcomeProjection intentTOP )
     {
         //--Tank score if unable to switch
         if( switchCandidate.Pokemon == null || _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon() )
@@ -45,10 +45,14 @@ public class BattleAI_SwitchCommand
         _ai.CurrentLog.Add( $"===[Beginning Defensive Switch Scoring for {attackerName} vs {targetName}. Switch Candidate: {switchName}. Tempo: {tempo.TempoState}]===" );
 
 
-        if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
+        if( intentTOP.OpponentPTKO == PotentialToKO.OHKO )
         {
             _ai.CurrentLog.Add( $"Switch candidate's potential to be KO'd is OHKO! Tanking Score!" );
             return -999;
+        }
+        else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
+        {
+            score -= 70;
         }
         
         var currentPTKO = eval.OpponentPTKOR.PTKO;
@@ -184,7 +188,7 @@ public class BattleAI_SwitchCommand
         return score;
     }
 
-    public int OffensiveSwitchScore( TempoStateResult tempo, ExchangeEvaluation eval, SwitchCandidateResult switchCandidate, BoardContext context )
+    public int OffensiveSwitchScore( TempoStateResult tempo, ExchangeEvaluation eval, SwitchCandidateResult switchCandidate, BoardContext context, TurnOutcomeProjection intentTOP )
     {
         int score = 0;
         string switchName = "none";
@@ -199,6 +203,16 @@ public class BattleAI_SwitchCommand
         switchName = switchCandidate.Pokemon.NickName;
 
         _ai.CurrentLog.Add( $"===[Beginning Offensive Switch Scoring for Candidate {switchName}]===" );
+
+        if( intentTOP.OpponentPTKO == PotentialToKO.OHKO )
+        {
+            _ai.CurrentLog.Add( $"Switch candidate's potential to be KO'd is OHKO! Tanking Score!" );
+            return -999;
+        }
+        else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
+        {
+            score -= 70;
+        }
 
         int offensiveDelta = switchCandidate.SwitchOffensePTKOR.Score - switchCandidate.SwitchDefensePTKOR.Score; //--should be offensive ptko score minus defensive ptko score.
         score += Mathf.Clamp( Mathf.FloorToInt( offensiveDelta * 0.5f ), 0, 40 );
@@ -292,7 +306,7 @@ public class BattleAI_SwitchCommand
         bool isFaster = false;
 
         List<IBattleAIUnit> bench = new();
-        List<( Pokemon Pokemon, int Score )> returnAllList = new();
+        Dictionary<Pokemon, SwitchCandidateResult> returnAllList = new();
 
         //--Convert switching functions to only take in the pokemon that wants to switch. using that pokemon, we will gain access to
         //--that pokemon's opposing units and their ally bench through helpers in BattleAI. This will make these functions much more
@@ -363,10 +377,11 @@ public class BattleAI_SwitchCommand
                 var threatHPR = _ai.Get_HPRatio( threat );
                 var candidateMTR = _ai.MoveCommand.GetMove_BestAttack( candidateAdapter, threat, false, "Get Switch Defensive (our move)" );
                 var candidateEDR = _proj.Get_EstimatedDamageResult( candidateAdapter, threat, candidateMTR );
-                PotentialToKOResult candidatePTKOR = _proj.Get_PotentialToKOResult( candidateEDR, candidateMTR, threatHPR );
 
                 //--Defensive PTKO Result. This is the opponent's potential to KO this candidate.
                 var threatsEDR = _proj.Get_EstimatedDamageResult( threat, candidateAdapter, incomingMTR_vsCandidate );
+
+                PotentialToKOResult candidatePTKOR = _proj.Get_PotentialToKOResult( candidateEDR, candidateMTR, threatHPR );
                 PotentialToKOResult threatPTKOR = _proj.Get_PotentialToKOResult( threatsEDR, incomingMTR_vsCandidate, candidateHPRafterHazards );
 
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Our PTKO them: {candidatePTKOR.PTKO}. Their PTKO us: {threatPTKOR.PTKO}" );
@@ -374,11 +389,15 @@ public class BattleAI_SwitchCommand
                 //--Build Simulation Units & Field
                 var fieldSim = _ai.UnitSim.BuildSimField();
 
-                var threatSim = _ai.UnitSim.BuildSimUnit( threat, threatHPR, incomingMTR_vsCandidate, fieldSim );
                 var candidateSim = _ai.UnitSim.BuildSimUnit( candidateAdapter, candidateHPRafterHazards, candidateMTR, fieldSim );
+                var threatSim = _ai.UnitSim.BuildSimUnit( threat, threatHPR, incomingMTR_vsCandidate, fieldSim );
 
-                var battleSimContext = _battleSim.Get_BattleSimContext( candidatePTKOR.PTKO, threatPTKOR.PTKO, candidateSim, threatSim, fieldSim );
-                var switchTOP = _battleSim.SimulateSwitchRound( battleSimContext, true, false ); //--Attacker is switch, opponent is switch
+                SimulationPackage candidatePack = new(){ SimUnit = candidateSim, ModuleType = SimModuleType.Switch };
+                SimulationPackage threatPack = new(){ SimUnit = threatSim, ModuleType = SimModuleType.Attack };
+
+                var bse = _battleSim.BuildBattleSimEvent( candidatePTKOR.PTKO, threatPTKOR.PTKO, candidatePack, threatPack, fieldSim );
+                var switchTOP = _battleSim.RunSimulation( bse ); //--Attacker is switch, opponent is switch
+                // var switchTOP = _battleSim.SimulateSwitchRound( battleSimContext, true, false ); //--Attacker is switch, opponent is switch
 
                 // defensiveSwitchLog.Add( $"==[Defensive Switch Candidate][{candidateAdapter.Name}] Logging TOP]===" );
                 // defensiveSwitchLog.Add( $"{switchTOP.SimulationLog}" );
@@ -501,7 +520,20 @@ public class BattleAI_SwitchCommand
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Attacker moved first: {next.AttackerMovedFirst}. Score: {score}" );
 
                 if( returnAll )
-                    returnAllList.Add( ( candidateAdapter.Pokemon, score ) );
+                {
+                    SwitchCandidateResult src = new()
+                    {
+                        Score = score,
+                        Pokemon = candidateAdapter.Pokemon,
+                        HPRatio = candidateHPRafterHazards,
+                        SwitchOffensePTKOR = candidatePTKOR,
+                        SwitchDefensePTKOR = threatPTKOR,
+                        IsLegitimate = islegit,
+                        Top = switchTOP,
+                    };
+
+                    returnAllList.Add( candidateAdapter.Pokemon, src );
+                }
 
                 if( score > bestScore )
                 {
@@ -547,7 +579,7 @@ public class BattleAI_SwitchCommand
         if( returnAll )
         {
             scr.ReturnAllList = new();
-            scr.ReturnAllList = returnAllList.ToList();
+            scr.ReturnAllList = returnAllList.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
         }
 
         return scr;
@@ -573,6 +605,7 @@ public class BattleAI_SwitchCommand
         bool isFaster = false;
 
         List<IBattleAIUnit> bench = new();
+        Dictionary<Pokemon, SwitchCandidateResult> returnAllList = new();
 
         List<IBattleAIUnit> allyUnits = new();
         List<IBattleAIUnit> allyActiveUnits = new();
@@ -641,12 +674,17 @@ public class BattleAI_SwitchCommand
             // Debug.Log( $"[AI Scoring][Offensive Switch Candidate][{pokemon.NickName}] PTKOs Obtained. {pokemon.NickName} PTKO: {offensePTKOR.PTKO}. {threat.Unit.Pokemon.NickName} PTKO: {defensePTKOR.PTKO}" );
 
             //--Build Simulation Units & Field
-            var fieldSim            = _ai.UnitSim.BuildSimField();
-            var threatSim           = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatsMove, fieldSim );
+            var fieldSim                        = _ai.UnitSim.BuildSimField();
+            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatsMove, fieldSim );
 
-            var candidateSim        = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, candidateMove, fieldSim );
-            var battleSimCtx        = _battleSim.Get_BattleSimContext( offensePTKOR.PTKO, defensePTKOR.PTKO, candidateSim, threatSim, fieldSim );
-            var top                 = _battleSim.SimulateSwitchRound( battleSimCtx, true, false );
+            var candidateSim                    = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, candidateMove, fieldSim );
+
+            SimulationPackage candidatePack     = new(){ SimUnit = candidateSim, ModuleType = SimModuleType.Switch };
+            SimulationPackage threatPack        = new(){ SimUnit = threatSim, ModuleType = SimModuleType.Attack };
+
+            var bse                             = _battleSim.BuildBattleSimEvent( offensePTKOR.PTKO, defensePTKOR.PTKO, candidatePack, threatPack, fieldSim );
+            var top                             = _battleSim.RunSimulation( bse );
+            // var top                             = _battleSim.SimulateSwitchRound( bse, true, false );
 
             //--Speed check.
             bool movesFirst = false;
@@ -737,6 +775,21 @@ public class BattleAI_SwitchCommand
 
             // Debug.Log( $"[AI Scoring][Offensive Switch Candidate][{pokemon.NickName}] Checked Expendability Score: {expendabilityScore}. Final Score: {score}" );
 
+            if( returnAll )
+            {
+                SwitchCandidateResult src = new()
+                {
+                    Score = score,
+                    Pokemon = candidate.Pokemon,
+                    HPRatio = hpRatioAfterHazards,
+                    SwitchOffensePTKOR = offensePTKOR,
+                    SwitchDefensePTKOR = defensePTKOR,
+                    Top = top,
+                };
+
+                returnAllList.Add( candidate.Pokemon, src );
+            }
+
             if( score > bestScore )
             {
                 bestScore = score;
@@ -756,7 +809,7 @@ public class BattleAI_SwitchCommand
             Debug.Log( $"[AI Scoring][Offensive Switch Candidate] No Switch available!" );
         }
 
-        return new()
+        SwitchCandidateResult scr = new()
         {
             Score = bestScore,
             Pokemon = bestSwitch,
@@ -766,6 +819,14 @@ public class BattleAI_SwitchCommand
             MovesFirst = isFaster,
             Top = bestTop,
         };
+
+        if( returnAll )
+        {
+            scr.ReturnAllList = new();
+            scr.ReturnAllList = returnAllList.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+        }
+
+        return scr;
     }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -790,11 +851,13 @@ public class BattleAI_SwitchCommand
         List<IBattleAIUnit> bench = new();
 
         List<IBattleAIUnit> allyTeam = new();
+        List<BattleUnit> allyActiveBattleUnits = new();
         List<IBattleAIUnit> allyActiveUnits = new();
         List<IBattleAIUnit> opponentActiveUnits = new();
 
         allyTeam = _ai.GetOpposingTeamAs_IBattleAIUnit( opponents[0].Pokemon );
-        allyActiveUnits = _ai.GetActiveAllyUnits_AsBattleAIUnits( allyTeam[0].Pokemon );
+        allyActiveBattleUnits = _ai.BattleSystem.GetAllyUnits( allyTeam[0].Pokemon ); //--We get the active units directly from the battle system to avoid issues with unrefreshed team adapters & active ibattleaiunit tracking.
+        allyActiveUnits = _ai.GetActiveAllyUnits_AsBattleAIUnits( allyActiveBattleUnits[0].Pokemon );
 
         // if( allyTeam.Count > 6 )
             // Debug.LogError( $"how this mf have more than 6 pokemon on his team?" );
@@ -849,13 +912,17 @@ public class BattleAI_SwitchCommand
             // log.Add( $"[AI Scoring][Revenge Switch Candidate] PTKOs Obtained. {candidate.Name} PTKO: {offensePTKOR.PTKO}. {threat.Unit.Name} PTKO: {defensePTKOR.PTKO}" );
 
             //--Build Simulation Units & Field
-            var fieldSim            = _ai.UnitSim.BuildSimField();
+            var fieldSim                        = _ai.UnitSim.BuildSimField();
 
-            var candidateSim        = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, candidateMove, fieldSim );
-            var threatSim           = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatsMove, fieldSim );
+            var candidateSim                    = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, candidateMove, fieldSim );
+            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatsMove, fieldSim );
 
-            var battleSimCtx        = _battleSim.Get_BattleSimContext( offensePTKOR.PTKO, defensePTKOR.PTKO, candidateSim, threatSim, fieldSim );
-            var top                 = _battleSim.SimulateAttackRound( battleSimCtx );
+            SimulationPackage candidatePack     = new(){ SimUnit = candidateSim, ModuleType = SimModuleType.Switch };
+            SimulationPackage threatPack        = new(){ SimUnit = threatSim, ModuleType = SimModuleType.Attack };
+
+            var bse                             = _battleSim.BuildBattleSimEvent( offensePTKOR.PTKO, defensePTKOR.PTKO, candidatePack, threatPack, fieldSim );
+            var top                             = _battleSim.RunSimulation( bse );
+            // var top                             = _battleSim.SimulateAttackRound( bse );
 
             //--Speed check.
             bool movesFirst = top.AttackerMovedFirst;
@@ -974,21 +1041,25 @@ public class BattleAI_SwitchCommand
 
                     if( nextOpponent != null )
                     {
-                        var candidateMTR_FollowUp       = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, nextOpponent );
+                        var candidateMTR_FollowUp                   = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, nextOpponent );
 
                         //--Follow up EDRs
-                        var candidateEDR_FollowUp       = _proj.Get_EstimatedDamageResult( top.Attacker, nextOpponent, candidateMTR_FollowUp );
-                        var nextOpponentEDR_FollowUp    = _proj.Get_EstimatedDamageResult( nextOpponent, top.Attacker, nextOpponentMTR );
+                        var candidateEDR_FollowUp                   = _proj.Get_EstimatedDamageResult( top.Attacker, nextOpponent, candidateMTR_FollowUp );
+                        var nextOpponentEDR_FollowUp                = _proj.Get_EstimatedDamageResult( nextOpponent, top.Attacker, nextOpponentMTR );
 
                         //--Follow up PTKORs
-                        var candidatePTKOR_FollowUp     = _proj.Get_PotentialToKOResult( candidateEDR_FollowUp, candidateMTR_FollowUp, top.Attacker_EndOfTurnHP );
-                        var nextOpponentPTKOR_FollowUp     = _proj.Get_PotentialToKOResult( nextOpponentEDR_FollowUp, nextOpponentMTR, nextOpponent.BeginningHPR );
+                        var candidatePTKOR_FollowUp                 = _proj.Get_PotentialToKOResult( candidateEDR_FollowUp, candidateMTR_FollowUp, top.Attacker_EndOfTurnHP );
+                        var nextOpponentPTKOR_FollowUp              = _proj.Get_PotentialToKOResult( nextOpponentEDR_FollowUp, nextOpponentMTR, nextOpponent.BeginningHPR );
 
-                        var candidateSim_FollowUp       = _ai.UnitSim.BuildSimUnit( top.Attacker, top.Attacker_EndOfTurnHP, candidateMTR_FollowUp, fieldSim );
-                        var threatSim_FollowUp          = _ai.UnitSim.BuildSimUnit( nextOpponent, nextOpponent.BeginningHPR, nextOpponent.MTR, fieldSim );
+                        var candidateSim_FollowUp                   = _ai.UnitSim.BuildSimUnit( top.Attacker, top.Attacker_EndOfTurnHP, candidateMTR_FollowUp, fieldSim );
+                        var threatSim_FollowUp                      = _ai.UnitSim.BuildSimUnit( nextOpponent, nextOpponent.BeginningHPR, nextOpponent.MTR, fieldSim );
 
-                        var battleSimCtx_FollowUp       = _battleSim.Get_BattleSimContext( candidatePTKOR_FollowUp.PTKO, nextOpponentPTKOR_FollowUp.PTKO, candidateSim_FollowUp, threatSim_FollowUp, fieldSim );
-                        var followUp                    = _battleSim.SimulateAttackRound( battleSimCtx_FollowUp );
+                        SimulationPackage candidatePack_FollowUp    = new(){ SimUnit = candidateSim_FollowUp, ModuleType = SimModuleType.Attack };
+                        SimulationPackage threatPack_FollowUp       = new(){ SimUnit = threatSim_FollowUp, ModuleType = SimModuleType.Attack };
+
+                        var bse_FollowUp                            = _battleSim.BuildBattleSimEvent( candidatePTKOR_FollowUp.PTKO, nextOpponentPTKOR_FollowUp.PTKO, candidatePack_FollowUp, threatPack_FollowUp, fieldSim );
+                        var followUp                                = _battleSim.RunSimulation( bse_FollowUp );
+                        // var followUp                             = _battleSim.SimulateAttackRound( battleSimCtx_FollowUp );
                         
                         float candidateForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, followUp.Attacker.BeginningHPR, followUp.Opponent.BeginningHPR, followUp.Opponent.Expendability );
                         float opponentForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.OpponentPTKO, followUp.AttackerPTKO, followUp.AttackerMovedFirst, followUp.Opponent.BeginningHPR, followUp.Attacker.BeginningHPR, followUp.Attacker.Expendability );
@@ -1002,7 +1073,7 @@ public class BattleAI_SwitchCommand
                         else if( lowPressure )
                             score -= 30;
 
-                        bool stabilizes = followUp.Attacker_EndOfTurnHP > 0.4f && followUp.OpponentPTKO <= PotentialToKO.TwoHKO;
+                        bool stabilizes = followUp.Attacker_EndOfTurnHP > 0.4f && followUp.OpponentPTKO < PotentialToKO.TwoHKO;
                         if( stabilizes && canUseUtility )
                             score += 45;
                         else if( stabilizes )
@@ -1013,7 +1084,7 @@ public class BattleAI_SwitchCommand
                         else if( followUp.Opponent_EndOfTurnHP <= 0 )
                             score += 15;
 
-                        bool badDeath = followUp.Attacker_EndOfTurnHP <= 0f && followUp.Opponent_EndOfTurnHP > 0.45f;
+                        bool badDeath = followUp.Attacker_EndOfTurnHP <= 0f && followUp.Opponent_EndOfTurnHP > 0.4f;
                         if( badDeath )
                             score -= 30;
 

@@ -23,39 +23,39 @@ public class BattleAI_StatSpreads
         StatSpreadType spreadType = default;
         StatSpread spread = new() { Spread = new() };
         NatureID nature = NatureID.Neutral;
-        CustomLogSession log = new();
+        // CustomLogSession log = new();
 
-        log.Add( $"====================================================" );
-        log.Add( $"=====[Assigning Stat Spread for {adapter.Name}]=====" );
-        log.Add( $"====================================================" );
-        log.Add( $"" );
+        // log.Add( $"====================================================" );
+        // log.Add( $"=====[Assigning Stat Spread for {adapter.Name}]=====" );
+        // log.Add( $"====================================================" );
+        // log.Add( $"" );
 
         bool ourMon = _ai.OurTeamPokemon.Contains( adapter.Pokemon );
 
         if( ourMon )
         {
-            log.Add( $"{adapter.Name} belongs to our team! Reading true EV and Nature values..." );
-            log.Add( $"" );
+            // log.Add( $"{adapter.Name} belongs to our team! Reading true EV and Nature values..." );
+            // log.Add( $"" );
 
             spread.Spread = adapter.Pokemon.EffortValues;
             spread.Nature = adapter.Pokemon.CurrentNature;
 
-            log.Add( $"===[Effort Values]===" );
-            log.Add( $"HP: {spread.Spread[Stat.HP]}" );
-            log.Add( $"Attack: {spread.Spread[Stat.Attack]}" );
-            log.Add( $"Defense: {spread.Spread[Stat.Defense]}" );
-            log.Add( $"SpAttack: {spread.Spread[Stat.SpAttack]}" );
-            log.Add( $"SpDefense: {spread.Spread[Stat.SpDefense]}" );
-            log.Add( $"Speed: {spread.Spread[Stat.Speed]}" );
-            log.Add( $"" );
-            log.Add( $"Nature: {spread.Nature}" );
-            log.Add( $"=====================" );
-            log.Add( $"" );
+            // log.Add( $"===[Effort Values]===" );
+            // log.Add( $"HP: {spread.Spread[Stat.HP]}" );
+            // log.Add( $"Attack: {spread.Spread[Stat.Attack]}" );
+            // log.Add( $"Defense: {spread.Spread[Stat.Defense]}" );
+            // log.Add( $"SpAttack: {spread.Spread[Stat.SpAttack]}" );
+            // log.Add( $"SpDefense: {spread.Spread[Stat.SpDefense]}" );
+            // log.Add( $"Speed: {spread.Spread[Stat.Speed]}" );
+            // log.Add( $"" );
+            // log.Add( $"Nature: {spread.Nature}" );
+            // log.Add( $"=====================" );
+            // log.Add( $"" );
         }
         else
         {
-            log.Add( $"{adapter.Name} belongs to the opposing team! Estimating EV and Nature values based on Role Profile (Parimary Role: {adapter.RoleProfile.PrimaryRole})..." );
-            log.Add( $"" );
+            // log.Add( $"{adapter.Name} belongs to the opposing team! Estimating EV and Nature values based on Role Profile (Parimary Role: {adapter.RoleProfile.PrimaryRole})..." );
+            // log.Add( $"" );
 
             var battleType = _ai.BattleSystem.BattleType;
             if( battleType == BattleType.TrainerDoubles || battleType == BattleType.AI_Doubles )
@@ -67,21 +67,21 @@ public class BattleAI_StatSpreads
             nature = GetNatureID( adapter, spreadType );
             spread.Nature = nature;
 
-            log.Add( $"===[Effort Values (Battle Mode: {battleType}, Spread Type: {spreadType})]===" );
-            log.Add( $"HP: {spread.Spread[Stat.HP]}" );
-            log.Add( $"Attack: {spread.Spread[Stat.Attack]}" );
-            log.Add( $"Defense: {spread.Spread[Stat.Defense]}" );
-            log.Add( $"SpAttack: {spread.Spread[Stat.SpAttack]}" );
-            log.Add( $"SpDefense: {spread.Spread[Stat.SpDefense]}" );
-            log.Add( $"Speed: {spread.Spread[Stat.Speed]}" );
-            log.Add( $"" );
-            log.Add( $"Nature: {spread.Nature}" );
-            log.Add( $"=====================" );
-            log.Add( $"" );
+            // log.Add( $"===[Effort Values (Battle Mode: {battleType}, Spread Type: {spreadType})]===" );
+            // log.Add( $"HP: {spread.Spread[Stat.HP]}" );
+            // log.Add( $"Attack: {spread.Spread[Stat.Attack]}" );
+            // log.Add( $"Defense: {spread.Spread[Stat.Defense]}" );
+            // log.Add( $"SpAttack: {spread.Spread[Stat.SpAttack]}" );
+            // log.Add( $"SpDefense: {spread.Spread[Stat.SpDefense]}" );
+            // log.Add( $"Speed: {spread.Spread[Stat.Speed]}" );
+            // log.Add( $"" );
+            // log.Add( $"Nature: {spread.Nature}" );
+            // log.Add( $"=====================" );
+            // log.Add( $"" );
         }
 
-        Debug.Log( log.ToString() );
-        log.Clear();
+        // // Debug.Log( log.ToString() );
+        // log.Clear();
 
         return spread;
     }

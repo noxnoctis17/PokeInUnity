@@ -804,6 +804,28 @@ public class BattleSystem : MonoBehaviour
         return null;
     }
 
+    public List<BattleUnit> GetAllyUnits( Pokemon pokemon )
+    {
+        if( _bottomTrainer1.Party.Contains( pokemon ) )
+            return _playerUnits;
+        else if( _topTrainer1.Party.Contains( pokemon ) )
+            return _enemyUnits;
+        
+        Debug.LogError( $"Unit not found! Uh oh!" );
+        return null;
+    }
+
+    public List<BattleUnit> GetOpposingUnits( Pokemon pokemon )
+    {
+        if( _bottomTrainer1.Party.Contains( pokemon ) )
+            return _enemyUnits;
+        else if( _topTrainer1.Party.Contains( pokemon ) )
+            return _playerUnits;
+        
+        Debug.LogError( $"Unit not found! Uh oh!" );
+        return null;
+    }
+
     public List<Pokemon> GetAllyParty( Pokemon pokemon )
     {
         if( TopTrainer1.Party.Contains( pokemon ) )

@@ -778,16 +778,6 @@ public class BattleAI : MonoBehaviour
         return BattleSystem.GetOpposingParty( pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
     }
 
-    public List<Pokemon> GetRemainingAllyPokemon( string pid )
-    {
-        return BattleSystem.GetAllyParty( pid ).Where( p => p.CurrentHP > 0 ).ToList();
-    }
-
-    public List<Pokemon> GetRemainingOpposingPokemon( string pid )
-    {
-        return BattleSystem.GetOpposingParty( pid ).Where( p => p.CurrentHP > 0 ).ToList();
-    }
-
     public List<IBattleAIUnit> GetRemainingPartyAs_IBattleAIUnits( Pokemon pokemon )
     {
         List<IBattleAIUnit> remaining = new();
@@ -1103,14 +1093,31 @@ public class BattleAI : MonoBehaviour
         else
         {
             target = TheirBattleAIUnits[0];
-            tic = ThreatIntent.GetThreatCandidates( target, ThisUnitAdapter );
-            tir = ThreatIntent.GetThreatIntentResult( tic );
+            ThreatBrain tb = ThreatIntent.ReadThreatBrain( target );
+            tic = ThreatIntent.GetThreatCandidates( target, ThisUnitAdapter, tb );
+            tir = ThreatIntent.GetThreatIntentResult( tic, tb );
         }
+
+        CurrentLog.Add( $"" );
+        CurrentLog.Add( $"We think they are going to: {tir.PrimaryIntent}" );
+        CurrentLog.Add( $"" );
 
         yield return null;
         
         //--Get Best Action based on high level heuristics, turn outcome simulation, flat board analysis, and simulaiton result adjustments.
-        var bestAction = GetBestAction( tir );
+        ActionEvaluation bestAction = null;
+        Action<ActionEvaluation> getBestAction = ( ae ) =>
+        {
+            bestAction = ae;
+        };
+
+        yield return GetBestAction( tir, getBestAction );
+
+        if( bestAction == null )
+        {
+            Debug.LogError( $"The ai didn't return an action bro, breaking!" );
+            yield break;
+        }
 
         yield return null;
 
@@ -1142,23 +1149,37 @@ public class BattleAI : MonoBehaviour
         yield return null;
     }
 
-    private ActionEvaluation GetBestAction( ThreatIntentResult tir )
+    private IEnumerator GetBestAction( ThreatIntentResult tir, Action<ActionEvaluation> getBestAction )
     {
+        yield return null;
+
         var target = tir.Threat;
         //--Brain Layer Evaluations
         var exchangeEval    = Projection.EvaluateExchange( ThisUnitAdapter, target );
         var tempo           = Projection.GetTempoState( exchangeEval );
-        var boardContext    = Projection.GetBoardContext( target, exchangeEval );
+        var boardContext    = Projection.GetBoardContext( ThisUnitAdapter, target, exchangeEval );
         var threatProfile   = GetThreatProfile( exchangeEval, boardContext, target );
         var currentPlan     = Projection.EvaluateCurrentPlan( exchangeEval, boardContext, threatProfile, GamePlan, CurrentPlan );
         CurrentPlan         = currentPlan;
 
+        yield return null;
+
         //--Action Candidates + TOP
         var bestAttack              = MoveCommand.GetMove_BestAttack( ThisUnitAdapter, target, true, "Get Best Action" );
+        yield return null;
+
         var defensiveSwitch         = SwitchCommand.GetSwitch_Defensive( ThisUnitAdapter );
+        yield return null;
+
         var offensiveSwitch         = SwitchCommand.GetSwitch_Offensive( ThisUnitAdapter );
+        yield return null;
+
         var bestSetup               = MoveCommand.GetMove_Setup( ThisUnitAdapter, target, true );
+        yield return null;
+
         var bestOffensiveStatus     = MoveCommand.GetMove_OffensiveStatus( ThisUnitAdapter, target, true );
+        yield return null;
+
 
         List<ActionEvaluation> actions = new();
 
@@ -1166,46 +1187,60 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation attackActionEval = default;
         if( bestAttack.Move != null )
         {
-            attackActionEval = Get_AttackAction( tempo, exchangeEval, boardContext, bestAttack );
+            attackActionEval = Build_AttackAction( tempo, exchangeEval, boardContext, bestAttack, tir );
             actions.Add( attackActionEval );
         }
+        yield return null;
+        yield return null;
 
         //--Defensive Switch
         ActionEvaluation defSwitchActionEval = default;
         if( defensiveSwitch.Pokemon != null )
         {
-            defSwitchActionEval = Get_DefensiveSwitchAction( tempo, exchangeEval, boardContext, defensiveSwitch );
+            defSwitchActionEval = Build_DefensiveSwitchAction( tempo, exchangeEval, boardContext, defensiveSwitch, tir );
             actions.Add( defSwitchActionEval );
         }
+        yield return null;
+        yield return null;
 
         //--Offensive Switch
         ActionEvaluation offSwitchActionEval = default;
         if( offensiveSwitch.Pokemon != null )
         {
-            offSwitchActionEval = Get_OffensiveSwitchAction( tempo, exchangeEval, boardContext, offensiveSwitch );
+            offSwitchActionEval = Build_OffensiveSwitchAction( tempo, exchangeEval, boardContext, offensiveSwitch, tir );
             actions.Add( offSwitchActionEval );
         }
+        yield return null;
+        yield return null;
 
         //--Setup. swords dance, iron defense, dragon dance
         ActionEvaluation setupActionEval = default;
         if( bestSetup.Move != null )
         {
-            setupActionEval = Get_SetupAction( tempo, exchangeEval, boardContext, bestSetup );
+            setupActionEval = Build_SetupAction( tempo, exchangeEval, boardContext, bestSetup, tir );
             actions.Add( setupActionEval );
         }
+        yield return null;
+        yield return null;
 
         //--Offensive Status. Thunder Wave, Toxic, Stealth Rocks, Sleep Powder, Growl
         ActionEvaluation offensiveStatusActionEval = default;
         if( bestOffensiveStatus.Move != null )
         {
-            offensiveStatusActionEval = Get_OffensiveStatusAction( tempo, exchangeEval, boardContext, bestOffensiveStatus );
+            offensiveStatusActionEval = Build_OffensiveStatusAction( tempo, exchangeEval, boardContext, bestOffensiveStatus, tir );
             actions.Add( offensiveStatusActionEval );
         }
+        yield return null;
+        yield return null;
 
         //--Support Status
         //--screens, manual weather, redirection, trick room, tailwind, howl
+        yield return null;
+        yield return null;
 
         var doomedOutcome = CheckIfDoomedTurn( actions, exchangeEval );
+        yield return null;
+        yield return null;
 
         if( doomedOutcome.DoomedTurn )
         {
@@ -1216,6 +1251,7 @@ public class BattleAI : MonoBehaviour
             for( int i = 0; i < actions.Count; i++ )
             {
                 actions[i] = _actionEval.EvaluateSacrificeLine( actions[i], doomedOutcome );
+                yield return null;
             }
         }
         else
@@ -1225,23 +1261,32 @@ public class BattleAI : MonoBehaviour
             {
                 actions[i] = _actionEval.EvaluateAction( actions[i] );
                 var survivalClass = Projection.ClassifySurvival( actions[i], doomedOutcome );
+                yield return null;
 
-                if( threatProfile.Exists )
-                    actions[i].Score += _actionEval.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext, survivalClass );
+                actions[i].Score += _actionEval.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext, survivalClass );
+                yield return null;
+                yield return null;
                 
                 //--PBS
                 var pbs = Projection.BuildPBS( actions[i], boardContext, survivalClass );
                 int futureScore = Projection.EvaluatePBS( pbs );
                 CurrentLog.Add( $"Action: {actions[i].Type}. Future Score from EvaluatePBS: {futureScore}" );
                 actions[i].PBS = pbs;
+                yield return null;
+                yield return null;
 
-                int winConBias = Projection.GetCurrentPlanBias( actions[i], pbs, boardContext, CurrentPlan, survivalClass );
-                CurrentLog.Add( $"Action: {actions[i].Type}. Current Plan is: {CurrentPlan.Type}. Bias: {winConBias}" );
+                int currentPlanBias = Projection.GetCurrentPlanBias( actions[i], pbs, boardContext, CurrentPlan, survivalClass );
+                CurrentLog.Add( $"Action: {actions[i].Type}. Current Plan is: {CurrentPlan.Type}. Bias: {currentPlanBias}" );
                 CurrentLog.Add( $"" );
+                yield return null;
+                yield return null;
 
                 int gamePlanAlignment = GamePlanAlignment( actions[i], GamePlan );
+                yield return null;
+                yield return null;
 
-                actions[i].Score += futureScore + winConBias + gamePlanAlignment;
+                actions[i].Score += futureScore + currentPlanBias + gamePlanAlignment;
+                yield return null;
             }
         }
 
@@ -1276,69 +1321,88 @@ public class BattleAI : MonoBehaviour
         actions = actions.OrderByDescending( a => a.Score ).ToList();
         ActionEvaluation bestAction;
 
+        yield return null;
+
         if( !doomedOutcome.DoomedTurn )
             bestAction = Final.ApplyFinalReasoning( actions, exchangeEval, boardContext, CurrentPlan, threatProfile );
         else
             bestAction = actions.FirstOrDefault();
 
+        yield return null;
+
         //--Select highest scored ActionEvaluation
-        return bestAction;
+        getBestAction?.Invoke( bestAction );
     }
 
-    private ActionEvaluation Get_AttackAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, MoveThreatResult bestAttack )
+    private ActionEvaluation Build_AttackAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, MoveThreatResult bestAttack, ThreatIntentResult tir )
     {
-        int attackScore = MoveCommand.AttackScore( tempo, exchangeEval, boardContext, bestAttack );
+        var top = BattleSim.BuildIntentTOP( ActionType.Attack, bestAttack, tir );
+
+        int attackScore = MoveCommand.AttackScore( tempo, exchangeEval, boardContext, bestAttack, top );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Attack Score: {attackScore}" );
         CurrentLog.Add( $"" );
-        var attackActionEval = _actionEval.BuildActionEvaluation( ActionType.Attack, attackScore, bestAttack.Target, bestAttack.TargetBattleUnit, bestAttack.Move, bestAttack.Top, exchangeEval );
+        
+        var attackActionEval = _actionEval.BuildActionEvaluation( ActionType.Attack, attackScore, bestAttack.Target, bestAttack.TargetBattleUnit, bestAttack.Move, top, exchangeEval );
         CurrentLog.Add( $"" );
         attackActionEval.Score += _actionEval.EvaluateBattlefieldState( attackActionEval, boardContext );
 
         return attackActionEval;
     }
 
-    private ActionEvaluation Get_DefensiveSwitchAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, SwitchCandidateResult defensiveSwitch )
+    private ActionEvaluation Build_DefensiveSwitchAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, SwitchCandidateResult defensiveSwitch, ThreatIntentResult tir )
     {
-        int defSwitchScore = SwitchCommand.DefensiveSwitchScore( tempo, exchangeEval, defensiveSwitch, boardContext );
+        var top = BattleSim.BuildIntentTOP( ActionType.DefensiveSwitch, defensiveSwitch, tir );
+
+        int defSwitchScore = SwitchCommand.DefensiveSwitchScore( tempo, exchangeEval, defensiveSwitch, boardContext, top );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Defensive Switch Score: {defSwitchScore} via Candidate: {defensiveSwitch.Pokemon?.NickName}" );
         CurrentLog.Add( $"" );
-        var defSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.DefensiveSwitch, defSwitchScore, null, null, defensiveSwitch.Pokemon, defensiveSwitch.Top, exchangeEval );
+
+        var defSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.DefensiveSwitch, defSwitchScore, null, null, defensiveSwitch.Pokemon, top, exchangeEval );
         CurrentLog.Add( $"" );
         defSwitchActionEval.Score += _actionEval.EvaluateBattlefieldState( defSwitchActionEval, boardContext );
 
         return defSwitchActionEval;
     }
 
-    private ActionEvaluation Get_OffensiveSwitchAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, SwitchCandidateResult offensiveSwitch )
+    private ActionEvaluation Build_OffensiveSwitchAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, SwitchCandidateResult offensiveSwitch, ThreatIntentResult tir )
     {
-        int offSwitchScore = SwitchCommand.OffensiveSwitchScore( tempo, exchangeEval, offensiveSwitch, boardContext );
+        var top = BattleSim.BuildIntentTOP( ActionType.OffensiveSwitch, offensiveSwitch, tir );
+
+        int offSwitchScore = SwitchCommand.OffensiveSwitchScore( tempo, exchangeEval, offensiveSwitch, boardContext, top );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Offensive Switch Score: {offSwitchScore} via Candidate: {offensiveSwitch.Pokemon?.NickName}" );
         CurrentLog.Add( $"" );
-        var offSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveSwitch, offSwitchScore, null, null, offensiveSwitch.Pokemon, offensiveSwitch.Top, exchangeEval );
+
+        var offSwitchActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveSwitch, offSwitchScore, null, null, offensiveSwitch.Pokemon, top, exchangeEval );
         CurrentLog.Add( $"" );
         offSwitchActionEval.Score += _actionEval.EvaluateBattlefieldState( offSwitchActionEval, boardContext );
 
         return offSwitchActionEval;
     }
 
-    private ActionEvaluation Get_SetupAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, SetupThreatResult bestSetup )
+    private ActionEvaluation Build_SetupAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, SetupThreatResult bestSetup, ThreatIntentResult tir )
     {
-        int setupScore = MoveCommand.SetupScore( tempo, exchangeEval, boardContext, bestSetup );
+        var top = BattleSim.BuildIntentTOP( ActionType.Setup, bestSetup, tir );
+
+        int setupScore = MoveCommand.SetupScore( tempo, exchangeEval, boardContext, bestSetup, top );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Setup Score: {setupScore}" );
         CurrentLog.Add( $"" );
-        var setupActionEval = _actionEval.BuildActionEvaluation( ActionType.Setup, setupScore, bestSetup.Target, bestSetup.TargetBattleUnit, bestSetup.Move, bestSetup.Top, exchangeEval );
+
+        var setupActionEval = _actionEval.BuildActionEvaluation( ActionType.Setup, setupScore, bestSetup.Target, bestSetup.TargetBattleUnit, bestSetup.Move, top, exchangeEval );
         CurrentLog.Add( $"" );
         setupActionEval.Score += _actionEval.EvaluateBattlefieldState( setupActionEval, boardContext );
 
         return setupActionEval;
     }
 
-    private ActionEvaluation Get_OffensiveStatusAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, StatusThreatResult bestOffensiveStatus )
+    private ActionEvaluation Build_OffensiveStatusAction( TempoStateResult tempo, ExchangeEvaluation exchangeEval, BoardContext boardContext, StatusThreatResult bestOffensiveStatus, ThreatIntentResult tir )
     {
-        int statusScore = MoveCommand.OffensiveStatusScore( tempo, exchangeEval, boardContext, bestOffensiveStatus );
+        var top = BattleSim.BuildIntentTOP( ActionType.OffensiveStatus, bestOffensiveStatus, tir );
+
+        int statusScore = MoveCommand.OffensiveStatusScore( tempo, exchangeEval, boardContext, bestOffensiveStatus, top );
         CurrentLog.Add( $"{Unit.Pokemon.NickName}'s Offensive Status Score: {statusScore}" );
         CurrentLog.Add( $"" );
-        var statusActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveStatus, statusScore, bestOffensiveStatus.Target, bestOffensiveStatus.TargetBattleUnit, bestOffensiveStatus.Move, bestOffensiveStatus.Top, exchangeEval );
+
+        var statusActionEval = _actionEval.BuildActionEvaluation( ActionType.OffensiveStatus, statusScore, bestOffensiveStatus.Target, bestOffensiveStatus.TargetBattleUnit, bestOffensiveStatus.Move, top, exchangeEval );
         CurrentLog.Add( $"" );
         statusActionEval.Score += _actionEval.EvaluateBattlefieldState( statusActionEval, boardContext );
 
@@ -1439,7 +1503,7 @@ public class BattleAI : MonoBehaviour
             //--Keep in mind, this simulation is from the perspective of the opponent attacking us. Therefore, inside this TOP, WE are the opponent.
             var opponentSweepTOP = MoveCommand.GetMove_BestAttack( action.Top1.Opponent, nextPokemon ).Top;
             
-            ourTeamToBeSwept = GetRemainingAllyPokemon( nextPokemon.PID );
+            ourTeamToBeSwept = GetRemainingAllyPokemon( nextPokemon.Pokemon );
             bool movesFirst = opponentSweepTOP.Attacker.Speed > opponentSweepTOP.Opponent.Speed;
             bool theyForceSwitch = UnitSim.PredictSwitchProbability( opponentSweepTOP.AttackerPTKO, opponentSweepTOP.OpponentPTKO, movesFirst, opponentSweepTOP.Attacker.CurrentHPR, opponentSweepTOP.Opponent.CurrentHPR, opponentSweepTOP.Opponent.Expendability ) > 0.7f;
 
@@ -1833,14 +1897,14 @@ public class BattleAI : MonoBehaviour
         return urgency;
     }
 
-    private GamePlan CreateGamePlan( TeamComposition ourComp, TeamComposition theirComp )
+    public GamePlan CreateGamePlan( TeamComposition ourComp, TeamComposition theirComp )
     {
         GamePlan gp = new()
         {
             OurBlockers = new(),
-            OurWinConEnablers = new(),
-            EliminateBlockers = new(),
-            EliminateEnablers = new(),
+            OurEnablers = new(),
+            TheirBlockers = new(),
+            TheirEnablers = new(),
         };
 
         var ourTeam = ourComp.Team;
@@ -1917,17 +1981,17 @@ public class BattleAI : MonoBehaviour
         var theirBlockers = theirTeamScores.OrderByDescending( kvp => kvp.Value.BlockScore ).Where( x => x.Value.BlockScore > 0 ).Take( 3 ).ToList();
 
         gp.OurBlockers = ourBlockers.Select( kvp => kvp.Key ).ToList();
-        gp.EliminateBlockers = theirBlockers.Select( kvp => kvp.Key ).ToList();
+        gp.TheirBlockers = theirBlockers.Select( kvp => kvp.Key ).ToList();
 
         //--Get Enablers
         ourTeamScores = EvaluateWinConEnablers( ourWinCon, ourComp, theirComp, ourTeamScores, theirBlockers, isPrimaryUnit );
         theirTeamScores = EvaluateWinConEnablers( theirWinCon, theirComp, ourComp, theirTeamScores, ourBlockers, isPrimaryUnit );
 
         var ourEnablers = ourTeamScores.OrderByDescending( kvp => kvp.Value.EnableScore ).Where( x => x.Value.EnableScore > 0 ).Take( 3 ).ToList();
-        gp.OurWinConEnablers = ourEnablers.Select( kvp => kvp.Key ).ToList();
+        gp.OurEnablers = ourEnablers.Select( kvp => kvp.Key ).ToList();
 
         var theirEnablers =  theirTeamScores.OrderByDescending( kvp => kvp.Value.EnableScore ).Where( x => x.Value.EnableScore > 0 ).Take( 3 ).ToList();
-        gp.EliminateEnablers = theirEnablers.Select( kvp => kvp.Key ).ToList();
+        gp.TheirEnablers = theirEnablers.Select( kvp => kvp.Key ).ToList();
 
         //--Log Game Plan
         CustomLogSession gpLog = new();
@@ -2015,6 +2079,22 @@ public class BattleAI : MonoBehaviour
         gpLog.Clear();
 
         return gp;
+    }
+
+    public GamePlan GetOpponentGamePlan( GamePlan gp )
+    {
+        GamePlan theirPlan = new()
+        {
+            OurPrimaryWinCon = gp.TheirPrimaryWinCon,
+            OurBlockers = gp.TheirBlockers,
+            OurEnablers = gp.TheirEnablers,
+
+            TheirPrimaryWinCon = gp.OurPrimaryWinCon,
+            TheirBlockers = gp.OurBlockers,
+            TheirEnablers = gp.OurEnablers,
+        };
+
+        return theirPlan;
     }
 
     private Dictionary<Pokemon, GamePlanAnalysis> EvaluateWinConCandidates( TeamComposition team1, TeamComposition team2, Dictionary<Pokemon, GamePlanAnalysis> ourTeamScores, Func<TeamComposition, BattleAI_PokemonAdapter, bool> isPrimaryUnit )
@@ -3027,11 +3107,11 @@ public class BattleAI : MonoBehaviour
 
             WeAreWinCon = attacker1.Pokemon == gp.OurPrimaryWinCon,
             WeAreBlocker = gp.OurBlockers.Contains( attacker1.Pokemon ),
-            WeAreEnabler = gp.OurWinConEnablers.Contains( attacker1.Pokemon ),
+            WeAreEnabler = gp.OurEnablers.Contains( attacker1.Pokemon ),
 
             TheyAreWinCon = opponent1.Pokemon == gp.TheirPrimaryWinCon,
-            TheyAreBlocker = gp.EliminateBlockers.Contains( opponent1.Pokemon ),
-            TheyAreEnabler = gp.EliminateEnablers.Contains( opponent1.Pokemon ),
+            TheyAreBlocker = gp.TheirBlockers.Contains( opponent1.Pokemon ),
+            TheyAreEnabler = gp.TheirEnablers.Contains( opponent1.Pokemon ),
         };
 
         CurrentLog.Add( $"" );
@@ -3490,8 +3570,8 @@ public class BattleAI : MonoBehaviour
                     bool weOutSpeedNext = ourAfter.AttackerMovedFirst;
                     
                     bool theyAreWinCon = gp.TheirPrimaryWinCon == opp;
-                    bool theyAreBlocker = gp.EliminateBlockers.Contains( opp );
-                    bool theyAreEnabler = gp.EliminateEnablers.Contains( opp );
+                    bool theyAreBlocker = gp.TheirBlockers.Contains( opp );
+                    bool theyAreEnabler = gp.TheirEnablers.Contains( opp );
                     bool theyAreGamePlanUnit = theyAreWinCon || theyAreBlocker || theyAreEnabler;
 
                     if( ourBeforePTKO >= PotentialToKO.Dangerous && ( weOutSpeedNow || theirBeforePTKO <= PotentialToKO.TwoHKO ) )
@@ -3540,8 +3620,8 @@ public class BattleAI : MonoBehaviour
                     ( TurnOutcomeProjection theirBefore, TurnOutcomeProjection theirAfter ) = kvp.Value;
 
                     bool theyAreWinCon = gp.TheirPrimaryWinCon == opp;
-                    bool theyAreBlocker = gp.EliminateBlockers.Contains( opp );
-                    bool theyAreEnabler = gp.EliminateEnablers.Contains( opp );
+                    bool theyAreBlocker = gp.TheirBlockers.Contains( opp );
+                    bool theyAreEnabler = gp.TheirEnablers.Contains( opp );
                     bool theyAreGamePlanUnit = theyAreWinCon || theyAreBlocker || theyAreEnabler;
 
                     var theirBeforePTKO = theirBefore.AttackerPTKO;
@@ -3669,16 +3749,16 @@ public class BattleAI : MonoBehaviour
         bool weTroatChop = !gpd.TheyAreDifferentMonNext && !gpd.Opponent1.VolatileStatuses.Contains( VolatileConditionID.ThroatChop ) && gpd.Opponent2.VolatileStatuses.Contains( VolatileConditionID.ThroatChop );
         bool weHealBlock = !gpd.TheyAreDifferentMonNext && !gpd.Opponent1.VolatileStatuses.Contains( VolatileConditionID.HealBlocked ) && gpd.Opponent2.VolatileStatuses.Contains( VolatileConditionID.HealBlocked );
         bool weDisable = !gpd.TheyAreDifferentMonNext && !gpd.Opponent1.VolatileStatuses.Contains( VolatileConditionID.Disabled ) && gpd.Opponent2.VolatileStatuses.Contains( VolatileConditionID.Disabled );
-        bool weFakeOut = gpd.Attacker1.MTR.Move.MoveSO.Name == "Fake Out";
-        bool weFollowMe = gpd.Attacker1.MTR.Move.MoveSO.Name == "Follow Me";
-        bool weRagePowder = gpd.Attacker1.MTR.Move.MoveSO.Name == "Rage Powder";
+        bool weFakeOut = gpd.Attacker1.MTR?.Move?.MoveSO.Name == "Fake Out";
+        bool weFollowMe = gpd.Attacker1.MTR?.Move?.MoveSO.Name == "Follow Me";
+        bool weRagePowder = gpd.Attacker1.MTR?.Move?.MoveSO.Name == "Rage Powder";
         bool weRedirect = weFollowMe || weRagePowder;
 
         bool weDisrupt = weTaunt || weEncore || weTroatChop || weHealBlock || weDisable || weFakeOut || weRedirect;
 
-        bool weUsedSoundMove = gpd.Attacker1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Sound );
-        bool weUsedHealingMove = gpd.Attacker1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Heal );
-        var ourMoveTarget = gpd.Attacker1.MTR.Move.MoveSO.MoveTarget;
+        bool weUsedSoundMove = gpd.Attacker1.MTR.Move != null ? gpd.Attacker1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Sound ) : false;
+        bool weUsedHealingMove = gpd.Attacker1.MTR.Move != null ? gpd.Attacker1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Heal ) : false;
+        MoveTarget ourMoveTarget = gpd.Attacker1.MTR.Move != null ? gpd.Attacker1.MTR.Move.MoveSO.MoveTarget : MoveTarget.Enemy;
         bool weUsedSpreadMove = ourMoveTarget == MoveTarget.OpposingSide || ourMoveTarget == MoveTarget.AllAdjacent;
 
         bool theyTaunt = !gpd.WeAreDifferentMonNext && !gpd.Attacker1.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && gpd.Attacker2.VolatileStatuses.Contains( VolatileConditionID.Taunt );
@@ -3686,16 +3766,16 @@ public class BattleAI : MonoBehaviour
         bool theyTroatChop = !gpd.WeAreDifferentMonNext && !gpd.Attacker1.VolatileStatuses.Contains( VolatileConditionID.ThroatChop ) && gpd.Attacker2.VolatileStatuses.Contains( VolatileConditionID.ThroatChop );
         bool theyHealBlock = !gpd.WeAreDifferentMonNext && !gpd.Attacker1.VolatileStatuses.Contains( VolatileConditionID.HealBlocked ) && gpd.Attacker2.VolatileStatuses.Contains( VolatileConditionID.HealBlocked );
         bool theyDisable = !gpd.WeAreDifferentMonNext && !gpd.Attacker1.VolatileStatuses.Contains( VolatileConditionID.Disabled ) && gpd.Attacker2.VolatileStatuses.Contains( VolatileConditionID.Disabled );
-        bool theyFakeOut = gpd.Opponent1.MTR.Move.MoveSO.Name == "Fake Out";
-        bool theyFollowMe = gpd.Opponent1.MTR.Move.MoveSO.Name == "Follow Me";
-        bool theyRagePowder = gpd.Opponent1.MTR.Move.MoveSO.Name == "Rage Powder";
+        bool theyFakeOut = gpd.Opponent1.MTR?.Move?.MoveSO.Name == "Fake Out";
+        bool theyFollowMe = gpd.Opponent1.MTR?.Move?.MoveSO.Name == "Follow Me";
+        bool theyRagePowder = gpd.Opponent1.MTR?.Move?.MoveSO.Name == "Rage Powder";
         bool theyRedirect = theyFollowMe || theyRagePowder;
 
         bool theyDisrupt = theyTaunt || theyEncore || theyTroatChop || theyHealBlock || theyDisable || theyFakeOut || theyRedirect;
 
-        bool theyUsedSoundMove = gpd.Opponent1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Sound );
-        bool theyUsedHealingMove = gpd.Opponent1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Heal );
-        var theirMoveTarget = gpd.Opponent1.MTR.Move.MoveSO.MoveTarget;
+        bool theyUsedSoundMove = gpd.Opponent1.MTR?.Move != null ? gpd.Opponent1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Sound ) : false;
+        bool theyUsedHealingMove = gpd.Opponent1.MTR?.Move != null ? gpd.Opponent1.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Heal ) : false;
+        MoveTarget theirMoveTarget = gpd.Opponent1.MTR?.Move != null ? gpd.Opponent1.MTR.Move.MoveSO.MoveTarget : MoveTarget.Enemy;
         bool theyUsedSpreadMove = theirMoveTarget == MoveTarget.OpposingSide || theirMoveTarget == MoveTarget.AllAdjacent;
 
         bool weAreTauntWeak = ourTraits.Contains( RoleTrait.TauntWeak );
@@ -5666,47 +5746,116 @@ public class BattleAI : MonoBehaviour
         };
     }
 
-    public List<Pokemon> GetLikelyDefensiveSwitches( IBattleAIUnit theirActiveMon )
+    public Dictionary<Pokemon, SwitchCandidateResult> GetLikely_DefensiveSwitches( IBattleAIUnit theirActiveMon, int thresholdValue = 40, bool ignoreThreshold = false )
     {
-        List<Pokemon> likelySwitches = new();
+        Dictionary<Pokemon, SwitchCandidateResult> likelySwitches = new();
+        List<SwitchCandidateResult> likelySRCs = new();
 
         var scr = SwitchCommand.GetSwitch_Defensive( theirActiveMon, true );
-        List<( Pokemon Pokemon, int Score )> allCandidates = new();
+        Dictionary<Pokemon, SwitchCandidateResult> allCandidates = new();
 
-        CurrentLog.Add( $"" );
-        CurrentLog.Add( $"=[Getting Likely Switches]=" );
+        CustomLogSession likelyLog = new();
+
+        likelyLog.Add( $"" );
+        likelyLog.Add( $"=[Getting Likely Defensive Switches]=" );
 
         if( scr.ReturnAllList == null || scr.ReturnAllList.Count <= 0 )
         {
-            Debug.LogError( "GetSwitch_Defensive() returned an empty Return All List when it shouldn't have. Falling back on entire team." );
-            return GetRemainingAllyPokemon( theirActiveMon.PID );
+            Debug.LogError( "GetSwitch_Defensive() returned an empty Return All List, which likely means there are no viable defensive candidates." );
+            return likelySwitches;
         }
         else
-            allCandidates = scr.ReturnAllList.ToList();
+            allCandidates = scr.ReturnAllList.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
-        CurrentLog.Add( $"All Candidates Count: {allCandidates.Count}." );
+        likelyLog.Add( $"All Candidates Count: {allCandidates.Count}." );
         foreach( var cand in allCandidates )
-            CurrentLog.Add( $"{cand.Pokemon.NickName}, {cand.Score}" );
+            likelyLog.Add( $"{cand.Key.NickName}, {cand.Value.Score}" );
             
-        allCandidates = allCandidates.OrderByDescending( c => c.Score ).ToList();
+        allCandidates = allCandidates.OrderByDescending( c => c.Value.Score ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
-        int bestCandidateScore = allCandidates[0].Score;
-        CurrentLog.Add( $"Best Candidate Score: {allCandidates[0].Score} ({bestCandidateScore})." );
-        for( int i = 0; i < allCandidates.Count; i++ )
+        var bestCandidateKVP = allCandidates.First();
+        int bestCandidateScore = bestCandidateKVP.Value.Score;
+        likelyLog.Add( $"Best Candidate Score: {bestCandidateScore}." );
+
+        int count = 0;
+        foreach( var kvp in allCandidates )
         {
-            int threshold = bestCandidateScore - 30;
-            CurrentLog.Add( $"Threshold: {threshold}." );
-            CurrentLog.Add( $"Checking candidate {allCandidates[i].Pokemon.NickName}. Score: {allCandidates[i].Score}." );
+            count++;
+            var mon = kvp.Key;
+            var s = kvp.Value.Score;
+            int threshold = ignoreThreshold ? 0 : bestCandidateScore - thresholdValue;
+            likelyLog.Add( $"Threshold: {threshold}." );
+            likelyLog.Add( $"Checking Key {mon.NickName}, Value: {kvp.Value.Pokemon.NickName}, Score: {s}." );
 
-            if( allCandidates[i].Score >= threshold )
-                likelySwitches.Add( allCandidates[i].Pokemon );
+            if( s >= threshold )
+                likelySwitches.Add( kvp.Key, kvp.Value );
 
-            if( i > 2 ) //--Caps at top 4 candidates
+            if( !ignoreThreshold && count > 3 ) //--Caps at top 4 candidates
                 break;
         }
 
-        CurrentLog.Add( $"Likely Switches Count: {likelySwitches.Count}." );
-        CurrentLog.Add( $"" );
+        likelyLog.Add( $"Likely Switches Count: {likelySwitches.Count}." );
+        likelyLog.Add( $"" );
+
+        Debug.Log( likelyLog.ToString() );
+        likelyLog.Clear();
+
+        return likelySwitches;
+    }
+
+    public Dictionary<Pokemon, SwitchCandidateResult> GetLikely_OffensiveSwitches( IBattleAIUnit theirActiveMon, int thresholdValue = 40, bool ignoreThreshold = false )
+    {
+        Dictionary<Pokemon, SwitchCandidateResult> likelySwitches = new();
+        List<SwitchCandidateResult> likelySRCs = new();
+
+        var scr = SwitchCommand.GetSwitch_Offensive( theirActiveMon, true );
+        Dictionary<Pokemon, SwitchCandidateResult> allCandidates = new();
+
+        CustomLogSession likelyLog = new();
+
+        likelyLog.Add( $"" );
+        likelyLog.Add( $"=[Getting Likely Offensive Switches]=" );
+
+        if( scr.ReturnAllList == null || scr.ReturnAllList.Count <= 0 )
+        {
+            Debug.LogError( "GetSwitch_Offensive() returned an empty Return All List, which likely means there are no viable offensive candidates." );
+            return likelySwitches;
+        }
+        else
+            allCandidates = scr.ReturnAllList.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
+        likelyLog.Add( $"All Candidates Count: {allCandidates.Count}." );
+        foreach( var cand in allCandidates )
+            likelyLog.Add( $"{cand.Key.NickName}, {cand.Value.Score}" );
+        
+        var sorted = allCandidates.OrderByDescending( c => c.Value.Score ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
+        var bestCandidateKVP = sorted.First();
+        int bestCandidateScore = bestCandidateKVP.Value.Score;
+        likelyLog.Add( $"Best Candidate Score: {bestCandidateScore}." );
+
+        int count = 0;
+        foreach( var kvp in sorted )
+        {
+            count++;
+            var mon = kvp.Key;
+            var s = kvp.Value.Score;
+            int threshold = ignoreThreshold ? 0 : bestCandidateScore - thresholdValue;
+            likelyLog.Add( $"Threshold: {threshold}." );
+            likelyLog.Add( $"Checking Key {mon.NickName}, Value: {kvp.Value.Pokemon.NickName}, Score: {s}." );
+
+            if( s >= threshold )
+                likelySwitches.Add( kvp.Key, kvp.Value );
+
+            if( !ignoreThreshold && count > 3 ) //--Caps at top 4 candidates
+                break;
+        }
+
+        likelyLog.Add( $"Likely Switches Count: {likelySwitches.Count}." );
+        likelyLog.Add( $"" );
+
+        Debug.Log( likelyLog.ToString() );
+        likelyLog.Clear();
 
         return likelySwitches;
     }
@@ -5745,8 +5894,6 @@ public struct SetupThreatResult
     public int SetupValue;
     public int SweepCount;
     public int ImprovedPTKOs;
-
-    public bool OpponentSwitches;
 }
 
 public struct StatusThreatResult
@@ -5796,7 +5943,7 @@ public struct SwitchCandidateResult
     public bool MovesFirst { get; set; }
     public TurnOutcomeProjection Top { get; set; }
 
-    public List<( Pokemon Pokemon, int Score )> ReturnAllList;
+    public Dictionary<Pokemon, SwitchCandidateResult> ReturnAllList;
 }
 
 public struct EstimatedDamageResult
@@ -5943,6 +6090,7 @@ public class CurrentPlan
     public Pokemon FocusMon;
     public float Confidence;
     public bool AllowSacrifice;
+    public bool SweepPotential;
 
     public int TurnsActive;
 }
@@ -6009,6 +6157,8 @@ public struct BattlefieldState
 {
     public int Round;
     public bool IsEarlyGame;
+    public bool IsMidGame;
+    public bool IsLateGame;
 
     public WeatherConditionID Weather;
     public int WeatherDuration;
@@ -6139,9 +6289,9 @@ public class GamePlan
     public Pokemon OurPrimaryWinCon;
     public Pokemon TheirPrimaryWinCon;
     public List<Pokemon> OurBlockers;
-    public List<Pokemon> OurWinConEnablers;
-    public List<Pokemon> EliminateBlockers;
-    public List<Pokemon> EliminateEnablers;
+    public List<Pokemon> OurEnablers;
+    public List<Pokemon> TheirBlockers;
+    public List<Pokemon> TheirEnablers;
 }
 
 public class GamePlanAnalysis

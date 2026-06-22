@@ -39,6 +39,7 @@ public class BattleSystem_AITurnState : State<BattleSystem>
 
         Debug.Log( $"Amount of AI Units: {_availableAIUnit.Count}" );
 
+        StartCoroutine( ChooseCommands() );
         StartCoroutine( AwaitActionSelections() );
     }
 
@@ -63,7 +64,7 @@ public class BattleSystem_AITurnState : State<BattleSystem>
     {
         yield return new WaitUntil( () => _commands == _availableAIUnit.Count ); //--We do it this way because i plan on having battles where it's 2 vs 3 or more opponents, especially in boss battles
         //--All commands should have been added to the list, so now we determine command order and run turns.
-        // _battleSystem.DetermineCommandOrder();
+        
         _battleSystem.BeginCommandQueueState();
         yield return null;
     }

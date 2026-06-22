@@ -1,10 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
-using UnityEngine.XR;
 
-public enum BattleSimRoundType { AttackRound, SwitchRound, SetupRound, }
+public enum SimModuleType { Attack, Switch, Setup, OffensiveStatus, SupportiveStatus, Heal, Protect }
 public class BattleAI_BattleSim
 {
     private BattleAI _ai;
@@ -25,33 +25,78 @@ public class BattleAI_BattleSim
         _rounds = 0;
     }
 
-    public BattleSimContext Get_BattleSimContext( PotentialToKO attPTKO, PotentialToKO oppPTKO, SimulatedUnit attacker, SimulatedUnit opponent, SimulatedField field )
+    public SimulationModule BuildSimModule( SimModuleType type, int priority, SimulatedUnit attacker, SimulatedUnit opponent )
     {
-        _unitSim.TurnSimLog.Add( $"===[Building Battle Simulation Context ({attacker.Name} vs {opponent.Name})]===" );
+        Action<SimulatedUnit, SimulatedUnit, SimulatedField> module = type switch
+        {
+            SimModuleType.Attack => RunAttackModule,
+            SimModuleType.Switch => RunSwitchModule,
+            SimModuleType.Setup => RunSetupModule,
+            SimModuleType.OffensiveStatus => RunOffensiveStatusModule,
+            _ => RunAttackModule,
+        };
+
+        SimulationModule sm = new( type, priority, attacker, opponent, module );
+
+        return sm;
+    }
+
+    public BattleSimEvent BuildBattleSimEvent( PotentialToKO attPTKO, PotentialToKO oppPTKO, SimulationPackage attackerPack, SimulationPackage opponentPack, SimulatedField field )
+    {
+        const int priority_offset = 7;
+
+        var attacker = attackerPack.SimUnit;
+        var opponent = opponentPack.SimUnit;
+
+        _unitSim.TurnSimLog.Add( $"===[Building Battle Simulation Event ({attacker.Name}'s {attackerPack.ModuleType} vs {opponent.Name}'s {opponentPack.ModuleType})]===" );
+
         var units = new List<SimulatedUnit> { attacker, opponent };
         units.Sort( ( a, b ) => b.Speed.CompareTo( a.Speed ) );
 
         bool attMovesFirst = false;
-        var attMovePrio = attacker.MTR.Move.Priority;
-        var oppMovePrio = opponent.MTR.Move.Priority;
+        int attackerPriority = attackerPack.ModuleType == SimModuleType.Switch ? 99 : attacker.MTR?.Move != null ? ( (int)attacker.MTR.Move.Priority - priority_offset ) : ( (int)MovePriority.Zero - priority_offset );
+        int opponentPriority = opponentPack.ModuleType == SimModuleType.Switch ? 99 : opponent.MTR?.Move != null ? ( (int)opponent.MTR.Move.Priority - priority_offset ) : ( (int)MovePriority.Zero - priority_offset );
 
-        if( attMovePrio != oppMovePrio )
-            attMovesFirst = attMovePrio > oppMovePrio;
+        //--First we check the actual priority systems. if the systems don't equal each other, we let them determine module order
+        //--If they are the same, then we have to break the tie by actual unit speed. If speeds are the same, we will assume the opponent goes first.
+        if( attackerPriority != opponentPriority )
+        {
+            attMovesFirst = attackerPriority > opponentPriority;
+        }
         else
+        {
+            attackerPriority = attacker.Speed;
+            opponentPriority = opponent.Speed;
             attMovesFirst = attacker.Speed > opponent.Speed;
 
+            if( attacker.Speed == opponent.Speed )
+            {
+                attackerPriority = 0;
+                opponentPriority = 1000;
+            }
+        }
+
+        //--Build Sim Module
+        var attackerModule = BuildSimModule( attackerPack.ModuleType, attackerPriority, attacker, opponent );
+        var opponentModule = BuildSimModule( opponentPack.ModuleType, opponentPriority, opponent, attacker );
+
+        List<SimulationModule> modules = new(){ attackerModule, opponentModule };
+        modules = modules.OrderByDescending( m => m.Priority ).ToList();
+
         _unitSim.TurnSimLog.Add( $"[Turn Simulation] Attacker ({attacker.Name}) Speed: {attacker.Speed}. Opponent ({opponent.Name}) Speed: {opponent.Speed}." );
-        _unitSim.TurnSimLog.Add( $"[Turn Simulation] Attacker ({attacker.Name}) Move Priority: {attMovePrio}. Opponent ({opponent.Name}) Move Priority {oppMovePrio}." );
+        _unitSim.TurnSimLog.Add( $"[Turn Simulation] Attacker ({attacker.Name}) Move Priority: {attackerPriority}. Opponent ({opponent.Name}) Move Priority {opponentPriority}." );
         _unitSim.TurnSimLog.Add( $"[Turn Simulation] Attacker ({attacker.Name}) Moves First: {attMovesFirst}." );
+        _unitSim.TurnSimLog.Add( $"" );
 
-        BattleSimContext ctx = new()
+        BattleSimEvent bse = new()
         {
-            AttackerPTKO = attPTKO,
-            OpponentPTKO = oppPTKO,
-
             Attacker = attacker,
             Opponent = opponent,
             ActiveUnits = units,
+            SimModules = modules,
+
+            AttackerPTKO = attPTKO,
+            OpponentPTKO = oppPTKO,
 
             Field = field,
 
@@ -60,408 +105,678 @@ public class BattleAI_BattleSim
             OpponentCanAct = _unitSim.CanActOnTurn( opponent ),
         };
 
-        _unitSim.TurnSimLog.Add( $"Attacker {ctx.Attacker.Name} PTKO: {ctx.AttackerPTKO}" );
-        _unitSim.TurnSimLog.Add( $"Opponent {ctx.Opponent.Name} PTKO: {ctx.OpponentPTKO}" );
+        _unitSim.TurnSimLog.Add( $"Attacker {bse.Attacker.Name} (HPR: {bse.Attacker.BeginningHPR}), PTKO: {bse.AttackerPTKO}" );
+        _unitSim.TurnSimLog.Add( $"Opponent {bse.Opponent.Name} (HPR: {bse.Opponent.BeginningHPR}), PTKO: {bse.OpponentPTKO}" );
+        _unitSim.TurnSimLog.Add( $"" );
 
-        return ctx;
+        return bse;
     }
 
-    private TurnOutcomeProjection BuildTOP( BattleSimContext ctx )
+    private TurnOutcomeProjection BuildTOP( BattleSimEvent bse, bool log = false )
     {
         TurnOutcomeProjection top = new()
         {
-            Attacker = ctx.Attacker,
-            Opponent = ctx.Opponent,
+            Attacker = bse.Attacker,
+            Opponent = bse.Opponent,
 
-            Field = ctx.Field, //--We currently do not make any increments to field. this feature should be expanded on to account for duration tics and such.
+            Field = bse.Field, //--We currently do not make any increments to field. this feature should be expanded on to account for duration tics and such.
 
-            AttackerPTKO = ctx.AttackerPTKO,
-            OpponentPTKO = ctx.OpponentPTKO,
+            AttackerPTKO = bse.AttackerPTKO,
+            OpponentPTKO = bse.OpponentPTKO,
 
-            Attacker_EndOfTurnHP = ctx.Attacker.CurrentHPR,
-            Opponent_EndOfTurnHP = ctx.Opponent.CurrentHPR,
+            Attacker_EndOfTurnHP = bse.Attacker.CurrentHPR,
+            Opponent_EndOfTurnHP = bse.Opponent.CurrentHPR,
 
-            Attacker_DiesBeforeActing = ctx.Attacker_DiesBeforeActing,
-            Opponent_DiesBeforeActing = ctx.Opponent_DiesBeforeActing,
+            Attacker_DiesBeforeActing = bse.Attacker_DiesBeforeActing,
+            Opponent_DiesBeforeActing = bse.Opponent_DiesBeforeActing,
 
-            AttackerCanAct = ctx.AttackerCanAct,
-            OpponentCanAct = ctx.OpponentCanAct,
+            AttackerCanAct = bse.AttackerCanAct,
+            OpponentCanAct = bse.OpponentCanAct,
 
-            MutualKO = ctx.Attacker.CurrentHPR <= 0f && ctx.Opponent.CurrentHPR <= 0f,
-            AttackerMovedFirst = ctx.AttackerMovesFirst,
+            MutualKO = bse.Attacker.CurrentHPR <= 0f && bse.Opponent.CurrentHPR <= 0f,
+            AttackerMovedFirst = bse.AttackerMovesFirst,
         };
 
         _unitSim.LogTop( top );
-        top.SimulationLog = _unitSim.TurnSimLog.ToString();
+        // top.SimulationLog = _unitSim.TurnSimLog.ToString();
+
+        if( log )
+            Debug.Log( _unitSim.TurnSimLog.ToString() );
+
         _unitSim.TurnSimLog.Clear();
+
         _rounds = 0;
 
         return top;
     }
 
-    public TurnOutcomeProjection SimulateAttackRound( BattleSimContext ctx, string reason = "Attack Simulation Reasons" )
+    public TurnOutcomeProjection BuildIntentTOP( ActionType action, object ourResult, ThreatIntentResult tir )
     {
-        _rounds++;
-        _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
-        _unitSim.LogSimUnit( ctx.Attacker );
-        _unitSim.LogSimUnit( ctx.Opponent );
+        MoveThreatResult ourMTR = null;
+        MoveThreatResult theirMTR = null;
 
-        ResolveMovePhase( ctx );
-        ResolveRoundEndPhases( ctx );
+        IBattleAIUnit attacker = null;
+        IBattleAIUnit opponent = null;
 
-        return BuildTOP( ctx );
-    }
+        SimModuleType attackerModule = SimModuleType.Attack;
+        SimModuleType opponentModule = SimModuleType.Attack;
 
-    public TurnOutcomeProjection SimulateSwitchRound( BattleSimContext ctx, bool attackerIsSwitch, bool opponentIsSwitch, string reason = "Switch Simulation Reasons" )
-    {
-        _rounds++;
-        _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
-        _unitSim.LogSimUnit( ctx.Attacker );
-        _unitSim.LogSimUnit( ctx.Opponent );
+        //----------------------------------------------------------------------------
+        //--[Our Action]--------------------------------------------------------------
+        //----------------------------------------------------------------------------
+        switch( action )
+        {
+            case ActionType.Attack:
 
-        ctx.AttackerIsSwitch = attackerIsSwitch;
-        ctx.OpponentIsSwitch = opponentIsSwitch;
+                var attack = (MoveThreatResult)ourResult;
+                ourMTR = attack;
+                attacker = attack.Top.Attacker;
+                attackerModule = SimModuleType.Attack;
 
-        ResolveSwitchPhase( ctx );
-        ResolveRoundEndPhases( ctx );
+            break;
 
-        return BuildTOP( ctx );
-    }
+            case ActionType.DefensiveSwitch:
 
-    public TurnOutcomeProjection SimulatedSetupRound( BattleSimContext ctx, bool attackerIsSwitch, bool opponentIsSwitch, bool attackerSetup, bool opponentSetup )
-    {
-        _rounds++;
-        _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [Setup Round Simulation])]===" );
-        _unitSim.LogSimUnit( ctx.Attacker );
-        _unitSim.LogSimUnit( ctx.Opponent );
+                var defSwitch = (SwitchCandidateResult)ourResult;
+                attacker = defSwitch.Top.Attacker;
+                attackerModule = SimModuleType.Switch;
 
-        ctx.AttackerIsSwitch = attackerIsSwitch;
-        ctx.OpponentIsSwitch = opponentIsSwitch;
+                ourMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = attacker,
+                    TargetBattleUnit = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
 
-        ctx.AttackerSetup = attackerSetup;
-        ctx.OpponentSetup = opponentSetup;
+            break;
 
-        foreach( var kvp in ctx.Attacker.StatStages )
-            Debug.Log( $"[Stat Stage Check] Attacker: {ctx.Attacker.Name}, Stat: {kvp.Key}, Change: {kvp.Value} (Attacker inside SimulatedSetupRound, before Resolving Setup Phase)" );
+            case ActionType.OffensiveSwitch:
 
-        ResolveSetupPhase( ctx );
-        ResolveRoundEndPhases( ctx );
+                var offSwitch = (SwitchCandidateResult)ourResult;
+                attacker = offSwitch.Top.Attacker;
+                attackerModule = SimModuleType.Switch;
 
-        return BuildTOP( ctx );
-    }
+                ourMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = attacker,
+                    TargetBattleUnit = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
 
-    public TurnOutcomeProjection SimulateOffensiveStatusRound( BattleSimContext ctx, bool attackerStatus, bool opponentStatus, bool attackerSwitch, bool opponentSwitch )
-    {
-        _rounds++;
-        _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [Offensive Status Round Simulation])]===" );
+            break;
 
-        ctx.AttackerStatus = attackerStatus;
-        ctx.OpponentStatus = opponentStatus;
+            case ActionType.Setup:
+
+                var setup = (SetupThreatResult)ourResult;
+                attacker = setup.Top.Attacker;
+                attackerModule = SimModuleType.Setup;
+
+                ourMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = setup.Target,
+                    TargetBattleUnit = setup.TargetBattleUnit,
+                    Move = setup.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+
+            case ActionType.OffensiveStatus:
+
+                var offStatus = (StatusThreatResult)ourResult;
+                attacker = offStatus.Top.Attacker;
+                attackerModule = SimModuleType.OffensiveStatus;
+
+                ourMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = offStatus.Target,
+                    TargetBattleUnit = offStatus.TargetBattleUnit,
+                    Move = offStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+        }
+
+        //----------------------------------------------------------------------------
+        //--[Their Action]------------------------------------------------------------
+        //----------------------------------------------------------------------------
+        switch( tir.PrimaryIntent )
+        {
+            case IntentType.Attack:
+
+                var attack = (MoveThreatResult)tir.IntentObject;
+                opponent = attack.Top.Attacker;
+                opponentModule = SimModuleType.Attack;
+                theirMTR = attack;
+
+            break;
+
+            case IntentType.DefensiveSwitch:
+
+                var defSwitch = (SwitchCandidateResult)tir.IntentObject;
+                opponent = defSwitch.Top.Attacker;
+                opponentModule = SimModuleType.Switch;
+
+                theirMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = opponent,
+                    TargetBattleUnit = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
+
+            break;
+
+            case IntentType.OffensiveSwitch:
+
+                var offSwitch = (SwitchCandidateResult)tir.IntentObject;
+                opponent = offSwitch.Top.Attacker;
+                opponentModule = SimModuleType.Switch;
+
+                theirMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = opponent,
+                    TargetBattleUnit = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
+
+            break;
+
+            case IntentType.Setup:
+
+                var setup = (SetupThreatResult)tir.IntentObject;
+                opponent = setup.Top.Attacker;
+                opponentModule = SimModuleType.Setup;
+
+                theirMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = setup.Target,
+                    TargetBattleUnit = setup.TargetBattleUnit,
+                    Move = setup.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+
+            case IntentType.OffensiveStatus:
+
+                var offStatus = (StatusThreatResult)tir.IntentObject;
+                opponent = offStatus.Top.Attacker;
+                opponentModule = SimModuleType.OffensiveStatus;
+
+                theirMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = offStatus.Target,
+                    TargetBattleUnit = offStatus.TargetBattleUnit,
+                    Move = offStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+        }
+
+        float ourHPR                        = attacker.BeginningHPR;
+        float theirHPR                      = opponent.BeginningHPR;
         
-        ctx.AttackerIsSwitch = attackerSwitch;
-        ctx.OpponentIsSwitch = opponentSwitch;
+        var ourEDR                          = _proj.Get_EstimatedDamageResult( attacker, opponent, ourMTR );
+        var theirEDR                        = _proj.Get_EstimatedDamageResult( opponent, attacker, theirMTR );
 
-        ResolveStatusPhase( ctx );
-        ResolveRoundEndPhases( ctx );
+        PotentialToKOResult ourPTKOR        = _proj.Get_PotentialToKOResult( ourEDR, ourMTR, theirHPR );
+        PotentialToKOResult theirPTKOR      = _proj.Get_PotentialToKOResult( theirEDR, theirMTR, ourHPR );
 
-        return BuildTOP( ctx );
+        var fieldSim                        = _ai.UnitSim.BuildSimField();
+
+        var attackerSimUnit                 = _ai.UnitSim.BuildSimUnit( attacker, ourHPR, ourMTR, fieldSim );
+        var opponentSimUnit                 = _ai.UnitSim.BuildSimUnit( opponent, theirHPR, theirMTR, fieldSim );
+
+        SimulationPackage attackerPack      = new(){ SimUnit = attackerSimUnit, ModuleType = attackerModule };
+        SimulationPackage opponentPack      = new(){ SimUnit = opponentSimUnit, ModuleType = opponentModule };
+        
+        var bse = BuildBattleSimEvent( ourPTKOR.PTKO, theirPTKOR.PTKO, attackerPack, opponentPack, fieldSim );
+        return RunSimulation( bse, true );
+
+        // switch( action )
+        // {
+        //     case ActionType.Attack:
+        //         return SimulateAttackRound( battleSimContext, $"Intent TOP for our Attack Action vs their {tir.PrimaryIntent}" );
+
+        //     case ActionType.DefensiveSwitch:
+        //         if( tir.PrimaryIntent == IntentType.DefensiveSwitch || tir.PrimaryIntent == IntentType.OffensiveSwitch )
+        //             return SimulateSwitchRound( battleSimContext, true, true, $"Intent TOP for our Defensive Switch vs their {tir.PrimaryIntent}" );
+        //         else
+        //             return SimulateSwitchRound( battleSimContext, true, false, $"Intent TOP for our Defensive Switch vs their {tir.PrimaryIntent}" );
+
+        //     case ActionType.OffensiveSwitch:
+        //         if( tir.PrimaryIntent == IntentType.DefensiveSwitch || tir.PrimaryIntent == IntentType.OffensiveSwitch )
+        //             return SimulateSwitchRound( battleSimContext, true, true, $"Intent TOP for our Offensive Switch vs their {tir.PrimaryIntent}" );
+        //         else
+        //             return SimulateSwitchRound( battleSimContext, true, false, $"Intent TOP for our Offensive Switch vs their {tir.PrimaryIntent}" );
+
+        //     case ActionType.Setup:
+        //         if( tir.PrimaryIntent == IntentType.DefensiveSwitch || tir.PrimaryIntent == IntentType.OffensiveSwitch )
+        //             return SimulatedSetupRound( battleSimContext, false, true, true, false );
+        //         else
+        //             return SimulatedSetupRound( battleSimContext, true, true, true, false );
+
+        //     case ActionType.OffensiveStatus:
+        //         if( tir.PrimaryIntent == IntentType.DefensiveSwitch || tir.PrimaryIntent == IntentType.OffensiveSwitch )
+        //             return SimulateOffensiveStatusRound( battleSimContext, true, false, false, true );
+        //         else
+        //             return SimulateOffensiveStatusRound( battleSimContext, true, false, false, false );
+        // }
+
+        // return ourTOP;
     }
 
-    private void ResolveMovePhase( BattleSimContext ctx )
+    // public TurnOutcomeProjection SimulateAttackRound( BattleSimEvent ctx, string reason = "Attack Simulation Reasons" )
+    // {
+    //     _rounds++;
+    //     _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
+    //     _unitSim.LogSimUnit( ctx.Attacker );
+    //     _unitSim.LogSimUnit( ctx.Opponent );
+
+    //     ResolveMovePhase( ctx );
+    //     ResolveRoundEndPhases( ctx );
+
+    //     return BuildTOP( ctx );
+    // }
+
+    // public TurnOutcomeProjection SimulateSwitchRound( BattleSimEvent ctx, bool attackerIsSwitch, bool opponentIsSwitch, string reason = "Switch Simulation Reasons" )
+    // {
+    //     _rounds++;
+    //     _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [{reason}])]===" );
+    //     _unitSim.LogSimUnit( ctx.Attacker );
+    //     _unitSim.LogSimUnit( ctx.Opponent );
+
+    //     ctx.AttackerIsSwitch = attackerIsSwitch;
+    //     ctx.OpponentIsSwitch = opponentIsSwitch;
+
+    //     ResolveSwitchPhase( ctx );
+    //     ResolveRoundEndPhases( ctx );
+
+    //     return BuildTOP( ctx );
+    // }
+
+    // public TurnOutcomeProjection SimulatedSetupRound( BattleSimEvent ctx, bool attackerIsSwitch, bool opponentIsSwitch, bool attackerSetup, bool opponentSetup )
+    // {
+    //     _rounds++;
+    //     _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [Setup Round Simulation])]===" );
+    //     _unitSim.LogSimUnit( ctx.Attacker );
+    //     _unitSim.LogSimUnit( ctx.Opponent );
+
+    //     ctx.AttackerIsSwitch = attackerIsSwitch;
+    //     ctx.OpponentIsSwitch = opponentIsSwitch;
+
+    //     ctx.AttackerSetup = attackerSetup;
+    //     ctx.OpponentSetup = opponentSetup;
+
+    //     // foreach( var kvp in ctx.Attacker.StatStages )
+    //         // Debug.Log( $"[Stat Stage Check] Attacker: {ctx.Attacker.Name}, Stat: {kvp.Key}, Change: {kvp.Value} (Attacker inside SimulatedSetupRound, before Resolving Setup Phase)" );
+
+    //     ResolveSetupPhase( ctx );
+    //     ResolveRoundEndPhases( ctx );
+
+    //     return BuildTOP( ctx );
+    // }
+
+    // public TurnOutcomeProjection SimulateOffensiveStatusRound( BattleSimEvent ctx, bool attackerStatus, bool opponentStatus, bool attackerSwitch, bool opponentSwitch )
+    // {
+    //     _rounds++;
+    //     _unitSim.TurnSimLog.Add( $"===[Beginning Round Simulation for ROUND: {_rounds}. (Reason: [Offensive Status Round Simulation])]===" );
+
+    //     ctx.AttackerStatus = attackerStatus;
+    //     ctx.OpponentStatus = opponentStatus;
+        
+    //     ctx.AttackerIsSwitch = attackerSwitch;
+    //     ctx.OpponentIsSwitch = opponentSwitch;
+
+    //     ResolveStatusPhase( ctx );
+    //     ResolveRoundEndPhases( ctx );
+
+    //     return BuildTOP( ctx );
+    // }
+
+    // private void ResolveMovePhase( BattleSimEvent ctx )
+    // {
+    //     _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Move Phase]===" );
+    //     _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
+
+    //     Move attMove = ctx.Attacker.MTR?.Move ?? null;
+    //     Move oppMove = ctx.Opponent.MTR?.Move ?? null;
+
+    //     int attackerHitCount = attMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
+    //     int opponentHitCount = oppMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
+
+    //     float damageDone = 0f;
+    //     if( ctx.AttackerMovesFirst )
+    //     {
+    //         _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
+    //         //--Attacker does damage to opponent
+    //         for( int i = 0; i < attackerHitCount; i++ )
+    //         {
+    //             if( !_unitSim.CanActOnTurn( ctx.Attacker ) )
+    //                 continue;
+
+    //             damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+    //             // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
+    //             ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+    //             if( ctx.Opponent.CurrentHPR <= 0f )
+    //                 break;
+    //         }
+
+    //         if( ctx.Opponent.CurrentHPR <= 0f )
+    //         {
+    //             ctx.Opponent_DiesBeforeActing = true;
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent before it could act! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
+    //         }
+    //         else if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //         {
+    //             //--Opponent does damage to Attacker
+    //             for( int i = 0; i < opponentHitCount; i++ )
+    //             {
+    //                 damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+    //                 // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+    //                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
+    //                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //                 if( ctx.Attacker.CurrentHPR <= 0f )
+    //                     break;
+    //             }
+    //         }
+    //     }
+    //     else
+    //     {
+    //         _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
+    //         //--Opponent does damage to Attacker
+    //         for( int i = 0; i < opponentHitCount; i++ )
+    //         {
+    //             if( !_unitSim.CanActOnTurn( ctx.Opponent ) )
+    //                 continue;
+
+    //             damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+    //             // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
+    //             ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //             if( ctx.Attacker.CurrentHPR <= 0f )
+    //                 break;
+    //         }
+
+    //         if( ctx.Attacker.CurrentHPR <= 0f )
+    //         {
+    //             ctx.Attacker_DiesBeforeActing = true;
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent before it could act! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
+    //         }
+    //         else if( _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //         {
+    //             //--Attacker does damage to opponent
+    //             for( int i = 0; i < attackerHitCount; i++ )
+    //             {
+    //                 damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+    //                 // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+    //                 _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
+    //                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+    //                 if( ctx.Opponent.CurrentHPR <= 0f )
+    //                     break;
+    //             }
+    //         }
+
+    //     }
+
+    //     _unitSim.TurnSimLog.Add( $"" );
+    // }
+
+    // private void ResolveSwitchPhase( BattleSimEvent ctx )
+    // {
+    //     _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Switch Phase]===" );
+    //     _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
+
+    //     Move attMove = ctx.Attacker.MTR?.Move;
+    //     Move oppMove = ctx.Opponent.MTR?.Move;
+
+    //     int attackerHitCount = attMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( attMove );
+    //     int opponentHitCount = oppMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( oppMove );
+
+    //     float damageDone = 0f;
+    //     if( ctx.OpponentIsSwitch && !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //     {
+    //         _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
+    //         //--Attacker does damage to opponent
+    //         for( int i = 0; i < attackerHitCount; i++ )
+    //         {
+    //             damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+    //             // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
+    //             ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+    //         }
+
+    //         if( ctx.Opponent.CurrentHPR <= 0f )
+    //         {
+    //             ctx.Opponent_DiesBeforeActing = true;
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent on entry! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
+    //         }
+    //     }
+    //     else if( !ctx.OpponentIsSwitch && ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //     {
+    //         _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
+    //         //--Opponent does damage to Attacker
+    //         for( int i = 0; i < opponentHitCount; i++ )
+    //         {
+    //             damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+    //             // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
+    //             ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //         }
+
+    //         if( ctx.Attacker.CurrentHPR <= 0f )
+    //         {
+    //             ctx.Attacker_DiesBeforeActing = true;
+    //             _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent on entry! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
+    //         }
+    //     }
+
+    //     ctx.OpponentIsSwitch = false;
+    //     ctx.AttackerIsSwitch = false;
+
+    //     _unitSim.TurnSimLog.Add( $"" );
+    // }
+
+    // private void ResolveSetupPhase( BattleSimEvent ctx )
+    // {
+    //     Move attMove = ctx.Attacker.MTR?.Move ?? null;
+    //     Move oppMove = ctx.Opponent.MTR?.Move ?? null;
+
+    //     int attackerHitCount = attMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
+    //     int opponentHitCount = oppMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
+
+    //     float damageDone = 0f;
+
+    //     if( ctx.AttackerSetup )
+    //     {
+    //         if( ctx.AttackerMovesFirst && _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //         {
+    //             //--Attacker Sets up
+    //             ApplySetupMove( ctx.Attacker, attMove );
+
+    //             if( !ctx.OpponentIsSwitch && ctx.OpponentCanAct )
+    //             {
+    //                 //--Attacker gets hit by opponent attack
+    //                 damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+    //                 // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+    //                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //             }
+    //         }
+    //         else
+    //         {
+    //             if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //             {
+    //                 //--Attacker gets hit by opponent attack
+    //                 damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
+    //                 // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
+    //                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //             }
+
+    //             //--Attacker Sets up
+    //             if( ctx.AttackerCanAct )
+    //                 ApplySetupMove( ctx.Attacker, attMove );
+    //         }
+    //     }
+    //     else if( ctx.OpponentSetup )
+    //     {
+    //         if( ctx.AttackerMovesFirst )
+    //         {
+    //             if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //             {
+    //                 //--Opponent gets hit by Attacker attack
+    //                 damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attack, attack hit count
+    //                 // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attack, attack hit count
+    //                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+    //             }
+
+    //             //--Opponent Sets up
+    //             if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //                 ApplySetupMove( ctx.Opponent, oppMove );
+    //         }
+    //         else
+    //         {
+    //             //--Opponent Sets up
+    //             if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //                 ApplySetupMove( ctx.Opponent, oppMove );
+
+    //             if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //             {
+    //                 //--Opponent gets hit by Attacker attack
+    //                 damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
+    //                 // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
+    //                 ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
+    //             }
+    //         }
+    //     }
+
+    //     _unitSim.TurnSimLog.Add( $"" );
+    // }
+
+    // private void ResolveStatusPhase( BattleSimEvent ctx )
+    // {
+    //     Move attMove = ctx.Attacker.MTR?.Move ?? null;
+    //     Move oppMove = ctx.Opponent.MTR?.Move ?? null;
+
+    //     int attackerHitCount = attMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
+    //     int opponentHitCount = oppMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
+
+    //     _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Offensive Status Phase]===" );
+    //     _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
+
+    //     float damageDone = 0f;
+
+    //     if( ctx.AttackerStatus )
+    //     {
+    //         if( ctx.AttackerMovesFirst )
+    //         {
+    //             //--Attacker Uses Offensive Status
+    //             if( _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //                 ApplyOffensiveStatusMove( ctx.Opponent, attMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+
+    //             if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //             {
+    //                 //--Attacker gets hit by opponent attack
+    //                 damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //             }
+    //         }
+    //         else
+    //         {
+    //             if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //             {
+    //                 //--Attacker gets hit by opponent attack
+    //                 damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //             }
+
+    //             //--Attacker Uses Offensive Status
+    //             if( _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //                 ApplyOffensiveStatusMove( ctx.Opponent, attMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+    //         }
+    //     }
+    //     else if( ctx.OpponentStatus )
+    //     {
+    //         if( ctx.AttackerMovesFirst )
+    //         {
+    //             if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //             {
+    //                 //--Opponent gets hit by Attacker attack
+    //                 damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //             }
+
+    //             //--Opponent Uses Offensive Status
+    //             if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //                 ApplyOffensiveStatusMove( ctx.Attacker, oppMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+    //         }
+    //         else
+    //         {
+    //             //--Opponent Uses Offensive Status
+    //             if( _unitSim.CanActOnTurn( ctx.Opponent ) )
+    //                 ApplyOffensiveStatusMove( ctx.Attacker, oppMove, ctx.Field ); //--Target, move used by attacking pokemon, field
+
+    //             if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
+    //             {
+    //                 //--Opponent gets hit by Attacker attack
+    //                 damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
+    //                 ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
+    //             }
+    //         }
+    //     }
+    // }
+
+    public TurnOutcomeProjection RunSimulation( BattleSimEvent bsc, bool log = false )
     {
-        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Move Phase]===" );
-        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
+        //--Order modules by priority. maybe we do this in bsc.
+        //--run each module's stored action in action -> priority -> speed order as expected
+        //--duing each module, appropriately resolve post action effects
+        //--after all modules run, run post round effects, make sure ALL effects and their durations tick, appropriately updating each unit and the field.
 
-        var attMove = ctx.Attacker.MTR.Move;
-        var oppMove = ctx.Opponent.MTR.Move;
+        _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Running a Round Simulation for {bsc.Attacker.Name} vs {bsc.Opponent.Name}!" );
+        _unitSim.TurnSimLog.Add( $"" );
 
-        int attackerHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
-        int opponentHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
-
-        float damageDone = 0f;
-        if( ctx.AttackerMovesFirst )
+        foreach( var module in bsc.SimModules )
         {
-            _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
-            //--Attacker does damage to opponent
-            for( int i = 0; i < attackerHitCount; i++ )
+            if( module.Type != SimModuleType.SupportiveStatus )
             {
-                if( !_unitSim.CanActOnTurn( ctx.Attacker ) )
+                if( module.Attacker.CurrentHPR <= 0f || module.Opponent.CurrentHPR <= 0f )
                     continue;
-
-                damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
-                // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
-                ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
-                if( ctx.Opponent.CurrentHPR <= 0f )
-                    break;
             }
 
-            if( ctx.Opponent.CurrentHPR <= 0f )
-            {
-                ctx.Opponent_DiesBeforeActing = true;
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent before it could act! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
-            }
-            else if( _unitSim.CanActOnTurn( ctx.Opponent ) )
-            {
-                //--Opponent does damage to Attacker
-                for( int i = 0; i < opponentHitCount; i++ )
-                {
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
-                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
-                    _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                    if( ctx.Attacker.CurrentHPR <= 0f )
-                        break;
-                }
-            }
-
-        }
-        else
-        {
-            _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
-            //--Opponent does damage to Attacker
-            for( int i = 0; i < opponentHitCount; i++ )
-            {
-                if( !_unitSim.CanActOnTurn( ctx.Opponent ) )
-                    continue;
-
-                damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
-                // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
-                ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                if( ctx.Attacker.CurrentHPR <= 0f )
-                    break;
-            }
-
-            if( ctx.Attacker.CurrentHPR <= 0f )
-            {
-                ctx.Attacker_DiesBeforeActing = true;
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent before it could act! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
-            }
-            else if( _unitSim.CanActOnTurn( ctx.Attacker ) )
-            {
-                //--Attacker does damage to opponent
-                for( int i = 0; i < attackerHitCount; i++ )
-                {
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
-                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
-                    _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
-                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
-                    if( ctx.Opponent.CurrentHPR <= 0f )
-                        break;
-                }
-            }
-
+            module.Module?.Invoke( module.Attacker, module.Opponent, bsc.Field );
+            _unitSim.TurnSimLog.Add( $"" );
         }
 
-        _unitSim.TurnSimLog.Add( $"" );
-    }
+        ResolveRoundEndPhases( bsc );
 
-    private void ResolveSwitchPhase( BattleSimContext ctx )
-    {
-        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Switch Phase]===" );
-        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
-
-        var attMove = ctx.Attacker.MTR.Move;
-        var oppMove = ctx.Opponent.MTR.Move;
-
-        int attackerHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
-        int opponentHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
-
-        float damageDone = 0f;
-        if( ctx.OpponentIsSwitch && !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
-        {
-            _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} moves first!" );
-            //--Attacker does damage to opponent
-            for( int i = 0; i < attackerHitCount; i++ )
-            {
-                damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
-                // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
-                ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
-            }
-
-            if( ctx.Opponent.CurrentHPR <= 0f )
-            {
-                ctx.Opponent_DiesBeforeActing = true;
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {ctx.Attacker.Name} KO'd its opponent on entry! {ctx.Opponent_DiesBeforeActing}. Damage Done: {damageDone}" );
-            }
-        }
-        else if( !ctx.OpponentIsSwitch && ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
-        {
-            _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} moves first!" );
-            //--Opponent does damage to Attacker
-            for( int i = 0; i < opponentHitCount; i++ )
-            {
-                damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
-                // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} Attacks! Move used: {oppMove.MoveSO.Name}, Expected Hits: {opponentHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
-                ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-            }
-
-            if( ctx.Attacker.CurrentHPR <= 0f )
-            {
-                ctx.Attacker_DiesBeforeActing = true;
-                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Opponent {ctx.Opponent.Name} KO'd its opponent on entry! {ctx.Attacker_DiesBeforeActing}. Damage Done: {damageDone}" );
-            }
-        }
-
-        ctx.OpponentIsSwitch = false;
-        ctx.AttackerIsSwitch = false;
-
-        _unitSim.TurnSimLog.Add( $"" );
-    }
-
-    private void ResolveSetupPhase( BattleSimContext ctx )
-    {
-        var attMove = ctx.Attacker.MTR.Move;
-        var oppMove = ctx.Opponent.MTR.Move;
-
-        int attackerHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
-        int opponentHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
-
-        float damageDone = 0f;
-
-        if( ctx.AttackerSetup )
-        {
-            if( ctx.AttackerMovesFirst && _unitSim.CanActOnTurn( ctx.Attacker ) )
-            {
-                //--Attacker Sets up
-                ApplySetupMove( ctx.Attacker, attMove );
-
-                if( !ctx.OpponentIsSwitch && ctx.OpponentCanAct )
-                {
-                    //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
-                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                }
-            }
-            else
-            {
-                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
-                {
-                    //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount );
-                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount );
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                }
-
-                //--Attacker Sets up
-                if( ctx.AttackerCanAct )
-                    ApplySetupMove( ctx.Attacker, attMove );
-            }
-        }
-        else if( ctx.OpponentSetup )
-        {
-            if( ctx.AttackerMovesFirst )
-            {
-                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
-                {
-                    //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attack, attack hit count
-                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attack, attack hit count
-                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
-                }
-
-                //--Opponent Sets up
-                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
-                    ApplySetupMove( ctx.Opponent, oppMove );
-            }
-            else
-            {
-                //--Opponent Sets up
-                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
-                    ApplySetupMove( ctx.Opponent, oppMove );
-
-                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
-                {
-                    //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount );
-                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount );
-                    ResolvePostMoveEffects( ctx.Attacker, ctx.Opponent, damageDone );
-                }
-            }
-        }
-
-        _unitSim.TurnSimLog.Add( $"" );
-    }
-
-    private void ResolveStatusPhase( BattleSimContext ctx )
-    {
-        var attMove = ctx.Attacker.MTR.Move;
-        var oppMove = ctx.Opponent.MTR.Move;
-
-        int attackerHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Attacker.MTR.Move );
-        int opponentHitCount = _unitSim.Get_ExpectedMoveHits( ctx.Opponent.MTR.Move );
-
-        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Resolving Offensive Status Phase]===" );
-        _unitSim.TurnSimLog.Add( $"===[(Round: {_rounds}) Attacker {ctx.Attacker.Name} HPR: {ctx.Attacker.CurrentHPR}. Opponent {ctx.Opponent.Name} HPR: {ctx.Opponent.CurrentHPR}]===" );
-
-        float damageDone = 0f;
-
-        if( ctx.AttackerStatus )
-        {
-            if( ctx.AttackerMovesFirst )
-            {
-                //--Attacker Uses Offensive Status
-                if( _unitSim.CanActOnTurn( ctx.Attacker ) )
-                    ApplyOffensiveStatusMove( ctx.Opponent, attMove, ctx.Field ); //--Target, move used by attacking pokemon, field
-
-                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
-                {
-                    //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                }
-            }
-            else
-            {
-                if( !ctx.OpponentIsSwitch && _unitSim.CanActOnTurn( ctx.Opponent ) )
-                {
-                    //--Attacker gets hit by opponent attack
-                    damageDone = ApplyAttack( ctx.Attacker, ctx.Opponent.MTR.EstimatedDamage, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    // damageDone = ApplyAttack( ctx.Attacker, ctx.OpponentPTKO, opponentHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                }
-
-                //--Attacker Uses Offensive Status
-                if( _unitSim.CanActOnTurn( ctx.Attacker ) )
-                    ApplyOffensiveStatusMove( ctx.Opponent, attMove, ctx.Field ); //--Target, move used by attacking pokemon, field
-            }
-        }
-        else if( ctx.OpponentStatus )
-        {
-            if( ctx.AttackerMovesFirst )
-            {
-                if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
-                {
-                    //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                }
-
-                //--Opponent Uses Offensive Status
-                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
-                    ApplyOffensiveStatusMove( ctx.Attacker, oppMove, ctx.Field ); //--Target, move used by attacking pokemon, field
-            }
-            else
-            {
-                //--Opponent Uses Offensive Status
-                if( _unitSim.CanActOnTurn( ctx.Opponent ) )
-                    ApplyOffensiveStatusMove( ctx.Attacker, oppMove, ctx.Field ); //--Target, move used by attacking pokemon, field
-
-                if( !ctx.AttackerIsSwitch && _unitSim.CanActOnTurn( ctx.Attacker ) )
-                {
-                    //--Opponent gets hit by Attacker attack
-                    damageDone = ApplyAttack( ctx.Opponent, ctx.Attacker.MTR.EstimatedDamage, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    // damageDone = ApplyAttack( ctx.Opponent, ctx.AttackerPTKO, attackerHitCount ); //--Target, attacking pokemon PTKO, attacking move hit count
-                    ResolvePostMoveEffects( ctx.Opponent, ctx.Attacker, damageDone );
-                }
-            }
-        }
+        return BuildTOP( bsc, log );
     }
 
     private void ResolvePostMoveEffects( SimulatedUnit attacker, SimulatedUnit target, float damageDone )
@@ -579,7 +894,7 @@ public class BattleAI_BattleSim
         _unitSim.TurnSimLog.Add( $"" );
     }
 
-    private void ResolveRoundEndPhases( BattleSimContext ctx )
+    private void ResolveRoundEndPhases( BattleSimEvent ctx )
     {
         _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Resolving Round End Phases!" );
         ctx.ActiveUnits.Sort( ( a, b ) => b.Speed.CompareTo( a.Speed ) );
@@ -634,11 +949,30 @@ public class BattleAI_BattleSim
     {
         var delta = _unitSim.BuildStatStageDelta( move );
 
+        _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Applying Stat Changes for Unit: {unit.Name}, Move: {move?.MoveSO.Name}." );
+
+        _unitSim.TurnSimLog.Add( $"" );
+        _unitSim.TurnSimLog.Add( $"Stat Stages Before:" );
+        _unitSim.TurnSimLog.Add( $"Attack: {unit.StatStages[Stat.Attack]}" );
+        _unitSim.TurnSimLog.Add( $"Defense: {unit.StatStages[Stat.Defense]}" );
+        _unitSim.TurnSimLog.Add( $"SpAttack: {unit.StatStages[Stat.SpAttack]}" );
+        _unitSim.TurnSimLog.Add( $"SpDefense: {unit.StatStages[Stat.SpDefense]}" );
+        _unitSim.TurnSimLog.Add( $"Speed: {unit.StatStages[Stat.Speed]}" );
+
         unit.StatStages[Stat.Attack]        = unit.StatStages[Stat.Attack]      + delta.Attack;
         unit.StatStages[Stat.Defense]       = unit.StatStages[Stat.Defense]     + delta.Defense;
         unit.StatStages[Stat.SpAttack]      = unit.StatStages[Stat.SpAttack]    + delta.SpAttack;
         unit.StatStages[Stat.SpDefense]     = unit.StatStages[Stat.SpDefense]   + delta.SpDefense;
         unit.StatStages[Stat.Speed]         = unit.StatStages[Stat.Speed]       + delta.Speed;
+
+        _unitSim.TurnSimLog.Add( $"" );
+        _unitSim.TurnSimLog.Add( $"Stat Stages After:" );
+        _unitSim.TurnSimLog.Add( $"Attack: {unit.StatStages[Stat.Attack]}" );
+        _unitSim.TurnSimLog.Add( $"Defense: {unit.StatStages[Stat.Defense]}" );
+        _unitSim.TurnSimLog.Add( $"SpAttack: {unit.StatStages[Stat.SpAttack]}" );
+        _unitSim.TurnSimLog.Add( $"SpDefense: {unit.StatStages[Stat.SpDefense]}" );
+        _unitSim.TurnSimLog.Add( $"Speed: {unit.StatStages[Stat.Speed]}" );
+        _unitSim.TurnSimLog.Add( $"" );
     }
 
     private void ApplyOffensiveStatusMove( SimulatedUnit target, Move move, SimulatedField field )
@@ -652,17 +986,36 @@ public class BattleAI_BattleSim
         bool hazard         = move.MoveEffects.CourtCondition   != CourtConditionID.None;
         bool debuff         = move.MoveEffects.StatChangeList?.Count > 0 && ( move.MoveSO.MoveEffects.Target == EffectTarget.Enemy || move.MoveSO.MoveEffects.Target == EffectTarget.OpposingSide );
 
+        _unitSim.TurnSimLog.Add( $"Trying to apply an offensive status via {move.MoveSO.Name}!" );
+        _unitSim.TurnSimLog.Add( $"" );
+
         if( statusEffect )
         {
             if( severe )
-                _unitSim.SevereConditions[move.MoveEffects.SevereStatus]?.Invoke( target );
+            {
+                if( target.SevereStatus == SevereConditionID.None )
+                {
+                    _unitSim.SevereConditions[move.MoveEffects.SevereStatus]?.Invoke( target );
+                    _unitSim.TurnSimLog.Add( $"Applying {move.MoveEffects.SevereStatus} to {target.Name}!" );
+                }
+                else
+                {
+                    _unitSim.TurnSimLog.Add( $"{target.Name} already has the {target.SevereStatus} severe status!" );
+                }
+            }
         }
         else if( hazard )
         {
             if( target.CourtLocation == CourtLocation.TopCourt )
+            {
                 field.TopCourtConditions.Add( move.MoveEffects.CourtCondition, -1 );
+                _unitSim.TurnSimLog.Add( $"Applying {move.MoveEffects.CourtCondition} to the Top Court!" );
+            }
             else if( target.CourtLocation == CourtLocation.BottomCourt )
+            {
                 field.BottomCourtConditions.Add( move.MoveEffects.CourtCondition, -1 );
+                _unitSim.TurnSimLog.Add( $"Applying {move.MoveEffects.CourtCondition} to the Bottom Court!" );
+            }
         }
         else if( debuff )
         {
@@ -868,13 +1221,75 @@ public class BattleAI_BattleSim
         };
     }
 
+    public void RunAttackModule( SimulatedUnit attacker, SimulatedUnit target, SimulatedField field )
+    {
+        Move attMove = attacker.MTR?.Move ?? null;
+        int attackerHitCount = attMove == null ? 0 : _unitSim.Get_ExpectedMoveHits( attMove );
+
+        float damageDone = 0f;
+
+        _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Running an Attack Module! Attacker {attacker?.Name} (HPR: {attacker.BeginningHPR}), Move: {attMove?.MoveSO.Name} (Hits: {attackerHitCount}), Target: {target?.Name} (HPR: {target.BeginningHPR}" );
+
+        for( int i = 0; i < attackerHitCount; i++ )
+        {
+            if( !_unitSim.CanActOnTurn( attacker ) )
+            {
+                _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {attacker.Name} cannot act!" );
+                break;
+            }
+
+            damageDone = ApplyAttack( target, attacker.MTR.EstimatedDamage, attackerHitCount );
+            
+            _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Attacker {attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
+            
+            ResolvePostMoveEffects( attacker, target, damageDone );
+
+            if( target.CurrentHPR <= 0f )
+                break;
+        }
+    }
+
+    public void RunSwitchModule( SimulatedUnit attacker, SimulatedUnit target, SimulatedField field )
+    {
+        _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Running a Switch Module! Unit Switching In: {attacker.Name}, Opponent: {target.Name}!" );
+        //--nothing happens when you switch lol. maybe i can move hazard interactions here
+        //--and pull them out of TOP building and stuff.
+    }
+
+    public void RunSetupModule( SimulatedUnit attacker, SimulatedUnit target, SimulatedField field )
+    {
+        Move attMove = attacker.MTR?.Move ?? null;
+
+        _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Running a Setup Module! Attacker {attacker.Name}, Move: {attMove.MoveSO.Name}, Opponent: {target.Name}!" );
+
+        if( _unitSim.CanActOnTurn( attacker ) )
+        {
+            //--Attacker sets up
+            ApplySetupMove( attacker, attMove );
+        }
+    }
+
+    public void RunOffensiveStatusModule( SimulatedUnit attacker, SimulatedUnit target, SimulatedField field )
+    {
+        Move attMove = attacker.MTR?.Move ?? null;
+
+        _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Running an Offensive Status Module! Attacker {attacker.Name}, Move: {attMove.MoveSO.Name}, Opponent: {target.Name}!" );
+
+        if( _unitSim.CanActOnTurn( attacker ) )
+        {
+            //--Attacker uses offensive status move
+            ApplyOffensiveStatusMove( target, attMove, field ); //--Target, move used by attacking pokemon, field
+        }
+    }
+
 }
 
-public class BattleSimContext
+public class BattleSimEvent
 {
     public SimulatedUnit Attacker;
     public SimulatedUnit Opponent;
     public List<SimulatedUnit> ActiveUnits;
+    public List<SimulationModule> SimModules;
 
     public SimulatedField Field;
 
@@ -896,4 +1311,28 @@ public class BattleSimContext
 
     public bool Attacker_DiesBeforeActing;
     public bool Opponent_DiesBeforeActing;
+}
+
+public class SimulationModule
+{
+    public SimModuleType Type { get; private set; }
+    public int Priority { get; private set; }
+    public SimulatedUnit Attacker { get; private set; }
+    public SimulatedUnit Opponent { get; private set; }
+    public Action<SimulatedUnit /*attacker*/, SimulatedUnit /*target*/, SimulatedField /*field*/> Module { get; private set; }
+
+    public SimulationModule( SimModuleType type, int priority, SimulatedUnit attacker, SimulatedUnit opponent, Action< SimulatedUnit, SimulatedUnit, SimulatedField> module )
+    {
+        Type = type;
+        Priority = priority;
+        Attacker = attacker;
+        Opponent = opponent;
+        Module = module;
+    }
+}
+
+public struct SimulationPackage
+{
+    public SimulatedUnit SimUnit;
+    public SimModuleType ModuleType;
 }

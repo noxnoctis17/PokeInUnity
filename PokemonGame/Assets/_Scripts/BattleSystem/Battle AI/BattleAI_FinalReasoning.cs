@@ -100,30 +100,24 @@ public class BattleAI_FinalReasoning
         if( attack == null || setup == null )
             return context;
 
-        bool shouldCompare = false;
+        if( setup.Top1.Attacker_EndOfTurnHP <= 0 || setup.Top2.Attacker_EndOfTurnHP <= 0 )
+        {
+            _ai.CurrentLog.Add( "Setup line results in immediate faint. Aborting comparison." );
+            return context;
+        }
+
+        if( !setup.Top2.AttackerCanAct )
+        {
+            _ai.CurrentLog.Add( "Setup line cannot reach next turn or we cannot act next turn. Aborting comparison." );
+            return context;
+        }
+            
+        float scoreGap = Mathf.Abs( attack.Score - setup.Score );
+        float largerScore = Mathf.Max( Mathf.Abs( attack.Score ), Mathf.Abs( setup.Score ) );
+        
+        bool reasonableGap = scoreGap > largerScore * 0.5f;
         bool firstAndSecond = context.Actions[0].Type == ActionType.Attack && context.Actions[1].Type == ActionType.Setup || context.Actions[0].Type == ActionType.Setup && context.Actions[1].Type == ActionType.Attack;
-
-        if( firstAndSecond )
-        {
-            shouldCompare = true;
-        }
-        else
-        {
-            if( setup.Score > attack.Score )
-            {
-                float threshold = setup.Score * 0.65f;
-
-                if( attack.Score > threshold )
-                    shouldCompare = true;
-            }
-            else
-            {
-                float threshold = attack.Score * 0.65f;
-
-                if( setup.Score > threshold )
-                    shouldCompare = true;
-            }
-        }
+        bool shouldCompare = firstAndSecond && reasonableGap;
 
         if( !shouldCompare )
             return context;
@@ -394,7 +388,7 @@ public class BattleAI_FinalReasoning
             int coverageMovePTKOs = 0;
             var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
             var ourActiveAdapters = _ai.CreateBattleAIUnits_FromBattleUnits( ourActivePokemon );
-            var likelyCandidates = _ai.GetLikelyDefensiveSwitches( attack.Top1.Opponent );
+            var likelyCandidates = _ai.GetLikely_DefensiveSwitches( attack.Top1.Opponent );
             List<IBattleAIUnit> likelySwitches = new();
             var ourMon = _ai.ThisUnitAdapter;
             int chosenMovePTKOs = 0;
@@ -407,11 +401,12 @@ public class BattleAI_FinalReasoning
             }
 
             //--Convert candidates into IBattleAIUnits
-            for( int i = 0; i < likelyCandidates.Count; i++ )
+            foreach( var kvp in likelyCandidates )
             {
-                BattleAI_PokemonAdapter opp = _ai.GetPokemonAs_Adapter( likelyCandidates[i] );
+                var mon = kvp.Key;
+                BattleAI_PokemonAdapter opp = _ai.GetPokemonAs_Adapter( mon );
                 likelySwitches.Add( opp );
-                _ai.CurrentLog.Add( $"Adding switch candidate adapter {opp.Name} ({likelyCandidates[i].NickName})." );
+                _ai.CurrentLog.Add( $"Adding switch candidate adapter {opp.Name} ({mon.NickName})." );
             }
 
             //--Get aggregate PTKO value for move selected by GetMove_BestAttack() vs likely candidates

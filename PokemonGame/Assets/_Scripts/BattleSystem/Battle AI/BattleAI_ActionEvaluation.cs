@@ -88,6 +88,8 @@ public class BattleAI_ActionEvaluation
         var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Attack Action. (Base Score: {score})]===" );
+        _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
+        _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
         //--Tactical disaster: we die before acting
         if( top.Attacker_DiesBeforeActing )
@@ -173,27 +175,31 @@ public class BattleAI_ActionEvaluation
         bool weDie = next.Attacker_DiesBeforeActing || next.Attacker_EndOfTurnHP <= 0f;
 
         if( weKOThem )
+        {
             score += 50;
-
-        _ai.CurrentLog.Add( $"We KO them in the look ahead round! Score: {score}" );
+            _ai.CurrentLog.Add( $"We KO them in the look ahead round! Score: {score}" );
+        }
 
         if( weDie )
+        {
             score -= 70;
-
-        _ai.CurrentLog.Add( $"They KO us in the look ahead round! Score: {score}" );
+            _ai.CurrentLog.Add( $"They KO us in the look ahead round! Score: {score}" );
+        }
 
         bool weMaintainPressure = next.AttackerPTKO >= PotentialToKO.TwoHKO;
         bool theyThreatenUs = next.OpponentPTKO >= PotentialToKO.Dangerous && !next.AttackerMovedFirst;
 
         if( weMaintainPressure )
+        {
             score += 25;
-
-        _ai.CurrentLog.Add( $"We maintain pressure in the look ahead round! Score: {score}" );
+            _ai.CurrentLog.Add( $"We maintain pressure in the look ahead round! Score: {score}" );
+        }
 
         if( theyThreatenUs )
+        {
             score -= 30;
-
-        _ai.CurrentLog.Add( $"They threaten us in the look ahead round! Score: {score}" );
+            _ai.CurrentLog.Add( $"They threaten us in the look ahead round! Score: {score}" );
+        }
 
         //--Reward tanks for taking very little damage the turn after switching in.
         float damageTakenRaw = top.Attacker.CurrentHPR - next.Attacker_EndOfTurnHP;
@@ -241,10 +247,10 @@ public class BattleAI_ActionEvaluation
         float theyAreForcedOutProb = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, top.Attacker_EndOfTurnHP, top.Opponent_EndOfTurnHP, next.Opponent.Expendability );
 
         score += Mathf.FloorToInt( 25f * weAreForcedOutProb );
-        _ai.CurrentLog.Add( $"We force them to switch next round! Score: {score}" );
+        _ai.CurrentLog.Add( $"We switch probability: {weAreForcedOutProb}. Score: {score}" );
 
         score -= Mathf.FloorToInt( 30f * theyAreForcedOutProb );
-        _ai.CurrentLog.Add( $"They force us to switch next round! Score: {score}" );
+        _ai.CurrentLog.Add( $"They switch probability: {theyAreForcedOutProb}. Score: {score}" );
 
         eval.NextTurn_WeAreForcedOut = weAreForcedOutProb >= 0.7f;
         eval.NextTurn_TheyAreForcedOut = theyAreForcedOutProb >= 0.7f;
@@ -261,6 +267,8 @@ public class BattleAI_ActionEvaluation
         int score = eval.Score;
 
         _ai.CurrentLog.Add( $"===[Evaluating Defensive Switch Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
+        _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
         //--Switched mon dies on entry
         if( top.Attacker_EndOfTurnHP <= 0f )
@@ -392,6 +400,8 @@ public class BattleAI_ActionEvaluation
         var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Switch Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
+        _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
         float entryDamage = 1 - top.Attacker_EndOfTurnHP;
 
@@ -468,6 +478,8 @@ public class BattleAI_ActionEvaluation
         var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Setup Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
+        _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
         float weForceSwitch = eval.ExchangeEvaluation.OpponentSwitchProbability;
         score += Mathf.FloorToInt( OPPONENT_SWITCH_WEIGHT * weForceSwitch );
@@ -572,7 +584,7 @@ public class BattleAI_ActionEvaluation
         score += Mathf.FloorToInt( OPPONENT_SWITCH_WEIGHT * weForceSwitchNextTurnProbability );
         score -= Mathf.FloorToInt( ( 1f - theyForceUsToSwitchNextTurnProbability ) * penalty );
 
-        var oppTeam = _ai.GetRemainingOpposingPokemon( next.Attacker.PID );
+        var oppTeam = _ai.GetRemainingOpposingPokemon( next.Attacker.Pokemon );
         int fasterBonus = 0;
         bool weKO = next.Opponent_DiesBeforeActing || next.Opponent_EndOfTurnHP <= 0f;
         bool weForceSwitchNextTurn = weForceSwitchNextTurnProbability >= 0.7f;
@@ -604,6 +616,8 @@ public class BattleAI_ActionEvaluation
         var top = eval.Top1;
 
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Status Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
+        _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
         if( top.Attacker_DiesBeforeActing )
         {
@@ -2702,7 +2716,7 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"We may be able to take advantage of our tailwind. Score {score}" );
         }
 
-        var oppMoveCat = top1.Opponent.MTR.Move.MoveSO.MoveCategory;
+        MoveCategory oppMoveCat = top1.Opponent.MTR?.Move != null ? top1.Opponent.MTR.Move.MoveSO.MoveCategory : MoveCategory.Other;
         if( bfs.WeHave_Reflect && bfs.OurReflectDuration >= 2 && oppMoveCat == MoveCategory.Physical )
         {
             score += 5;
@@ -2734,9 +2748,6 @@ public class BattleAI_ActionEvaluation
         var bfs = boardContext.BattlefieldState;
         var top1 = action.Top1;
         var top2 = action.Top2;
-
-        bool isMidGame = bfs.Round > 6 && bfs.Round < 16;
-        bool isLateGame = bfs.Round > 15;
 
         var attackerMon = top1.Attacker.Pokemon; //--This unit should actually be the switch candidate, but i will get the candidate directly just in case. I will confirm this 100% soon. --04/22/26
         var opponentMon = top1.Opponent.Pokemon;
@@ -2770,13 +2781,13 @@ public class BattleAI_ActionEvaluation
             }
         }
 
-        if( isMidGame && top2.AttackerPTKO >= PotentialToKO.Dangerous  )
+        if( bfs.IsMidGame && top2.AttackerPTKO >= PotentialToKO.Dangerous  )
         {
             score += 15;
             _ai.CurrentLog.Add( $"It's mid game and we threaten powerful offense next turn. Giving a slight boost for mid game phase tempo grab. Score: {score}" );
         }
 
-        if( isLateGame && top2.AttackerPTKO != PotentialToKO.OHKO )
+        if( bfs.IsLateGame && top2.AttackerPTKO != PotentialToKO.OHKO )
         {
             score -= 5;
             _ai.CurrentLog.Add( $"It's late game and we don't threaten a KO next turn. Tiny tiny penalty. Score: {score}" );
@@ -2846,7 +2857,7 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"Opponent's last turn of tailwind. Perhaps we can stall it out and gain offense next turn. Score: {score}" );
         }
 
-        var oppMoveCat = top1.Opponent.MTR.Move.MoveSO.MoveCategory;
+        MoveCategory oppMoveCat = top1.Opponent.MTR?.Move != null ? top1.Opponent.MTR.Move.MoveSO.MoveCategory : MoveCategory.Other;
         if( bfs.WeHave_Reflect && bfs.OurReflectDuration >= 2 && oppMoveCat == MoveCategory.Physical )
         {
             score += 2;

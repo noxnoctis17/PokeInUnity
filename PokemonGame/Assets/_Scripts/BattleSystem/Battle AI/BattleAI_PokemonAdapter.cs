@@ -95,19 +95,19 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         SpDefense = _ai.GetCalculatedStat( this, Stat.SpDefense );
         Speed = _ai.GetCalculatedStat( this, Stat.Speed );
 
-        CustomLogSession log = new();
-        log.Add( $"==============================================" );
-        log.Add( $"=====[Calculating Adapter Stats ({Name})]=====" );
-        log.Add( $"==============================================" );
-        log.Add( $"" );
-        log.Add( $"[HP]         Assumed: {HP}, Real: {Pokemon.Stats[Stat.HP]}" );
-        log.Add( $"[Attack]     Assumed: {Attack}, Real: {Pokemon.Stats[Stat.Attack]}" );
-        log.Add( $"[Defense]    Assumed: {Defense}, Real: {Pokemon.Stats[Stat.Defense]}" );
-        log.Add( $"[SpAttack]   Assumed: {SpAttack}, Real: {Pokemon.Stats[Stat.SpAttack]}" );
-        log.Add( $"[SpDefense]  Assumed: {SpDefense}, Real: {Pokemon.Stats[Stat.SpDefense]}" );
-        log.Add( $"[Speed]      Assumed: {Speed}, Real: {Pokemon.Stats[Stat.Speed]}" );
-        log.Add( $"" );
-        log.Add( $"===[Adapter's Inferred Stats ({Name})]===" );
+        // CustomLogSession log = new();
+        // log.Add( $"==============================================" );
+        // log.Add( $"=====[Calculating Adapter Stats ({Name})]=====" );
+        // log.Add( $"==============================================" );
+        // log.Add( $"" );
+        // log.Add( $"[HP]         Assumed: {HP}, Real: {Pokemon.Stats[Stat.HP]}" );
+        // log.Add( $"[Attack]     Assumed: {Attack}, Real: {Pokemon.Stats[Stat.Attack]}" );
+        // log.Add( $"[Defense]    Assumed: {Defense}, Real: {Pokemon.Stats[Stat.Defense]}" );
+        // log.Add( $"[SpAttack]   Assumed: {SpAttack}, Real: {Pokemon.Stats[Stat.SpAttack]}" );
+        // log.Add( $"[SpDefense]  Assumed: {SpDefense}, Real: {Pokemon.Stats[Stat.SpDefense]}" );
+        // log.Add( $"[Speed]      Assumed: {Speed}, Real: {Pokemon.Stats[Stat.Speed]}" );
+        // log.Add( $"" );
+        // log.Add( $"===[Adapter's Inferred Stats ({Name})]===" );
 
         HP = _ai.GetUnitInferredStat( this, Stat.HP );
         Attack = _ai.GetUnitInferredStat( this, Stat.Attack );
@@ -116,16 +116,16 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         SpDefense = _ai.GetUnitInferredStat( this, Stat.SpDefense );
         Speed = _ai.GetUnitInferredStat( this, Stat.Speed );
 
-        log.Add( $"[HP]         Assumed: {HP}, Real: {Pokemon.MaxHP}" );
-        log.Add( $"[Attack]     Assumed: {Attack}, Real: {Pokemon.Attack}" );
-        log.Add( $"[Defense]    Assumed: {Defense}, Real: {Pokemon.Defense}" );
-        log.Add( $"[SpAttack]   Assumed: {SpAttack}, Real: {Pokemon.SpAttack}" );
-        log.Add( $"[SpDefense]  Assumed: {SpDefense}, Real: {Pokemon.SpDefense}" );
-        log.Add( $"[Speed]      Assumed: {Speed}, Real: {Pokemon.Speed}" );
-        log.Add( $"==============================================" );
-        log.Add( $"" );
+        // log.Add( $"[HP]         Assumed: {HP}, Real: {Pokemon.MaxHP}" );
+        // log.Add( $"[Attack]     Assumed: {Attack}, Real: {Pokemon.Attack}" );
+        // log.Add( $"[Defense]    Assumed: {Defense}, Real: {Pokemon.Defense}" );
+        // log.Add( $"[SpAttack]   Assumed: {SpAttack}, Real: {Pokemon.SpAttack}" );
+        // log.Add( $"[SpDefense]  Assumed: {SpDefense}, Real: {Pokemon.SpDefense}" );
+        // log.Add( $"[Speed]      Assumed: {Speed}, Real: {Pokemon.Speed}" );
+        // log.Add( $"==============================================" );
+        // log.Add( $"" );
 
-        Debug.Log( log.ToString() );
-        log.Clear();
+        // // Debug.Log( log.ToString() );
+        // log.Clear();
     }
 }
