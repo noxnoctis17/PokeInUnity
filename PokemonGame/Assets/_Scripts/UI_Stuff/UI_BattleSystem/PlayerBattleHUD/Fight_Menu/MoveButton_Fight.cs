@@ -48,9 +48,9 @@ public class MoveButton_Fight : MonoBehaviour, ISelectHandler, IDeselectHandler,
         //--Choice Item Check
         if( _fightMenu.ActiveUnit.Flags[UnitFlags.ChoiceItem].IsActive )
         {
-            if( _fightMenu.ActiveUnit.LastUsedMove != null && _fightMenu.ActiveUnit.LastUsedMove != AssignedMove )
+            if( _fightMenu.ActiveUnit.Pokemon.HeldItem != null && _fightMenu.ActiveUnit.LastUsedMove != null && _fightMenu.ActiveUnit.LastUsedMove != AssignedMove )
             {
-                DialogueManager.Instance.PlaySystemMessage( $"{_fightMenu.ActiveUnit.Pokemon.HeldItem.ItemName} prevents use of any move that isn't {_fightMenu.ActiveUnit.LastUsedMove.MoveSO.Name}!" );
+                DialogueManager.Instance.PlaySystemMessage( $"{_fightMenu.ActiveUnit.Pokemon.HeldItem.ItemName} prevents use of any move that isn't {_fightMenu.ActiveUnit.LastUsedMove?.MoveSO.Name}!" );
                 return;
             }
         }

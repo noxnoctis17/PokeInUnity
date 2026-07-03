@@ -390,7 +390,7 @@ public class BattleAI_FinalReasoning
             var ourActiveAdapters = _ai.CreateBattleAIUnits_FromBattleUnits( ourActivePokemon );
             var likelyCandidates = _ai.GetLikely_DefensiveSwitches( attack.Top1.Opponent );
             List<IBattleAIUnit> likelySwitches = new();
-            var ourMon = _ai.ThisUnitAdapter;
+            var ourMon = _ai.CurrentUnitAdapter;
             int chosenMovePTKOs = 0;
 
             _ai.CurrentLog.Add( $"Likely Switch Candidates Found: {likelyCandidates.Count}." );

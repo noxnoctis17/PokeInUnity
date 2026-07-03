@@ -580,7 +580,7 @@ public class Pokemon
     }
     public bool CheckHasMove( MoveSO move )
     {
-        return ActiveMoves.Count( m => m.MoveSO == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO == move ) > 0;
+        return ActiveMoves?.Count( m => m.MoveSO == move ) > 0 || _learnedMoves?.Count( m=> m.MoveSO == move ) > 0;
     }
 
     public bool CheckHasMove( string move )
@@ -588,7 +588,7 @@ public class Pokemon
         if( string.IsNullOrEmpty( move ) )
             return false;
         
-        return ActiveMoves.Count( m => m.MoveSO.Name == move ) > 0 || _learnedMoves.Count( m=> m.MoveSO.Name == move ) > 0;
+        return ActiveMoves?.Count( m => m.MoveSO.Name == move ) > 0 || _learnedMoves?.Count( m=> m.MoveSO.Name == move ) > 0;
     }
 
     public bool CheckHasActiveMove( string move )
@@ -596,7 +596,7 @@ public class Pokemon
         if( string.IsNullOrEmpty( move ) )
             return false;
 
-        return ActiveMoves.Count( m => m.MoveSO.Name == move ) > 0;
+        return ActiveMoves?.Count( m => m.MoveSO.Name == move ) > 0;
     }
 
     public bool CheckHasAttackingMoveOfType( PokemonType type )
@@ -1407,6 +1407,7 @@ public enum DirectModifierCause
     ChoiceBand, ChoiceSpecs, ChoiceScarf,
     LightBall, Guts, MarvelScale,
     SolarPower, SandVeil, Hustle, SnowCloak,
+    Eviolite,
 
 }
 

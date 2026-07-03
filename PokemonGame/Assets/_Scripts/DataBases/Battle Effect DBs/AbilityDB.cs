@@ -1473,7 +1473,7 @@ public class AbilityDB
                 Name = "Justified",
                 Description = "When the Pokemon is hit by a Dark-type attack, its Attack stat is boosted by its sense of justice.",
 
-                OnAfterTargetTakeDamage = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
+                OnAfterTakeDamage = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                 {
                     if( move.MoveType == PokemonType.Dark )
                     {
@@ -1579,7 +1579,7 @@ public class AbilityDB
                 Name = "Cursed Body",
                 Description = "May disable a move that has dealt damage to this Pokemon.",
 
-                OnAfterTargetTakeDamage = ( attacker, target, move, bs ) =>
+                OnAfterTakeDamage = ( attacker, target, move, bs ) =>
                 {
                     bool trigger = Random.Range( 1, 4 ) == 1;
                     move.SetMoveDisabled( true );
@@ -1879,4 +1879,7 @@ public enum AbilityID
     FlashFire,
     VoltAbsorb,
     GoodAsGold,
+    IceBody,
+    MagicGuard,
+    SuctionCups,
 }

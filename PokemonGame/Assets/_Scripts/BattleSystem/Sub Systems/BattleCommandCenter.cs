@@ -311,6 +311,7 @@ public class BattleCommandCenter : MonoBehaviour
                     if( move.MoveSO.AccuracyType == AccuracyType.PerHit && target.Pokemon.CurrentHP > 0 )
                     {
                          bool hitAgain = CheckMoveAccuracy( move, attacker, target );
+                         Debug.LogError( $"move: {move.MoveSO.Name} is per hit. Hit Again: {hitAgain}" );
 
                          if( !hitAgain )
                          {
@@ -333,7 +334,7 @@ public class BattleCommandCenter : MonoBehaviour
                 if( MoveConditionDB.Conditions.ContainsKey( move.MoveSO.Name ) )
                     MoveConditionDB.Conditions[move.MoveSO.Name].OnMoveCompleted?.Invoke( attacker, target, move, BattleSystem );
 
-                //--Move Use Abilities, such as Technician -- 02/08/26
+                //--Move Use Abilities, such as Technician -- 02/08/26 -- wrong, technician needs to be applied before completion. something else must've been here lol --07/02/26
                 attacker.Pokemon.Ability?.OnMoveCompleted?.Invoke( attacker, target, move, BattleSystem );
 
                 BattleSystem.SetLastUsedMove( move );
@@ -392,13 +393,6 @@ public class BattleCommandCenter : MonoBehaviour
 
     private IEnumerator OnMoveContact( BattleUnit attacker, BattleUnit target, Move move )
     {
-        // attacker.Pokemon.Ability?.OnMoveContactAttacker?.Invoke( attacker, target, move );
-        // yield return null;
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-        // yield return null;
-        // yield return BattleSystem.WaitForEventQueue();
-
         //--Target has an ability triggered by a contact move
         target.Pokemon.Ability?.OnMoveContactTarget?.Invoke( attacker, target, move );
         yield return null;
@@ -412,27 +406,6 @@ public class BattleCommandCenter : MonoBehaviour
         if( attacker.Pokemon.IsFainted && target.Pokemon.IsFainted )
             yield break;
 
-        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
-        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
-        // yield return null;
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-        // yield return null;
-        // yield return BattleSystem.WaitForEventQueue();
-
-        //--Attacker check if reaches an HP threshold from taking damage from its target's ability. hp thresholds determine berry healing or focus sash loss
-        if( attacker.Pokemon.CurrentHP > 0 )
-        {
-            attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
-            yield return null;
-            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-            yield return null;
-            yield return BattleSystem.WaitForEventQueue();
-            yield return BattleSystem.CheckForFaint( attacker );
-
-            if( attacker.Pokemon.IsFainted )
-                yield break;
-        }
-
         //--Target has an item triggered by a contact move
         target.Pokemon.BattleItemEffect?.OnMoveContactTarget?.Invoke( attacker, target, move );
         yield return null;
@@ -444,40 +417,12 @@ public class BattleCommandCenter : MonoBehaviour
         if( attacker.Pokemon.IsFainted && target.Pokemon.IsFainted )
             yield break;
 
-        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
-        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
-        // yield return null;
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-        // yield return null;
-        // yield return BattleSystem.WaitForEventQueue();
-
-        //--Attacker check if reaches an HP threshold from taking damage from its target's item. hp thresholds determine berry healing or focus sash loss
-        if( attacker.Pokemon.CurrentHP > 0 )
-        {
-            attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
-            yield return null;
-            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-            yield return null;
-            yield return BattleSystem.WaitForEventQueue();
-            yield return BattleSystem.CheckForFaint( attacker );
-
-            if( attacker.Pokemon.IsFainted )
-                yield break;
-        }
-
-        // attacker.Pokemon.BattleItemEffect?.OnMoveContactAttacker?.Invoke( attacker, target, move );
-        // yield return null;
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-        // yield return null;
-        // yield return BattleSystem.WaitForEventQueue();
-
         yield return null;
     }
 
     private IEnumerator OnAfterTakeDamage( BattleUnit attacker, BattleUnit target, Move move )
     {
-        target.Pokemon.Ability?.OnAfterTargetTakeDamage?.Invoke( attacker, target, move, BattleSystem );
+        target.Pokemon.Ability?.OnAfterTakeDamage?.Invoke( attacker, target, move, BattleSystem );
         yield return null;
         BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
         BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
@@ -489,82 +434,15 @@ public class BattleCommandCenter : MonoBehaviour
         if( attacker.Pokemon.IsFainted && target.Pokemon.IsFainted )
             yield break;
 
-        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
-        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
-        // yield return null;
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-        // yield return null;
-        // yield return BattleSystem.WaitForEventQueue();
+        target.Pokemon.BattleItemEffect?.OnAfterTakeDamage?.Invoke( target );
+        yield return null;
+        BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
+        yield return null;
+        yield return BattleSystem.WaitForEventQueue();
+        yield return BattleSystem.CheckForFaint( target );
 
-        //--Attacker effected by own item when the attacker successfully does any attack damage.
-        if( attacker.Pokemon.CurrentHP > 0 )
-        {
-            attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
-            yield return null;
-            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-            yield return null;
-            yield return BattleSystem.WaitForEventQueue();
-            yield return BattleSystem.CheckForFaint( attacker );
-
-            if( attacker.Pokemon.IsFainted )
-                yield break;
-        }
-
-        //--Attacker effected by target's item. For items that trigger when the target takes any attack damage, not just contact damage.
-        if( attacker.Pokemon.CurrentHP > 0 )
-        {
-            target.Pokemon.BattleItemEffect?.OnAfterTargetTakeDamage?.Invoke( attacker );
-            yield return null;
-            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-            yield return null;
-            yield return BattleSystem.WaitForEventQueue();
-            yield return BattleSystem.CheckForFaint( attacker );
-
-            if( attacker.Pokemon.IsFainted )
-                yield break;
-        }
-
-        //--Target effected by own item. Should be HP threshold items such as sitrus berry.
-        if( target.Pokemon.CurrentHP > 0 )
-        {
-            target.Pokemon.BattleItemEffect?.OnAfterTargetTakeDamage?.Invoke( target );
-            yield return null;
-            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-            yield return null;
-            yield return BattleSystem.WaitForEventQueue();
-            yield return BattleSystem.CheckForFaint( target );
-
-            if( target.Pokemon.IsFainted )
-                yield break;
-        }
-
-        //--This will be what we use to trigger things like berserk off of stuff like rocky helmet damage.
-        // attacker.Pokemon.Ability?.OnAfterAttackerTakeDamage?.Invoke( attacker, target, move, BattleSystem );
-        // yield return null;
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-        // yield return null;
-        // yield return BattleSystem.WaitForEventQueue();
-
-        //--Attacker effected by own item. This is how we'll handle hp threshold items when the attacker takes damage from stuff like rocky helmet or rough skin.
-        if( attacker.Pokemon.CurrentHP > 0 )
-        {
-            attacker.Pokemon.BattleItemEffect?.OnAfterAttackerDoesDamage?.Invoke( attacker );
-            yield return null;
-            BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( attacker ) );
-            yield return null;
-            yield return BattleSystem.WaitForEventQueue();
-            yield return BattleSystem.CheckForFaint( attacker );
-
-            if( attacker.Pokemon.IsFainted )
-                yield break;
-        }
-
-        //--Target effected by attacker's item. Currently no items exist that have an effect on the attacking pokemon when they hit their target with an attack.
-        // attacker.Pokemon.BattleItemEffect?.OnAfterTargetTakeDamage?.Invoke( target );
-        // yield return null;
-        // BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( target ) );
-        // yield return null;
-        // yield return BattleSystem.WaitForEventQueue();
+        if( attacker.Pokemon.IsFainted || target.Pokemon.IsFainted )
+            yield break;
 
         yield return null;
     }
@@ -919,7 +797,7 @@ public class BattleCommandCenter : MonoBehaviour
                 }
             }
             
-            if( effects.SwitchType == SwitchEffectType.ForceOpponentOut )
+            if( effects.SwitchType == SwitchEffectType.Phaze )
             {
                 // Debug.Log( $"{attacker.Pokemon.NickName} is trying to force its opponent, {target.Pokemon.NickName}, out!" );
 

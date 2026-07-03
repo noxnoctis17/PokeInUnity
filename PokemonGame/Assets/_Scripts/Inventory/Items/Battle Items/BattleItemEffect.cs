@@ -23,8 +23,8 @@ public class BattleItemEffect
     public Action<Pokemon> OnItemRoundEnd { get; set; }
     public Func<BattleUnit, Pokemon, Move, float> OnDamageModify { get; set; }
     public Func<BattleUnit, BattleUnit, Move, float, int> OnTakeMoveDamage { get; set; }
-    public Action<BattleUnit> OnAfterTargetTakeDamage { get; set; }
-    public Action<BattleUnit> OnAfterAttackerDoesDamage { get; set; }
+    public Action<BattleUnit> OnAfterTakeDamage { get; set; }
+    public Action<BattleUnit> OnAfterDoDamage { get; set; }
     public Action<BattleUnit, float> OnTakePassiveDamage { get; set; }
     public Action<BattleUnit, BattleUnit, Move> OnMoveContactTarget { get; set; }
     public Action<BattleUnit, BattleUnit, Move> OnMoveContactAttacker { get; set; }

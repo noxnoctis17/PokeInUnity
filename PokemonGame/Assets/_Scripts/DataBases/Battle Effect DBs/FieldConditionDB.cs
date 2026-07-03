@@ -8,6 +8,8 @@ public class FieldConditionDB
 
     public static void Init()
     {
+        SetDictionary();
+        
         foreach( var kvp in Conditions )
         {
             var conditionID = kvp.Key;

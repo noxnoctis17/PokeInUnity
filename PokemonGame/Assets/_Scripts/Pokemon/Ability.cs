@@ -46,7 +46,7 @@ public class Ability
     public Func<float> OnSecondaryEffectChanceModify { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnMoveUsed { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnMoveCompleted { get; set; }
-    public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAfterTargetTakeDamage { get; set; }
+    public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAfterTakeDamage { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAfterAttackerTakeDamage { get; set; }
     public Func<BattleUnit, BattleUnit, Move, int, BattleSystem, int> OnModifyDamage { get; set; }
 }

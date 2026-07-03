@@ -21,266 +21,8 @@ public class BattleAI_SwitchCommand
     {
         _ai.IncreaseSwitchAmount();
         _ai.SetLastSentInPokemon( incomingPokemon );
-        _ai.SetLastOpposingPokemon( _ai.TheirBattleAIUnits.ToList() );
+        _ai.SetLastOpposingPokemon( _ai.TheirActiveBattleAIUnits.ToList() );
         _ai.BattleSystem.SetSwitchPokemonCommand( incomingPokemon, _ai.Unit, true );
-    }
-
-    public int DefensiveSwitchScore( TempoStateResult tempo, ExchangeEvaluation eval, SwitchCandidateResult switchCandidate, BoardContext context, TurnOutcomeProjection intentTOP )
-    {
-        //--Tank score if unable to switch
-        if( switchCandidate.Pokemon == null || _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon() )
-        {
-            _ai.CurrentLog.Add( $"No switch available (null, wild battle, or last pokemon). Tanking Score!" );
-            return -999;
-        }
-
-        int score = 0;
-
-        var attackerName = eval.AttackerName;
-        var targetName = eval.OpponentName;
-        var switchName = "no switch available!";
-        if( switchCandidate.Pokemon != null )
-            switchName = switchCandidate.Pokemon.NickName;
-
-        _ai.CurrentLog.Add( $"===[Beginning Defensive Switch Scoring for {attackerName} vs {targetName}. Switch Candidate: {switchName}. Tempo: {tempo.TempoState}]===" );
-
-
-        if( intentTOP.OpponentPTKO == PotentialToKO.OHKO )
-        {
-            _ai.CurrentLog.Add( $"Switch candidate's potential to be KO'd is OHKO! Tanking Score!" );
-            return -999;
-        }
-        else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
-        {
-            score -= 70;
-        }
-        
-        var currentPTKO = eval.OpponentPTKOR.PTKO;
-        var currentScore = eval.OpponentPTKOR.Score;
-        var switchPTKOR = switchCandidate.SwitchDefensePTKOR;
-
-        _ai.CurrentLog.Add( $"{targetName}'s Current PTKO me ({attackerName}): {currentPTKO}. {targetName}'s PTKO on Switch Candidate ({switchName}): {switchCandidate.SwitchDefensePTKOR.PTKO}. {switchName}'s PTKO {targetName}: {switchCandidate.SwitchOffensePTKOR.PTKO}" );
-
-        if( context.IsTerminal && context.IsForcedTrade && !switchCandidate.IsLegitimate )
-        {
-            _ai.CurrentLog.Add( $"Terminal board and no KO class improvement/Switch is illegitimate. Tanking Score!" );
-            return -999;
-        }
-
-        if( !context.IsTerminal && currentPTKO >= PotentialToKO.Dangerous && switchPTKOR.PTKO >= PotentialToKO.Dangerous )
-            score -= 45;
-
-        int improvement = Mathf.Clamp( switchPTKOR.Score - currentScore, -60, 60 );
-        score += improvement;
-
-        _ai.CurrentLog.Add( $"Improvement: {improvement}, Score: {score}" );
-
-        bool iDieBeforeActing = !eval.AttackerMovesFirst && eval.OpponentThreatensKO;
-
-        if( iDieBeforeActing )
-            score += 40;
-
-        _ai.CurrentLog.Add( $"Die before Act: {iDieBeforeActing}, Score: {score}" );
-
-        bool losingExchange = eval.OpponentThreatensKO && !eval.AttackerThreatensKO;
-
-        if( losingExchange )
-            score += 30;
-
-        _ai.CurrentLog.Add( $"Losing Exchange: {losingExchange}, Score: {score}" );
-
-        if( !switchCandidate.IsLegitimate )
-            score -= 70;
-
-        _ai.CurrentLog.Add( $"Legit Switch: {switchCandidate.IsLegitimate}, Score: {score}" );
-
-        bool switchIsThreatenedByKO = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.Dangerous;
-        bool switchTakesBigDamage = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.TwoHKO;
-
-        if( switchIsThreatenedByKO || switchTakesBigDamage )
-            score -= 35;
-
-        _ai.CurrentLog.Add( $"Switch is threatened: {switchIsThreatenedByKO}, Switch takes big damage: {switchTakesBigDamage}, Score: {score}" );
-
-        //--Piece Value Modifier
-        if( losingExchange && iDieBeforeActing )
-        {
-            _ai.CurrentLog.Add( $"Trying to get Piece Value for {_ai.Unit.Pokemon.NickName}." );
-
-            if( _ai.OurTeamPieceValues.TryGetValue( _ai.ThisUnitAdapter.Pokemon, out var pieceValue )  )
-            {
-                int preservationBias = Mathf.FloorToInt( pieceValue.OffensiveValue * 0.25f );
-                preservationBias = Mathf.FloorToInt( preservationBias * ( 1 - context.MyExpendability ) ); //--
-
-                score += preservationBias;
-
-                _ai.CurrentLog.Add( $"Piece Value Preservation Bias: {preservationBias}, Score: {score}" );
-            }
-
-            if( eval.AttackerHPR <= 0.1f && pieceValue.SpeedScore == 0 )
-                score -= 15;
-        }
-
-        score += _ai.Get_ConsecutiveSwitchPenalty();
-
-        _ai.CurrentLog.Add( $"Consecutive switch penalty: Score: {score}" );
-
-        score += _ai.DefensiveSwitch_TempoModifier( tempo );
-
-        _ai.CurrentLog.Add( $"Tempo Switch Modifier: Score: {score}" );
-
-        if( context.IsForcedTrade )
-        {
-            if( improvement <= 0 )
-                score -= context.IsTerminal ? 25 : 40;
-        }
-
-        _ai.CurrentLog.Add( $"Is Forced Trade: {context.IsForcedTrade}. Is Terminal: {context.IsTerminal} Score: {score}" );
-
-        //--Penalty for likely undoing a pivot
-        if( _ai.LastSentInPokemon != null )
-        {
-            if( switchCandidate.Pokemon == _ai.LastSentInPokemon )
-            {
-                score -= 50;
-            
-                bool lastMonStillOnField = false;
-                for( int i = 0; i < _ai.LastOpposingPokemon.Count; i++ )
-                {
-                    var lastOpp = _ai.LastOpposingPokemon[i];
-                    if( lastOpp.PID == _ai.TheirBattleAIUnits[i]?.PID )
-                    {
-                        lastMonStillOnField = true;
-                        _ai.CurrentLog.Add( "Defensive Switch's Candidate's Last Opponent is still on the field! Skipping!");
-                        break;
-                    }
-                    else
-                        continue;
-                }
-
-                if( lastMonStillOnField )
-                    score -= 70;
-            }
-        }
-
-        //--Opponent Switches Predictions
-        float opponentSwitchProb = eval.OpponentSwitchProbability;
-        score -= Mathf.FloorToInt( 75f * opponentSwitchProb );
-
-        //--HP Check
-        if( eval.OpponentHPR <= 0.25f )
-        {
-            score -= 35; // don't switch if opponent is about to die
-        }
-        else if( eval.OpponentHPR <= 0.45f && eval.AttackerPTKOR.PTKO > PotentialToKO.TwoHKO )
-            score -= 15;
-
-        //--Attacking is better penalty
-        if( eval.AttackerPTKOR.PTKO == PotentialToKO.OHKO && eval.AttackerMovesFirst )
-            score -= 50;
-        else if( eval.AttackerPTKOR.PTKO == PotentialToKO.Dangerous && eval.AttackerMovesFirst )
-            score -= 35;
-
-        //--Switch tax
-        score -= 25;
-
-        _ai.CurrentLog.Add( $"===[Final Switch Score after Tax: {score}]===" );
-        return score;
-    }
-
-    public int OffensiveSwitchScore( TempoStateResult tempo, ExchangeEvaluation eval, SwitchCandidateResult switchCandidate, BoardContext context, TurnOutcomeProjection intentTOP )
-    {
-        int score = 0;
-        string switchName = "none";
-
-        //--Tank score if unable to switch
-        if( switchCandidate.Pokemon == null || _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon() )
-        {
-            _ai.CurrentLog.Add( $"No switch available (null, wild battle, or last pokemon). Tanking Score!" );
-            return -999;
-        }
-
-        switchName = switchCandidate.Pokemon.NickName;
-
-        _ai.CurrentLog.Add( $"===[Beginning Offensive Switch Scoring for Candidate {switchName}]===" );
-
-        if( intentTOP.OpponentPTKO == PotentialToKO.OHKO )
-        {
-            _ai.CurrentLog.Add( $"Switch candidate's potential to be KO'd is OHKO! Tanking Score!" );
-            return -999;
-        }
-        else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
-        {
-            score -= 70;
-        }
-
-        int offensiveDelta = switchCandidate.SwitchOffensePTKOR.Score - switchCandidate.SwitchDefensePTKOR.Score; //--should be offensive ptko score minus defensive ptko score.
-        score += Mathf.Clamp( Mathf.FloorToInt( offensiveDelta * 0.5f ), 0, 40 );
-
-        _ai.CurrentLog.Add( $"Offensive PTKOR Score: {switchCandidate.SwitchOffensePTKOR.Score}, Defensive PTKOR Score: {switchCandidate.SwitchDefensePTKOR.Score}, Delta: {offensiveDelta}." );
-
-        BattleAI_PokemonAdapter candidateAdapter = _ai.GetPokemonAs_Adapter( switchCandidate.Pokemon );
-        if( switchCandidate.Pokemon != null && _ai.OurTeamPieceValues.TryGetValue( candidateAdapter.Pokemon, out var pieceValue ) )
-        {
-            int switchThreatCount = pieceValue.ThreatCount;
-
-            if( switchThreatCount == 2 )
-                score += 10;
-            else if( switchThreatCount >= 3 )
-                score += 20;
-
-            _ai.CurrentLog.Add( $"Threat Count: {switchThreatCount}. Score: {score}" );
-        }
-
-        bool switchThreatensKO          = switchCandidate.SwitchOffensePTKOR.PTKO >= PotentialToKO.Dangerous;
-        bool switchIsThreatenedByKO     = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.Dangerous;
-        bool switchDoesBigDamage        = switchCandidate.SwitchOffensePTKOR.PTKO >= PotentialToKO.TwoHKO;
-        bool switchTakesBigDamage       = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.TwoHKO;
-        bool switchMovesFirst           = switchCandidate.MovesFirst;
-
-        if( !switchMovesFirst )
-            score -= 10;
-
-        if( ( switchThreatensKO || switchDoesBigDamage ) && switchMovesFirst && !switchIsThreatenedByKO )
-            score += 75;
-        else if( switchIsThreatenedByKO && !switchThreatensKO )
-            score -= 45;
-
-        if( !switchThreatensKO && !switchDoesBigDamage && ( switchTakesBigDamage || switchIsThreatenedByKO ) )
-            score -= 45;
-
-        _ai.CurrentLog.Add( $"SwitchThreatensKO {switchThreatensKO}, SwitchMovesFirst {switchMovesFirst}, !switchIsThreatenedByKO {!switchIsThreatenedByKO}. Score: {score}" );
-
-        var defensePTKO = switchCandidate.SwitchDefensePTKOR.PTKO;
-        float incomingDamage = _proj.Get_PTKODamagePercent( defensePTKO );
-
-        if( incomingDamage >= 0.75f )
-            score -= 75;
-        else if( incomingDamage >= 0.5f )
-            score -= 50;
-        else if( incomingDamage >= 0.25f )
-            score -= 25;
-
-        _ai.CurrentLog.Add( $"Switch's DefensePTKO (opponent's potential to ko us): {defensePTKO}. Switch's Likely damage taken: {incomingDamage}. Score: {score}]=" );
-
-        //--Tempo
-        score += _ai.OffensiveSwitch_TempoModifier( tempo );
-
-        //--Attacking is better penalty
-        if( eval.AttackerPTKOR.PTKO == PotentialToKO.OHKO && eval.AttackerMovesFirst )
-            score -= 150;
-        else if( eval.AttackerPTKOR.PTKO == PotentialToKO.Dangerous && eval.AttackerMovesFirst )
-            score -= 125;
-        else if( eval.AttackerPTKOR.PTKO >= PotentialToKO.Dangerous && eval.AttackerSurvives )
-            score -= 100;
-
-        //--Switch Tax
-        score += _ai.Get_ConsecutiveSwitchPenalty();
-        score -= 15;
-
-        _ai.CurrentLog.Add( $"=[Final Offensive Switch Score after tempo modifier, consecutive switch pentalty, and switch tax: {score}" );
-
-        return score;
     }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -347,7 +89,7 @@ public class BattleAI_SwitchCommand
                 if( candidateAdapter.Pokemon.IsFainted )
                     continue;
 
-                if( _ai.BattleSystem.IsPokemonSelectedToShift( candidateAdapter.Pokemon ) )
+                if( !returnAll && _ai.BattleSystem.IsPokemonSelectedToShift( candidateAdapter.Pokemon ) )
                     continue;
 
                 // defensiveSwitchLog.Add( $"=[Defensive Switch Candidate][{candidateAdapter.Name}] Beginning evaluation for {candidateAdapter.Name}. Their current hp is: {candidateAdapter.Pokemon.CurrentHP} ({candidateAdapter.CurrentHPR})]=" );
@@ -356,7 +98,7 @@ public class BattleAI_SwitchCommand
 
                 float candidateHPRafterHazards = _ai.Get_HPRatio_AfterEntryHazards( candidateAdapter );
 
-                if( candidateHPRafterHazards <= 0f && !_ai.Check_IsLastPokemon() )
+                if( candidateHPRafterHazards <= 0f && !_ai.Check_IsLastPokemon( candidateAdapter.Pokemon ) )
                 {
                     var remaining = _ai.GetRemainingAllyPokemon( candidateAdapter.Pokemon );
                     if( remaining.Count > 1 )
@@ -366,7 +108,7 @@ public class BattleAI_SwitchCommand
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] HPR after Hazards is: {candidateHPRafterHazards}" );
 
                 //--Rebuild incoming move's MTR.
-                float effectiveness = TypeChart.GetTotalEffectiveness( candidateAdapter.Type, incomingMove.Move );
+                float effectiveness = TypeChart.GetTotalMoveEffectiveness( candidateAdapter.Type, incomingMove.Move );
                 MoveThreatResult incomingMTR_vsCandidate = new()
                 {
                     Modifier = effectiveness * _ai.UnitSim.Get_MoveModifier( candidateAdapter, threat, incomingMove.Move ),
@@ -530,6 +272,9 @@ public class BattleAI_SwitchCommand
                         SwitchDefensePTKOR = threatPTKOR,
                         IsLegitimate = islegit,
                         Top = switchTOP,
+
+                        Type = ActionResultType.Switch,
+                        ActionType = ActionType.DefensiveSwitch,
                     };
 
                     returnAllList.Add( candidateAdapter.Pokemon, src );
@@ -574,6 +319,9 @@ public class BattleAI_SwitchCommand
             SwitchDefensePTKOR = bestSwitch_DefensePTKOR,
             IsLegitimate = islegit,
             Top = bestCandidateTOP,
+
+            Type = ActionResultType.Switch,
+            ActionType = ActionType.DefensiveSwitch,
         };
 
         if( returnAll )
@@ -633,7 +381,7 @@ public class BattleAI_SwitchCommand
             if( candidate.Pokemon.IsFainted )
                 continue;
 
-            if( _ai.BattleSystem.IsPokemonSelectedToShift( candidate.Pokemon ) )
+            if( !returnAll && _ai.BattleSystem.IsPokemonSelectedToShift( candidate.Pokemon ) )
                 continue;
 
             var threat = _ai.GetThreat_ImmediateDamage( opponentActiveUnits, candidate );
@@ -650,7 +398,7 @@ public class BattleAI_SwitchCommand
 
                 // Debug.Log( $"[AI Scoring][Offensive Switch Candidate][{pokemon.NickName}] HPR: {hpRatioAfterHazards}. Expendability & its Score: {expendability}, {expendabilityScore}." );
 
-            if( hpRatioAfterHazards <= 0f && !_ai.Check_IsLastPokemon() )
+            if( hpRatioAfterHazards <= 0f && !_ai.Check_IsLastPokemon( candidate.Pokemon ) )
             {
                 var remaining = _ai.GetRemainingAllyPokemon( candidate.Pokemon );
                 if( remaining.Count > 1 )
@@ -785,6 +533,9 @@ public class BattleAI_SwitchCommand
                     SwitchOffensePTKOR = offensePTKOR,
                     SwitchDefensePTKOR = defensePTKOR,
                     Top = top,
+
+                    Type = ActionResultType.Switch,
+                    ActionType = ActionType.OffensiveSwitch,
                 };
 
                 returnAllList.Add( candidate.Pokemon, src );
@@ -818,6 +569,9 @@ public class BattleAI_SwitchCommand
             SwitchDefensePTKOR = bestSwitch_DefensePTKOR,
             MovesFirst = isFaster,
             Top = bestTop,
+
+            Type = ActionResultType.Switch,
+            ActionType = ActionType.OffensiveSwitch,
         };
 
         if( returnAll )
@@ -840,7 +594,7 @@ public class BattleAI_SwitchCommand
         int bestScore = int.MinValue;
         Pokemon bestSwitch = null;
         float bestHPRatio = 0f;
-        ThreatResult biggestThreat = _ai.GetThreat_ImmediateDamage( opponents, _ai.ThisUnitAdapter ); //--The biggest threat will start as the biggest threat to the current pokemon thinking of switching. It will get overwritten if there's a viable switch candidate. this prevents it from being null in the case there are no more viable switch ins.
+        ThreatResult biggestThreat = _ai.GetThreat_ImmediateDamage( opponents, _ai.CurrentUnitAdapter ); //--The biggest threat will start as the biggest threat to the current pokemon thinking of switching. It will get overwritten if there's a viable switch candidate. this prevents it from being null in the case there are no more viable switch ins.
         MoveThreatResult mostThreateningMove = new();
         TurnOutcomeProjection bestTop = new();
         PotentialToKOResult bestSwitch_OffensePTKOR = new() { PTKO = PotentialToKO.TwoHKO };
@@ -889,7 +643,7 @@ public class BattleAI_SwitchCommand
             int score = 100;
 
             float hpRatioAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( candidate );
-            if( hpRatioAfterHazards <= 0f && !_ai.Check_IsLastPokemon() )
+            if( hpRatioAfterHazards <= 0f && !_ai.Check_IsLastPokemon( candidate.Pokemon ) )
             {
                 if( remaining > 1 )
                     continue;
@@ -1115,6 +869,8 @@ public class BattleAI_SwitchCommand
         {
             if( bench.Count > 0 )
                 bestSwitch = bench[Random.Range( 0, bench.Count )].Pokemon;
+            else if( remaining > 0 )
+                bestSwitch = allyTeam[Random.Range( 0, bench.Count )].Pokemon; //--this will likely permanently fix the error, but it really shouldn't be happening in the first place. i need to fix the active/bench discrepancy
             else
                 Debug.LogError( $"[AI Scoring][Revenge Switch Candidate] No Switch available!" );
         }
@@ -1136,6 +892,9 @@ public class BattleAI_SwitchCommand
             IsLegitimate = islegit,
             MovesFirst = isFaster,
             Top = bestTop,
+
+            Type = ActionResultType.Switch,
+            ActionType = ActionType.OffensiveSwitch,
         };
     }
 

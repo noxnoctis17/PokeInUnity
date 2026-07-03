@@ -41,6 +41,7 @@ public class BattleSystem : MonoBehaviour
     [SerializeField] private Texture2D _statUpEffectTex;
     [SerializeField] private Texture2D _statDownEffectTex;
     [SerializeField] private EventSystem _eventSystem;
+    [SerializeField] private List<BattleAI> _activeAITrainers;
     [SerializeField] private List<BattleHUD> _playerHUDs;
     [SerializeField] private List<BattleHUD> _enemyTrainerHUDs;
     [SerializeField] private BattleHUD _wildPokemonHUD;
@@ -54,7 +55,6 @@ public class BattleSystem : MonoBehaviour
     [SerializeField] private FightMenu _fightMenu;
     [SerializeField] private PartyScreen_Battle _pkmnMenu;
     [SerializeField] private PartyDisplay _partyDisplay;
-    [SerializeField] private LearnMove_Battle _learnMoveMenu;
     [SerializeField] private GameObject _thrownPokeBall;
     [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
 #endregion
@@ -77,6 +77,7 @@ public class BattleSystem : MonoBehaviour
     public EventSystem EventSystem => _eventSystem;
     public BattleType BattleType => _battleType;
     public BattleArena BattleArena => _battleArena;
+    public List<BattleAI> ActiveAITrainers => _activeAITrainers;
     //--Units
     public BattleTrainer TopTrainer1 => _topTrainer1;
     public BattleTrainer TopTrainer2 => _topTrainer2;
@@ -104,7 +105,6 @@ public class BattleSystem : MonoBehaviour
     public FightMenu FightMenu => _fightMenu;
     public PartyScreen_Battle PKMNMenu => _pkmnMenu;
     public PartyDisplay PartyDisplay => _partyDisplay;
-    public LearnMove_Battle LearnMoveMenu => _learnMoveMenu;
     //--EXP
     public int TotalPartyExpGain { get; private set; }
     public int TotalPartyEffortGain { get; private set; }
@@ -187,6 +187,7 @@ public class BattleSystem : MonoBehaviour
         MoveSuccessDB.Init();
         MoveConditionDB.Init();
         CourtConditionDB.Init();
+        FieldConditionDB.Init();
 
         _playerUnits = new();
         _enemyUnits = new();
@@ -614,6 +615,11 @@ public class BattleSystem : MonoBehaviour
         canvasCallback?.Invoke();
 
         yield return BeginBattle();
+    }
+
+    public void AddAITrainer( BattleAI ai )
+    {
+        _activeAITrainers.Add( ai );
     }
 
     public void AssignUnits_1v1( BattleUnit playerUnit, BattleUnit enemyUnit )

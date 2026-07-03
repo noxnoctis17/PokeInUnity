@@ -134,11 +134,11 @@ public class WeatherConditionsDB
                         return 1f;
                     },
 
-                    OnWeatherEffect = ( pokemon ) =>
+                    OnWeatherEffect = ( pokemon ) => //--What the fuck is this?
                     {
-                        if( pokemon.SevereStatus?.ID != SevereConditionID.None )
+                        if( pokemon.AbilityID == AbilityID.Hydration && pokemon.SevereStatus?.ID != SevereConditionID.None )
                         {
-                            var status = pokemon.SevereStatus.ID;
+                            var status = pokemon.SevereStatus?.ID;
                             pokemon.CureSevereStatus();
                             pokemon.AddStatusEvent( StatusEventType.Heal, $"{pokemon.NickName} has been cured of its {status} by the falling rain!" );
                         }
@@ -190,7 +190,7 @@ public class WeatherConditionsDB
                     OnWeatherEffect = ( pokemon ) =>
                     {
                         //--If the Pokemon is Rock, Ground, or Steel type we simply return. Else, the Pokemon takes sandstorm damage. Pokemon with Abilities like Sandforce and Sand Rush also do not take sandstorm damage!
-                        if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
+                        if( pokemon.BattleItemEffect?.ID == BattleItemEffectID.SafetyGoggles || pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
                             return;
                         else
                         {

@@ -71,5 +71,7 @@
             "NewLinesForBracesInObjectCollectionArrayInitializers": false,
             "NewLinesForBracesInLambdaExpressionBody": false
         }
-    }
+    },
+    "editor.cursorStyle": "line",
+    "editor.cursorWidth": 1
 }

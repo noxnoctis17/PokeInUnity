@@ -782,7 +782,7 @@ public class TypeChart
     public static float GetEffectiveness( PokemonType attackType, PokemonType defenseType )
     {
         if ( attackType == PokemonType.None || defenseType == PokemonType.None )
-         return 1;
+            return 1;
 
         int row = (int)attackType - 1;
         int col = (int)defenseType - 1;
@@ -790,8 +790,21 @@ public class TypeChart
         return chart[row][col];
     }
 
-    public static float GetTotalEffectiveness( ( PokemonType One, PokemonType Two ) type, Move move )
+    public static float GetTotalEffectiveness( PokemonType attackType, PokemonType defenseType1, PokemonType defenseType2 )
     {
-        return GetEffectiveness( move.MoveType, type.One ) * GetEffectiveness( move.MoveType, type.Two );
+        return GetEffectiveness( attackType, defenseType1 ) * GetEffectiveness( attackType, defenseType2 );
+    }
+
+    public static float GetTotalMoveEffectiveness( ( PokemonType One, PokemonType Two ) type, Move move )
+    {
+        if ( type.One == PokemonType.None || type.Two == PokemonType.None || move.MoveType == PokemonType.None )
+            return 1;
+
+        float effectiveness = GetEffectiveness( move.MoveType, type.One ) * GetEffectiveness( move.MoveType, type.Two );
+
+        if( move.MoveSO.SetDamageType != SetDamageType.None && effectiveness > 1f && effectiveness != 0f ) //--Set damage moves (night shade, seismic toss) cannot be super effective/don't receive a damage bonus from type effectiveness.
+            effectiveness = 1f;
+
+        return effectiveness;
     }
 }

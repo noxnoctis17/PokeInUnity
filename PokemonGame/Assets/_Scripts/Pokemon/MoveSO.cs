@@ -62,7 +62,8 @@ public class MoveSO : ScriptableObject
     public MoveEffects MoveEffects => _moveEffects;
     public List<SecondaryMoveEffects> SecondaryMoveEffects => _secondaryMoveEffects;
 
-    public int GetHitAmount(){
+    public int GetHitAmount()
+    {
         if( _hitRange == Vector2.zero )
             return 1;
 
@@ -308,7 +309,7 @@ public enum CritBehavior { None, HighCritRatio, AlwaysCrits, NeverCrits, }
 
 public enum RecoilType { None, RecoilByMaxHP, RecoilByCurrentHP, RecoilByDamage, }
 public enum HealType { None, PercentOfMaxHP }
-public enum SwitchEffectType { None, SelfPivot, ForceOpponentOut, }
+public enum SwitchEffectType { None, SelfPivot, Phaze, }
 public enum SetDamageType { None, Static, Level, HP }
 
 public enum MovePriority { Neg_7, Neg_6, Neg_5, Neg_4, Neg_3, Neg_2, Neg_1, Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine }

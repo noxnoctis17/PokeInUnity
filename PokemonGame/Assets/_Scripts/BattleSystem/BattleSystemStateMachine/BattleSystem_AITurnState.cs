@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using NoxNoctisDev.StateMachine;
@@ -51,10 +52,16 @@ public class BattleSystem_AITurnState : State<BattleSystem>
 
     private IEnumerator ChooseCommands()
     {
-        foreach( var unit in _availableAIUnit )
+        void incrementCommands()
         {
-            yield return unit.BattleAI.ChooseCommand();
             _commands++;
+        }
+
+        var availableAITrainers = _battleSystem.ActiveAITrainers;
+
+        foreach( var aiTrainer in availableAITrainers )
+        {
+            yield return aiTrainer.DecideTurnCommands( incrementCommands );
         }
 
         yield return null;

@@ -948,10 +948,10 @@ public class BattleAI_RoleDetection
         int baseSpDefense = adapter.Pokemon.PokeSO.SpDefense;
         int baseSpeed = adapter.Pokemon.PokeSO.Speed;
 
-        string move1 = adapter.ActiveMoves[0] != null ? adapter.ActiveMoves[0].MoveSO.Name : "NONE";
-        string move2 = adapter.ActiveMoves[1] != null ? adapter.ActiveMoves[1].MoveSO.Name : "NONE";
-        string move3 = adapter.ActiveMoves[2] != null ? adapter.ActiveMoves[2].MoveSO.Name : "NONE";
-        string move4 = adapter.ActiveMoves[3] != null ? adapter.ActiveMoves[3].MoveSO.Name : "NONE";
+        string move1 = adapter?.ActiveMoves.Count > 0 ? adapter?.ActiveMoves[0]?.MoveSO.Name : "NONE";
+        string move2 = adapter?.ActiveMoves.Count > 1 ? adapter?.ActiveMoves[1]?.MoveSO.Name : "NONE";
+        string move3 = adapter?.ActiveMoves.Count > 2 ? adapter?.ActiveMoves[2]?.MoveSO.Name : "NONE";
+        string move4 = adapter?.ActiveMoves.Count > 3 ? adapter?.ActiveMoves[3]?.MoveSO.Name : "NONE";
 
         // roleLog.Add( $"=========================================" );
         // roleLog.Add( $"====[Begin Role Log ({adapter.Name})]====" );

@@ -54,7 +54,7 @@ MonoBehaviour:
     _level: 100
     _nature: 14
     _ability: 56
-    _heldItem: {fileID: 0}
+    _heldItem: {fileID: 11400000, guid: 3fccc665c136a1945893aba26afb569f, type: 2}
     _hpEVs: 4
     _attackEVs: 0
     _defenseEVs: 0
@@ -90,7 +90,7 @@ MonoBehaviour:
     _level: 100
     _nature: 18
     _ability: 56
-    _heldItem: {fileID: 0}
+    _heldItem: {fileID: 11400000, guid: 24312d965e3669d4583e18dfc07f60bd, type: 2}
     _hpEVs: 24
     _attackEVs: 0
     _defenseEVs: 252

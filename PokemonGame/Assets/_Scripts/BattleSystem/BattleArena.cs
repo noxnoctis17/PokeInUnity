@@ -18,6 +18,7 @@ public class BattleArena : MonoBehaviour
     private BattleType _battleType;
     private CinemachineBrain _cmBrain;
     public CinemachineBrain CMBrain => _cmBrain;
+    [Header("Cameras")]
     [SerializeField] private CinemachineVirtualCamera _1v1_EnemyIntroCamera;
     [SerializeField] private CinemachineFreeLook _2v2_EnemyIntroCamera;
     [SerializeField] private CinemachineFreeLook _singlesMainCamera;
@@ -27,18 +28,27 @@ public class BattleArena : MonoBehaviour
     private Camera _mainCamera;
     private WildPokemon _wildEncounter;
     private GameObject _enemyTrainer1/*, _enemyTrainer2*/;
+    [Header("Arena")]
     [SerializeField] private GameObject _arenaContainer; //--parent object of the entire Battle Arena. Should always be at the same world position as the _stagePivot, which gets placed according to BattleType
     [SerializeField] private GameObject _arenaPivot; //--pivot will be placed according to encounter ex: same position as wild pokemon
     [SerializeField] private float _singlesArenaSize; //--wire disc radius for singles
     [SerializeField] private float _doublesArenaSize; //--wire disc radius for doubles
     [SerializeField] private GameObject _arenaGizmoCenter; //--wire disc center
+    [Header("AI Trainers")]
+    [SerializeField] private BattleAI _1v1_AITrainerTop;
+    [SerializeField] private BattleAI _1v1_AITrainerBottom;
+    [Header("Trainer Sprite Positions")]
     [SerializeField] private GameObject _spectator1;
     [SerializeField] private GameObject _singlesTrainer1, _singlesTrainer2; //--well, whatever
     [SerializeField] private GameObject _doublesTrainer1, _doublesTrainer2, _doublesTrainer3, _doublesTrainer4; //--player side odds vs evens
+    [Header("Singles Unit Positions")]
     [SerializeField] private GameObject _singlesUnit1, _singlesUnit2; //--again, whatever
+    [Header("Doubles Unit Positions")]
     [SerializeField] private GameObject _doublesUnit1, _doublesUnit2, _doublesUnit3, _doublesUnit4; //--player 1 & 2, opponent 3 & 4
+    [Header("Circles")]
     [SerializeField] private GameObject _singlesCircle1, _singlesCircle2;
     [SerializeField] private GameObject _doublesCircle1, _doublesCircle2, _doublesCircle3, _doublesCircle4; //--player 1 & 2, opponent 3 & 4
+    [Header("Pokemon Objects")]
     [SerializeField] private GameObject _singlesPokemon1, _singlesPokemon2;
     [SerializeField] private GameObject _doublesPokemon1, _doublesPokemon2, _doublesPokemon3, _doublesPokemon4;
     private List<GameObject> _activePositionsList = new();
@@ -51,7 +61,8 @@ public class BattleArena : MonoBehaviour
         _cmBrain = _mainCamera.GetComponent<CinemachineBrain>();
     }
 
-    public IEnumerator PrepareArena( BattleSystem battleSystem ){
+    public IEnumerator PrepareArena( BattleSystem battleSystem )
+    {
         _battleSystem = battleSystem;
         _battleType = _battleSystem.BattleType;
 
@@ -363,10 +374,11 @@ public class BattleArena : MonoBehaviour
         
         playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
         
+        _battleSystem.AddAITrainer( _1v1_AITrainerTop );
         enemyUnit.SetAI( true ); //--enable AI for this unit
         enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
         enemyUnit.InitializeAI();
-        enemyUnit.UpdateUnit( enemyUnit.BattleAI.RequestLead() );
+        // enemyUnit.UpdateUnit( enemyUnit.BattleAI.RequestLead() );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit
@@ -472,15 +484,22 @@ public class BattleArena : MonoBehaviour
         var enemyMons = _battleSystem.TopTrainer1.GetHealthyPokemon( DOUBLES_COUNT );
 
         //--Setup each unit, all indicies should be the same! unit 0 should have hud 0!
-        for( int i = 0; i < playerMons.Count; i++)
+        for( int i = 0; i < playerMons.Count; i++ )
             playerUnits[i].Setup( playerMons[i], _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[i], _battleSystem );
 
-        for( int i = 0; i < enemyMons.Count; i++)
+        _battleSystem.AddAITrainer( _1v1_AITrainerTop );
+        for( int i = 0; i < enemyMons.Count; i++ )
         {
             enemyUnits[i].SetAI( true );
             enemyUnits[i].Setup( enemyMons[i], _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[i], _battleSystem );
+        }
+
+        for( int i = 0; i < enemyMons.Count; i++ )
+        {
             enemyUnits[i].InitializeAI();
         }
+
+        // _1v1_AITrainerTop.InitializeAI(); //--We should only need to initialize the ai trainer now instead of each unit. we need to migrate ai initialization out of BattleUnit.cs.
 
         //--Make everyone face the arena center
         yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _singlesTrainer2 );

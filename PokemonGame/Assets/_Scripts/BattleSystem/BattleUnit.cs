@@ -59,17 +59,6 @@ public class BattleUnit : MonoBehaviour
 
         Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
 
-        // if( _isAI ) //--We need to initialize ai from battle arena, after setting up both ai units. this is probably a good change, as now we don't need to check, we can just handle it implicitly when we know there is supposed to be an ai unit during setup.
-        // {
-        //     _battleAI.enabled = true;
-        //     _battleAI.InitializeAI( _battleSystem, this );
-        //     UpdateAITeamPieceValue();
-        // }
-        // else
-        // {
-        //     _battleAI.enabled = false;
-        // }
-
         if( !_isAI )
             _battleAI.enabled = false;
     }
@@ -106,7 +95,7 @@ public class BattleUnit : MonoBehaviour
         _battleAI.RefreshTeamPieceValues( ourTeam, theirTeam );
     }
 
-    public void TempUsage( Pokemon pokemon )
+    public void TempUsage( Pokemon pokemon ) //--We gotta do something about this lol
     {
         Pokemon = pokemon;
     }
@@ -406,7 +395,10 @@ public class BattleUnit : MonoBehaviour
         STAB = attacker.Pokemon.Ability?.OnSTABModify?.Invoke( attacker.Pokemon, move ) ?? STAB;
 
         //--Move Type vs target type effectiveness
-        float effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
+        var type1 = target.PokeSO.Type1;
+        var type2 = target.PokeSO.Type2;
+        float effectiveness = TypeChart.GetTotalMoveEffectiveness( ( type1, type2 ), move );
+        // float effectiveness = TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type1 ) * TypeChart.GetEffectiveness( move.MoveType, target.PokeSO.Type2 );
 
         //--Weather damage modifier
         float weatherModifier = weather?.OnDamageModify?.Invoke( attacker.Pokemon, Pokemon, move ) ?? 1f;

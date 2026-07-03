@@ -156,6 +156,8 @@ MonoBehaviour:
     _levelLearned: 8
   - _moveSO: {fileID: 11400000, guid: 4e2558dbbc070a142a74714b86955fe8, type: 2}
     _levelLearned: 16
+  - _moveSO: {fileID: 11400000, guid: 4cdfa318a5cf72f4a9989914e889b8a0, type: 2}
+    _levelLearned: 1
   _tmDB: {fileID: 11400000, guid: 9fa80c7c32e1f7144b54ab27f9f16a7a, type: 2}
   _tmKeys:
   - {fileID: 11400000, guid: d51e6548a8242c046bd5e1af444de92e, type: 2}

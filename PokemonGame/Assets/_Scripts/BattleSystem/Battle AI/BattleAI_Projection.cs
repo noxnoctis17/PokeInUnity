@@ -71,8 +71,8 @@ public class BattleAI_Projection
         bool oppThreatens = top1.OpponentPTKO >= PotentialToKO.Dangerous;
 
         //--Future State, from TOP2
-        bool iSurviveNext = top2.Attacker_EndOfTurnHP > 0;
-        bool oppSurviveNext = top2.Opponent_EndOfTurnHP > 0;
+        bool iSurviveNext = top1.Attacker.Pokemon == top2.Attacker.Pokemon && top2.Attacker_EndOfTurnHP > 0;
+        bool oppSurviveNext = top1.Opponent.Pokemon == top2.Opponent.Pokemon && top2.Opponent_EndOfTurnHP > 0;
 
         bool iThreatenNext = top2.AttackerPTKO >= PotentialToKO.Dangerous;
         bool oppThreatenNext = top2.OpponentPTKO >= PotentialToKO.Dangerous;
@@ -108,7 +108,7 @@ public class BattleAI_Projection
         if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.SLP || oppStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
             iCreatesDecisiveState = true;
 
-        if( attackerMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( attackerMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
             iCreatesDecisiveState = true;
 
         if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.BRN || oppStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
@@ -127,7 +127,7 @@ public class BattleAI_Projection
         if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.SLP || attStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
             oppCreatesDecisiveState = true;
 
-        if( opponentMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( opponentMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
             oppCreatesDecisiveState = true;
 
         if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.BRN || attStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
@@ -171,8 +171,8 @@ public class BattleAI_Projection
         var fieldConditions2 = top2.Field.FieldConditions;
 
         //--Stability
-        bool iAmStable = iSurviveNext && !( oppKillNext || ( oppThreatenNext && !futureExchangeEval.AttackerMovesFirst ) );
-        bool oppIsStable = oppSurviveNext && !( iKillNext || ( iThreatenNext && !futureExchangeEval.OpponentMovesFirst ) );
+        bool iAmStable = iSurviveNext && !( oppKillNext || ( oppThreatenNext && !top2.AttackerMovedFirst ) );
+        bool oppIsStable = oppSurviveNext && !( iKillNext || ( iThreatenNext && top2.AttackerMovedFirst ) );
 
         //--Role Fulfilment Evaluation
         switch( ourRP.PrimaryRole )
@@ -1282,7 +1282,7 @@ public class BattleAI_Projection
 
         //--Our Expendability Check
         float hp = _ai.Get_HPRatio( _ai.Unit.Pokemon );
-        float expendability = GetExpendability( _ai.ThisUnitAdapter, hp );
+        float expendability = GetExpendability( _ai.CurrentUnitAdapter, hp );
 
         //--Material Status
         bool isAhead = false;
@@ -1867,9 +1867,9 @@ public class BattleAI_Projection
 
         if( gp.TheirPrimaryWinCon != null )
         {
-            for( int i = 0; i < _ai.TheirBattleAIUnits.Count; i++ )
+            for( int i = 0; i < _ai.TheirActiveBattleAIUnits.Count; i++ )
             {
-                var theirUnit = _ai.TheirBattleAIUnits[i];
+                var theirUnit = _ai.TheirActiveBattleAIUnits[i];
                 if( theirUnit.Pokemon == gp.TheirPrimaryWinCon )
                 {
                     _ai.CurrentLog.Add( $"[Current Plan] (Prevent Sweep) Their Primary WinCon is on the field." );

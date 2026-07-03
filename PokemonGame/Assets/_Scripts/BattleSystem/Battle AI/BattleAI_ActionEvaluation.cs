@@ -87,7 +87,9 @@ public class BattleAI_ActionEvaluation
         int score = eval.Score;
         var top = eval.Top1;
 
+        _ai.CurrentLog.Add( $"=======================================================" );
         _ai.CurrentLog.Add( $"===[Evaluating Attack Action. (Base Score: {score})]===" );
+        _ai.CurrentLog.Add( $"=======================================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -266,7 +268,9 @@ public class BattleAI_ActionEvaluation
         var top = eval.Top1;
         int score = eval.Score;
 
+        _ai.CurrentLog.Add( $"===========================================================" );
         _ai.CurrentLog.Add( $"===[Evaluating Defensive Switch Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"===========================================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -399,7 +403,9 @@ public class BattleAI_ActionEvaluation
         int score = eval.Score;
         var top = eval.Top1;
 
+        _ai.CurrentLog.Add( $"===========================================================" );
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Switch Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"===========================================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -477,7 +483,9 @@ public class BattleAI_ActionEvaluation
         int score = eval.Score;
         var top = eval.Top1;
 
+        _ai.CurrentLog.Add( $"================================================" );
         _ai.CurrentLog.Add( $"===[Evaluating Setup Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"================================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -615,7 +623,9 @@ public class BattleAI_ActionEvaluation
         int score = eval.Score;
         var top = eval.Top1;
 
+        _ai.CurrentLog.Add( $"===========================================================" );
         _ai.CurrentLog.Add( $"===[Evaluating Offensive Status Action (Score: {score})]===" );
+        _ai.CurrentLog.Add( $"===========================================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -803,13 +813,13 @@ public class BattleAI_ActionEvaluation
         BattleAI_PokemonAdapter revengeCandidate = null;
         if( eval.Top1.Attacker_DiesBeforeActing || eval.Top1.Attacker_EndOfTurnHP <= 0 )
         {
-            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.TheirBattleAIUnits ).Pokemon;
+            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.TheirActiveBattleAIUnits ).Pokemon;
             if( switchCandidate != null )
                 revengeCandidate = _ai.GetPokemonAs_Adapter( switchCandidate );
         }
         else if( eval.Top1.AttackerPTKO <= PotentialToKO.Safe && eval.Top1.OpponentPTKO >= PotentialToKO.TwoHKO )
         {
-            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.TheirBattleAIUnits ).Pokemon;
+            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.TheirActiveBattleAIUnits ).Pokemon;
             if( switchCandidate != null )
                 revengeCandidate = _ai.GetPokemonAs_Adapter( switchCandidate );
         }
@@ -2518,7 +2528,7 @@ public class BattleAI_ActionEvaluation
         int contextScore = weatherContext + terrainContext + trickRoomContext;
 
         score += contextScore;
-        _ai.CurrentLog.Add( $"[Attacker's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+        _ai.CurrentLog.Add( $"[Attacker's Battlefield Context] Weather: {weatherContext}, Terrain: {terrainContext}, Trick Room: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
 
         int oppWeatherContext = _ai.UnitSim.Get_WeatherContextScore( opponentMon );
         int oppTerrainContext = _ai.UnitSim.Get_TerrainContextScore( opponentMon );
@@ -2526,7 +2536,7 @@ public class BattleAI_ActionEvaluation
         int oppContextScore = oppWeatherContext + oppTerrainContext + oppTrickRoomContext;
 
         score -= oppContextScore;
-        _ai.CurrentLog.Add( $"[Opponent's Battlefield Context] Weather: {oppWeatherContext}, Terrian: {oppTerrainContext}, TRoom: {oppTrickRoomContext}. Total Context Score: {oppContextScore}. Score: {score}" );
+        _ai.CurrentLog.Add( $"[Opponent's Battlefield Context] Weather: {oppWeatherContext}, Terrain: {oppTerrainContext}, Trick Room: {oppTrickRoomContext}. Total Context Score: {oppContextScore}. Score: {score}" );
 
         if( bfs.WeHave_Tailwind )
         {
@@ -2673,7 +2683,7 @@ public class BattleAI_ActionEvaluation
         int contextScore = weatherContext + terrainContext + trickRoomContext;
 
         score += contextScore;
-        _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+        _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrain: {terrainContext}, Trick Room: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
 
         bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherSetter_Ability( switchCandidate );
         bool switchChangesWeather = false;
@@ -2808,7 +2818,7 @@ public class BattleAI_ActionEvaluation
         int contextScore = weatherContext + terrainContext + trickRoomContext;
 
         score += contextScore;
-        _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+        _ai.CurrentLog.Add( $"[Switch Candidate's Battlefield Context] Weather: {weatherContext}, Terrain: {terrainContext}, Trick Room: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
 
         bool switchSetsWeather = _ai.UnitSim.PokemonHasWeatherSetter_Ability( switchCandidate );
         bool switchChangesWeather = false;
@@ -2933,7 +2943,7 @@ public class BattleAI_ActionEvaluation
         int contextScore = weatherContext + terrainContext + trickRoomContext;
 
         score += contextScore;
-        _ai.CurrentLog.Add( $"[Attacker's Setup Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+        _ai.CurrentLog.Add( $"[Attacker's Setup Battlefield Context] Weather: {weatherContext}, Terrain: {terrainContext}, Trick Room: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
 
         if( contextScore >= 10 )
         {
@@ -3037,7 +3047,7 @@ public class BattleAI_ActionEvaluation
         int contextScore = weatherContext + terrainContext + trickRoomContext;
 
         score += contextScore;
-        _ai.CurrentLog.Add( $"[Attacker's Offensive Status Battlefield Context] Weather: {weatherContext}, Terrian: {terrainContext}, TRoom: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
+        _ai.CurrentLog.Add( $"[Attacker's Offensive Status Battlefield Context] Weather: {weatherContext}, Terrain: {terrainContext}, Trick Room: {trickRoomContext}. Total Context Score: {contextScore}. Score: {score}" );
 
         //--Hazard Value based on remaining opponents
         int remainingOpps = boardContext.OppRemainingPieces;

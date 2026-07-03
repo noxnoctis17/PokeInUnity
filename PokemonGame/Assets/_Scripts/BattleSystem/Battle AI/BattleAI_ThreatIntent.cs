@@ -18,9 +18,9 @@ public class BattleAI_ThreatIntent
 
     public ThreatBrain ReadThreatBrain( IBattleAIUnit threat )
     {
-        var theirEE = _ai.Projection.EvaluateExchange( threat, _ai.ThisUnitAdapter );
-        var theirBC = _ai.Projection.GetBoardContext( threat, _ai.ThisUnitAdapter, theirEE );
-        var ourTP = _ai.GetThreatProfile( theirEE, theirBC, _ai.ThisUnitAdapter ); //--this is our profile as a threat to them, from their perspective
+        var theirEE = _ai.Projection.EvaluateExchange( threat, _ai.CurrentUnitAdapter );
+        var theirBC = _ai.Projection.GetBoardContext( threat, _ai.CurrentUnitAdapter, theirEE );
+        var ourTP = _ai.GetThreatProfile( theirEE, theirBC, _ai.CurrentUnitAdapter ); //--this is our profile as a threat to them, from their perspective
         var theirGP = _ai.GetOpponentGamePlan( _ai.GamePlan );
         var theirCP = _ai.Projection.EvaluateCurrentPlan( theirEE, theirBC, ourTP, theirGP, null );
 
@@ -41,6 +41,8 @@ public class BattleAI_ThreatIntent
 
         bool defensiveSwitches = defensiveSwitchCandidates != null && defensiveSwitchCandidates.Count > 0;
         bool offensiveSwitches = offensiveSwitchCandidates != null && offensiveSwitchCandidates.Count > 0;
+
+        bool aiBattle = _ai.BattleSystem.BattleType == BattleType.AI_Singles || _ai.BattleSystem.BattleType == BattleType.AI_Doubles;
 
         SwitchCandidateResult defSCR = new();
         SwitchCandidateResult offSCR = new();
@@ -68,16 +70,34 @@ public class BattleAI_ThreatIntent
 
         if( defensiveSwitches )
         {
-            var likely = SelectLikely_DefensiveSwitch( defensiveSwitchCandidates.Values.ToList(), ref spr, tb, threat );
-            var mon = likely.PrimaryDefensive.Candidate;
-            defSCR = defensiveSwitchCandidates[mon];
+            if( aiBattle )
+                defSCR = defensiveSwitchCandidates.First().Value;
+            else
+            {
+                var likely = SelectLikely_DefensiveSwitch( defensiveSwitchCandidates.Values.ToList(), ref spr, tb, threat );
+                var mon = likely.PrimaryDefensive.Candidate;
+                
+                if( defensiveSwitchCandidates.TryGetValue( mon, out var scr ) )
+                    defSCR = scr;
+                else
+                    defSCR = defensiveSwitchCandidates.First().Value;
+            }
         }
 
         if( offensiveSwitches )
         {
-            var likely = SelectLikely_OffensiveSwitch( offensiveSwitchCandidates.Values.ToList(), ref spr, tb, threat );
-            var mon = likely.PrimaryOffensive.Candidate;
-            offSCR = offensiveSwitchCandidates[mon];
+            if( aiBattle )
+                offSCR = offensiveSwitchCandidates.First().Value;
+            else
+            {
+                var likely = SelectLikely_OffensiveSwitch( offensiveSwitchCandidates.Values.ToList(), ref spr, tb, threat );
+                var mon = likely.PrimaryOffensive.Candidate;
+
+                if( offensiveSwitchCandidates.TryGetValue( mon, out var scr ) )
+                    offSCR = scr;
+                else
+                    offSCR = offensiveSwitchCandidates.First().Value;
+            }
         }
 
         Debug.Log( _switchPredLog.ToString() );
@@ -176,7 +196,7 @@ public class BattleAI_ThreatIntent
             //--Hazard removal
             var theirCourt = candidateAdapter.CourtLocation == CourtLocation.TopCourt ? _ai.CurrentFieldSnapshot.TopCourtConditions : _ai.CurrentFieldSnapshot.BottomCourtConditions;
             bool hazardsExist = theirCourt.ContainsKey( CourtConditionID.LeechSeed ) || theirCourt.ContainsKey( CourtConditionID.Spikes ) || theirCourt.ContainsKey( CourtConditionID.StealthRock ) || theirCourt.ContainsKey( CourtConditionID.StickyWeb ) || theirCourt.ContainsKey( CourtConditionID.ToxicSpikes );
-            bool weAreHazardSetter = _ai.ThisUnitAdapter.RoleProfile.Traits.Contains( RoleTrait.HazardSetter );
+            bool weAreHazardSetter = _ai.CurrentUnitAdapter.RoleProfile.Traits.Contains( RoleTrait.HazardSetter );
 
             if( candidateAdapter.RoleProfile.Traits.Contains( RoleTrait.HazardRemover ) && ( hazardsExist || weAreHazardSetter ) )
             {
@@ -219,7 +239,7 @@ public class BattleAI_ThreatIntent
 
             //--Plan
             //--Wall switching into threat
-            var ourPR = _ai.ThisUnitAdapter.RoleProfile.PrimaryRole;
+            var ourPR = _ai.CurrentUnitAdapter.RoleProfile.PrimaryRole;
             bool weAreOffensive = ourPR == RoleClass.BulkyAttacker || ourPR == RoleClass.RevengeKiller || ourPR == RoleClass.SetupSweeper || ourPR == RoleClass.Sweeper || ourPR == RoleClass.TrickRoomAbuser;
             if( candidateAdapter.RoleProfile.PrimaryRole == RoleClass.Wall && weAreOffensive )
             {
@@ -432,7 +452,7 @@ public class BattleAI_ThreatIntent
                 }
             }
 
-            bool gainsControl = _ai.ThisUnitAdapter.Speed > threat.Speed && top.Attacker.Speed > top.Opponent.Speed;
+            bool gainsControl = _ai.CurrentUnitAdapter.Speed > threat.Speed && top.Attacker.Speed > top.Opponent.Speed;
             if( gainsControl )
             {
                 plan += 1;
@@ -540,8 +560,8 @@ public class BattleAI_ThreatIntent
         var theirGP = tb.TheirGP;
         var theirCP = tb.TheirCP;
 
-        var ourEE = _ai.Projection.EvaluateExchange( _ai.ThisUnitAdapter, tic.Threat );
-        var ourBC = _ai.Projection.GetBoardContext( _ai.ThisUnitAdapter, tic.Threat, ourEE );
+        var ourEE = _ai.Projection.EvaluateExchange( _ai.CurrentUnitAdapter, tic.Threat );
+        var ourBC = _ai.Projection.GetBoardContext( _ai.CurrentUnitAdapter, tic.Threat, ourEE );
         var theirTP = _ai.GetThreatProfile( ourEE, ourBC, tic.Threat ); //--this is their profile as a threat to us, from our perspective
 
         attack_evidence = AttackEvidence( tic, theirEE, theirBFS, theirTP, ourTP, theirCP );
@@ -569,8 +589,10 @@ public class BattleAI_ThreatIntent
 
         // evidenceGathered = evidenceGathered.OrderByDescending( kvp => kvp.Value ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
         var sorted = evidenceGathered.OrderByDescending( kvp => kvp.Value ).ToList();
+        int activeIntents = sorted.Count( kvp => kvp.Value > 0 );
 
         float totalEvidence = 0f;
+        float entropy = 0f;
 
         _tirLog.Add( $"===[Final Evidence Values]===" );
         foreach( var kvp in sorted )
@@ -579,73 +601,103 @@ public class BattleAI_ThreatIntent
             _tirLog.Add( $"{kvp.Key}: {kvp.Value}" );
         }
 
+        foreach( var kvp in sorted )
+        {
+            if( kvp.Value <= 0 )
+                continue;
+
+            float v = kvp.Value;
+            float p = v / totalEvidence;
+            entropy -= p * Mathf.Log( p, 2f );
+        }
+
+        float confidence = 0f;
+        if( activeIntents <= 1 )
+        {
+            confidence = 1f;
+        }
+        else
+        {
+            entropy /= Mathf.Log( activeIntents, 2f );
+            confidence = Mathf.Clamp01( 1f - entropy );
+        }
+
         _tirLog.Add( $"" );
 
         var primaryIntent = sorted[0].Key;
         var primaryEvidence = sorted[0].Value;
 
-        IntentType secondIntent = IntentType.None;
-        int secondEvidence = -99;
+        IntentType secondaryIntent = IntentType.None;
+        int secondaryEvidence = -99;
 
         if( sorted.Count > 1 )
         {
-            secondIntent = sorted[1].Key;
-            secondEvidence = sorted[1].Value;
+            secondaryIntent = sorted[1].Key;
+            secondaryEvidence = sorted[1].Value;
         }
 
-        tir.PrimaryIntent = primaryIntent;
-        tir.SecondaryIntent = secondIntent;
+        tir.PrimaryIntent = new(){ IntentType = primaryIntent, Evidence = primaryEvidence };
+        tir.SecondaryIntent = new(){ IntentType = secondaryIntent, Evidence = secondaryEvidence };
 
-        tir.PrimaryEvidence = primaryEvidence;
-        tir.SecondaryEvidence = secondEvidence;
+        AssignIntentResult( ref tir.PrimaryIntent );
+        AssignIntentResult( ref tir.SecondaryIntent );
 
-        // tir.Confidence = Mathf.Clamp01( ( primaryEvidence - secondEvidence ) / (float)Mathf.Max( 1, primaryEvidence ) );
-        // tir.Confidence = Mathf.Clamp01( (float)Mathf.Max( 1, primaryEvidence ) / ( primaryEvidence + secondEvidence ) );
-        tir.Confidence = Mathf.Clamp01( (float)Mathf.Max( 1f, primaryEvidence ) / totalEvidence );
+        tir.TotalEvidence = (int)totalEvidence;
+        tir.IntentEvidence = sorted.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
+        tir.Confidence = confidence;
+
+        if( tir.Confidence < 0.5f )
+            tir.CheckSecondaryIntent = true;
+        else
+            tir.CheckSecondaryIntent = false;
 
         _tirLog.Add( $"Best Evidence: {primaryIntent}, {primaryEvidence}" );
-        _tirLog.Add( $"Second Evidence: {secondIntent}, {secondEvidence}" );
+        _tirLog.Add( $"Second Evidence: {secondaryIntent}, {secondaryEvidence}" );
         _tirLog.Add( $"Confidence: {tir.Confidence}" );
 
         _tirLog.Add( $"" );
         _tirLog.Add( $"Actual Prediction for Threat {tic.Threat.Name}: {primaryIntent}" );
 
-        switch( primaryIntent )
+        void AssignIntentResult( ref Intent intent )
         {
-            case IntentType.Attack:
-                tir.IntentObject = tic.MoveThreatResult;
-                var attackCand = (MoveThreatResult)tir.IntentObject;
-                _tirLog.Add( $"With move: {attackCand.Move.MoveSO.Name}" );
-            break;
+            switch( intent.IntentType )
+            {
+                case IntentType.Attack:
+                    intent.IntentResult = tic.MoveThreatResult;
+                    var attackCand = (MoveThreatResult)intent.IntentResult;
+                    _tirLog.Add( $"With move: {attackCand.Move.MoveSO.Name}" );
+                break;
 
-            case IntentType.DefensiveSwitch:
-                tir.IntentObject = tic.DefensiveSwitchCandidateResult;
-                var defCand = (SwitchCandidateResult)tir.IntentObject;
-                _tirLog.Add( $"With defensive switch candidate: {defCand.Pokemon.NickName}" );
-            break;
+                case IntentType.DefensiveSwitch:
+                    intent.IntentResult = tic.DefensiveSwitchCandidateResult;
+                    var defCand = (SwitchCandidateResult)intent.IntentResult;
+                    _tirLog.Add( $"With defensive switch candidate: {defCand.Pokemon.NickName}" );
+                break;
 
-            case IntentType.OffensiveSwitch:
-                tir.IntentObject = tic.OffensiveSwitchCandidateResult;
-                var offCand = (SwitchCandidateResult)tir.IntentObject;
-                _tirLog.Add( $"With offensive switch candidate: {offCand.Pokemon.NickName}" );
-            break;
+                case IntentType.OffensiveSwitch:
+                    intent.IntentResult = tic.OffensiveSwitchCandidateResult;
+                    var offCand = (SwitchCandidateResult)intent.IntentResult;
+                    _tirLog.Add( $"With offensive switch candidate: {offCand.Pokemon.NickName}" );
+                break;
 
-            case IntentType.Setup:
-                tir.IntentObject = tic.SetupThreatResult;
-                var setupCand = (SetupThreatResult)tir.IntentObject;
-                _tirLog.Add( $"With move: {setupCand.Move.MoveSO.Name}" );
-            break;
+                case IntentType.Setup:
+                    intent.IntentResult = tic.SetupThreatResult;
+                    var setupCand = (SetupThreatResult)intent.IntentResult;
+                    _tirLog.Add( $"With move: {setupCand.Move.MoveSO.Name}" );
+                break;
 
-            case IntentType.OffensiveStatus:
-                tir.IntentObject = tic.OffensiveStatusThreatResult;
-                var offStatusCand = (StatusThreatResult)tir.IntentObject;
-                _tirLog.Add( $"With move: {offStatusCand.Move.MoveSO.Name}" );
-            break;
-            
-            default:
-                tir.IntentObject = tic.MoveThreatResult;
-            break;
-        };
+                case IntentType.OffensiveStatus:
+                    intent.IntentResult = tic.OffensiveStatusThreatResult;
+                    var offStatusCand = (StatusThreatResult)intent.IntentResult;
+                    _tirLog.Add( $"With move: {offStatusCand.Move.MoveSO.Name}" );
+                break;
+                
+                default:
+                    intent.IntentResult = tic.MoveThreatResult;
+                break;
+            };
+        }
 
         _tirLog.Add( $"================================" );
 
@@ -670,6 +722,10 @@ public class BattleAI_ThreatIntent
         var theirRP = attackTOP.Attacker.RoleProfile;
         bool theyAreOffensive = theirRP.PrimaryRole == RoleClass.BulkyAttacker || theirRP.PrimaryRole == RoleClass.RevengeKiller || theirRP.PrimaryRole == RoleClass.SetupSweeper ||
             theirRP.PrimaryRole == RoleClass.Sweeper || theirRP.PrimaryRole == RoleClass.TrickRoomAbuser || theirRP.PrimaryRole == RoleClass.WallBreaker;
+
+        var theirCourt = attackTOP.Attacker.CourtLocation  == CourtLocation.TopCourt ? _ai.CurrentFieldSnapshot.TopCourtConditions : _ai.CurrentFieldSnapshot.BottomCourtConditions;
+
+        bool theyCanUseFakeOut = _ai.CanUseFakeOut( attackTOP.Attacker, attackTOP.Opponent );
 
         int ourRemainingCount = _ai.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
         int theirRemainingCount = _ai.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
@@ -769,12 +825,18 @@ public class BattleAI_ThreatIntent
             }
         }
 
+        if( attackTOP.Opponent.Ability == AbilityID.MagicBounce || attackTOP.Opponent.Ability == AbilityID.MagicGuard )
+        {
+            evidence += 1;
+            _tirLog.Add( $"Our current unit has magic bounce or magic guard, they cannot use a status move if we stay. Attack Evidence: {evidence}" );
+        }
+
         //--Pokemon dies to hazards check
-        float hpAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( attackTOP.Opponent );
+        float hpAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( attackTOP.Attacker );
         if( hpAfterHazards <= 0f )
         {
             evidence += 1;
-            _ai.CurrentLog.Add( $"If we recall this unit, it will faint to hazards when we switch it in later if we don't clear them. Attack Evidence: {evidence}" );
+            _tirLog.Add( $"If they recall their unit, it will faint to hazards when they switch it in later if they don't clear them. Attack Evidence: {evidence}" );
         }
 
         //--Threat Profile
@@ -844,6 +906,142 @@ public class BattleAI_ThreatIntent
             _tirLog.Add( $"Their plan allows sacrificing, the current Pokemon is expendible. Attack Evidence: {evidence}" );
         }
 
+        if( _ai.IsDoubleBattle )
+        {
+            _tirLog.Add( $"" );
+            _tirLog.Add( $"This is a double battle! Checking attack intent evidence in the context of doubles..." );
+
+            var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+            if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
+            {
+                _tirLog.Add( $"They don't have an ally on the field, skipping!" );
+                _tirLog.Add( $"" );
+                return evidence;
+            }
+
+            _tirLog.Add( $"Their ({tic.Threat.Name}) ally is: {theirAlly.Name} ({theirAlly.RoleProfile.PrimaryRole})" );
+            _tirLog.Add( $"" );
+
+            //--Our Ally Information
+            var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+            bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
+            if( weHaveAlly )
+            {
+                _tirLog.Add( $"Our ({_ai.CurrentUnitAdapter.Name}) ally is: {ourAlly.Name} ({ourAlly.RoleProfile.PrimaryRole})" );
+                _tirLog.Add( $"" );
+            }
+
+            bool weCanProtect = _ai.UnitSim.CheckHasMove( _ai.CurrentUnitAdapter, "Protect" ) && _ai.GetBattleUnit( _ai.CurrentUnitAdapter.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+            bool ourAllyCanProtect = weHaveAlly && _ai.UnitSim.CheckHasMove( ourAlly, "Protect" ) && _ai.GetBattleUnit( ourAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+            //--Their Ally Information
+            var theirAllyRP = theirAlly.RoleProfile;
+            var theirAllyTraits = theirAllyRP.Traits;
+
+            bool theirAllyIsOffensive = theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker || theirAllyRP.PrimaryRole == RoleClass.RevengeKiller || theirAllyRP.PrimaryRole == RoleClass.SetupSweeper ||
+            theirAllyRP.PrimaryRole == RoleClass.Sweeper || theirAllyRP.PrimaryRole == RoleClass.TrickRoomAbuser || theirAllyRP.PrimaryRole == RoleClass.WallBreaker;
+
+            bool theirAllyIsDefensive = theirAllyRP.PrimaryRole == RoleClass.Wall || theirAllyRP.PrimaryRole == RoleClass.DefensiveSetup || theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker && theirAllyRP.SecondaryRoles.Contains( RoleClass.Wall );
+            bool theirAllyIsSupport = theirAllyRP.PrimaryRole == RoleClass.UtilitySupport || theirAllyRP.PrimaryRole == RoleClass.Disrupter;
+            bool theirAllyIsUtility = !theirAllyIsOffensive && !theirAllyIsDefensive;
+
+            bool theirAllyHas_HelpingHand   = _ai.UnitSim.CheckHasMove( theirAlly, "Helping Hand" );
+            bool theirAllyHas_Coaching      = _ai.UnitSim.CheckHasMove( theirAlly, "Coaching" );
+            bool theirAllyHas_Tailwind      = theirAllyTraits.Contains( RoleTrait.TailwindSetter );
+            bool theirAllyHas_TrickRoom     = theirAllyTraits.Contains( RoleTrait.TrickRoomSetter );
+            bool theirAllyHas_SpeedControl  = theirAllyTraits.Contains( RoleTrait.SpeedControl );
+            bool theirAllyHas_FakeOut       = _ai.CanUseFakeOut( theirAlly, _ai.CurrentUnitAdapter );
+            bool theirAllyHas_FollowMe      = _ai.UnitSim.CheckHasMove( theirAlly, "Follow Me" );
+            bool theirAllyHas_RagePowder    = _ai.UnitSim.CheckHasMove( theirAlly, "Rage Powder" );
+            bool theirAllyHas_Feint         = _ai.UnitSim.CheckHasMove( theirAlly, "Feint" );
+            bool theirAllyHas_WideGuard     = _ai.UnitSim.CheckHasMove( theirAlly, "Wide Guard" );
+            bool theirAllyHas_QuickGuard    = _ai.UnitSim.CheckHasMove( theirAlly, "Quick Guard" );
+
+            if( theirAllyHas_HelpingHand )
+            {
+                evidence += 2;
+                _tirLog.Add( $"Their Ally has Helping Hand. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_Coaching )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally has Coaching. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_Tailwind && !theirCourt.ContainsKey( CourtConditionID.Tailwind ) )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally can set Tailwind. Attack Evidence: {evidence}" );
+
+                if( theirAlly.Speed > attackTOP.Attacker.Speed )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their Ally outspeeds them, meaning their ally can set tailwind before they attack. Attack Evidence: {evidence}" );
+                }
+
+                if( weHaveAlly && theirAlly.Speed > ourAlly.Speed )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their Ally outspeeds our ally, meaning their ally can set tailwind before our ally can act, assuming our ally does not use priority. Attack Evidence: {evidence}" );
+                }
+            }
+
+            if( theirAllyHas_TrickRoom && !_ai.CurrentFieldSnapshot.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) && theyCanUseFakeOut )
+            {
+                evidence += 3;
+                _tirLog.Add( $"Their Ally can set Trick Room and they can currently use fake out. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_SpeedControl )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally has Speed Control. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_FakeOut )
+            {
+                evidence += 2;
+                _tirLog.Add( $"Their Ally has Fake Out available. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_FollowMe )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally has Follow Me. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_RagePowder )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally has Rage Powder. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_Feint )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally has Feint. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_WideGuard )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally has WideGuard. Attack Evidence: {evidence}" );
+            }
+
+            if( theirAllyHas_QuickGuard )
+            {
+                evidence += 1;
+                _tirLog.Add( $"Their Ally has QuickGuard. Attack Evidence: {evidence}" );
+            }
+
+            if( weCanProtect || ourAllyCanProtect )
+            {
+                evidence -= 1;
+                _tirLog.Add( $"We or our ally have protect on the table. Attack Evidence: {evidence}" );
+            }
+        }
+
         _tirLog.Add( $"" );
 
         return evidence;
@@ -865,6 +1063,7 @@ public class BattleAI_ThreatIntent
             var attackTOP = tic.MoveThreatResult.Top;
             var defSwitchTOP = tic.DefensiveSwitchCandidateResult.Top;
 
+            var ourRP = attackTOP.Opponent.RoleProfile;
             var theirCurrentRP = attackTOP.Attacker.RoleProfile;
 
             var switchEE = _ai.Projection.EvaluateExchange( defSwitchTOP.Attacker, defSwitchTOP.Opponent );
@@ -967,54 +1166,54 @@ public class BattleAI_ThreatIntent
                 if( myNewWeatherContext > theirNewWeatherContext )
                 {
                     evidence += 1;
-                    _ai.CurrentLog.Add( $"Switch candidate can swing the weather in our favor! Defensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Switch candidate can swing the weather in our favor! Defensive Switch Evidence: {evidence}" );
                 }
                 else
                 {
                     evidence -= 1;
-                    _ai.CurrentLog.Add( $"Switch candidate changes weather in our opponent's favor!. Defensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Switch candidate changes weather in our opponent's favor!. Defensive Switch Evidence: {evidence}" );
                 }
             }
 
             if( theirTP.ConstrainingPressure >= 4f )
             {
                 evidence -= 2;
-                _ai.CurrentLog.Add( $"They have high constraining pressure on us, so they are likely to continue to stay in. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"They have high constraining pressure on us, so they are likely to continue to stay in. Defensive Switch Evidence: {evidence}" );
             }
 
             if( theirTP.ForcesSwitch )
             {
                 evidence -= 1;
-                _ai.CurrentLog.Add( $"They believe they force us to switch, so they are unlikely to switch as a result. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"They believe they force us to switch, so they are unlikely to switch as a result. Defensive Switch Evidence: {evidence}" );
             }
 
             if( theirTP.Type == ThreatType.Constraining && ( theirCurrentRP.Traits.Contains( RoleTrait.ShadowTag ) || attackTOP.Opponent.Bindings.Count > 0 ) )
             {
                 evidence -= 3;
-                _ai.CurrentLog.Add( $"They're constraining us with trapping pressure, switching removes the trap. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"They're constraining us with trapping pressure, switching removes the trap. Defensive Switch Evidence: {evidence}" );
             }
 
             if( theirTP.IsDecaying )
             {
                 evidence -= 1;
-                _ai.CurrentLog.Add( $"Their unit naturally decays, they may be unlikely to preserve it. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"Their unit naturally decays, they may be unlikely to preserve it. Defensive Switch Evidence: {evidence}" );
             }
 
-            float hpAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( attackTOP.Opponent );
+            float hpAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( attackTOP.Attacker );
             if( hpAfterHazards <= 0f )
             {
                 evidence -= 1;
-                _ai.CurrentLog.Add( $"If we recall this unit, it will faint to hazards when we switch it in later if we don't clear them. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"If they recall their unit, it will faint to hazards when they switch it in later if they don't clear them. Defensive Switch Evidence: {evidence}" );
 
                 if( defSwitchTOP.Opponent.RoleProfile.Traits.Contains( RoleTrait.HazardRemover ) )
                 {
                     evidence += 1;
-                    _ai.CurrentLog.Add( $"Our predicted switch candidate has hazard removal. Nulifying previous penalty. Defensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Our predicted switch candidate has hazard removal. Nulifying previous penalty. Defensive Switch Evidence: {evidence}" );
                 }
                 else
                 {
                     evidence -= 1;
-                    _ai.CurrentLog.Add( $"Our predicted switch candidate doesn't have hazard removal either. Defensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Our predicted switch candidate doesn't have hazard removal either. Defensive Switch Evidence: {evidence}" );
                 }
             }
 
@@ -1023,13 +1222,13 @@ public class BattleAI_ThreatIntent
             if( switchRestoresStability )
             {
                 evidence += 1;
-                _ai.CurrentLog.Add( $"Switching restores stability to our board. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"Switching restores stability to our board. Defensive Switch Evidence: {evidence}" );
             }
 
             if( attackTOP.OpponentPTKO > defSwitchTOP.OpponentPTKO )
             {
                 evidence += 1;
-                _ai.CurrentLog.Add( $"Switching relieves pressure. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"Switching relieves pressure. Defensive Switch Evidence: {evidence}" );
             }
             else
             {
@@ -1040,7 +1239,7 @@ public class BattleAI_ThreatIntent
             if( switchIsStableNextTurn )
             {
                 evidence += 1;
-                _ai.CurrentLog.Add( $"Our switch candidate is likely to be stable next turn. Defensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"Our switch candidate is likely to be stable next turn. Defensive Switch Evidence: {evidence}" );
             }
 
             //--Current Plan & GPA
@@ -1050,6 +1249,74 @@ public class BattleAI_ThreatIntent
                 {
                     evidence -= 1;
                     _tirLog.Add( $"They hold a material advantage, switching prevents favorable trading. Defensive Switch Evidence: {evidence}" );
+                }
+            }
+
+            if( _ai.IsDoubleBattle )
+            {
+                _tirLog.Add( $"" );
+                _tirLog.Add( $"This is a double battle! Checking defensive switch intent evidence in the context of doubles..." );
+
+                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                bool theyHaveAlly = true;
+                if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
+                {
+                    _tirLog.Add( $"They don't have an ally on the field, skipping!" );
+                    _tirLog.Add( $"" );
+                    theyHaveAlly = false;
+                    return evidence;
+                }
+
+                _tirLog.Add( $"Their ({tic.Threat.Name}) ally is: {theirAlly.Name} ({theirAlly.RoleProfile.PrimaryRole})" );
+                _tirLog.Add( $"" );
+
+                //--Our Ally Information
+                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
+                if( weHaveAlly )
+                {
+                    _tirLog.Add( $"Our ({_ai.CurrentUnitAdapter.Name}) ally is: {ourAlly.Name} ({ourAlly.RoleProfile.PrimaryRole})" );
+                    _tirLog.Add( $"" );
+                }
+
+                bool weCanProtect = _ai.UnitSim.CheckHasMove( _ai.CurrentUnitAdapter, "Protect" ) && _ai.GetBattleUnit( _ai.CurrentUnitAdapter.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool ourAllyCanProtect = weHaveAlly && _ai.UnitSim.CheckHasMove( ourAlly, "Protect" ) && _ai.GetBattleUnit( ourAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                //--Their Ally Information
+                var theirAllyRP = theirAlly.RoleProfile;
+                var theirAllyTraits = theirAllyRP.Traits;
+
+                bool theirAllyIsOffensive = theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker || theirAllyRP.PrimaryRole == RoleClass.RevengeKiller || theirAllyRP.PrimaryRole == RoleClass.SetupSweeper ||
+                theirAllyRP.PrimaryRole == RoleClass.Sweeper || theirAllyRP.PrimaryRole == RoleClass.TrickRoomAbuser || theirAllyRP.PrimaryRole == RoleClass.WallBreaker;
+
+                bool theirAllyIsDefensive = theirAllyRP.PrimaryRole == RoleClass.Wall || theirAllyRP.PrimaryRole == RoleClass.DefensiveSetup || theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker && theirAllyRP.SecondaryRoles.Contains( RoleClass.Wall );
+                bool theirAllyIsSupport = theirAllyRP.PrimaryRole == RoleClass.UtilitySupport || theirAllyRP.PrimaryRole == RoleClass.Disrupter;
+                bool theirAllyIsUtility = !theirAllyIsOffensive && !theirAllyIsDefensive;
+
+                bool theyCanProtect = _ai.UnitSim.CheckHasMove( tic.Threat, "Protect" ) && _ai.GetBattleUnit( tic.Threat.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool theirAllyCanProtect = theyHaveAlly && _ai.UnitSim.CheckHasMove( theirAlly, "Protect" ) && _ai.GetBattleUnit( theirAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                if( theirAllyCanProtect )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally can protect themselves while they switch - switch + protect is a common strategy. Defensive Switch Evidence: {evidence}" );
+                }
+
+                if( switchChangesWeather )
+                {
+                    bool theirAllyBenefitsWeather = _ai.UnitSim.Get_WeatherContextScore( theirAlly.Pokemon, candidatesWeather ) > 0;
+                    evidence += 1;
+                    _tirLog.Add( $"Their Defensive switch candidate changes weather to one their ally benefits from. Defensive Switch Evidence: {evidence}" );
+                }
+
+                if( theirAllyTraits.Contains( RoleTrait.IntimidateSupport ) && ( ourRP.Biases.Contains( RoleBias.Physical) || weHaveAlly && ourAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) ) )
+                {
+                    evidence += 1;
+                }
+
+                if( theirAllyTraits.Contains( RoleTrait.DemoralizeSupport ) && ( ourRP.Biases.Contains( RoleBias.Special) || weHaveAlly && ourAlly.RoleProfile.Biases.Contains( RoleBias.Special ) ) )
+                {
+                    evidence += 1;
                 }
             }
         }
@@ -1081,6 +1348,7 @@ public class BattleAI_ThreatIntent
             var offSwitchTOP = tic.OffensiveSwitchCandidateResult.Top;
             var switchEE = _ai.Projection.EvaluateExchange( offSwitchTOP.Attacker, offSwitchTOP.Opponent );
 
+            var ourRP = attackTOP.Opponent.RoleProfile;
             var theirCurrentRP = attackTOP.Attacker.RoleProfile;
 
             bool switchIsThreatenedByKO = offSwitchTOP.OpponentPTKO >= PotentialToKO.Dangerous;
@@ -1199,61 +1467,61 @@ public class BattleAI_ThreatIntent
                 if( myNewWeatherContext > theirNewWeatherContext )
                 {
                     evidence += 1;
-                    _ai.CurrentLog.Add( $"Switch candidate can swing the weather in our favor! Offensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Switch candidate can swing the weather in our favor! Offensive Switch Evidence: {evidence}" );
                 }
                 else
                 {
                     evidence -= 1;
-                    _ai.CurrentLog.Add( $"Switch candidate changes weather in our opponent's favor!. Offensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Switch candidate changes weather in our opponent's favor!. Offensive Switch Evidence: {evidence}" );
                 }
             }
 
             if( theirTP.ConstrainingPressure >= 4f )
             {
                 evidence -= 2;
-                _ai.CurrentLog.Add( $"They have high constraining pressure on us, so they are likely to continue to stay in. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"They have high constraining pressure on us, so they are likely to continue to stay in. Offensive Switch Evidence: {evidence}" );
             }
 
             if( theirTP.ForcesSwitch )
             {
                 evidence -= 1;
-                _ai.CurrentLog.Add( $"They believe they force us to switch, so they are unlikely to switch as a result. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"They believe they force us to switch, so they are unlikely to switch as a result. Offensive Switch Evidence: {evidence}" );
             }
 
             if( theirTP.Type == ThreatType.Constraining && ( theirCurrentRP.Traits.Contains( RoleTrait.ShadowTag ) || attackTOP.Opponent.Bindings.Count > 0 ) )
             {
                 evidence -= 3;
-                _ai.CurrentLog.Add( $"They're constraining us with trapping pressure, switching removes the trap. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"They're constraining us with trapping pressure, switching removes the trap. Offensive Switch Evidence: {evidence}" );
             }
 
             if( theirTP.EscalatingPressure >= 4f && theirTP.SweepPotential == false )
             {
                 evidence += 1;
-                _ai.CurrentLog.Add( $"They have high escalating pressure but their current unit does not have sweep potential. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"They have high escalating pressure but their current unit does not have sweep potential. Offensive Switch Evidence: {evidence}" );
             }
 
             if( theirTP.IsDecaying )
             {
                 evidence -= 1;
-                _ai.CurrentLog.Add( $"Their unit naturally decays, they may be unlikely to preserve it. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"Their unit naturally decays, they may be unlikely to preserve it. Offensive Switch Evidence: {evidence}" );
             }
 
             //--Pokemon dies to hazards check
-            float hpAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( attackTOP.Opponent );
+            float hpAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( attackTOP.Attacker );
             if( hpAfterHazards <= 0f )
             {
                 evidence -= 1;
-                _ai.CurrentLog.Add( $"If we recall this unit, it will faint to hazards when we switch it in later if we don't clear them. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"If they recall their unit, it will faint to hazards when they switch it in later if they don't clear them. Defensive Switch Evidence: {evidence}" );
 
                 if( offSwitchTOP.Opponent.RoleProfile.Traits.Contains( RoleTrait.HazardRemover ) )
                 {
                     evidence += 1;
-                    _ai.CurrentLog.Add( $"Our predicted switch candidate has hazard removal. Nulifying previous penalty. Offensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Our predicted switch candidate has hazard removal. Nulifying previous penalty. Offensive Switch Evidence: {evidence}" );
                 }
                 else
                 {
                     evidence -= 1;
-                    _ai.CurrentLog.Add( $"Our predicted switch candidate doesn't have hazard removal either. Offensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"Our predicted switch candidate doesn't have hazard removal either. Offensive Switch Evidence: {evidence}" );
                 }
             }
 
@@ -1262,13 +1530,13 @@ public class BattleAI_ThreatIntent
             if( gainsControl )
             {
                 evidence += 1;
-                _ai.CurrentLog.Add( $"Our switch candidate gains control next turn. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"Our switch candidate gains control next turn. Offensive Switch Evidence: {evidence}" );
             }
 
             if( offSwitchTOP.OpponentPTKO > attackTOP.OpponentPTKO )
             {
                 evidence += 1;
-                _ai.CurrentLog.Add( $"Our switch candidate is more threatening than my current mon. Offensive Switch Evidence: {evidence}" );
+                _tirLog.Add( $"Our switch candidate is more threatening than my current mon. Offensive Switch Evidence: {evidence}" );
             }
 
             //--Current Plan & GPA
@@ -1277,7 +1545,75 @@ public class BattleAI_ThreatIntent
                 if( offSwitchTOP.Attacker.Pokemon == theirCP.FocusMon )
                 {
                     evidence += 1;
-                    _ai.CurrentLog.Add( $"They are looking to sweep and their offensive switch candidate is their intended sweeper. Offensive Switch Evidence: {evidence}" );
+                    _tirLog.Add( $"They are looking to sweep and their offensive switch candidate is their intended sweeper. Offensive Switch Evidence: {evidence}" );
+                }
+            }
+
+            if( _ai.IsDoubleBattle )
+            {
+                _tirLog.Add( $"" );
+                _tirLog.Add( $"This is a double battle! Checking Offensive Switch intent evidence in the context of doubles..." );
+
+                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                bool theyHaveAlly = true;
+                if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
+                {
+                    _tirLog.Add( $"They don't have an ally on the field, skipping!" );
+                    _tirLog.Add( $"" );
+                    theyHaveAlly = false;
+                    return evidence;
+                }
+
+                _tirLog.Add( $"Their ({tic.Threat.Name}) ally is: {theirAlly.Name} ({theirAlly.RoleProfile.PrimaryRole})" );
+                _tirLog.Add( $"" );
+
+                //--Our Ally Information
+                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
+                if( weHaveAlly )
+                {
+                    _tirLog.Add( $"Our ({_ai.CurrentUnitAdapter.Name}) ally is: {ourAlly.Name} ({ourAlly.RoleProfile.PrimaryRole})" );
+                    _tirLog.Add( $"" );
+                }
+
+                bool weCanProtect = _ai.UnitSim.CheckHasMove( _ai.CurrentUnitAdapter, "Protect" ) && _ai.GetBattleUnit( _ai.CurrentUnitAdapter.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool ourAllyCanProtect = weHaveAlly && _ai.UnitSim.CheckHasMove( ourAlly, "Protect" ) && _ai.GetBattleUnit( ourAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                //--Their Ally Information
+                var theirAllyRP = theirAlly.RoleProfile;
+                var theirAllyTraits = theirAllyRP.Traits;
+
+                bool theirAllyIsOffensive = theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker || theirAllyRP.PrimaryRole == RoleClass.RevengeKiller || theirAllyRP.PrimaryRole == RoleClass.SetupSweeper ||
+                theirAllyRP.PrimaryRole == RoleClass.Sweeper || theirAllyRP.PrimaryRole == RoleClass.TrickRoomAbuser || theirAllyRP.PrimaryRole == RoleClass.WallBreaker;
+
+                bool theirAllyIsDefensive = theirAllyRP.PrimaryRole == RoleClass.Wall || theirAllyRP.PrimaryRole == RoleClass.DefensiveSetup || theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker && theirAllyRP.SecondaryRoles.Contains( RoleClass.Wall );
+                bool theirAllyIsSupport = theirAllyRP.PrimaryRole == RoleClass.UtilitySupport || theirAllyRP.PrimaryRole == RoleClass.Disrupter;
+                bool theirAllyIsUtility = !theirAllyIsOffensive && !theirAllyIsDefensive;
+
+                bool theyCanProtect = _ai.UnitSim.CheckHasMove( tic.Threat, "Protect" ) && _ai.GetBattleUnit( tic.Threat.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool theirAllyCanProtect = theyHaveAlly && _ai.UnitSim.CheckHasMove( theirAlly, "Protect" ) && _ai.GetBattleUnit( theirAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                if( theirAllyCanProtect )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally can protect themselves while they switch - switch + protect is a common strategy. Offensive Switch Evidence: {evidence}" );
+                }
+
+                if( switchChangesWeather )
+                {
+                    bool theirAllyBenefitsWeather = _ai.UnitSim.Get_WeatherContextScore( theirAlly.Pokemon, candidatesWeather ) > 0;
+                    evidence += 1;
+                    _tirLog.Add( $"Their Offensive Switch candidate changes weather to one their ally benefits from. Offensive Switch Evidence: {evidence}" );
+                }
+
+                if( theirAllyTraits.Contains( RoleTrait.IntimidateSupport ) && ( ourRP.Biases.Contains( RoleBias.Physical) || weHaveAlly && ourAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) ) )
+                {
+                    evidence += 1;
+                }
+
+                if( theirAllyTraits.Contains( RoleTrait.DemoralizeSupport ) && ( ourRP.Biases.Contains( RoleBias.Special) || weHaveAlly && ourAlly.RoleProfile.Biases.Contains( RoleBias.Special ) ) )
+                {
+                    evidence += 1;
                 }
             }
         }
@@ -1494,6 +1830,90 @@ public class BattleAI_ThreatIntent
                     _tirLog.Add( $"They hold a material advantage, setting up introduces potentially unnecessary risk. Setup Evidence: {evidence}" );
                 }
             }
+
+            if( _ai.IsDoubleBattle )
+            {
+                _tirLog.Add( $"" );
+                _tirLog.Add( $"This is a double battle! Checking Setup intent evidence in the context of doubles..." );
+
+                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                bool theyHaveAlly = true;
+                if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
+                {
+                    _tirLog.Add( $"They don't have an ally on the field, skipping!" );
+                    _tirLog.Add( $"" );
+                    theyHaveAlly = false;
+                    return evidence;
+                }
+
+                _tirLog.Add( $"Their ({tic.Threat.Name}) ally is: {theirAlly.Name} ({theirAlly.RoleProfile.PrimaryRole})" );
+                _tirLog.Add( $"" );
+
+                //--Our Ally Information
+                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
+                if( weHaveAlly )
+                {
+                    _tirLog.Add( $"Our ({_ai.CurrentUnitAdapter.Name}) ally is: {ourAlly.Name} ({ourAlly.RoleProfile.PrimaryRole})" );
+                    _tirLog.Add( $"" );
+                }
+
+                bool weCanProtect = _ai.UnitSim.CheckHasMove( _ai.CurrentUnitAdapter, "Protect" ) && _ai.GetBattleUnit( _ai.CurrentUnitAdapter.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool ourAllyCanProtect = weHaveAlly && _ai.UnitSim.CheckHasMove( ourAlly, "Protect" ) && _ai.GetBattleUnit( ourAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                //--Their Ally Information
+                var theirAllyRP = theirAlly.RoleProfile;
+                var theirAllyTraits = theirAllyRP.Traits;
+
+                bool theirAllyIsOffensive = theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker || theirAllyRP.PrimaryRole == RoleClass.RevengeKiller || theirAllyRP.PrimaryRole == RoleClass.SetupSweeper ||
+                theirAllyRP.PrimaryRole == RoleClass.Sweeper || theirAllyRP.PrimaryRole == RoleClass.TrickRoomAbuser || theirAllyRP.PrimaryRole == RoleClass.WallBreaker;
+
+                bool theirAllyIsDefensive = theirAllyRP.PrimaryRole == RoleClass.Wall || theirAllyRP.PrimaryRole == RoleClass.DefensiveSetup || theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker && theirAllyRP.SecondaryRoles.Contains( RoleClass.Wall );
+                bool theirAllyIsSupport = theirAllyRP.PrimaryRole == RoleClass.UtilitySupport || theirAllyRP.PrimaryRole == RoleClass.Disrupter;
+                bool theirAllyIsUtility = !theirAllyIsOffensive && !theirAllyIsDefensive;
+
+                bool theyCanProtect = _ai.UnitSim.CheckHasMove( tic.Threat, "Protect" ) && _ai.GetBattleUnit( tic.Threat.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool theirAllyCanProtect = theyHaveAlly && _ai.UnitSim.CheckHasMove( theirAlly, "Protect" ) && _ai.GetBattleUnit( theirAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                bool theirAllyHas_FakeOut       = _ai.CanUseFakeOut( theirAlly, _ai.CurrentUnitAdapter );
+                bool theirAllyHas_FollowMe      = _ai.UnitSim.CheckHasMove( theirAlly, "Follow Me" );
+                bool theirAllyHas_RagePowder    = _ai.UnitSim.CheckHasMove( theirAlly, "Rage Powder" );
+                bool theirAllyHas_WideGuard     = _ai.UnitSim.CheckHasMove( theirAlly, "Wide Guard" );
+                bool theirAllyHas_QuickGuard    = _ai.UnitSim.CheckHasMove( theirAlly, "Quick Guard" );
+                bool theirAllyHas_Taunt         = theirAllyTraits.Contains( RoleTrait.Taunt );
+                bool theirAllyHas_Encore        = theirAllyTraits.Contains( RoleTrait.Encore );
+
+                if( theirAllyHas_FakeOut )
+                {
+                    evidence += 2;
+                    _tirLog.Add( $"Their ally has FakeOut. Setup Evidence: {evidence}" );
+                }
+
+                if( theirAllyHas_FollowMe )
+                {
+                    evidence += 2;
+                    _tirLog.Add( $"Their ally has FollowMe. Setup Evidence: {evidence}" );
+                }
+
+                if( theirAllyHas_RagePowder )
+                {
+                    evidence += 2;
+                    _tirLog.Add( $"Their ally has RagePowder. Setup Evidence: {evidence}" );
+                }
+
+                if( theirAllyHas_WideGuard )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally has WideGuard. Setup Evidence: {evidence}" );
+                }
+
+                if( theirAllyHas_QuickGuard )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally has QuickGuard. Setup Evidence: {evidence}" );
+                }
+
+            }
         }
         else
         {
@@ -1543,7 +1963,7 @@ public class BattleAI_ThreatIntent
             bool theyCreateDecisiveState = false;
 
             //--Status Effect Evidence. Toxic, Taunt, etc.
-            if( status.Type == OffensiveStatusType.StatusEffect )
+            if( status.StatusType == OffensiveStatusType.StatusEffect || status.StatusType == OffensiveStatusType.Disruption )
             {
                 _tirLog.Add( $"They are looking to use a move with a status effect." );
 
@@ -1658,7 +2078,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Entry Hazard Evidence
-            if( status.Type == OffensiveStatusType.EntryHazard )
+            if( status.StatusType == OffensiveStatusType.EntryHazard )
             {
                 _tirLog.Add( $"They are looking to set entry hazards" );
                 var ourCourt = offStatusTOP.Opponent.CourtLocation == CourtLocation.TopCourt ? offStatusTOP.Field.TopCourtConditions : offStatusTOP.Field.BottomCourtConditions;
@@ -1721,7 +2141,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Stat Debuff Evidence
-            if( status.Type == OffensiveStatusType.StatDebuff )
+            if( status.StatusType == OffensiveStatusType.StatDebuff )
             {
                 _tirLog.Add( $"They are looking to use a stat debuff move." );
                 var move = status.Move;
@@ -1813,7 +2233,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Phazing Evidence
-            if( status.Type == OffensiveStatusType.Phaze )
+            if( status.StatusType == OffensiveStatusType.Phaze )
             {
                 _tirLog.Add( $"They are looking to phaze us out." );
 
@@ -1956,7 +2376,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"Their status move gives them speed control next turn. Offensive Status Evidence: {evidence}" );
             }
 
-            if( ( theirTP.Type == ThreatType.Disruptive || theirTP.DisruptivePressure >= 5f ) && status.Type != OffensiveStatusType.EntryHazard )
+            if( ( theirTP.Type == ThreatType.Disruptive || theirTP.DisruptivePressure >= 5f ) && status.StatusType != OffensiveStatusType.EntryHazard )
             {
                 evidence += 1;
                 _tirLog.Add( $"They are a disruptive threat or have high disruptive pressure and are looking to use a status move that isn't an entry hazard. Offensive Status Evidence: {evidence}" );
@@ -1966,6 +2386,13 @@ public class BattleAI_ThreatIntent
             {
                 evidence += 1;
                 _tirLog.Add( $"They have high persistent pressure or a persistent threat, so they may be less likely to attack and more likely to click a status-category move. Offensive Status Evidence: {evidence}" );
+            }
+
+            _tirLog.Add( $"Offensive Status TOP Units: {offStatusTOP.Attacker.Name} ({offStatusTOP.Attacker.Ability}), {offStatusTOP.Opponent.Name} ({offStatusTOP.Opponent.Ability})" );
+            if( offStatusTOP.Opponent.Ability == AbilityID.MagicBounce || offStatusTOP.Opponent.Ability == AbilityID.MagicGuard )
+            {
+                evidence -= 3;
+                _tirLog.Add( $"Our current unit has magic bounce or magic guard, they cannot use a status move if we stay. Offensive Status Evidence: {evidence}" );
             }
 
             //--PBS
@@ -1988,19 +2415,19 @@ public class BattleAI_ThreatIntent
             }
 
             //--Current Plan & GPA
-            if( status.Type != OffensiveStatusType.EntryHazard && _ai.GamePlan.OurBlockers.Contains( offStatusTOP.Opponent.Pokemon ) )
+            if( status.StatusType != OffensiveStatusType.EntryHazard && _ai.GamePlan.OurBlockers.Contains( offStatusTOP.Opponent.Pokemon ) )
             {
                 evidence += 1;
                 _tirLog.Add( $"We are a game plan blocker and they are looking to cripple us with status. Offensive Status Evidence: {evidence}" );
 
-                if( status.Type == OffensiveStatusType.StatusEffect )
+                if( status.StatusType == OffensiveStatusType.StatusEffect || status.StatusType == OffensiveStatusType.Disruption )
                 {
                     evidence += 1;
                     _tirLog.Add( $"That status is also a status effect such as toxic or taunt. Offensive Status Evidence: {evidence}" );
                 }
             }
 
-            if( theirCP.FocusMon == offStatusTOP.Opponent.Pokemon && theirCP.Type == PlanType.Aggress && status.Type != OffensiveStatusType.EntryHazard )
+            if( theirCP.FocusMon == offStatusTOP.Opponent.Pokemon && theirCP.Type == PlanType.Aggress && status.StatusType != OffensiveStatusType.EntryHazard )
             {
                 evidence += 1;
                 _tirLog.Add( $"They are looking to aggress our current pokemon. Offensive Status Evidence: {evidence}" );
@@ -2010,6 +2437,82 @@ public class BattleAI_ThreatIntent
             {
                 evidence += 1;
                 _tirLog.Add( $"Their plan allows sacrificing, statusing before fainting can create value. Offensive Status Evidence: {evidence}" );
+            }
+
+            //--Doubles
+            if( _ai.IsDoubleBattle )
+            {
+                _tirLog.Add( $"" );
+                _tirLog.Add( $"This is a double battle! Checking Offensive Status intent evidence in the context of doubles..." );
+
+                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                bool theyHaveAlly = true;
+                if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
+                {
+                    _tirLog.Add( $"They don't have an ally on the field, skipping!" );
+                    _tirLog.Add( $"" );
+                    theyHaveAlly = false;
+                    return evidence;
+                }
+
+                _tirLog.Add( $"Their ({tic.Threat.Name}) ally is: {theirAlly.Name} ({theirAlly.RoleProfile.PrimaryRole})" );
+                _tirLog.Add( $"" );
+
+                //--Our Ally Information
+                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
+                if( weHaveAlly )
+                {
+                    _tirLog.Add( $"Our ({_ai.CurrentUnitAdapter.Name}) ally is: {ourAlly.Name} ({ourAlly.RoleProfile.PrimaryRole})" );
+                    _tirLog.Add( $"" );
+                }
+
+                bool weCanProtect = _ai.UnitSim.CheckHasMove( _ai.CurrentUnitAdapter, "Protect" ) && _ai.GetBattleUnit( _ai.CurrentUnitAdapter.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool ourAllyCanProtect = weHaveAlly && _ai.UnitSim.CheckHasMove( ourAlly, "Protect" ) && _ai.GetBattleUnit( ourAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                //--Their Ally Information
+                var theirAllyRP = theirAlly.RoleProfile;
+                var theirAllyTraits = theirAllyRP.Traits;
+
+                bool theirAllyIsOffensive = theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker || theirAllyRP.PrimaryRole == RoleClass.RevengeKiller || theirAllyRP.PrimaryRole == RoleClass.SetupSweeper ||
+                theirAllyRP.PrimaryRole == RoleClass.Sweeper || theirAllyRP.PrimaryRole == RoleClass.TrickRoomAbuser || theirAllyRP.PrimaryRole == RoleClass.WallBreaker;
+
+                bool theirAllyIsDefensive = theirAllyRP.PrimaryRole == RoleClass.Wall || theirAllyRP.PrimaryRole == RoleClass.DefensiveSetup || theirAllyRP.PrimaryRole == RoleClass.BulkyAttacker && theirAllyRP.SecondaryRoles.Contains( RoleClass.Wall );
+                bool theirAllyIsSupport = theirAllyRP.PrimaryRole == RoleClass.UtilitySupport || theirAllyRP.PrimaryRole == RoleClass.Disrupter;
+                bool theirAllyIsUtility = !theirAllyIsOffensive && !theirAllyIsDefensive;
+
+                bool theyCanProtect = _ai.UnitSim.CheckHasMove( tic.Threat, "Protect" ) && _ai.GetBattleUnit( tic.Threat.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+                bool theirAllyCanProtect = theyHaveAlly && _ai.UnitSim.CheckHasMove( theirAlly, "Protect" ) && _ai.GetBattleUnit( theirAlly.Pokemon ).Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+
+                bool theirAllyHas_FakeOut       = _ai.CanUseFakeOut( theirAlly, _ai.CurrentUnitAdapter );
+                bool theirAllyHas_FollowMe      = _ai.UnitSim.CheckHasMove( theirAlly, "Follow Me" );
+                bool theirAllyHas_RagePowder    = _ai.UnitSim.CheckHasMove( theirAlly, "Rage Powder" );
+                bool theirAllyHas_SpeedControl  = theirAllyTraits.Contains( RoleTrait.SpeedControl );
+
+                if( theirAllyHas_FakeOut )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally has Fake Out. Offensive Status Evidence: {evidence}" );
+                }
+
+                if( theirAllyHas_FollowMe )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally has Follow Me. Offensive Status Evidence: {evidence}" );
+                }
+
+                if( theirAllyHas_RagePowder )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally has Rage Powder. Offensive Status Evidence: {evidence}" );
+                }
+
+                if( theirAllyHas_SpeedControl )
+                {
+                    evidence += 1;
+                    _tirLog.Add( $"Their ally has Speed Control. Offensive Status Evidence: {evidence}" );
+                }
+
             }
         }
         else
@@ -2023,18 +2526,48 @@ public class BattleAI_ThreatIntent
         return evidence;
     }
 
+    private int SupportiveStatusEvidence()
+    {
+        int evidence = 0;
+
+        // Trick Room
+        // Increase if ally
+        // Fake Out
+        // Follow Me
+        // Rage Powder
+        // Wide Guard
+        // Decrease if ally is already extremely fast and benefits from normal Speed order.
+
+        // Tailwind
+        // Increase if ally
+        // Fast offensive role
+        // Choice item
+        // Glass cannon
+
+        return evidence;
+    }
+
 }
 
 public enum IntentType{ None, Attack, DefensiveSwitch, OffensiveSwitch, Setup, OffensiveStatus, SupportiveStatus, Protect }
 public struct ThreatIntentResult
 {
     public IBattleAIUnit Threat;
-    public IntentType PrimaryIntent;
-    public IntentType SecondaryIntent;
-    public int PrimaryEvidence;
-    public int SecondaryEvidence;
+    public Intent PrimaryIntent;
+    public Intent SecondaryIntent;
+    public int TotalEvidence;
     public float Confidence;
-    public object IntentObject;
+
+    public bool CheckSecondaryIntent;
+
+    public Dictionary<IntentType, int> IntentEvidence;
+}
+
+public struct Intent
+{
+    public IntentType IntentType;
+    public IActionResult IntentResult;
+    public int Evidence;
 }
 
 public struct ThreatIntentCandidates

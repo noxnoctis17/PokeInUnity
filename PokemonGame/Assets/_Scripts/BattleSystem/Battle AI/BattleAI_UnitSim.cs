@@ -274,16 +274,47 @@ public class BattleAI_UnitSim
         };
     }
 
-    public Dictionary<Stat, int> BuildStatStagesDictionary( StatStageDelta delta )
+    public void ClearStatStages( IBattleAIUnit unit )
     {
-        return new()
+        foreach( var sc in unit.StatStages )
         {
-            { Stat.Attack,      delta.Attack },
-            { Stat.Defense,     delta.Defense },
-            { Stat.SpAttack,    delta.SpAttack },
-            { Stat.SpDefense,   delta.SpDefense },
-            { Stat.Speed,       delta.Speed },
-        };
+            unit.StatStages[sc.Key] = 0;
+        }
+    }
+
+    public void UndoStageDelta( IBattleAIUnit unit, StatStageDelta delta )
+    {
+        //--Positive Delta Changes
+        if( delta.Attack > 0 )
+            unit.StatStages[Stat.Attack] -= delta.Attack;
+
+        if( delta.Defense > 0 )
+            unit.StatStages[Stat.Defense] -= delta.Defense;
+
+        if( delta.SpAttack > 0 )
+            unit.StatStages[Stat.SpAttack] -= delta.SpAttack;
+
+        if( delta.SpDefense > 0 )
+            unit.StatStages[Stat.SpDefense] -= delta.SpDefense;
+
+        if( delta.Speed > 0 )
+            unit.StatStages[Stat.Speed] -= delta.Speed;
+
+        //--Negative Delta Changes
+        if( delta.Attack < 0 )
+            unit.StatStages[Stat.Attack] += delta.Attack;
+
+        if( delta.Defense < 0 )
+            unit.StatStages[Stat.Defense] += delta.Defense;
+
+        if( delta.SpAttack < 0 )
+            unit.StatStages[Stat.SpAttack] += delta.SpAttack;
+
+        if( delta.SpDefense < 0 )
+            unit.StatStages[Stat.SpDefense] += delta.SpDefense;
+
+        if( delta.Speed < 0 )
+            unit.StatStages[Stat.Speed] += delta.Speed;
     }
 
     public SimulatedField BuildSimField()
@@ -302,6 +333,13 @@ public class BattleAI_UnitSim
         foreach( var kvp in _field.ActiveCourts[CourtLocation.BottomCourt].Conditions )
             bottomCourtConditions.Add( kvp.Key, kvp.Value.TimeLeft );
 
+        Dictionary<FieldConditionID, int> fieldConditions = new();
+
+        foreach( var kvp in _field.FieldConditions )
+        {
+            fieldConditions.Add( kvp.Key, kvp.Value.TimeLeft );
+        }
+
         SimulatedField field = new()
         {
             Weather = weather,
@@ -310,8 +348,9 @@ public class BattleAI_UnitSim
             TerrainDuration = terrainDuration,
             TopCourtConditions = topCourtConditions,
             BottomCourtConditions = bottomCourtConditions,
+            FieldConditions = fieldConditions, //--trick room is in here now! --07/01/26
             TrickRoomActive = _ai.BattleSystem.BattleFlags[BattleFlag.TrickRoom],
-            TrickRoomDuration = 4, //--We have to move TR out of CourtConditionDB ASAP!
+            TrickRoomDuration = 4, //--We have to move TR out of CourtConditionDB ASAP! //--this has been done as of late june 2026, need to make the necessary tracking adjustments to simfield!
         };
 
         // LogSimField( field );
@@ -1035,7 +1074,7 @@ public class BattleAI_UnitSim
     {
         var effects = move.MoveSO.MoveEffects;
 
-        if( effects.SwitchType == SwitchEffectType.ForceOpponentOut )
+        if( effects.SwitchType == SwitchEffectType.Phaze )
             return true;
         else
             return false;
@@ -1106,7 +1145,7 @@ public class BattleAI_UnitSim
         for( int i = 0; i < pokemon.ActiveMoves.Count; i++ )
         {
             var move = pokemon.ActiveMoves[i];
-            if( move.MoveSO.MoveEffects.SwitchType == SwitchEffectType.ForceOpponentOut )
+            if( move.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze )
                 return true;
             else
                 continue;
@@ -1459,7 +1498,7 @@ public class BattleAI_UnitSim
         float effectiveness = 1f;
 
         //--Base Effectiveness
-        effectiveness = TypeChart.GetTotalEffectiveness( target.Type, move );
+        effectiveness = TypeChart.GetTotalMoveEffectiveness( target.Type, move );
 
         //--Contextual Effectiveness. Typically ability-based effectiveness changes, such as levitate or water absorb. growing list as of 04/11/26
         if( ( target.Ability == AbilityID.Levitate || target.IsUngrounded ) && move.MoveType == PokemonType.Ground )
@@ -1844,6 +1883,8 @@ public class SimulatedUnit : IBattleAIUnit
     public bool HasPriority { get; set; }
     public bool IsUngrounded { get; set; }
     public float Expendability { get; set; }
+
+    public bool Phazed { get; set; }
 
     public AbilityID Ability { get; set; }
     public BattleItemEffectID Item { get; set; }

@@ -33,7 +33,9 @@ MonoBehaviour:
   _drainPercentage: 0
   _healType: 0
   _healAmount: 0
-  _hitRange: {x: 0, y: 0}
+  _setDamageType: 0
+  _setDamageAmount: 0
+  _hitRange: {x: 3, y: 0}
   _flags: 02000000
   _moveEffects:
     _target: 0
@@ -46,5 +48,6 @@ MonoBehaviour:
     _weather: 0
     _terrain: 0
     _courtCondition: 0
+    _fieldCondition: 0
     _switchType: 0
   _secondaryMoveEffects: []

@@ -218,7 +218,7 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.SitrusBerry,
 
-                OnAfterTargetTakeDamage = ( unit ) =>
+                OnAfterTakeDamage = ( unit ) =>
                 {
                     Debug.Log( $"{unit.Pokemon.NickName} is holding a Sitrus Berry!" );
                     if( unit.Pokemon.IsBelowHPPercent( 50 ) && unit.Pokemon.CurrentHP > 0 )
@@ -408,6 +408,28 @@ public class BattleItemDB
                 ID = BattleItemEffectID.SafetyGoggles,
                 //--Effect for this item should be handled in sandstorm damage check + powder move check
             }
+        },
+        {
+            BattleItemEffectID.Eviolite, new()
+            {
+                ID = BattleItemEffectID.Eviolite,
+
+                OnItemEnter = ( unit ) =>
+                {
+                    bool evos = unit.Pokemon.PokeSO.Evolutions.Count > 0;
+                    if( evos )
+                    {
+                        unit.Pokemon.ApplyDirectStatModifier( Stat.Defense, DirectModifierCause.Eviolite, 1.5f );
+                        unit.Pokemon.ApplyDirectStatModifier( Stat.SpDefense, DirectModifierCause.Eviolite, 1.5f );
+                    }
+                },
+
+                OnItemExit = ( unit ) =>
+                {
+                    unit.Pokemon.RemoveDirectStatModifier( Stat.Defense, DirectModifierCause.Eviolite );
+                    unit.Pokemon.RemoveDirectStatModifier( Stat.SpDefense, DirectModifierCause.Eviolite );
+                }
+            }
         }
     };
 }
@@ -442,5 +464,6 @@ public enum BattleItemEffectID
     AssaultVest,
     LumBerry,
     SafetyGoggles,
+    Eviolite,
 
 }
