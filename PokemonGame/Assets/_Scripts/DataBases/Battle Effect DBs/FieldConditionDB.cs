@@ -31,11 +31,11 @@ public class FieldConditionDB
             {
                 FieldConditionID.TrickRoom, new( 5, 0 ) //--Duration + modifier get set in constructor. OnStart sets TimeLeft via public function. TimeLeft is what is actually ticked down.
                 {
-                    StartMessage = ( BattleSystem bs, Pokemon pokemon ) =>
+                    StartMessage = ( bs, pokemon ) =>
                     {
                         var bf = bs.Field;
 
-                        if( bf.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) )
+                        if( bs.BattleFlags[BattleFlag.TrickRoom] )
                             return $"{pokemon.NickName} has returned the dimensions of speed back to normal!";
                         else
                             return $"{pokemon.NickName} has twisted the dimensions of speed!";
@@ -49,7 +49,7 @@ public class FieldConditionDB
                         if( bs.BattleFlags[BattleFlag.TrickRoom] )
                         {
                             Debug.Log( "Trick Room is already up! Reversing Trick Room!" );
-                            field.FieldConditions[FieldConditionID.TrickRoom].OnEnd?.Invoke( bs, field, user );
+                            field.FieldConditions[FieldConditionID.TrickRoom].OnEnd?.Invoke( bs, field );
                         }
                         else
                         {
@@ -63,7 +63,7 @@ public class FieldConditionDB
                         }
                     },
 
-                    OnEnd = ( bs, field, user ) =>
+                    OnEnd = ( bs, field ) =>
                     {
                         Debug.Log( "Trick Room OnEnd" );
                         bs.SetBattleFlag( BattleFlag.TrickRoom, false );

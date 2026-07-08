@@ -42,7 +42,7 @@ MonoBehaviour:
     _level: 9
     _nature: 14
     _ability: 17
-    _heldItem: {fileID: 11400000, guid: d482ef0897599bc478295da34c80ef41, type: 2}
+    _heldItem: {fileID: 11400000, guid: 16a2c6dadc3ee49429effd19cd0216ce, type: 2}
     _hpEVs: 0
     _attackEVs: 0
     _defenseEVs: 0

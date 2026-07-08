@@ -297,10 +297,11 @@ public class BattleArena : MonoBehaviour
 
         playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
 
+        _battleSystem.AddAITrainer( _1v1_AITrainerTop );
         enemyUnit.SetAI( true ); //--enable AI for this unit
         enemyUnit.Setup( _battleSystem.WildPokemon, null, _battleSystem.WildPokemonHUD, _battleSystem ); //--REMEMBER!!!!! _singlesUnit2 is not actually being assigned to, it's only here for its position!!
         yield return null;
-        enemyUnit.InitializeAI();
+        enemyUnit.SetAITrainer( _1v1_AITrainerTop );
 
         //--Make everyone face the arena center
         yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _singlesUnit2 ); //--Player Trainer
@@ -368,6 +369,7 @@ public class BattleArena : MonoBehaviour
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
+        List<BattleUnit> enemyUnitList = new(){ enemyUnit };
 
         //--Assign relevant Battle Units
         _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
@@ -377,7 +379,8 @@ public class BattleArena : MonoBehaviour
         _battleSystem.AddAITrainer( _1v1_AITrainerTop );
         enemyUnit.SetAI( true ); //--enable AI for this unit
         enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
-        enemyUnit.InitializeAI();
+        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnitList, _battleSystem.TopTrainer1 );
+        enemyUnit.SetAITrainer( _1v1_AITrainerTop );
         // enemyUnit.UpdateUnit( enemyUnit.BattleAI.RequestLead() );
 
         _animatingEnemyPositionsIn = true;
@@ -492,14 +495,10 @@ public class BattleArena : MonoBehaviour
         {
             enemyUnits[i].SetAI( true );
             enemyUnits[i].Setup( enemyMons[i], _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[i], _battleSystem );
+            enemyUnits[i].SetAITrainer( _1v1_AITrainerTop );
         }
 
-        for( int i = 0; i < enemyMons.Count; i++ )
-        {
-            enemyUnits[i].InitializeAI();
-        }
-
-        // _1v1_AITrainerTop.InitializeAI(); //--We should only need to initialize the ai trainer now instead of each unit. we need to migrate ai initialization out of BattleUnit.cs.
+        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnits, _battleSystem.TopTrainer1 );
 
         //--Make everyone face the arena center
         yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _singlesTrainer2 );
@@ -586,6 +585,9 @@ public class BattleArena : MonoBehaviour
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit  = _singlesUnit2.GetComponent<BattleUnit>();
 
+        List<BattleUnit> playerUnitList = new(){ playerUnit };
+        List<BattleUnit> enemyUnitList = new(){ enemyUnit };
+
         //--Assign relevant Battle Units
         _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         
@@ -601,8 +603,11 @@ public class BattleArena : MonoBehaviour
         // Debug.LogError( $"Enemy Unit (Top Trainer Trainer) Lead Pokemon: {topLeadMon.NickName}" );
         enemyUnit.Setup( topLeadMon, _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
 
-        playerUnit.InitializeAI();
-        enemyUnit.InitializeAI();
+        playerUnit.SetAITrainer( _1v1_AITrainerBottom );
+        enemyUnit.SetAITrainer( _1v1_AITrainerTop );
+
+        _1v1_AITrainerBottom.InitializeAI( _battleSystem, playerUnitList, _battleSystem.BottomTrainer1 );
+        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnitList, _battleSystem.TopTrainer1 );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit

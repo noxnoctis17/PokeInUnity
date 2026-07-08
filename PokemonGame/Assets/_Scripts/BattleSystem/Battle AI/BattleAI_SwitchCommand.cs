@@ -21,8 +21,8 @@ public class BattleAI_SwitchCommand
     {
         _ai.IncreaseSwitchAmount();
         _ai.SetLastSentInPokemon( incomingPokemon );
-        _ai.SetLastOpposingPokemon( _ai.TheirActiveBattleAIUnits.ToList() );
-        _ai.BattleSystem.SetSwitchPokemonCommand( incomingPokemon, _ai.Unit, true );
+        _ai.SetLastOpposingPokemon( _ai.Blackboard.TheirActiveBattleAIUnits.ToList() );
+        _ai.BattleSystem.SetSwitchPokemonCommand( incomingPokemon, _ai.CurrentUnitDeciding, true );
     }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -178,14 +178,14 @@ public class BattleAI_SwitchCommand
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Expendability Score: {expendabilityScore}. Score: {score}" );
 
                 //--Role Preservation
-                if( _ai.OurTeamPieceValues.TryGetValue( returnPokemon.Pokemon, out var currentPieceValue ) )
+                if( _ai.Blackboard.OurTeamPieceValues.TryGetValue( returnPokemon.Pokemon, out var currentPieceValue ) )
                 {
                     int preserveOffensivePieceBonus = Mathf.FloorToInt( currentPieceValue.OffensiveValue * 0.5f );
                     score += preserveOffensivePieceBonus;
                     // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Preserve Offensive Piece Bonus: {preserveOffensivePieceBonus}. Score: {score}" );
                 }
 
-                if( _ai.OurTeamPieceValues.TryGetValue( candidateAdapter.Pokemon, out var candidatePieceValue ) )
+                if( _ai.Blackboard.OurTeamPieceValues.TryGetValue( candidateAdapter.Pokemon, out var candidatePieceValue ) )
                 {
                     int deathValuePenalty = Mathf.FloorToInt( candidatePieceValue.OffensiveValue * 0.5f );
                     score -= deathValuePenalty;
@@ -237,7 +237,7 @@ public class BattleAI_SwitchCommand
                 // defensiveSwitchLog.Add( $"" );
 
                 //--are WE forced to switch next turn?
-                float weSwitchNextProb = _ai.UnitSim.PredictSwitchProbability( next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, switchTOP.Opponent_EndOfTurnHP, switchTOP.Attacker_EndOfTurnHP, next.Attacker.Expendability );
+                float weSwitchNextProb = _ai.UnitSim.PredictSwitchProbability( next.Attacker.Pokemon, next.OpponentPTKO, next.AttackerPTKO, next.AttackerMovedFirst, switchTOP.Opponent_EndOfTurnHP, switchTOP.Attacker_EndOfTurnHP, next.Attacker.Expendability );
                 score -= Mathf.FloorToInt( 30f * weSwitchNextProb );
 
                 //--Do we die immediately next turn?
@@ -249,7 +249,7 @@ public class BattleAI_SwitchCommand
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Next - Attacker Dies before acting: {next.Attacker_DiesBeforeActing}. Attacker end of turn hpr: {next.Attacker_EndOfTurnHP}. Are we forced to switch: {areWeForcedToSwitch}. Score: {score}" );
 
                 //--Do we pressure and force a switch? Do we KO?
-                float theySwitchNextProb = _ai.UnitSim.PredictSwitchProbability( next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, switchTOP.Attacker_EndOfTurnHP, switchTOP.Opponent_EndOfTurnHP, next.Opponent.Expendability );
+                float theySwitchNextProb = _ai.UnitSim.PredictSwitchProbability( next.Opponent.Pokemon, next.AttackerPTKO, next.OpponentPTKO, next.AttackerMovedFirst, switchTOP.Attacker_EndOfTurnHP, switchTOP.Opponent_EndOfTurnHP, next.Opponent.Expendability );
                 score += Mathf.FloorToInt( 20f * theySwitchNextProb );
 
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Next - Candidate PTKO: {next.AttackerPTKO}. Are they forced to switch: {doWeForceThemToSwitch}. Score: {score}" );
@@ -459,7 +459,7 @@ public class BattleAI_SwitchCommand
             // Debug.Log( $"[AI Scoring][Offensive Switch Candidate][{pokemon.NickName}] HPR Bonus. End of turn HPR: {top.Attacker_EndOfTurnHP}. Score: {score}" );
 
             //--Predict Opponent Switches
-            float opponentSwitchProb = _ai.UnitSim.PredictSwitchProbability( offensePTKOR.PTKO, defensePTKOR.PTKO, movesFirst, 1f, top.Opponent.BeginningHPR, top.Opponent.Expendability );
+            float opponentSwitchProb = _ai.UnitSim.PredictSwitchProbability( threatSim.Pokemon, offensePTKOR.PTKO, defensePTKOR.PTKO, movesFirst, 1f, top.Opponent.BeginningHPR, top.Opponent.Expendability );
 
             //--PTKO Scoring
             int offenseScore = offensePTKOR.PTKO switch
@@ -486,7 +486,7 @@ public class BattleAI_SwitchCommand
             offenseScore = Mathf.FloorToInt( offenseScore * 0.5f * opponentSwitchProb );
 
             //--Use offensive value to influence more generally offensive candidate.
-            var pieceValue = _ai.GetPokemon_PieceValue( candidate.Pokemon );
+            var pieceValue = _ai.Blackboard.GetPokemon_PieceValue( candidate.Pokemon );
             score += pieceValue.OffensiveValue / 2; //-- /2 just to reduce severity. we don't want the most offensively valued pokemon to be overvalued in this context.
 
             // Debug.Log( $"[AI Scoring][Offensive Switch Candidate][{pokemon.NickName}] Defensive PTKO ({defensePTKOR.PTKO}) from opponent {threat.Unit.Pokemon.NickName}. Score: {score}" );
@@ -622,8 +622,8 @@ public class BattleAI_SwitchCommand
         // if( bench.Count > 5 )
             // Debug.LogError( $"how this mf have more than 5 pokemon on his bench?" );
 
-        if( bench.Count <= 0 && remaining > 0 )
-            Debug.LogError( $"Ally Count: {remaining}. Somehow we have no mons on the bench but mons remaining on the team. How did a pokemon end up being considered active when it wasn't on the field? possibly in adapter updates..." );
+        // if( bench.Count <= 0 && remaining > 0 )
+            // Debug.LogError( $"Ally Count: {remaining}. Somehow we have no mons on the bench but mons remaining on the team. How did a pokemon end up being considered active when it wasn't on the field? possibly in adapter updates..." );
 
         // CustomLogSession log = new();
         // log.Add( $"===[Beginning Revenge Switch Candidate Selection]===" );
@@ -754,11 +754,11 @@ public class BattleAI_SwitchCommand
             score += Mathf.FloorToInt( offensePTKOR.Score * 0.5f );
 
             //--Predict if the opponent is likely to switch at the start of the immediate revenge round. Bonus if we force a switch.
-            float opponentSwitchProb = _ai.UnitSim.PredictSwitchProbability( top.AttackerPTKO, top.OpponentPTKO, movesFirst, top.Attacker.BeginningHPR, top.Opponent.BeginningHPR, top.Opponent.Expendability );
+            float opponentSwitchProb = _ai.UnitSim.PredictSwitchProbability( top.Opponent.Pokemon, top.AttackerPTKO, top.OpponentPTKO, movesFirst, top.Attacker.BeginningHPR, top.Opponent.BeginningHPR, top.Opponent.Expendability );
             score += Mathf.FloorToInt( 45f * opponentSwitchProb );
 
             //--Predict if this candidate is likely to switch at the start of the immediate revenge round. if so, penalize. revenge candidates should attack or create offense/pressure with status, not make a defensive switch as their first immediate action.
-            float candidateImmediateSwitchProbability = _ai.UnitSim.PredictSwitchProbability( top.OpponentPTKO, top.AttackerPTKO, movesFirst, top.Opponent.BeginningHPR, top.Attacker.BeginningHPR, top.Attacker.Expendability );
+            float candidateImmediateSwitchProbability = _ai.UnitSim.PredictSwitchProbability( top.Attacker.Pokemon, top.OpponentPTKO, top.AttackerPTKO, movesFirst, top.Opponent.BeginningHPR, top.Attacker.BeginningHPR, top.Attacker.Expendability );
             score -= Mathf.FloorToInt( 75f * candidateImmediateSwitchProbability );
 
             bool opponentSwitches = UnityEngine.Random.value <= opponentSwitchProb;
@@ -766,7 +766,7 @@ public class BattleAI_SwitchCommand
             //--Look ahead at the round after the immediate revenge round. Do we succeed at revenging? Do we create pressure? Do we fail? Are we forced to switch immediately?
             if( top.Attacker_EndOfTurnHP > 0 )
             {
-                    var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
+                    var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.CurrentUnitDeciding );
                     var ourActiveAdapters = _ai.CreateBattleAIUnits_FromBattleUnits( ourActivePokemon );
                     
                     var offensiveSwitch = GetSwitch_Offensive( top.Opponent ).Pokemon;
@@ -815,8 +815,8 @@ public class BattleAI_SwitchCommand
                         var followUp                                = _battleSim.RunSimulation( bse_FollowUp );
                         // var followUp                             = _battleSim.SimulateAttackRound( battleSimCtx_FollowUp );
                         
-                        float candidateForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, followUp.Attacker.BeginningHPR, followUp.Opponent.BeginningHPR, followUp.Opponent.Expendability );
-                        float opponentForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.OpponentPTKO, followUp.AttackerPTKO, followUp.AttackerMovedFirst, followUp.Opponent.BeginningHPR, followUp.Attacker.BeginningHPR, followUp.Attacker.Expendability );
+                        float candidateForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.Opponent.Pokemon, followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, followUp.Attacker.BeginningHPR, followUp.Opponent.BeginningHPR, followUp.Opponent.Expendability );
+                        float opponentForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.Attacker.Pokemon, followUp.OpponentPTKO, followUp.AttackerPTKO, followUp.AttackerMovedFirst, followUp.Opponent.BeginningHPR, followUp.Attacker.BeginningHPR, followUp.Attacker.Expendability );
 
                         bool unstableNextTurn = followUp.Attacker_DiesBeforeActing || followUp.Attacker_EndOfTurnHP <= 0f;
                         bool canUseUtility = hasUtility && !unstableNextTurn;
@@ -909,7 +909,7 @@ public class BattleAI_SwitchCommand
         int bestScore = int.MinValue;
         Pokemon bestSwitch = null;
 
-        var ourParty = _ai.BattleSystem.GetAllyParty( _ai.Unit.Pokemon );
+        var ourParty = _ai.BattleSystem.GetAllyParty( _ai.CurrentUnitDeciding.Pokemon );
         var bench = ourParty.Where( p =>  p.CurrentHP > 0  ).ToList();
 
         foreach( var pokemon in bench )
@@ -918,7 +918,7 @@ public class BattleAI_SwitchCommand
             int score = 0;
 
             //--Piece value
-            var pieceValue = _ai.OurTeamPieceValues[adapter.Pokemon];
+            var pieceValue = _ai.Blackboard.OurTeamPieceValues[adapter.Pokemon];
             score += pieceValue.OffensiveValue;
 
             //--Weather Context

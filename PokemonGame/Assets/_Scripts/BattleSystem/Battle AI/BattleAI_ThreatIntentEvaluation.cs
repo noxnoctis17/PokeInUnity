@@ -21,13 +21,53 @@ public class BattleAI_ThreatIntentEvaluation
         return applied;
     }
 
+    public int ActionVS_ThreatIntent( ActionEvaluation action, TempoStateResult tempo, ExchangePack pack, BoardContext context, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    {
+        int score = 0;
+
+        switch( action.Type )
+        {
+            case ActionType.Attack:
+                var attack = (MoveThreatResult)action.ActionResult;
+                score += AttackVS_ThreatIntent( tempo, pack, context, attack, intentTOP, tir );
+            break;
+
+            case ActionType.DefensiveSwitch:
+                var defensiveSwitch = (SwitchCandidateResult)action.ActionResult;
+                score += DefensiveSwitchVS_ThreatIntent( tempo, pack, context, defensiveSwitch, intentTOP, tir );
+            break;
+
+            case ActionType.OffensiveSwitch:
+                var offensiveSwitch = (SwitchCandidateResult)action.ActionResult;
+                score += OffensiveSwitchVS_ThreatIntent( tempo, pack, context, offensiveSwitch, intentTOP, tir );
+            break;
+
+            case ActionType.Setup:
+                var setup = (SetupThreatResult)action.ActionResult;
+                score += SetupVS_ThreatIntent( tempo, pack, context, setup, intentTOP, tir );
+            break;
+
+            case ActionType.OffensiveStatus:
+                // var offensiveStatus = (StatusThreatResult)action.ActionResult;
+                // score += OFfensiveStatusVS_ThreatIntent( tempo, pack, context, offensiveStatus, intentTOP, tir );
+            break;
+
+            case ActionType.SupportiveStatus:
+                // var supportiveStatus = (StatusThreatResult)action.ActionResult;
+                // score += SupportiveStatusVS_ThreatIntent( tempo, pack, context, supportiveStatus, intentTOP, tir );
+            break;
+        }
+
+        return score;
+    }
+
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 //=====================================================================================[ATTACK THREAT VS INTENT]====================================================================================================
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 
-    public int AttackThreatIntentCheck( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    public int AttackVS_ThreatIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         float score = 0f;
         int final = 0;
@@ -41,13 +81,13 @@ public class BattleAI_ThreatIntentEvaluation
 
         score += tir.PrimaryIntent.IntentType switch
         {
-            IntentType.Attack =>            AttackVS_AttackIntent( tempo, eval, context, mtr, intentTOP, tir ),
-            IntentType.DefensiveSwitch =>   AttackVS_DefensiveSwitchIntent( tempo, eval, context, mtr, intentTOP, tir ),
-            IntentType.OffensiveSwitch =>   AttackVS_OffensiveSwitchIntent( tempo, eval, context, mtr, intentTOP, tir ),
-            IntentType.Setup =>             AttackVS_SetupIntent( tempo, eval, context, mtr, intentTOP, tir ),
-            IntentType.OffensiveStatus =>   AttackVS_OffensiveStatusIntent( tempo, eval, context, mtr, intentTOP, tir ),
-            IntentType.SupportiveStatus =>  AttackVS_SupportiveStatusIntent( tempo, eval, context, mtr, intentTOP, tir ),
-            IntentType.Protect =>           AttackVS_ProtectIntent( tempo, eval, context, mtr, intentTOP, tir ),
+            IntentType.Attack =>            AttackVS_AttackIntent( tempo, pack, context, mtr, intentTOP, tir ),
+            IntentType.DefensiveSwitch =>   AttackVS_DefensiveSwitchIntent( tempo, pack, context, mtr, intentTOP, tir ),
+            IntentType.OffensiveSwitch =>   AttackVS_OffensiveSwitchIntent( tempo, pack, context, mtr, intentTOP, tir ),
+            IntentType.Setup =>             AttackVS_SetupIntent( tempo, pack, context, mtr, intentTOP, tir ),
+            IntentType.OffensiveStatus =>   AttackVS_OffensiveStatusIntent( tempo, pack, context, mtr, intentTOP, tir ),
+            IntentType.SupportiveStatus =>  AttackVS_SupportiveStatusIntent( tempo, pack, context, mtr, intentTOP, tir ),
+            IntentType.Protect =>           AttackVS_ProtectIntent( tempo, pack, context, mtr, intentTOP, tir ),
             _ => 0f,
         };
 
@@ -58,7 +98,7 @@ public class BattleAI_ThreatIntentEvaluation
         return final;
     }
 
-    private float AttackVS_AttackIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float AttackVS_AttackIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Attack vs Attack Intent]===" );
@@ -67,13 +107,19 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
 
         var move = mtr.Move;
 
-        bool iAmFaster = eval.AttackerMovesFirst;
-        bool iThreatenKO = eval.AttackerThreatensKO;
-        bool theyThreatenKO = eval.OpponentThreatensKO;
+        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
+        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
+        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
 
         bool weAreOffensive = ourRP.PrimaryRole == RoleClass.BulkyAttacker || ourRP.PrimaryRole == RoleClass.RevengeKiller || ourRP.PrimaryRole == RoleClass.SetupSweeper ||
             ourRP.PrimaryRole == RoleClass.Sweeper || ourRP.PrimaryRole == RoleClass.TrickRoomAbuser || ourRP.PrimaryRole == RoleClass.WallBreaker;
@@ -88,7 +134,7 @@ public class BattleAI_ThreatIntentEvaluation
                 adjustment += 15f;
                 _ai.CurrentLog.Add( $"We are an offensive unit. We are faster and threaten a KO. Adjustment: {adjustment}" );
             }
-            else if( _ai.CurrentUnitAdapter.CurrentHPR <= 0.45 && eval.OpponentThreatensKO && !iAmFaster )
+            else if( _ai.CurrentUnitAdapter.CurrentHPR <= 0.45 && usVS_Threat.OpponentThreatensKO && !iAmFaster )
             {
                 adjustment -= 25f;
                 _ai.CurrentLog.Add( $"We are an offensive unit. We have less than 45% hp, the opponent threatens a KO, and we are slower than them. Adjustment: {adjustment}" );
@@ -119,7 +165,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float AttackVS_DefensiveSwitchIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float AttackVS_DefensiveSwitchIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Attack vs Defensive Switch Intent]===" );
@@ -128,13 +174,18 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
-        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
+        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
         var move = mtr.Move;
 
-        bool iAmFaster = eval.AttackerMovesFirst;
-        bool iThreatenKO = eval.AttackerThreatensKO;
-        bool theyThreatenKO = eval.OpponentThreatensKO;
+        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
+        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
+        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
 
         bool weAreOffensive = ourRP.PrimaryRole == RoleClass.BulkyAttacker || ourRP.PrimaryRole == RoleClass.RevengeKiller || ourRP.PrimaryRole == RoleClass.SetupSweeper ||
             ourRP.PrimaryRole == RoleClass.Sweeper || ourRP.PrimaryRole == RoleClass.TrickRoomAbuser || ourRP.PrimaryRole == RoleClass.WallBreaker;
@@ -160,7 +211,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float AttackVS_OffensiveSwitchIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float AttackVS_OffensiveSwitchIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Attack vs Offensive Switch Intent]===" );
@@ -169,13 +220,18 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
-        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
+        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
         var move = mtr.Move;
 
-        bool iAmFaster = eval.AttackerMovesFirst;
-        bool iThreatenKO = eval.AttackerThreatensKO;
-        bool theyThreatenKO = eval.OpponentThreatensKO;
+        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
+        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
+        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
 
         bool weAreOffensive = ourRP.PrimaryRole == RoleClass.BulkyAttacker || ourRP.PrimaryRole == RoleClass.RevengeKiller || ourRP.PrimaryRole == RoleClass.SetupSweeper ||
             ourRP.PrimaryRole == RoleClass.Sweeper || ourRP.PrimaryRole == RoleClass.TrickRoomAbuser || ourRP.PrimaryRole == RoleClass.WallBreaker;
@@ -224,7 +280,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float AttackVS_SetupIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float AttackVS_SetupIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Attack vs Setup Intent]===" );
@@ -233,13 +289,18 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
-        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
+        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
         var move = mtr.Move;
 
-        bool iAmFaster = eval.AttackerMovesFirst;
-        bool iThreatenKO = eval.AttackerThreatensKO;
-        bool theyThreatenKO = eval.OpponentThreatensKO;
+        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
+        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
+        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
 
         bool weAreOffensive = ourRP.PrimaryRole == RoleClass.BulkyAttacker || ourRP.PrimaryRole == RoleClass.RevengeKiller || ourRP.PrimaryRole == RoleClass.SetupSweeper ||
             ourRP.PrimaryRole == RoleClass.Sweeper || ourRP.PrimaryRole == RoleClass.TrickRoomAbuser || ourRP.PrimaryRole == RoleClass.WallBreaker;
@@ -250,12 +311,12 @@ public class BattleAI_ThreatIntentEvaluation
         bool theyGainedSpeedControl = delta.Speed > 0 && tir.Threat.Speed < intentTOP.Opponent.Speed;
 
         //--Flat push
-        if( iAmFaster && eval.AttackerPTKOR.PTKO >= PotentialToKO.Risky )
+        if( iAmFaster && usVS_Threat.AttackerPTKOR.PTKO >= PotentialToKO.Risky )
         {
             adjustment += 20f;
             _ai.CurrentLog.Add( $"We're faster than them, getting chip in while they waste a turn setting up is appropriate. Adjustment: {adjustment}" );
         }
-        else if( eval.AttackerPTKOR.PTKO >= PotentialToKO.Risky )
+        else if( usVS_Threat.AttackerPTKOR.PTKO >= PotentialToKO.Risky )
         {
             adjustment += 10f;
             _ai.CurrentLog.Add( $"Getting chip in while they waste a turn setting up is appropriate. Adjustment: {adjustment}" );
@@ -266,7 +327,7 @@ public class BattleAI_ThreatIntentEvaluation
             adjustment += 15f;
             _ai.CurrentLog.Add( $"We're a wall, and so they think they can set up in our face. We should get chip in. Adjustment: {adjustment}" );
 
-            if( theirSetup.AfterPTKOR.PTKO > eval.AttackerPTKOR.PTKO )
+            if( theirSetup.AfterPTKOR.PTKO > usVS_Threat.AttackerPTKOR.PTKO )
             {
                 adjustment += 15f;
                 _ai.CurrentLog.Add( $"If they setup, their PTKO on us is greater than ours on them. Adjustment: {adjustment}" );
@@ -385,7 +446,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float AttackVS_OffensiveStatusIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float AttackVS_OffensiveStatusIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Attack vs Offensive Status Intent]===" );
@@ -394,13 +455,18 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
-        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
+        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
         var move = mtr.Move;
 
-        bool iAmFaster = eval.AttackerMovesFirst;
-        bool iThreatenKO = eval.AttackerThreatensKO;
-        bool theyThreatenKO = eval.OpponentThreatensKO;
+        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
+        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
+        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
 
         bool weAreOffensive = ourRP.PrimaryRole == RoleClass.BulkyAttacker || ourRP.PrimaryRole == RoleClass.RevengeKiller || ourRP.PrimaryRole == RoleClass.SetupSweeper ||
             ourRP.PrimaryRole == RoleClass.Sweeper || ourRP.PrimaryRole == RoleClass.TrickRoomAbuser || ourRP.PrimaryRole == RoleClass.WallBreaker;
@@ -408,7 +474,7 @@ public class BattleAI_ThreatIntentEvaluation
         var theirOffStatus = (StatusThreatResult)tir.PrimaryIntent.IntentResult;
         var offStatusMove = theirOffStatus.Move;
         var offStatusMoveEffects = offStatusMove.MoveSO.MoveEffects;
-        var subType = theirOffStatus.StatusType;
+        var subType = theirOffStatus.OffensiveStatusType;
         var ourTraits = ourRP.Traits;
         var us = _ai.CurrentUnitAdapter;
 
@@ -513,7 +579,7 @@ public class BattleAI_ThreatIntentEvaluation
                     }
                 }
 
-                if( theySleep && ( iAmFaster || eval.AttackerPTKOR.PTKO <= PotentialToKO.TwoHKO ) )
+                if( theySleep && ( iAmFaster || usVS_Threat.AttackerPTKOR.PTKO <= PotentialToKO.TwoHKO ) )
                 {
                     adjustment += 15f;
                     _ai.CurrentLog.Add( $"They sleep and we are either faster or do not threaten much. Adjustment: {adjustment}" );
@@ -596,10 +662,10 @@ public class BattleAI_ThreatIntentEvaluation
             bool web = offStatusMoveEffects.CourtCondition == CourtConditionID.StickyWeb;
             bool seeds = offStatusMoveEffects.CourtCondition == CourtConditionID.LeechSeed;
 
-            var winconRP = _ai.GetPokemonAs_Adapter( _ai.GamePlan.OurPrimaryWinCon ).RoleProfile;
+            var winconRP = _ai.GetPokemonAs_Adapter( _ai.Blackboard.GamePlan.OurPrimaryWinCon ).RoleProfile;
 
-            PokemonType one = _ai.GamePlan.OurPrimaryWinCon.PokeSO.Type1;
-            PokemonType two = _ai.GamePlan.OurPrimaryWinCon.PokeSO.Type2;
+            PokemonType one = _ai.Blackboard.GamePlan.OurPrimaryWinCon.PokeSO.Type1;
+            PokemonType two = _ai.Blackboard.GamePlan.OurPrimaryWinCon.PokeSO.Type2;
             float winconRocksMod = TypeChart.GetTotalEffectiveness( PokemonType.Rock, one, two );
 
             adjustment += 10f;
@@ -688,7 +754,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float AttackVS_SupportiveStatusIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float AttackVS_SupportiveStatusIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Attack vs Supportive Status Intent]===" );
@@ -697,13 +763,18 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
-        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
+        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
         var move = mtr.Move;
 
-        bool iAmFaster = eval.AttackerMovesFirst;
-        bool iThreatenKO = eval.AttackerThreatensKO;
-        bool theyThreatenKO = eval.OpponentThreatensKO;
+        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
+        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
+        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
 
         bool weAreOffensive = ourRP.PrimaryRole == RoleClass.BulkyAttacker || ourRP.PrimaryRole == RoleClass.RevengeKiller || ourRP.PrimaryRole == RoleClass.SetupSweeper ||
             ourRP.PrimaryRole == RoleClass.Sweeper || ourRP.PrimaryRole == RoleClass.TrickRoomAbuser || ourRP.PrimaryRole == RoleClass.WallBreaker;
@@ -715,7 +786,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float AttackVS_ProtectIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float AttackVS_ProtectIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Attack vs Protect Intent]===" );
@@ -724,13 +795,18 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
-        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
+        var ourRP = _ai.CurrentUnitAdapter.RoleProfile;
         var move = mtr.Move;
 
-        bool iAmFaster = eval.AttackerMovesFirst;
-        bool iThreatenKO = eval.AttackerThreatensKO;
-        bool theyThreatenKO = eval.OpponentThreatensKO;
+        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
+        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
+        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
 
         bool weAreOffensive = ourRP.PrimaryRole == RoleClass.BulkyAttacker || ourRP.PrimaryRole == RoleClass.RevengeKiller || ourRP.PrimaryRole == RoleClass.SetupSweeper ||
             ourRP.PrimaryRole == RoleClass.Sweeper || ourRP.PrimaryRole == RoleClass.TrickRoomAbuser || ourRP.PrimaryRole == RoleClass.WallBreaker;
@@ -755,7 +831,7 @@ public class BattleAI_ThreatIntentEvaluation
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 
-    public int DefensiveSwitchThreatIntentCheck( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    public int DefensiveSwitchVS_ThreatIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         float score = 0f;
         int final = 0;
@@ -769,13 +845,13 @@ public class BattleAI_ThreatIntentEvaluation
 
         score += tir.PrimaryIntent.IntentType switch
         {
-            IntentType.Attack =>            DefensiveSwitchVS_AttackIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.DefensiveSwitch =>   DefensiveSwitchVS_DefensiveSwitchIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.OffensiveSwitch =>   DefensiveSwitchVS_OffensiveSwitchIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.Setup =>             DefensiveSwitchVS_SetupIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.OffensiveStatus =>   DefensiveSwitchVS_OffensiveStatusIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.SupportiveStatus =>  DefensiveSwitchVS_SupportiveStatusIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.Protect =>           DefensiveSwitchVS_ProtectIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
+            IntentType.Attack =>            DefensiveSwitchVS_AttackIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.DefensiveSwitch =>   DefensiveSwitchVS_DefensiveSwitchIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.OffensiveSwitch =>   DefensiveSwitchVS_OffensiveSwitchIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.Setup =>             DefensiveSwitchVS_SetupIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.OffensiveStatus =>   DefensiveSwitchVS_OffensiveStatusIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.SupportiveStatus =>  DefensiveSwitchVS_SupportiveStatusIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.Protect =>           DefensiveSwitchVS_ProtectIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
             _ => 0f,
         };
 
@@ -786,7 +862,7 @@ public class BattleAI_ThreatIntentEvaluation
         return Mathf.RoundToInt( score );
     }
 
-    private float DefensiveSwitchVS_AttackIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float DefensiveSwitchVS_AttackIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Attack Intent]===" );
@@ -795,6 +871,12 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         var theirMTR = (MoveThreatResult)tir.PrimaryIntent.IntentResult;
         var theirMove = theirMTR.Move;
         var theirRP = tir.Threat.RoleProfile;
@@ -863,7 +945,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float DefensiveSwitchVS_DefensiveSwitchIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float DefensiveSwitchVS_DefensiveSwitchIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Defensive Switch Intent]===" );
@@ -873,10 +955,15 @@ public class BattleAI_ThreatIntentEvaluation
         float adjustment = 0f;
         float confidence = tir.Confidence;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         var switchEE = _ai.Projection.EvaluateExchange( intentTOP.Attacker, intentTOP.Opponent );
 
         //--Discourage defensively switching against a defensive switch. this creates a random match up. lightly evaluating that match up.
-        if( switchEE.AttackerPTKOR.PTKO > switchEE.OpponentPTKOR.PTKO || switchEE.OpponentPTKOR.PTKO < eval.OpponentPTKOR.PTKO )
+        if( switchEE.AttackerPTKOR.PTKO > switchEE.OpponentPTKOR.PTKO || switchEE.OpponentPTKOR.PTKO < usVS_Threat.OpponentPTKOR.PTKO )
         {
             adjustment += 25f;
             _ai.CurrentLog.Add( $"Our Defensive candidate has a better PTKO than their defensive candidate, or, their defensive candidate has a worse ptko than their current pokemon. Adjustment: {adjustment}" );
@@ -912,7 +999,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float DefensiveSwitchVS_OffensiveSwitchIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float DefensiveSwitchVS_OffensiveSwitchIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Offensive Switch Intent]===" );
@@ -921,6 +1008,11 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         var cand = _ai.GetPokemonAs_Adapter( switchCandidate.Pokemon );
         var candRP = cand.RoleProfile;
@@ -981,7 +1073,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float DefensiveSwitchVS_SetupIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float DefensiveSwitchVS_SetupIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Setup Intent]===" );
@@ -990,6 +1082,11 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         var cand = _ai.GetPokemonAs_Adapter( switchCandidate.Pokemon );
         var candRP = cand.RoleProfile;
@@ -1139,7 +1236,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float DefensiveSwitchVS_OffensiveStatusIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float DefensiveSwitchVS_OffensiveStatusIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Offensive Status Intent]===" );
@@ -1149,10 +1246,15 @@ public class BattleAI_ThreatIntentEvaluation
         float adjustment = 0f;
         float confidence = tir.Confidence;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         var theirOffStatus = (StatusThreatResult)tir.PrimaryIntent.IntentResult;
         var them = tir.Threat;
         var theirMove = theirOffStatus.Move;
-        var subType = theirOffStatus.StatusType;
+        var subType = theirOffStatus.OffensiveStatusType;
         var offStatusMoveEffects = theirMove.MoveSO.MoveEffects;
         var theirRP = them.RoleProfile;
 
@@ -1385,10 +1487,10 @@ public class BattleAI_ThreatIntentEvaluation
             bool web = offStatusMoveEffects.CourtCondition == CourtConditionID.StickyWeb;
             bool seeds = offStatusMoveEffects.CourtCondition == CourtConditionID.LeechSeed;
 
-            var winconRP = _ai.GetPokemonAs_Adapter( _ai.GamePlan.OurPrimaryWinCon ).RoleProfile;
+            var winconRP = _ai.GetPokemonAs_Adapter( _ai.Blackboard.GamePlan.OurPrimaryWinCon ).RoleProfile;
 
-            PokemonType one = _ai.GamePlan.OurPrimaryWinCon.PokeSO.Type1;
-            PokemonType two = _ai.GamePlan.OurPrimaryWinCon.PokeSO.Type2;
+            PokemonType one = _ai.Blackboard.GamePlan.OurPrimaryWinCon.PokeSO.Type1;
+            PokemonType two = _ai.Blackboard.GamePlan.OurPrimaryWinCon.PokeSO.Type2;
             float winconRocksMod = TypeChart.GetTotalEffectiveness( PokemonType.Rock, one, two );
 
             if( candTraits.Contains( RoleTrait.HazardRemover ) )
@@ -1541,7 +1643,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float DefensiveSwitchVS_SupportiveStatusIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float DefensiveSwitchVS_SupportiveStatusIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Supportive Status Intent]===" );
@@ -1551,6 +1653,11 @@ public class BattleAI_ThreatIntentEvaluation
         float adjustment = 0f;
         float confidence = tir.Confidence;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         adjustment -= 25f;
 
         score += ApplyIntentAdjustment( adjustment, confidence );
@@ -1558,7 +1665,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float DefensiveSwitchVS_ProtectIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float DefensiveSwitchVS_ProtectIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Protect Intent]===" );
@@ -1567,6 +1674,11 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         adjustment += 25f;
 
@@ -1581,7 +1693,7 @@ public class BattleAI_ThreatIntentEvaluation
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 
-    public int OffensiveSwitchThreatIntentCheck( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    public int OffensiveSwitchVS_ThreatIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         float score = 0f;
         int final = 0;
@@ -1595,13 +1707,13 @@ public class BattleAI_ThreatIntentEvaluation
 
         score += tir.PrimaryIntent.IntentType switch
         {
-            IntentType.Attack =>            OffensiveSwitchVS_AttackIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.DefensiveSwitch =>   OffensiveSwitchVS_DefensiveSwitchIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.OffensiveSwitch =>   OffensiveSwitchVS_OffensiveSwitchIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.Setup =>             OffensiveSwitchVS_SetupIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.OffensiveStatus =>   OffensiveSwitchVS_OffensiveStatusIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.SupportiveStatus =>  OffensiveSwitchVS_SupportiveStatusIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
-            IntentType.Protect =>           OffensiveSwitchVS_ProtectIntent( tempo, eval, context, switchCandidate, intentTOP, tir ),
+            IntentType.Attack =>            OffensiveSwitchVS_AttackIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.DefensiveSwitch =>   OffensiveSwitchVS_DefensiveSwitchIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.OffensiveSwitch =>   OffensiveSwitchVS_OffensiveSwitchIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.Setup =>             OffensiveSwitchVS_SetupIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.OffensiveStatus =>   OffensiveSwitchVS_OffensiveStatusIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.SupportiveStatus =>  OffensiveSwitchVS_SupportiveStatusIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
+            IntentType.Protect =>           OffensiveSwitchVS_ProtectIntent( tempo, pack, context, switchCandidate, intentTOP, tir ),
             _ => 0f,
         };
 
@@ -1612,7 +1724,7 @@ public class BattleAI_ThreatIntentEvaluation
         return Mathf.RoundToInt( score );
     }
 
-    private float OffensiveSwitchVS_AttackIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float OffensiveSwitchVS_AttackIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Offensive Switch vs Attack Intent]===" );
@@ -1621,6 +1733,12 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         var theirMTR = (MoveThreatResult)tir.PrimaryIntent.IntentResult;
         var theirMove = theirMTR.Move;
         var theirRP = tir.Threat.RoleProfile;
@@ -1689,7 +1807,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float OffensiveSwitchVS_DefensiveSwitchIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float OffensiveSwitchVS_DefensiveSwitchIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Defensive Switch Intent]===" );
@@ -1698,6 +1816,11 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         var switchEE = _ai.Projection.EvaluateExchange( intentTOP.Attacker, intentTOP.Opponent );
 
@@ -1737,7 +1860,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float OffensiveSwitchVS_OffensiveSwitchIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float OffensiveSwitchVS_OffensiveSwitchIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our offensive Switch vs Offensive Switch Intent]===" );
@@ -1746,6 +1869,11 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         var cand = _ai.GetPokemonAs_Adapter( switchCandidate.Pokemon );
         var candRP = cand.RoleProfile;
@@ -1804,7 +1932,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float OffensiveSwitchVS_SetupIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float OffensiveSwitchVS_SetupIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our offensive Switch vs Setup Intent]===" );
@@ -1813,6 +1941,11 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         var cand = _ai.GetPokemonAs_Adapter( switchCandidate.Pokemon );
         var candRP = cand.RoleProfile;
@@ -1956,7 +2089,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float OffensiveSwitchVS_OffensiveStatusIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float OffensiveSwitchVS_OffensiveStatusIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Offensive Switch vs Offensive Status Intent]===" );
@@ -1966,10 +2099,15 @@ public class BattleAI_ThreatIntentEvaluation
         float adjustment = 0f;
         float confidence = tir.Confidence;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         var theirOffStatus = (StatusThreatResult)tir.PrimaryIntent.IntentResult;
         var them = tir.Threat;
         var theirMove = theirOffStatus.Move;
-        var subType = theirOffStatus.StatusType;
+        var subType = theirOffStatus.OffensiveStatusType;
         var offStatusMoveEffects = theirMove.MoveSO.MoveEffects;
         var theirRP = them.RoleProfile;
 
@@ -2202,10 +2340,10 @@ public class BattleAI_ThreatIntentEvaluation
             bool web = offStatusMoveEffects.CourtCondition == CourtConditionID.StickyWeb;
             bool seeds = offStatusMoveEffects.CourtCondition == CourtConditionID.LeechSeed;
 
-            var winconRP = _ai.GetPokemonAs_Adapter( _ai.GamePlan.OurPrimaryWinCon ).RoleProfile;
+            var winconRP = _ai.GetPokemonAs_Adapter( _ai.Blackboard.GamePlan.OurPrimaryWinCon ).RoleProfile;
 
-            PokemonType one = _ai.GamePlan.OurPrimaryWinCon.PokeSO.Type1;
-            PokemonType two = _ai.GamePlan.OurPrimaryWinCon.PokeSO.Type2;
+            PokemonType one = _ai.Blackboard.GamePlan.OurPrimaryWinCon.PokeSO.Type1;
+            PokemonType two = _ai.Blackboard.GamePlan.OurPrimaryWinCon.PokeSO.Type2;
             float winconRocksMod = TypeChart.GetTotalEffectiveness( PokemonType.Rock, one, two );
 
             if( candTraits.Contains( RoleTrait.HazardRemover ) )
@@ -2358,7 +2496,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float OffensiveSwitchVS_SupportiveStatusIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float OffensiveSwitchVS_SupportiveStatusIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Offensive Switch vs Supportive Status Intent]===" );
@@ -2368,6 +2506,11 @@ public class BattleAI_ThreatIntentEvaluation
         float adjustment = 0f;
         float confidence = tir.Confidence;
 
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
         adjustment -= 5f;
 
         score += ApplyIntentAdjustment( adjustment, confidence );
@@ -2375,7 +2518,7 @@ public class BattleAI_ThreatIntentEvaluation
         return score;
     }
 
-    private float OffensiveSwitchVS_ProtectIntent( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    private float OffensiveSwitchVS_ProtectIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"" );
         _ai.CurrentLog.Add( $"===[Our Defensive Switch vs Protect Intent]===" );
@@ -2384,6 +2527,11 @@ public class BattleAI_ThreatIntentEvaluation
         float score = 0f;
         float adjustment = 0f;
         float confidence = tir.Confidence;
+
+        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         adjustment += 30f;
 
@@ -2398,7 +2546,7 @@ public class BattleAI_ThreatIntentEvaluation
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 
-    public int SetupThreatIntentCheck( TempoStateResult tempo, ExchangeEvaluation eval, BoardContext context, SetupThreatResult setup, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    public int SetupVS_ThreatIntent( TempoStateResult tempo, ExchangePack pack, BoardContext context, SetupThreatResult setup, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         float score = 0f;
         int final = 0;

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using UnityEngine;
 
 public class RoundEndPhase_CourtDuration : IRoundEndPhaseHandler
@@ -54,6 +55,49 @@ public class RoundEndPhase_CourtDuration : IRoundEndPhaseHandler
                 foreach( var ( location, conditionID ) in courtConditionsToRemove )
                 {
                     battleSystem.Field.ActiveCourts[location].RemoveCondition( conditionID );
+                }
+            }
+        }
+
+        if( battleSystem.Field.FieldConditions.Count > 0 )
+        {
+            List<FieldConditionID> conditionsToRemove = new();
+            foreach( var kvp in battleSystem.Field.FieldConditions )
+            {
+                var id = kvp.Key;
+                var condition = kvp.Value;
+                if( condition.IsInfinite )
+                {
+                    continue;
+                }
+                else if( condition.TimeLeft > 0 )
+                {
+                    Debug.Log( $"Reducing {condition}'s Time left from {condition.TimeLeft} to {condition.TimeLeft - 1}." );
+                    condition.TimeLeft--;
+                }
+                else if( condition.TimeLeft == 0 )
+                {
+                    if( condition.EndMessage != null )
+                    {
+                        condition?.OnEnd?.Invoke( battleSystem, battleSystem.Field );
+                        string message = condition.EndMessage;
+                        battleSystem.AddDialogue( message );
+                    }
+
+                    foreach( var unit in battleSystem.GetActivePokemon() )
+                    {
+                        condition?.OnExitField?.Invoke( unit.Pokemon ); //--probably won't use this ever --07/03/26
+                    }
+
+                    conditionsToRemove.Add( id );
+                }
+            }
+
+            if( conditionsToRemove.Count > 0 )
+            {
+                foreach( var condition in conditionsToRemove )
+                {
+                    battleSystem.Field.RemoveFieldCondition( condition );
                 }
             }
         }

@@ -114,17 +114,18 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.ChoiceBand,
 
-                OnItemEnter = ( BattleUnit unit ) =>
+                OnItemEnter = ( unit ) =>
                 {
                     Debug.Log( $"Choice Band detected! Setting Choice Item to true, adding 1.5x modifier to Attack" );
-                    unit.SetFlagActive( UnitFlags.ChoiceItem, true );
+                    StatusEffectSource source = new(){ Pokemon = unit.Pokemon, Source = EffectSource.Item };
+                    unit.Pokemon.SetVolatileStatus( VolatileConditionID.ChoiceLocked, source );
                     unit.Pokemon.ApplyDirectStatModifier( Stat.Attack, DirectModifierCause.ChoiceBand, 1.5f );
                 },
 
-                OnItemExit = ( BattleUnit unit ) =>
+                OnItemExit = ( unit ) =>
                 {
                     Debug.Log( $"Choice Band user leaving, fainted, Battle Ended, or lost choice band! Setting Choice Item to false, removing 1.5x modifier from Attack" );
-                    unit.SetFlagActive( UnitFlags.ChoiceItem, false );
+                    unit.Pokemon.CureVolatileStatus( VolatileConditionID.ChoiceLocked );
                     unit.Pokemon.RemoveDirectStatModifier( Stat.Attack, DirectModifierCause.ChoiceBand );
                 },
             }
@@ -135,17 +136,18 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.ChoiceBand,
 
-                OnItemEnter = ( BattleUnit unit ) =>
+                OnItemEnter = ( unit ) =>
                 {
                     Debug.Log( $"Choice Specs detected! Setting Choice Item to true, adding 1.5x modifier to SpAttack" );
-                    unit.SetFlagActive( UnitFlags.ChoiceItem, true );
+                    StatusEffectSource source = new(){ Pokemon = unit.Pokemon, Source = EffectSource.Item };
+                    unit.Pokemon.SetVolatileStatus( VolatileConditionID.ChoiceLocked, source );
                     unit.Pokemon.ApplyDirectStatModifier( Stat.SpAttack, DirectModifierCause.ChoiceSpecs, 1.5f );
                 },
 
-                OnItemExit = ( BattleUnit unit ) =>
+                OnItemExit = ( unit ) =>
                 {
                     Debug.Log( $"Choice Specs user leaving, fainted, Battle Ended, or lost choice band! Setting Choice Item to false, removing 1.5x modifier from SpAttack" );
-                    unit.SetFlagActive( UnitFlags.ChoiceItem, false );
+                    unit.Pokemon.CureVolatileStatus( VolatileConditionID.ChoiceLocked );
                     unit.Pokemon.RemoveDirectStatModifier( Stat.SpAttack, DirectModifierCause.ChoiceSpecs );
                 },
             }
@@ -155,17 +157,18 @@ public class BattleItemDB
             {
                 ID = BattleItemEffectID.ChoiceScarf,
 
-                OnItemEnter = ( BattleUnit unit ) =>
+                OnItemEnter = ( unit ) =>
                 {
                     Debug.Log( $"Choice Scarf detected! Setting Choice Item to true, adding 1.5x modifier to Speed" );
-                    unit.SetFlagActive( UnitFlags.ChoiceItem, true );
+                    StatusEffectSource source = new(){ Pokemon = unit.Pokemon, Source = EffectSource.Item };
+                    unit.Pokemon.SetVolatileStatus( VolatileConditionID.ChoiceLocked, source );
                     unit.Pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.ChoiceScarf, 1.5f );
                 },
 
-                OnItemExit = ( BattleUnit unit ) =>
+                OnItemExit = ( unit ) =>
                 {
                     Debug.Log( $"Choice Scarf user leaving, fainted, Battle Ended, or lost choice band! Setting Choice Item to false, removing 1.5x modifier from Speed" );
-                    unit.SetFlagActive( UnitFlags.ChoiceItem, false );
+                    unit.Pokemon.CureVolatileStatus( VolatileConditionID.ChoiceLocked );
                     unit.Pokemon.RemoveDirectStatModifier( Stat.Attack, DirectModifierCause.ChoiceScarf );
                 },
             }

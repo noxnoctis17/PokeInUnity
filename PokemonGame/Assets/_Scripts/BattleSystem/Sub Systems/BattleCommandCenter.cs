@@ -311,7 +311,7 @@ public class BattleCommandCenter : MonoBehaviour
                     if( move.MoveSO.AccuracyType == AccuracyType.PerHit && target.Pokemon.CurrentHP > 0 )
                     {
                          bool hitAgain = CheckMoveAccuracy( move, attacker, target );
-                         Debug.LogError( $"move: {move.MoveSO.Name} is per hit. Hit Again: {hitAgain}" );
+                        //  Debug.LogError( $"move: {move.MoveSO.Name} is per hit. Hit Again: {hitAgain}" );
 
                          if( !hitAgain )
                          {
@@ -742,9 +742,11 @@ public class BattleCommandCenter : MonoBehaviour
                 else
                 {
                     BattleSystem.AddDialogue( BattleSystem.Field.FieldConditions[FieldConditionID.TrickRoom]?.StartMessage?.Invoke( BattleSystem, attacker.Pokemon ) ); //--Start Message handles reversal
-                    BattleSystem.Field.FieldConditions[FieldConditionID.TrickRoom].OnEnd?.Invoke( BattleSystem, BattleSystem.Field, attacker );
+                    BattleSystem.Field.FieldConditions[FieldConditionID.TrickRoom].OnEnd?.Invoke( BattleSystem, BattleSystem.Field );
                     BattleSystem.Field.RemoveFieldCondition( FieldConditionID.TrickRoom );
                 }
+
+                BattleSystem.Field.FieldConditions[effects.FieldCondition].OnStart?.Invoke( BattleSystem, BattleSystem.Field, attacker );
             }
         }
 

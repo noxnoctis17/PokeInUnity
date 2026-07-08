@@ -16,12 +16,15 @@ public class BattleAI_ThreatIntent
         _ai = ai;
     }
 
-    public ThreatBrain ReadThreatBrain( IBattleAIUnit threat )
+    public ThreatBrain ReadThreatBrain( IBattleAIUnit threat, IBattleAIUnit us )
     {
-        var theirEE = _ai.Projection.EvaluateExchange( threat, _ai.CurrentUnitAdapter );
-        var theirBC = _ai.Projection.GetBoardContext( threat, _ai.CurrentUnitAdapter, theirEE );
-        var ourTP = _ai.GetThreatProfile( theirEE, theirBC, _ai.CurrentUnitAdapter ); //--this is our profile as a threat to them, from their perspective
-        var theirGP = _ai.GetOpponentGamePlan( _ai.GamePlan );
+        if( us == null )
+            us = _ai.CurrentUnitAdapter;
+
+        var theirEE = _ai.Projection.EvaluateExchange( threat, us );
+        var theirBC = _ai.Projection.GetBoardContext( threat, us, theirEE );
+        var ourTP = _ai.GetThreatProfile( theirEE, theirBC, us ); //--this is our profile as a threat to them, from their perspective
+        var theirGP = _ai.Blackboard.GetOpponentGamePlan( _ai.Blackboard.GamePlan );
         var theirCP = _ai.Projection.EvaluateCurrentPlan( theirEE, theirBC, ourTP, theirGP, null );
 
         return new()
@@ -194,7 +197,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Hazard removal
-            var theirCourt = candidateAdapter.CourtLocation == CourtLocation.TopCourt ? _ai.CurrentFieldSnapshot.TopCourtConditions : _ai.CurrentFieldSnapshot.BottomCourtConditions;
+            var theirCourt = candidateAdapter.CourtLocation == CourtLocation.TopCourt ? _ai.Blackboard.CurrentFieldSnapshot.TopCourtConditions : _ai.Blackboard.CurrentFieldSnapshot.BottomCourtConditions;
             bool hazardsExist = theirCourt.ContainsKey( CourtConditionID.LeechSeed ) || theirCourt.ContainsKey( CourtConditionID.Spikes ) || theirCourt.ContainsKey( CourtConditionID.StealthRock ) || theirCourt.ContainsKey( CourtConditionID.StickyWeb ) || theirCourt.ContainsKey( CourtConditionID.ToxicSpikes );
             bool weAreHazardSetter = _ai.CurrentUnitAdapter.RoleProfile.Traits.Contains( RoleTrait.HazardSetter );
 
@@ -219,7 +222,7 @@ public class BattleAI_ThreatIntent
                     case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
                 }
 
-                if( candidatesWeather != WeatherConditionID.None && candidatesWeather != _ai.CurrentFieldSnapshot.Weather )
+                if( candidatesWeather != WeatherConditionID.None && candidatesWeather != _ai.Blackboard.CurrentFieldSnapshot.Weather )
                     switchChangesWeather = true;
             }
 
@@ -277,7 +280,7 @@ public class BattleAI_ThreatIntent
                     case AbilityID.SnowWarning: threatsWeather = WeatherConditionID.SNOW; break;
                 }
 
-                if( threatsWeather != WeatherConditionID.None && threatsWeather == _ai.CurrentFieldSnapshot.Weather )
+                if( threatsWeather != WeatherConditionID.None && threatsWeather == _ai.Blackboard.CurrentFieldSnapshot.Weather )
                 {
                     plan += 1;
                     _switchPredLog.Add( $"Their current pokemon likely set the weather their candidate benefits from. Plan: {plan}" );
@@ -423,8 +426,8 @@ public class BattleAI_ThreatIntent
                 _switchPredLog.Add( $"Their candidate is their current plan's FocusMon. Resource: {resource}" );
             }
 
-            float switchThreatCount = _ai.TheirTeamPieceValues.TryGetValue( top.Attacker.Pokemon, out var pieceValue ) ? pieceValue.ThreatCount : 0;
-            float threatPercentage = switchThreatCount / _ai.TheirTeamAdapters.Count; //--this needs to be changed to be active threat count / remaining, not the team preview/full team percentage.
+            float switchThreatCount = _ai.Blackboard.TheirTeamPieceValues.TryGetValue( top.Attacker.Pokemon, out var pieceValue ) ? pieceValue.ThreatCount : 0;
+            float threatPercentage = switchThreatCount / _ai.Blackboard.TheirTeamAdapters.Count; //--this needs to be changed to be active threat count / remaining, not the team preview/full team percentage.
             if( threatPercentage >= 0.5f )
             {
                 resource += 2;
@@ -476,7 +479,7 @@ public class BattleAI_ThreatIntent
                     case AbilityID.SnowWarning: threatsWeather = WeatherConditionID.SNOW; break;
                 }
 
-                if( threatsWeather != WeatherConditionID.None && threatsWeather == _ai.CurrentFieldSnapshot.Weather )
+                if( threatsWeather != WeatherConditionID.None && threatsWeather == _ai.Blackboard.CurrentFieldSnapshot.Weather )
                 {
                     plan += 1;
                     _switchPredLog.Add( $"Their current pokemon likely set the weather the candidate benefits from. Plan: {plan}" );
@@ -723,12 +726,12 @@ public class BattleAI_ThreatIntent
         bool theyAreOffensive = theirRP.PrimaryRole == RoleClass.BulkyAttacker || theirRP.PrimaryRole == RoleClass.RevengeKiller || theirRP.PrimaryRole == RoleClass.SetupSweeper ||
             theirRP.PrimaryRole == RoleClass.Sweeper || theirRP.PrimaryRole == RoleClass.TrickRoomAbuser || theirRP.PrimaryRole == RoleClass.WallBreaker;
 
-        var theirCourt = attackTOP.Attacker.CourtLocation  == CourtLocation.TopCourt ? _ai.CurrentFieldSnapshot.TopCourtConditions : _ai.CurrentFieldSnapshot.BottomCourtConditions;
+        var theirCourt = attackTOP.Attacker.CourtLocation  == CourtLocation.TopCourt ? _ai.Blackboard.CurrentFieldSnapshot.TopCourtConditions : _ai.Blackboard.CurrentFieldSnapshot.BottomCourtConditions;
 
         bool theyCanUseFakeOut = _ai.CanUseFakeOut( attackTOP.Attacker, attackTOP.Opponent );
 
-        int ourRemainingCount = _ai.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
-        int theirRemainingCount = _ai.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+        int ourRemainingCount = _ai.Blackboard.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+        int theirRemainingCount = _ai.Blackboard.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
         int materialDelta = theirRemainingCount - ourRemainingCount;
 
         if( attackTOP.Opponent_DiesBeforeActing )
@@ -878,7 +881,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Blocker Removal
-            if( _ai.GamePlan.OurBlockers.Contains( attackTOP.Opponent.Pokemon ) )
+            if( _ai.Blackboard.GamePlan.OurBlockers.Contains( attackTOP.Opponent.Pokemon ) )
             {
                 evidence += 1;
                 _tirLog.Add( $"They are looking to sweep and we are a game plan blocker. Attack Evidence: {evidence}" );
@@ -911,7 +914,7 @@ public class BattleAI_ThreatIntent
             _tirLog.Add( $"" );
             _tirLog.Add( $"This is a double battle! Checking attack intent evidence in the context of doubles..." );
 
-            var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+            var theirAlly = _ai.GetActiveAllyAs_Adapter( tic.Threat.Pokemon );
             if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
             {
                 _tirLog.Add( $"They don't have an ally on the field, skipping!" );
@@ -923,7 +926,7 @@ public class BattleAI_ThreatIntent
             _tirLog.Add( $"" );
 
             //--Our Ally Information
-            var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+            var ourAlly = _ai.GetActiveAllyAs_Adapter( _ai.CurrentUnitAdapter.Pokemon );
             bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
             if( weHaveAlly )
             {
@@ -987,7 +990,7 @@ public class BattleAI_ThreatIntent
                 }
             }
 
-            if( theirAllyHas_TrickRoom && !_ai.CurrentFieldSnapshot.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) && theyCanUseFakeOut )
+            if( theirAllyHas_TrickRoom && !_ai.Blackboard.CurrentFieldSnapshot.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) && theyCanUseFakeOut )
             {
                 evidence += 3;
                 _tirLog.Add( $"Their Ally can set Trick Room and they can currently use fake out. Attack Evidence: {evidence}" );
@@ -1073,8 +1076,8 @@ public class BattleAI_ThreatIntent
 
             bool currentExchangeLost = attackTOP.OpponentPTKO >= PotentialToKO.Dangerous && attackTOP.AttackerPTKO <= PotentialToKO.TwoHKO;
 
-            int ourRemainingCount = _ai.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
-            int theirRemainingCount = _ai.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+            int ourRemainingCount = _ai.Blackboard.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+            int theirRemainingCount = _ai.Blackboard.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
             int materialDelta = theirRemainingCount - ourRemainingCount;
 
             if( attackTOP.Attacker_DiesBeforeActing )
@@ -1257,7 +1260,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
                 _tirLog.Add( $"This is a double battle! Checking defensive switch intent evidence in the context of doubles..." );
 
-                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                var theirAlly = _ai.GetActiveAllyAs_Adapter( tic.Threat.Pokemon );
                 bool theyHaveAlly = true;
                 if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
                 {
@@ -1271,7 +1274,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
 
                 //--Our Ally Information
-                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                var ourAlly = _ai.GetActiveAllyAs_Adapter( _ai.CurrentUnitAdapter.Pokemon );
                 bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
                 if( weHaveAlly )
                 {
@@ -1359,7 +1362,7 @@ public class BattleAI_ThreatIntent
 
             bool currentExchangeLost = attackTOP.OpponentPTKO >= PotentialToKO.Dangerous && attackTOP.AttackerPTKO <= PotentialToKO.TwoHKO;
             bool losingOffensiveExchange = ee.OpponentThreatensKO && !ee.AttackerThreatensKO;
-            int switchThreatCount = _ai.TheirTeamPieceValues.TryGetValue( offSwitchTOP.Attacker.Pokemon, out var pieceValue ) ? pieceValue.ThreatCount : 0;
+            int switchThreatCount = _ai.Blackboard.TheirTeamPieceValues.TryGetValue( offSwitchTOP.Attacker.Pokemon, out var pieceValue ) ? pieceValue.ThreatCount : 0;
 
             if( currentExchangeLost )
             {
@@ -1554,7 +1557,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
                 _tirLog.Add( $"This is a double battle! Checking Offensive Switch intent evidence in the context of doubles..." );
 
-                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                var theirAlly = _ai.GetActiveAllyAs_Adapter( tic.Threat.Pokemon );
                 bool theyHaveAlly = true;
                 if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
                 {
@@ -1568,7 +1571,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
 
                 //--Our Ally Information
-                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                var ourAlly = _ai.GetActiveAllyAs_Adapter( _ai.CurrentUnitAdapter.Pokemon );
                 bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
                 if( weHaveAlly )
                 {
@@ -1648,8 +1651,8 @@ public class BattleAI_ThreatIntent
 
             bool freeTurn = setupTOP.OpponentPTKO <= PotentialToKO.Safe;
 
-            int ourRemainingCount = _ai.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
-            int theirRemainingCount = _ai.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+            int ourRemainingCount = _ai.Blackboard.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+            int theirRemainingCount = _ai.Blackboard.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
             int materialDelta = theirRemainingCount - ourRemainingCount;
 
             if( hasSetup && freeTurn )
@@ -1752,7 +1755,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"They've already set up, so they may not do so again. Setup Evidence: {evidence}" );
             }
 
-            var ourRemaining = _ai.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList();
+            var ourRemaining = _ai.Blackboard.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList();
             int fasterBonus = 0;
             bool theyKO = setupEE.AttackerPTKOR.PTKO >= PotentialToKO.Dangerous && ( setupEE.AttackerMovesFirst || setupEE.OpponentPTKOR.PTKO <= PotentialToKO.Risky );
             bool theyForceSwitchNextTurn = setupEE.OpponentSwitchProbability >= 0.85f;
@@ -1836,7 +1839,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
                 _tirLog.Add( $"This is a double battle! Checking Setup intent evidence in the context of doubles..." );
 
-                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                var theirAlly = _ai.GetActiveAllyAs_Adapter( tic.Threat.Pokemon );
                 bool theyHaveAlly = true;
                 if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
                 {
@@ -1850,7 +1853,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
 
                 //--Our Ally Information
-                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                var ourAlly = _ai.GetActiveAllyAs_Adapter( _ai.CurrentUnitAdapter.Pokemon );
                 bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
                 if( weHaveAlly )
                 {
@@ -1945,10 +1948,10 @@ public class BattleAI_ThreatIntent
             var ourTraits = offStatusTOP.Opponent.RoleProfile.Traits;
             var theirTraits = offStatusTOP.Attacker.RoleProfile.Traits;
 
-            float ourRemainingCount = _ai.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
-            float theirRemainingCount = _ai.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
-            float ourRemainingPercent = ourRemainingCount / _ai.OurTeamAdapters.Count;
-            float theirRemainingPercent = theirRemainingCount / _ai.TheirTeamAdapters.Count;
+            float ourRemainingCount = _ai.Blackboard.OurTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+            float theirRemainingCount = _ai.Blackboard.TheirTeamAdapters.Where( kvp => kvp.Key.CurrentHP > 0 ).ToList().Count;
+            float ourRemainingPercent = ourRemainingCount / _ai.Blackboard.OurTeamAdapters.Count;
+            float theirRemainingPercent = theirRemainingCount / _ai.Blackboard.TheirTeamAdapters.Count;
 
             var status = tic.OffensiveStatusThreatResult;
 
@@ -1963,7 +1966,7 @@ public class BattleAI_ThreatIntent
             bool theyCreateDecisiveState = false;
 
             //--Status Effect Evidence. Toxic, Taunt, etc.
-            if( status.StatusType == OffensiveStatusType.StatusEffect || status.StatusType == OffensiveStatusType.Disruption )
+            if( status.OffensiveStatusType == OffensiveStatusType.StatusEffect || status.OffensiveStatusType == OffensiveStatusType.Disruption )
             {
                 _tirLog.Add( $"They are looking to use a move with a status effect." );
 
@@ -2078,7 +2081,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Entry Hazard Evidence
-            if( status.StatusType == OffensiveStatusType.EntryHazard )
+            if( status.OffensiveStatusType == OffensiveStatusType.EntryHazard )
             {
                 _tirLog.Add( $"They are looking to set entry hazards" );
                 var ourCourt = offStatusTOP.Opponent.CourtLocation == CourtLocation.TopCourt ? offStatusTOP.Field.TopCourtConditions : offStatusTOP.Field.BottomCourtConditions;
@@ -2141,7 +2144,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Stat Debuff Evidence
-            if( status.StatusType == OffensiveStatusType.StatDebuff )
+            if( status.OffensiveStatusType == OffensiveStatusType.StatDebuff )
             {
                 _tirLog.Add( $"They are looking to use a stat debuff move." );
                 var move = status.Move;
@@ -2233,7 +2236,7 @@ public class BattleAI_ThreatIntent
             }
 
             //--Phazing Evidence
-            if( status.StatusType == OffensiveStatusType.Phaze )
+            if( status.OffensiveStatusType == OffensiveStatusType.Phaze )
             {
                 _tirLog.Add( $"They are looking to phaze us out." );
 
@@ -2376,7 +2379,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"Their status move gives them speed control next turn. Offensive Status Evidence: {evidence}" );
             }
 
-            if( ( theirTP.Type == ThreatType.Disruptive || theirTP.DisruptivePressure >= 5f ) && status.StatusType != OffensiveStatusType.EntryHazard )
+            if( ( theirTP.Type == ThreatType.Disruptive || theirTP.DisruptivePressure >= 5f ) && status.OffensiveStatusType != OffensiveStatusType.EntryHazard )
             {
                 evidence += 1;
                 _tirLog.Add( $"They are a disruptive threat or have high disruptive pressure and are looking to use a status move that isn't an entry hazard. Offensive Status Evidence: {evidence}" );
@@ -2415,19 +2418,19 @@ public class BattleAI_ThreatIntent
             }
 
             //--Current Plan & GPA
-            if( status.StatusType != OffensiveStatusType.EntryHazard && _ai.GamePlan.OurBlockers.Contains( offStatusTOP.Opponent.Pokemon ) )
+            if( status.OffensiveStatusType != OffensiveStatusType.EntryHazard && _ai.Blackboard.GamePlan.OurBlockers.Contains( offStatusTOP.Opponent.Pokemon ) )
             {
                 evidence += 1;
                 _tirLog.Add( $"We are a game plan blocker and they are looking to cripple us with status. Offensive Status Evidence: {evidence}" );
 
-                if( status.StatusType == OffensiveStatusType.StatusEffect || status.StatusType == OffensiveStatusType.Disruption )
+                if( status.OffensiveStatusType == OffensiveStatusType.StatusEffect || status.OffensiveStatusType == OffensiveStatusType.Disruption )
                 {
                     evidence += 1;
                     _tirLog.Add( $"That status is also a status effect such as toxic or taunt. Offensive Status Evidence: {evidence}" );
                 }
             }
 
-            if( theirCP.FocusMon == offStatusTOP.Opponent.Pokemon && theirCP.Type == PlanType.Aggress && status.StatusType != OffensiveStatusType.EntryHazard )
+            if( theirCP.FocusMon == offStatusTOP.Opponent.Pokemon && theirCP.Type == PlanType.Aggress && status.OffensiveStatusType != OffensiveStatusType.EntryHazard )
             {
                 evidence += 1;
                 _tirLog.Add( $"They are looking to aggress our current pokemon. Offensive Status Evidence: {evidence}" );
@@ -2445,7 +2448,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
                 _tirLog.Add( $"This is a double battle! Checking Offensive Status intent evidence in the context of doubles..." );
 
-                var theirAlly = _ai.GetActiveAlly( tic.Threat.Pokemon );
+                var theirAlly = _ai.GetActiveAllyAs_Adapter( tic.Threat.Pokemon );
                 bool theyHaveAlly = true;
                 if( ( theirAlly == null && theirAlly.Pokemon == null ) || ( theirAlly != null && theirAlly.Pokemon == null ) )
                 {
@@ -2459,7 +2462,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"" );
 
                 //--Our Ally Information
-                var ourAlly = _ai.GetActiveAlly( _ai.CurrentUnitAdapter.Pokemon );
+                var ourAlly = _ai.GetActiveAllyAs_Adapter( _ai.CurrentUnitAdapter.Pokemon );
                 bool weHaveAlly = ourAlly != null && ourAlly.Pokemon != null;
                 if( weHaveAlly )
                 {

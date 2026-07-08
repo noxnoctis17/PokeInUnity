@@ -1882,4 +1882,10 @@ public enum AbilityID
     IceBody,
     MagicGuard,
     SuctionCups,
+    Sturdy,
+    Multiscale,
+    Contrary,
+    Simple,
+    CloudNine,
+    WeakArmor,
 }

@@ -161,21 +161,21 @@ public class WeatherConditionsDB
                     OnEnterWeather = ( pokemon ) =>
                     {
                         //--Sandstorm SPDEF Boost.
-                        Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                        Debug.Log( $"{pokemon.NickName}'s Sp.Def Stat is: {pokemon.SpDefense}" );
                         if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.AbilityID == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
                         {
                             pokemon.ApplyDirectStatModifier( Stat.SpDefense, DirectModifierCause.WeatherSpDEF, 1.5f );
-                            Debug.Log( $"{pokemon.NickName}'s SPDEF Stat is: {pokemon.SpDefense}" );
+                            Debug.Log( $"{pokemon.NickName}'s Sp.Def Stat is: {pokemon.SpDefense}" );
                         }
 
                         //--Sand Rush
-                        Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
+                        Debug.Log( $"{pokemon.NickName}'s Speed Stat is: {pokemon.Speed}" );
                         if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush )
                         {
                             pokemon.Ability?.OnAbilityTriggered?.Invoke( pokemon );
                             Debug.Log( $"{pokemon.NickName}'s Sand Rush is active!" );
                             pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
-                            Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
+                            Debug.Log( $"{pokemon.NickName}'s Speed Stat is: {pokemon.Speed}" );
                         }
 
                         //--Sand Veil

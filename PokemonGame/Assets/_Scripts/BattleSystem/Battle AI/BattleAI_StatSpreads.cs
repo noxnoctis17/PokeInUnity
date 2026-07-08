@@ -30,7 +30,7 @@ public class BattleAI_StatSpreads
         // log.Add( $"====================================================" );
         // log.Add( $"" );
 
-        bool ourMon = _ai.OurTeamPokemon.Contains( adapter.Pokemon );
+        bool ourMon = _ai.Blackboard.OurTeamPokemon.Contains( adapter.Pokemon );
 
         if( ourMon )
         {

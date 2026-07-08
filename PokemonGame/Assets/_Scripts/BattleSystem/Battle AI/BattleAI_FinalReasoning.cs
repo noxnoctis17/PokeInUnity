@@ -144,8 +144,8 @@ public class BattleAI_FinalReasoning
             _ai.CurrentLog.Add( $"Attacker has sweep horizon detected from setup. Advantage." );
         }
 
-        float weSwitchProbability = _ai.UnitSim.PredictSwitchProbability( setup.Top2.OpponentPTKO, setup.Top2.AttackerPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Opponent.BeginningHPR, setup.Top2.Attacker.BeginningHPR, setup.Top2.Attacker.Expendability, true, $"{setup.Top2.Attacker.Name}" );
-        float theySwitchProbability = _ai.UnitSim.PredictSwitchProbability( setup.Top2.AttackerPTKO, setup.Top2.OpponentPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Attacker.BeginningHPR, setup.Top2.Opponent.BeginningHPR, setup.Top2.Opponent.Expendability, true, $"{setup.Top2.Opponent.Name}" );
+        float weSwitchProbability = _ai.UnitSim.PredictSwitchProbability( setup.Top2.Attacker.Pokemon, setup.Top2.OpponentPTKO, setup.Top2.AttackerPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Opponent.BeginningHPR, setup.Top2.Attacker.BeginningHPR, setup.Top2.Attacker.Expendability, true, $"{setup.Top2.Attacker.Name}" );
+        float theySwitchProbability = _ai.UnitSim.PredictSwitchProbability( setup.Top2.Opponent.Pokemon, setup.Top2.AttackerPTKO, setup.Top2.OpponentPTKO, setup.Top2.AttackerMovedFirst, setup.Top2.Attacker.BeginningHPR, setup.Top2.Opponent.BeginningHPR, setup.Top2.Opponent.Expendability, true, $"{setup.Top2.Opponent.Name}" );
         bool weHaveToSwitchNextTurn = weSwitchProbability >= 0.5f;
         bool weForceSwitchNextTurn = theySwitchProbability >= 0.7f;
 
@@ -357,7 +357,7 @@ public class BattleAI_FinalReasoning
         var movesFirst = attack.Top1.AttackerMovedFirst;
         var oppExpendability = attack.Top1.Opponent.Expendability;
 
-        float theySwitchProb = _ai.UnitSim.PredictSwitchProbability( attackerPTKO, opponentPTKO, movesFirst, attackerHPR, opponentHPR, oppExpendability, true, attack.Top1.Opponent.Name );
+        float theySwitchProb = _ai.UnitSim.PredictSwitchProbability( attack.Top1.Opponent.Pokemon, attackerPTKO, opponentPTKO, movesFirst, attackerHPR, opponentHPR, oppExpendability, true, attack.Top1.Opponent.Name );
 
         if( theySwitchProb < 0.7f )
         {
@@ -386,7 +386,7 @@ public class BattleAI_FinalReasoning
 
             Move bestCoverageMove = null;
             int coverageMovePTKOs = 0;
-            var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.Unit );
+            var ourActivePokemon = _ai.BattleSystem.GetAllyUnits( _ai.CurrentUnitDeciding );
             var ourActiveAdapters = _ai.CreateBattleAIUnits_FromBattleUnits( ourActivePokemon );
             var likelyCandidates = _ai.GetLikely_DefensiveSwitches( attack.Top1.Opponent );
             List<IBattleAIUnit> likelySwitches = new();

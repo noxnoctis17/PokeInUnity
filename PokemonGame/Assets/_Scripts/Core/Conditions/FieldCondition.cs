@@ -16,7 +16,7 @@ public class FieldCondition
     public string StartByMoveMessage { get; set; }
 
     public Action<BattleSystem, Battlefield, BattleUnit> OnStart { get; set; }
-    public Action<BattleSystem, Battlefield, BattleUnit> OnEnd { get; set; }
+    public Action<BattleSystem, Battlefield> OnEnd { get; set; }
     public Action<Pokemon> OnFieldEffect { get; set; }
     public Action<Pokemon> OnEnterField { get; set; }
     public Action<Pokemon> OnExitField { get; set; }

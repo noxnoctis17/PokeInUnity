@@ -2,8 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -15,6 +13,8 @@ public class BattleAI_PairIntent
     {
         _ai = ai;
     }
+
+    //--GamePlanAlignment scoring blocks may want to have ally synergy! don't forget to visit those! --07/02/26
     
     public PairIntentResult GetPairIntentResult( ThreatInteractionMatrix tim )
     {
@@ -25,22 +25,45 @@ public class BattleAI_PairIntent
         return pir;
     }
 
-    public ThreatInteractionMatrix BuildThreatInteractionMatrix( IBattleAIUnit leftUnit, ThreatIntentResult leftTIRLeft, ThreatIntentResult leftTIRRight, IBattleAIUnit rightUnit, ThreatIntentResult rightTIRLeft, ThreatIntentResult rightTIRRight )
+    public ThreatInteractionMatrix BuildThreatInteractionMatrix()
     {
         ThreatInteractionMatrix tim = new()
         {
-            UnitLeft = new()
-            {
-                { leftUnit.Pokemon, leftTIRLeft },
-                { leftUnit.Pokemon, leftTIRRight },
-            },
-
-            UnitRight = new()
-            {
-                { rightUnit.Pokemon, rightTIRLeft },
-                { rightUnit.Pokemon, rightTIRRight },
-            },
+            EnemyLeft = new(),
+            EnemyRight = new(),
         };
+
+        var myUnits = _ai.Blackboard.MyActiveUnits.Keys.ToList();
+        var theirUnits = _ai.Blackboard.TheirActiveBattleAIUnits;
+        for( int i = 0; i < theirUnits.Count; i++ )
+        {
+            var enemy = theirUnits[i];
+            var ourLeft = _ai.GetPokemonAs_Adapter( myUnits[0].Pokemon );
+            var ourRight = _ai.GetPokemonAs_Adapter( myUnits[1].Pokemon );
+
+            //--Enemy vs Our Left
+            _ai.SetCurrentUnitAdapter( ourLeft );
+            var brainLeft = _ai.ThreatIntent.ReadThreatBrain( enemy, ourLeft );
+            var ticLeft = _ai.ThreatIntent.GetThreatCandidates( enemy, ourLeft, brainLeft );
+            var tirLeft = _ai.ThreatIntent.GetThreatIntentResult( ticLeft, brainLeft );
+
+            //--Enemy vs Our Right
+            _ai.SetCurrentUnitAdapter( ourRight );
+            var brainRight = _ai.ThreatIntent.ReadThreatBrain( enemy, ourRight );
+            var ticRight = _ai.ThreatIntent.GetThreatCandidates( enemy, ourRight, brainRight );
+            var tirRight = _ai.ThreatIntent.GetThreatIntentResult( ticRight, brainRight );
+
+            if( i == 0 )
+            {
+                tim.EnemyLeft.Add( ourLeft.Pokemon, tirLeft );
+                tim.EnemyLeft.Add( ourRight.Pokemon, tirRight );
+            }
+            else
+            {
+                tim.EnemyRight.Add( ourLeft.Pokemon, tirLeft );
+                tim.EnemyRight.Add( ourRight.Pokemon, tirRight );
+            }
+        }
 
         return tim;
     }
@@ -62,25 +85,70 @@ public class BattleAI_PairIntent
             patterns.Add( PairPattern.SpeedControl, speedControl );
 
         //--Offensive Pressure
-        if( DetectPattern_OffensivePressure( tim ) is var offensivePressure && offensivePressure.PackFound )
-            patterns.Add( PairPattern.OffensivePressure, offensivePressure );
+        if( DetectPattern_DoubleAttack( tim ) is var doubleAttack && doubleAttack.PackFound )
+            patterns.Add( PairPattern.DoubleAttack, doubleAttack );
 
         //--Defensive Reset
         if( DetectPattern_CoveredSwitch( tim ) is var coveredSwitch && coveredSwitch.PackFound )
             patterns.Add( PairPattern.ProtectAndSwitch, coveredSwitch );
 
-        LogPatterns( patterns );
+        if( patterns.Count > 0 )
+            LogPatterns( patterns );
 
         return patterns;
+    }
+
+    private PatternIntentMatch CreatePIM( ThreatIntentResult tir, bool isPrimary, bool found = false )
+    {
+        PatternIntentMatch pim = new()
+        {
+            Found = false,
+            MatchingTIR = default,
+            Evidence = 0,
+            RelativeStrength = 0f,
+        };
+
+        if( found )
+            return FinishFoundPIM( ref pim, tir, isPrimary );
+
+        return pim;
+    }
+
+    private PatternIntentMatch FinishFoundPIM( ref PatternIntentMatch pim, ThreatIntentResult tir, bool isPrimary )
+    {
+        pim.Found = true;
+        pim.MatchingTIR = tir;
+        pim.MatchingIntent = isPrimary ? tir.PrimaryIntent : tir.SecondaryIntent;
+        pim.IsPrimary = isPrimary;
+        pim.Evidence = pim.MatchingIntent.Evidence;
+        pim.RelativeStrength = pim.MatchingIntent.Evidence / (float)tir.TotalEvidence;
+
+        return pim;
     }
 
     private void LogPatterns( Dictionary<PairPattern, PatternIntentPack> patterns )
     {
         CustomLogSession patternLog = new();
+        var ourUnits = _ai.Blackboard.MyActiveUnits.Keys.ToList();
+        var ourLeft = ourUnits[0].Pokemon.NickName;
+        var ourRight = ourUnits[1].Pokemon.NickName;
+
+        var theirUnits = _ai.Blackboard.TheirActiveBattleAIUnits;
+        var theirLeft = theirUnits[0].Name;
+        var theirRight = theirUnits[1].Name;
 
         patternLog.Add( $"================================" );
         patternLog.Add( $"=====[Pair Intent Patterns]=====" );
         patternLog.Add( $"================================" );
+        patternLog.Add( $"" );
+        patternLog.Add( $"Patterns found for this round: {patterns.Count}" );
+        patternLog.Add( $"" );
+        patternLog.Add( $"Our Left Unit: {ourLeft}" );
+        patternLog.Add( $"Our Right Unit: {ourRight}" );
+        patternLog.Add( $"" );
+        patternLog.Add( $"Their Left Unit: {theirLeft}" );
+        patternLog.Add( $"Their Right Unit: {theirRight}" );
+        patternLog.Add( $"" );
 
         foreach ( var kvp in patterns )
         {
@@ -95,30 +163,29 @@ public class BattleAI_PairIntent
             //--Get Right Intent Result
             var rightIntentResult = rightIntent.IntentResult;
 
-            var leftUnit = leftIntentResult.Top.Attacker;
-            var rightUnit = rightIntentResult.Top.Attacker;
+            //--Attackers are the ai's opponents
+            var leftEnemy = leftIntentResult.Top.Attacker;
+            var rightEnemy = rightIntentResult.Top.Attacker;
 
-            var leftTarget = leftIntentResult.Top.Opponent;
-            var rightTarget = rightIntentResult.Top.Opponent;
+            //--Opponents are the ai's units
+            var leftEnemyTarget = leftIntentResult.Top.Opponent;
+            var rightEnemyTarget = rightIntentResult.Top.Opponent;
 
-            patternLog.Add( $"" );
             patternLog.Add( $"===[{pattern}]===" );
-            patternLog.Add( $"Left Unit: {leftUnit.Name}, Intent: {leftIntent.IntentType}, Is Primary: {pip.UnitLeftMatch.IsPrimary}, Evidence: {pip.UnitLeftMatch.Evidence}, Relative Strength: {pip.UnitLeftMatch.RelativeStrength}" );
-            patternLog.Add( $"Right Unit: {rightUnit.Name}, Intent: {rightIntent.IntentType}, Is Primary: {pip.UnitRightMatch.IsPrimary}, Evidence: {pip.UnitRightMatch.Evidence}, Relative Strength: {pip.UnitRightMatch.RelativeStrength}" );
-            patternLog.Add( $"Left Target: {leftTarget.Name}" );
-            patternLog.Add( $"Right Target: {rightTarget.Name}" );
+            patternLog.Add( $"Matching pattern for Left had {leftEnemy.Name} vs {leftEnemyTarget.Name}, Intent: {leftIntent.IntentType}, Is Primary: {pip.UnitLeftMatch.IsPrimary}, Evidence: {pip.UnitLeftMatch.Evidence}, Relative Strength: {pip.UnitLeftMatch.RelativeStrength}" );
+            patternLog.Add( $"Matching pattern for Right had {rightEnemy.Name} vs {rightEnemyTarget.Name}, Intent: {rightIntent.IntentType}, Is Primary: {pip.UnitRightMatch.IsPrimary}, Evidence: {pip.UnitRightMatch.Evidence}, Relative Strength: {pip.UnitRightMatch.RelativeStrength}" );
 
             var leftType = leftIntent.IntentType;
             if( leftType == IntentType.Attack || leftType == IntentType.Setup || leftType == IntentType.OffensiveStatus )
-                patternLog.Add( $"Left Unit {leftUnit.Name} attacking with {leftIntentResult.Move.MoveSO.Name}" );
+                patternLog.Add( $"Enemy Unit {leftEnemy.Name} is attacking {leftEnemyTarget.Name} with {leftIntentResult.Move.MoveSO.Name}" );
             else
-                patternLog.Add( $"Left Unit {leftUnit.Name} is switching into: {leftIntentResult.Candidate.Name}" );
+                patternLog.Add( $"Enemy Unit {leftEnemy.Name} is switching into: {leftIntentResult.Candidate.Name} due to our {leftEnemyTarget.Name}" );
 
             var rightType = rightIntent.IntentType;
             if( rightType == IntentType.Attack || rightType == IntentType.Setup || rightType == IntentType.OffensiveStatus )
-                patternLog.Add( $"Left Unit {rightUnit.Name} attacking with {rightIntentResult.Move.MoveSO.Name}" );
+                patternLog.Add( $"Enemy Unit {rightEnemy.Name} is attacking {rightEnemyTarget.Name} with {rightIntentResult.Move.MoveSO.Name}" );
             else
-                patternLog.Add( $"Left Unit {rightUnit.Name} is switching into: {rightIntentResult.Candidate.Name}" );
+                patternLog.Add( $"Enemy Unit {rightEnemy.Name} is switching into: {rightIntentResult.Candidate.Name} due to our {rightEnemyTarget.Name}" );
 
             patternLog.Add( $"" );
         }
@@ -138,14 +205,14 @@ public class BattleAI_PairIntent
             PackFound = false,
         };
 
-        var unitLeft_SetupIntent = FindSetupIntent( tim.UnitLeft );
-        var unitRight_SetupIntent = FindSetupIntent( tim.UnitRight );
+        var unitLeft_SetupIntent = FindSetupIntent( tim.EnemyLeft );
+        var unitRight_SetupIntent = FindSetupIntent( tim.EnemyRight );
 
         if( !unitLeft_SetupIntent.Found && !unitRight_SetupIntent.Found )
             return pip;
 
-        var unitLeft_CoverIntent = FindCoverAllyIntent( tim.UnitLeft );
-        var unitRight_CoverIntent = FindCoverAllyIntent( tim.UnitRight );
+        var unitLeft_CoverIntent = FindCoverAllyIntent( tim.EnemyLeft );
+        var unitRight_CoverIntent = FindCoverAllyIntent( tim.EnemyRight );
 
         if( !unitLeft_CoverIntent.Found && !unitRight_CoverIntent.Found )
             return pip;
@@ -178,12 +245,12 @@ public class BattleAI_PairIntent
             PackFound = false,
         };
 
-        var unitLeft_AttackIntent = FindAttackIntent( tim.UnitLeft );
+        var unitLeft_AttackIntent = FindAttackIntent( tim.EnemyLeft );
 
         if( !unitLeft_AttackIntent.Found )
             return pip;
 
-        var unitRight_AttackIntent = FindAttackIntent( tim.UnitRight );
+        var unitRight_AttackIntent = FindAttackIntent( tim.EnemyRight );
 
         if( !unitRight_AttackIntent.Found )
             return pip;
@@ -191,7 +258,7 @@ public class BattleAI_PairIntent
         bool leftIsPrimary = false;
         bool rightIsPrimary = false;
         List<( ThreatIntentResult left, ThreatIntentResult right )> attackOverlapTIRs = new();
-        foreach( var kvpLeft in tim.UnitLeft )
+        foreach( var kvpLeft in tim.EnemyLeft )
         {
             var leftTIR = kvpLeft.Value;
             var leftPrimary = leftTIR.PrimaryIntent;
@@ -216,7 +283,7 @@ public class BattleAI_PairIntent
 
             var leftTarget = leftMTR.Target.Pokemon;
 
-            foreach( var kvpRight in tim.UnitRight )
+            foreach( var kvpRight in tim.EnemyRight )
             {
                 var rightTIR = kvpRight.Value;
                 var rightPrimary = rightTIR.PrimaryIntent;
@@ -251,27 +318,8 @@ public class BattleAI_PairIntent
 
         if( attackOverlapTIRs.Count > 0 )
         {
-            PatternIntentMatch leftPim = new()
-            {
-                Found = true,
-                IsPrimary = leftIsPrimary,
-                MatchingTIR = attackOverlapTIRs[0].left,
-                MatchingIntent = leftIsPrimary ? attackOverlapTIRs[0].left.PrimaryIntent : attackOverlapTIRs[0].left.SecondaryIntent,
-                Evidence = leftIsPrimary ? attackOverlapTIRs[0].left.PrimaryIntent.Evidence : attackOverlapTIRs[0].left.SecondaryIntent.Evidence,
-            };
-
-            leftPim.RelativeStrength = leftPim.Evidence / leftPim.MatchingTIR.TotalEvidence;
-
-            PatternIntentMatch rightPim = new()
-            {
-                Found = true,
-                IsPrimary = rightIsPrimary,
-                MatchingTIR = attackOverlapTIRs[0].right,
-                MatchingIntent = rightIsPrimary ? attackOverlapTIRs[0].right.PrimaryIntent : attackOverlapTIRs[0].right.SecondaryIntent,
-                Evidence = rightIsPrimary ? attackOverlapTIRs[0].right.PrimaryIntent.Evidence : attackOverlapTIRs[0].right.SecondaryIntent.Evidence,
-            };
-
-            rightPim.RelativeStrength = rightPim.Evidence / rightPim.MatchingTIR.TotalEvidence;
+            PatternIntentMatch leftPim = CreatePIM( attackOverlapTIRs[0].left, leftIsPrimary, true );
+            PatternIntentMatch rightPim = CreatePIM( attackOverlapTIRs[0].right, rightIsPrimary, true );
 
             pip.UnitLeftMatch = leftPim;
             pip.UnitRightMatch = rightPim;
@@ -290,8 +338,8 @@ public class BattleAI_PairIntent
             PackFound = false,
         };
 
-        var unitLeft_SpeedControlIntent = FindSpeedControlIntent( tim.UnitLeft );
-        var unitRight_SpeedControlIntent = FindSpeedControlIntent( tim.UnitRight );
+        var unitLeft_SpeedControlIntent = FindSpeedControlIntent( tim.EnemyLeft );
+        var unitRight_SpeedControlIntent = FindSpeedControlIntent( tim.EnemyRight );
 
         if( !unitLeft_SpeedControlIntent.Found && !unitRight_SpeedControlIntent.Found )
             return pip;
@@ -315,7 +363,7 @@ public class BattleAI_PairIntent
         return pip;
     }
 
-    private PatternIntentPack DetectPattern_OffensivePressure( ThreatInteractionMatrix tim )
+    private PatternIntentPack DetectPattern_DoubleAttack( ThreatInteractionMatrix tim )
     {
         PatternIntentPack pip = new()
         {
@@ -324,12 +372,12 @@ public class BattleAI_PairIntent
             PackFound = false,
         };
 
-        var unitLeft_AttackIntent = FindAttackIntent( tim.UnitLeft );
+        var unitLeft_AttackIntent = FindAttackIntent( tim.EnemyLeft );
 
         if( !unitLeft_AttackIntent.Found )
             return pip;
 
-        var unitRight_AttackIntent = FindAttackIntent( tim.UnitRight );
+        var unitRight_AttackIntent = FindAttackIntent( tim.EnemyRight );
 
         if( !unitRight_AttackIntent.Found )
             return pip;
@@ -354,14 +402,14 @@ public class BattleAI_PairIntent
             PackFound = false,
         };
 
-        var unitLeft_SwitchIntent = FindSwitchIntent( tim.UnitLeft );
-        var unitRight_SwitchIntent = FindSwitchIntent( tim.UnitRight );
+        var unitLeft_SwitchIntent = FindSwitchIntent( tim.EnemyLeft );
+        var unitRight_SwitchIntent = FindSwitchIntent( tim.EnemyRight );
 
         if( !unitLeft_SwitchIntent.Found && !unitRight_SwitchIntent.Found )
             return pip;
 
-        var unitLeft_CoverAllyIntent = FindCoverAllyIntent( tim.UnitLeft );
-        var unitRight_CoverAllyIntent = FindCoverAllyIntent( tim.UnitRight );
+        var unitLeft_CoverAllyIntent = FindCoverAllyIntent( tim.EnemyLeft );
+        var unitRight_CoverAllyIntent = FindCoverAllyIntent( tim.EnemyRight );
 
         if( !unitLeft_CoverAllyIntent.Found && !unitRight_CoverAllyIntent.Found )
             return pip;
@@ -395,29 +443,26 @@ public class BattleAI_PairIntent
             RelativeStrength = 0f,
         };
 
+        ThreatIntentResult tir = default;
+        bool found = false;
+        bool isPrimary = false;
+
         foreach( var interaction in threatInteractions )
         {
-            var tir = interaction.Value;
-            bool found = false;
-            bool isPrimary = false;
+            tir = interaction.Value;
 
             if( ( tir.PrimaryIntent.IntentType == IntentType.Attack ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Attack ) )
             {
                 bool primary = tir.PrimaryIntent.IntentType == IntentType.Attack;
                 found = true;
                 isPrimary = primary;
-            }
-
-            if( found )
-            {
-                pim.Found = true;
-                pim.MatchingTIR = tir;
-                pim.MatchingIntent = isPrimary ? tir.PrimaryIntent : tir.SecondaryIntent;
-                pim.IsPrimary = isPrimary;
-                pim.Evidence = pim.MatchingIntent.Evidence;
-                pim.RelativeStrength = pim.MatchingIntent.Evidence / (float)tir.TotalEvidence;
                 break;
             }
+        }
+
+        if( found )
+        {
+            pim = FinishFoundPIM( ref pim, tir, isPrimary );
         }
 
         return pim;
@@ -433,17 +478,20 @@ public class BattleAI_PairIntent
             RelativeStrength = 0f,
         };
 
+        ThreatIntentResult tir = default;
+        bool found = false;
+        bool isPrimary = false;
+
         foreach( var interaction in threatInteractions )
         {
-            var tir = interaction.Value;
-            bool found = false;
-            bool isPrimary = false;
+            tir = interaction.Value;
 
             if( ( tir.PrimaryIntent.IntentType == IntentType.Setup ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Setup ) )
             {
                 bool primary = tir.PrimaryIntent.IntentType == IntentType.Setup;
                 found = true;
                 isPrimary = primary;
+                break;
             }
 
             if( ( tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.SupportiveStatus ) )
@@ -452,6 +500,7 @@ public class BattleAI_PairIntent
                 bool primary = tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus;
                 found = true;
                 isPrimary = primary;
+                break;
             }
 
             if( ( tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.OffensiveStatus ) )
@@ -459,23 +508,18 @@ public class BattleAI_PairIntent
                 bool primary = tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus;
                 StatusThreatResult offStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
 
-                if( offStatus.StatusType == OffensiveStatusType.EntryHazard )
+                if( offStatus.OffensiveStatusType == OffensiveStatusType.EntryHazard )
                 {
                     found = true;
                     isPrimary = primary;
+                    break;
                 }
             }
+        }
 
-            if( found )
-            {
-                pim.Found = true;
-                pim.MatchingTIR = tir;
-                pim.MatchingIntent = isPrimary ? tir.PrimaryIntent : tir.SecondaryIntent;
-                pim.IsPrimary = isPrimary;
-                pim.Evidence = pim.MatchingIntent.Evidence;
-                pim.RelativeStrength = pim.MatchingIntent.Evidence / (float)tir.TotalEvidence;
-                break;
-            }
+        if( found )
+        {
+            pim = FinishFoundPIM( ref pim, tir, isPrimary );
         }
 
         return pim;
@@ -492,12 +536,14 @@ public class BattleAI_PairIntent
             RelativeStrength = 0f,
         };
 
+        ThreatIntentResult tir = default;
+        bool found = false;
+        bool isPrimary = false;
+
         foreach( var interaction in threatInteractions )
         {
-            var tir = interaction.Value;
-            bool found = false;
-            bool isPrimary = false;
-
+            tir = interaction.Value;
+        
             if( tir.PrimaryIntent.IntentType == IntentType.Attack || tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Attack )
             {
                 bool primary = tir.PrimaryIntent.IntentType == IntentType.Attack;
@@ -510,12 +556,14 @@ public class BattleAI_PairIntent
                 {
                     found = true;
                     isPrimary = primary;
+                    break;
                 }
 
                 if( effects.TransientStatus == TransientConditionID.CenterOfAttention )
                 {
                     found = true;
                     isPrimary = primary;
+                    break;
                 }
             }
 
@@ -533,20 +581,14 @@ public class BattleAI_PairIntent
                 {
                     found = true;
                     isPrimary = primary;
+                    break;
                 }
             }
+        }
 
-            if( found )
-            {
-                pim.Found = true;
-                pim.MatchingTIR = tir;
-                pim.MatchingIntent = isPrimary ? tir.PrimaryIntent : tir.SecondaryIntent;
-                pim.IsPrimary = isPrimary;
-                pim.Evidence = pim.MatchingIntent.Evidence;
-                pim.RelativeStrength = pim.MatchingIntent.Evidence / (float)tir.TotalEvidence;
-                break;
-            }
-
+        if( found )
+        {
+            pim = FinishFoundPIM( ref pim, tir, isPrimary );
         }
 
         return pim;
@@ -592,7 +634,7 @@ public class BattleAI_PairIntent
                 var offStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
                 var effects = offStatus.Move.MoveSO.MoveEffects;
 
-                if( offStatus.StatusType == OffensiveStatusType.StatDebuff )
+                if( offStatus.OffensiveStatusType == OffensiveStatusType.StatDebuff )
                 {
                     if( effects.StatChangeList != null && effects.StatChangeList.Count > 0 )
                     {
@@ -633,12 +675,7 @@ public class BattleAI_PairIntent
 
         if( found )
         {
-            pim.Found = true;
-            pim.MatchingTIR = tir;
-            pim.MatchingIntent = isPrimary ? tir.PrimaryIntent : tir.SecondaryIntent;
-            pim.IsPrimary = isPrimary;
-            pim.Evidence = pim.MatchingIntent.Evidence;
-            pim.RelativeStrength = pim.MatchingIntent.Evidence / (float)tir.TotalEvidence;
+            pim = FinishFoundPIM( ref pim, tir, isPrimary );
         }
 
         return pim;
@@ -677,12 +714,7 @@ public class BattleAI_PairIntent
 
         if( found )
         {
-            pim.Found = true;
-            pim.MatchingTIR = tir;
-            pim.MatchingIntent = isPrimary ? tir.PrimaryIntent : tir.SecondaryIntent;
-            pim.IsPrimary = isPrimary;
-            pim.Evidence = pim.MatchingIntent.Evidence;
-            pim.RelativeStrength = pim.MatchingIntent.Evidence / (float)tir.TotalEvidence;
+            pim = FinishFoundPIM( ref pim, tir, isPrimary );
         }
 
         return pim;
@@ -691,8 +723,8 @@ public class BattleAI_PairIntent
 
 public struct ThreatInteractionMatrix
 {
-    public Dictionary<Pokemon, ThreatIntentResult> UnitLeft;
-    public Dictionary<Pokemon, ThreatIntentResult> UnitRight;
+    public Dictionary<Pokemon, ThreatIntentResult> EnemyLeft;
+    public Dictionary<Pokemon, ThreatIntentResult> EnemyRight;
 }
 
 public struct PatternIntentMatch
@@ -744,7 +776,7 @@ public enum PairPattern
     DoubleProtect,
     FakeOutSupport,
     RedirectionSupport,
-    OffensivePressure,
+    DoubleAttack,
     DisruptionPressure,
     TrickRoomSetting, //--Can be used together with Protected Setup for further clarity. Can also imply reversing trick room intent
     TailwindSetting, //--Can be used together with Protected Setup for further clarity. Can also imply matching tailwind intent

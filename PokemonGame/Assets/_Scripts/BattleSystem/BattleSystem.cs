@@ -189,6 +189,7 @@ public class BattleSystem : MonoBehaviour
         CourtConditionDB.Init();
         FieldConditionDB.Init();
 
+        _activeAITrainers = new();
         _playerUnits = new();
         _enemyUnits = new();
         CommandQueue = new Queue<IBattleCommand>();
@@ -1367,7 +1368,7 @@ public class BattleSystem : MonoBehaviour
             {
                 if( faintedUnit.IsAI )
                 {
-                    faintedUnit.UpdateAITeamPieceValue();
+                    faintedUnit.BattleAI.Blackboard.UpdateTeamPieceValues();
                     SetForcedSwitch( true );
                     var switchIn = faintedUnit.BattleAI.RequestedForcedSwitch();
                     yield return CommandCenter.PerformSwitchPokemonCommand( switchIn, faintedUnit, true );
@@ -1408,7 +1409,7 @@ public class BattleSystem : MonoBehaviour
                 }
                 else if( remainingPokemon != null )
                 {
-                    faintedUnit.UpdateAITeamPieceValue();
+                    faintedUnit.BattleAI.Blackboard.UpdateTeamPieceValues();
                     SetForcedSwitch( true );
                     var switchIn = faintedUnit.BattleAI.RequestedForcedSwitch();
                     yield return CommandCenter.PerformSwitchPokemonCommand( switchIn, faintedUnit, true );
@@ -1620,6 +1621,8 @@ public class BattleSystem : MonoBehaviour
             _postBattleSummary.gameObject.SetActive( true );
             _postBattleSummary.RunBattleSummary( exp, ep );
         }
+
+        _activeAITrainers.Clear();
 
         Debug.Log( RoundLog.ToString() );
         string path = Application.persistentDataPath + "/BattleLog.txt";

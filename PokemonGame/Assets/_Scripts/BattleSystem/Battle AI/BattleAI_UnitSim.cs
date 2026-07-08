@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Xml.Serialization;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -107,20 +108,7 @@ public class BattleAI_UnitSim
     public SimulatedUnit BuildSimUnit_WithStageDelta( IBattleAIUnit pokemon, float hpr, MoveThreatResult mtr, SimulatedField field, StatStageDelta stageDelta )
     {
         var unit = BuildSimUnit( pokemon, hpr, mtr, field );
-        List<StatStage> statStages = new()
-        {
-            new(){ Stat = Stat.Attack,      Change = stageDelta.Attack      + pokemon.StatStages[Stat.Attack] }, //--We do + existing stages because we need to actually consider existing stages lol
-            new(){ Stat = Stat.Defense,     Change = stageDelta.Defense     + pokemon.StatStages[Stat.Defense] },
-            new(){ Stat = Stat.SpAttack,    Change = stageDelta.SpAttack    + pokemon.StatStages[Stat.SpAttack] },
-            new(){ Stat = Stat.SpDefense,   Change = stageDelta.SpDefense   + pokemon.StatStages[Stat.SpDefense] },
-            new(){ Stat = Stat.Speed,       Change = stageDelta.Speed       + pokemon.StatStages[Stat.Speed] },
-        };
-
-        for( int i = 0; i < statStages.Count; i++ )
-        {
-            var stages = statStages[i];
-            unit.StatStages[stages.Stat] = stages.Change;
-        }
+        ApplyStatStages( unit, stageDelta );
 
         return unit;
     }
@@ -274,6 +262,26 @@ public class BattleAI_UnitSim
         };
     }
 
+    public void ApplyStatStages( IBattleAIUnit unit, StatStageDelta stageDelta )
+    {
+        var pokemon = unit.Pokemon;
+
+        List<StatStage> statStages = new()
+        {
+            new(){ Stat = Stat.Attack,      Change = stageDelta.Attack      + pokemon.StatStages[Stat.Attack] }, //--We do + existing stages because we need to actually consider existing stages lol
+            new(){ Stat = Stat.Defense,     Change = stageDelta.Defense     + pokemon.StatStages[Stat.Defense] },
+            new(){ Stat = Stat.SpAttack,    Change = stageDelta.SpAttack    + pokemon.StatStages[Stat.SpAttack] },
+            new(){ Stat = Stat.SpDefense,   Change = stageDelta.SpDefense   + pokemon.StatStages[Stat.SpDefense] },
+            new(){ Stat = Stat.Speed,       Change = stageDelta.Speed       + pokemon.StatStages[Stat.Speed] },
+        };
+
+        for( int i = 0; i < statStages.Count; i++ )
+        {
+            var stages = statStages[i];
+            unit.StatStages[stages.Stat] = stages.Change;
+        }
+    }
+
     public void ClearStatStages( IBattleAIUnit unit )
     {
         foreach( var sc in unit.StatStages )
@@ -315,6 +323,29 @@ public class BattleAI_UnitSim
 
         if( delta.Speed < 0 )
             unit.StatStages[Stat.Speed] += delta.Speed;
+    }
+
+    public SimulatedUnit GetSimUnit( IBattleAIUnit attacker, IBattleAIUnit target, SimulatedField field )
+    {
+        //--HP Ratios
+        float attackerHPR = attacker.BeginningHPR;
+
+        //--Move Threat Result
+        var attackerMTR = attacker.MTR ?? _ai.MoveCommand.GetMove_BestAttack( attacker, target );
+
+        field ??= _ai.Blackboard.CurrentFieldSnapshot;
+
+        return BuildSimUnit( attacker, attackerHPR, attackerMTR, field );
+    }
+
+    public SimulatedUnit CopySimUnit( IBattleAIUnit unit, SimulatedField field )
+    {
+        float hpr = unit.BeginningHPR;
+        var mtr = unit.MTR;
+        
+        field ??= _ai.Blackboard.CurrentFieldSnapshot;
+
+        return BuildSimUnit( unit, hpr, mtr, field );
     }
 
     public SimulatedField BuildSimField()
@@ -410,6 +441,41 @@ public class BattleAI_UnitSim
             return false;
 
         return true;
+    }
+
+    public WeatherConditionID GetWeatherFromAbility( Pokemon pokemon )
+    {
+        var ability = pokemon.AbilityID;
+
+        if( ability == AbilityID.Drought )
+            return WeatherConditionID.SUNNY;
+
+        if( ability == AbilityID.Drizzle )
+            return WeatherConditionID.RAIN;
+
+        if( ability == AbilityID.Sandstream )
+            return WeatherConditionID.SANDSTORM;
+
+        if( ability == AbilityID.SnowWarning )
+            return WeatherConditionID.SNOW;
+        
+        return WeatherConditionID.None;
+    }
+
+    public TerrainID GetTerrainFromAbility( Pokemon pokemon )
+    {
+        var ability = pokemon.AbilityID;
+
+        if( ability == AbilityID.GrassySurge )
+            return TerrainID.Grassy;
+
+        if( ability == AbilityID.PsychicSurge )
+            return TerrainID.Psychic;
+
+        if( ability == AbilityID.DesecratedGround )
+            return TerrainID.Blighted;
+
+        return TerrainID.None;
     }
 
     public bool PokemonBenefitsFromSevereStatus( Pokemon pokemon )
@@ -1227,6 +1293,30 @@ public class BattleAI_UnitSim
         return statusMoves;
     }
 
+    public List<Move> GetSupportiveStatusMoves( List<Move> moves )
+    {
+        List<Move> statusMoves = new();
+
+        foreach( var move in moves )
+        {
+            var category = move.MoveSO.MoveCategory;
+            var effects = move.MoveSO.MoveEffects;
+            var target = move.MoveSO.MoveTarget;
+            bool isSetupMove = effects.StatChangeList?.Count > 0 && effects.Target == EffectTarget.Self;
+            bool moveEffectsTargetUs = move.MoveSO.MoveEffects.Target == EffectTarget.Self || effects.Target == EffectTarget.AllySide;
+            bool moveTargetsUs = target == MoveTarget.AllField || target == MoveTarget.Ally || target == MoveTarget.AllySide || target == MoveTarget.Self;
+            bool moveIsProtection = effects.TransientStatus == TransientConditionID.Protect || effects.CourtCondition == CourtConditionID.QuickGuard || effects.CourtCondition == CourtConditionID.WideGuard;
+            bool isSupportiveStatus =  category == MoveCategory.Status && !isSetupMove && ( moveEffectsTargetUs || moveTargetsUs ) && !moveIsProtection;
+            
+            if( isSupportiveStatus )
+                statusMoves.Add( move );
+            else
+                continue;
+        }
+
+        return statusMoves;
+    }
+
     public bool CheckHasSelfDebuffMove( List<Move> moves )
     {
         for( int i = 0; i < moves.Count; i++ )
@@ -1311,9 +1401,9 @@ public class BattleAI_UnitSim
         return value;
     }
 
-    public float PredictSwitchProbability( PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attacker, float opponentHPR, float opponentExpendability, bool log = false, string targetName = "no name" )
+    public float PredictSwitchProbability( Pokemon switcher, PotentialToKO offensePTKO, PotentialToKO defensePTKO, bool weAreFaster, float attacker, float opponentHPR, float opponentExpendability, bool log = false, string targetName = "no name" )
     {
-        int theirRemaining = _ai.GetRemainingOpposingPokemon( _ai.Unit.Pokemon ).Count;
+        int theirRemaining = _ai.GetRemainingAllyPokemon( switcher ).Count;
         if( theirRemaining == 1 )
             return 0f;
 
@@ -1469,6 +1559,7 @@ public class BattleAI_UnitSim
         float weather   = 1f;
         float terrain   = 1f;
         float item      = 1f;
+        float helping   = 1f;
 
         if( field.Weather != null )
         {
@@ -1488,7 +1579,12 @@ public class BattleAI_UnitSim
                 item = mod( attacker, target, move );
         }
 
-        modifier = stab * weather * terrain * item;
+        if( attacker.VolatileStatuses.Contains( VolatileConditionID.HelpingHand ) )
+        {
+            helping = 1.5f;
+        }
+
+        modifier = stab * weather * terrain * item * helping;
 
         return modifier;
     }
@@ -1535,8 +1631,11 @@ public class BattleAI_UnitSim
             if( pokemon.CheckTypes( PokemonType.Fire ) )
                 score += 5;
 
-            if( pokemon.CheckTypes( PokemonType.Water ) )
+            if( pokemon.CheckTypes( PokemonType.Water ) || pokemon.CheckHasAttackingMoveOfType( PokemonType.Water ) )
                 score -= 5;
+
+            if( TypeChart.GetTotalEffectiveness( PokemonType.Water, pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 ) > 1 )
+                score += 5;
 
             if( pokemon.AbilityID == AbilityID.Chlorophyll || pokemon.AbilityID == AbilityID.SolarPower /*|| sun ability */ )
                 score += 10;
@@ -1558,8 +1657,11 @@ public class BattleAI_UnitSim
             if( pokemon.CheckTypes( PokemonType.Water ) )
                 score += 5;
 
-            if( pokemon.CheckTypes( PokemonType.Fire ) )
+            if( pokemon.CheckTypes( PokemonType.Fire ) || pokemon.CheckHasAttackingMoveOfType( PokemonType.Fire ) )
                 score -= 5;
+
+            if( TypeChart.GetTotalEffectiveness( PokemonType.Fire, pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 ) > 1 )
+                score += 5;
 
             if( pokemon.AbilityID == AbilityID.SwiftSwim /*|| water ability */ )
                 score += 10;
@@ -1579,7 +1681,7 @@ public class BattleAI_UnitSim
         if( weather == WeatherConditionID.SANDSTORM )
         {
             if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) )
-                score += 5;
+                score += 10;
 
             if( pokemon.AbilityID == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandForce /*|| sand ability*/ )
                 score += 10;
@@ -1590,9 +1692,12 @@ public class BattleAI_UnitSim
         if( weather == WeatherConditionID.SNOW )
         {
             if( pokemon.CheckTypes( PokemonType.Ice ) )
-                score += 5;
+                score += 10;
 
             if( pokemon.CheckTypes( PokemonType.Fighting ) || pokemon.CheckHasAttackingMoveOfType( PokemonType.Fighting ) )
+                score -= 5;
+
+            if( TypeChart.GetTotalEffectiveness( PokemonType.Ice, pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 ) > 1 )
                 score -= 5;
 
             if( pokemon.AbilityID == AbilityID.SlushRush || pokemon.AbilityID == AbilityID.SnowCloak /*|| snow ability */ )
@@ -1651,6 +1756,23 @@ public class BattleAI_UnitSim
             return score;
         }
 
+        if( terrain.ID == TerrainID.Psychic )
+        {
+            if( pokemon.CheckHasAttackingMoveOfType( PokemonType.Psychic ) )
+                score += 5;
+
+            if( pokemon.CheckHasActiveMove( "Expanding Force" ) )
+                score += 15;
+
+            if( PokemonHasMove_OffensivePriority( pokemon ) )
+                score -= 5;
+
+            if( pokemon.CheckHasActiveMove( "Fake Out" ) )
+            {
+                score -= 10;
+            }
+        }
+
         return score;
     }
 
@@ -1659,9 +1781,124 @@ public class BattleAI_UnitSim
         if( !_ai.BattleSystem.BattleFlags[BattleFlag.TrickRoom] )
             return 0;
 
+        var adapter = _ai.GetPokemonAs_Adapter( pokemon );
+        var rp = adapter.RoleProfile;
+        var secondaries = rp.SecondaryRoles;
+        var signals = rp.Signals;
+        var biases = rp.Biases;
+        var traits = rp.Traits;
+
+        bool offensive = rp.PrimaryRole == RoleClass.BulkyAttacker || rp.PrimaryRole == RoleClass.RevengeKiller || rp.PrimaryRole == RoleClass.SetupSweeper ||
+            rp.PrimaryRole == RoleClass.Sweeper || rp.PrimaryRole == RoleClass.TrickRoomAbuser || rp.PrimaryRole == RoleClass.WallBreaker;
+
+        bool defensive = rp.PrimaryRole == RoleClass.Wall || rp.PrimaryRole == RoleClass.DefensiveSetup;
+        bool utility = !offensive && !defensive;
+
         int speed = _ai.GetUnitContextualSpeed( pokemon );
 
         int score = Mathf.Clamp( ( 150 - speed ) / 10, -15, 15 );
+
+        if( offensive )
+        {
+            if( rp.PrimaryRole == RoleClass.TrickRoomAbuser || secondaries.Contains( RoleClass.TrickRoomAbuser ) )
+            {
+                score += 5;
+            }
+
+            if( biases.Contains( RoleBias.FastSpeed ) )
+            {
+                score -= 15;
+            }
+            else if( biases.Contains( RoleBias.MiddlingSpeed ) )
+            {
+                score -= 10;
+            }
+            else if( biases.Contains( RoleBias.AwkwardSpeed ) )
+            {
+                score -= 5;
+            }
+            else if( biases.Contains( RoleBias.SlowSpeed ) )
+            {
+                score += 10;
+
+                if( ( rp.PrimaryRole == RoleClass.SetupSweeper || secondaries.Contains( RoleClass.SetupSweeper ) ) && ( biases.Contains( RoleBias.PhysicallyBulky ) || biases.Contains( RoleBias.SpeciallyBulky ) ) )
+                {
+                    score += 5;
+                }
+            }
+            else if( biases.Contains( RoleBias.TrickRoomSpeed ) )
+            {
+                score += 15;
+
+                if( ( rp.PrimaryRole == RoleClass.SetupSweeper || secondaries.Contains( RoleClass.SetupSweeper ) ) && ( biases.Contains( RoleBias.PhysicallyBulky ) || biases.Contains( RoleBias.SpeciallyBulky ) ) )
+                {
+                    score += 5;
+                }
+            }
+        }
+        else if( defensive )
+        {
+            if( secondaries.Contains( RoleClass.TrickRoomAbuser ) )
+            {
+                score += 5;
+            }
+
+            if( biases.Contains( RoleBias.Disruptive ) )
+            {
+                score += 5;
+            }
+
+            if( biases.Contains( RoleBias.PassivePressure ) )
+            {
+                score += 5;
+            }
+
+            if( pokemon.CheckHasActiveMove( "Follow Me" ) || pokemon.CheckHasActiveMove( "Rage Powder" ) )
+            {
+                score += 5;
+            }
+        }
+        else if( utility )
+        {
+            if( secondaries.Contains( RoleClass.TrickRoomAbuser ) )
+            {
+                score += 5;
+            }
+
+            if( pokemon.CheckHasActiveMove( "Follow Me" ) || pokemon.CheckHasActiveMove( "Rage Powder" ) )
+            {
+                score += 5;
+            }
+
+            if( ( traits.Contains( RoleTrait.Cleric ) || traits.Contains( RoleTrait.StatusSpreader ) || biases.Contains( RoleBias.Disruptive ) ) && ( biases.Contains( RoleBias.SlowSpeed ) || biases.Contains( RoleBias.TrickRoomSpeed ) ) )
+            {
+                score += 10;
+            }
+        }
+
+        if( PokemonHasMove_OffensivePriority( pokemon ) )
+        {
+            score += 5;
+        }
+
+        if( pokemon.BattleItemEffect?.ID == BattleItemEffectID.ChoiceScarf )
+        {
+            score -= 10;
+        }
+
+        if( pokemon.StatStages?.Count > 0 )
+        {
+            foreach( var sc in pokemon.StatStages )
+            {
+                if( sc.Key == Stat.Speed )
+                {
+                    if( sc.Value > 0 )
+                        score -= 5;
+                    else if( sc.Value < 0 )
+                        score += 5;
+                }
+            }
+        }
 
         return score;
     }

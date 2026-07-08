@@ -4,7 +4,6 @@ using System.Linq;
 using Unity.VisualScripting;
 using UnityEngine;
 
-[RequireComponent( typeof( BattleAI ) )]
 // [Serializable]
 public class BattleUnit : MonoBehaviour
 {
@@ -44,7 +43,6 @@ public class BattleUnit : MonoBehaviour
     public void Setup( Pokemon pokemon, BattleTrainer trainer, BattleHUD battleHUD, BattleSystem battleSystem )
     {
         _battleSystem = battleSystem;
-        _battleAI = GetComponent<BattleAI>();
         BattleHUD = battleHUD;
         Trainer = trainer;
 
@@ -58,9 +56,6 @@ public class BattleUnit : MonoBehaviour
         PokeTransform = PokeAnimator.PokemonTransform;
 
         Flags[UnitFlags.SuccessiveProtectUses].Count = 0;
-
-        if( !_isAI )
-            _battleAI.enabled = false;
     }
 
     public void UpdateUnit( Pokemon pokemon )
@@ -76,23 +71,13 @@ public class BattleUnit : MonoBehaviour
 
         DecideIfGrounded();
 
-        if( _isAI )
+        if( _isAI && _battleAI != null ) //--This is getting triggered before the _battleAI trainer is set in battle arena. we need a workaround
             _battleAI.ResetSetupAmount();
     }
 
-    public void InitializeAI()
+    public void SetAITrainer( BattleAI ai ) //--only ever called from BattleArena. battle arena simply has to make the adjustment to call it on each active trainer ai instead.
     {
-        _battleAI.enabled = true;
-        _battleAI.InitializeAI( _battleSystem, this );
-        UpdateAITeamPieceValue();
-    }
-
-    public void UpdateAITeamPieceValue()
-    {
-        var ourTeam = _battleSystem.GetAllyParty( Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
-        var theirTeam = _battleSystem.GetOpposingParty( Pokemon ).Where( p => p.CurrentHP > 0 ).ToList();
-        
-        _battleAI.RefreshTeamPieceValues( ourTeam, theirTeam );
+        _battleAI = ai;
     }
 
     public void TempUsage( Pokemon pokemon ) //--We gotta do something about this lol
@@ -523,6 +508,11 @@ public class BattleUnit : MonoBehaviour
 
         damageDetails.DamageDealt = damage;
         DamagedBy = attacker.Pokemon;
+
+        if( attacker.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.HelpingHand ) )
+        {
+            attacker.Pokemon.CureVolatileStatus( VolatileConditionID.HelpingHand );
+        }
 
         SetTookDamage( attacker, this, move, damage );
         return damageDetails;

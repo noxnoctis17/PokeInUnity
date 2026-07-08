@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public enum SimModuleType { Attack, Switch, Setup, OffensiveStatus, SupportiveStatus, Heal, Protect }
+public enum SimModuleType { Attack, Switch, Setup, OffensiveStatus, SupportiveStatus, Protect }
 public class BattleAI_BattleSim
 {
     private BattleAI _ai;
@@ -33,6 +33,7 @@ public class BattleAI_BattleSim
             SimModuleType.Switch => RunSwitchModule,
             SimModuleType.Setup => RunSetupModule,
             SimModuleType.OffensiveStatus => RunOffensiveStatusModule,
+            SimModuleType.SupportiveStatus => RunSupportiveStatusModule,
             _ => RunAttackModule,
         };
 
@@ -150,7 +151,7 @@ public class BattleAI_BattleSim
         return top;
     }
 
-    public TurnOutcomeProjection BuildIntentTOP( ActionType action, object ourResult, ThreatIntentResult tir )
+    public TurnOutcomeProjection BuildIntentTOP( ActionType action, IActionResult ourResult, ThreatIntentResult tir )
     {
         MoveThreatResult ourMTR = null;
         MoveThreatResult theirMTR = null;
@@ -266,6 +267,26 @@ public class BattleAI_BattleSim
                 intentLog.Add( $"Attacker {attacker.Name} ({attacker.BeginningHPR}/{attacker.CurrentHPR}) with move {ourMTR.Move.MoveSO.Name}" );
 
             break;
+
+            case ActionType.SupportiveStatus:
+
+                var suppStatus = (StatusThreatResult)ourResult;
+                attacker = suppStatus.Top.Attacker;
+                attackerModule = SimModuleType.SupportiveStatus;
+
+                ourMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = suppStatus.Target,
+                    TargetBattleUnit = suppStatus.TargetBattleUnit,
+                    Move = suppStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+                intentLog.Add( $"Attacker {attacker?.Name} ({attacker?.BeginningHPR}/{attacker?.CurrentHPR}) with move {ourMTR?.Move?.MoveSO.Name}" );
+
+            break;
         }
 
         //----------------------------------------------------------------------------
@@ -361,6 +382,26 @@ public class BattleAI_BattleSim
                     Target = offStatus.Target,
                     TargetBattleUnit = offStatus.TargetBattleUnit,
                     Move = offStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+                intentLog.Add( $"Attacker {opponent.Name} ({opponent.BeginningHPR}/{opponent.CurrentHPR}) with move {theirMTR.Move.MoveSO.Name}" );
+
+            break;
+
+            case IntentType.SupportiveStatus:
+
+                var suppStatus = (StatusThreatResult)tir.PrimaryIntent.IntentResult;
+                opponent = suppStatus.Top.Attacker;
+                opponentModule = SimModuleType.SupportiveStatus;
+
+                theirMTR = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Target = suppStatus.Target,
+                    TargetBattleUnit = suppStatus.TargetBattleUnit,
+                    Move = suppStatus.Move,
                     EstimatedDamage = 0f,
                 };
 
@@ -566,7 +607,7 @@ public class BattleAI_BattleSim
         //--Guaranteed Stat Changes (close combat, trailblaze, scale shot, etc.)
         if( moveChangesStats && attacker.MTR.Move.MoveSO.MoveCategory != MoveCategory.Status )
         {
-            ApplySetupMove( attacker, attacker.MTR.Move );
+            Apply_SetupMove( attacker, attacker.MTR.Move );
         }
 
         _unitSim.TurnSimLog.Add( $"" );
@@ -623,7 +664,7 @@ public class BattleAI_BattleSim
         unit.CurrentHPR = Mathf.Floor( unit.CurrentHPR * 1000f ) / 1000f;
     }
 
-    private void ApplySetupMove( SimulatedUnit unit, Move move )
+    private void Apply_SetupMove( SimulatedUnit unit, Move move )
     {
         var delta = _unitSim.BuildStatStageDelta( move );
 
@@ -653,7 +694,7 @@ public class BattleAI_BattleSim
         _unitSim.TurnSimLog.Add( $"" );
     }
 
-    private void ApplyOffensiveStatusMove( SimulatedUnit target, Move move, SimulatedField field )
+    private void Apply_OffensiveStatus( SimulatedUnit target, Move move, SimulatedField field )
     {
         bool severe     = move.MoveEffects.SevereStatus     != SevereConditionID.None ;
         bool vol        = move.MoveEffects.VolatileStatus   != VolatileConditionID.None;
@@ -698,12 +739,18 @@ public class BattleAI_BattleSim
         }
         else if( debuff )
         {
-            ApplySetupMove( target, move );
+            Apply_SetupMove( target, move );
         }
         else if( phaze )
         {
             _unitSim.TurnSimLog.Add( $"They phazed {target.Name} out!" );
             var targetAllies = _ai.GetRemainingAllyAdapters( target.Pokemon ).Where( p => p.Pokemon != target.Pokemon ).ToList();
+            
+            if( targetAllies == null || targetAllies.Count <= 0 )
+            {
+                _unitSim.TurnSimLog.Add( $"{target.Name} has no more allies on the bench, phazing will do nothing!" );
+            }
+            
             int r = UnityEngine.Random.Range( 0, targetAllies.Count );
             var replacement = targetAllies[r];
 
@@ -735,7 +782,80 @@ public class BattleAI_BattleSim
             if( target.CurrentHPR <= 0f )
                 _unitSim.TurnSimLog.Add( $"{target.Name} fainted!" );
         }
-        
+    }
+
+    private void Apply_SupportiveStatus( SimulatedUnit target, Move move, SimulatedField field )
+    {
+        var moveTarget = move.MoveSO.MoveTarget;
+        var effects = move.MoveSO.MoveEffects;
+        var court = target.CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions;
+        var battleField = _ai.BattleSystem.Field;
+        var realCourt = battleField.ActiveCourts[target.CourtLocation];
+
+        bool isAllySetup = _unitSim.MoveIsSetup( move ) && effects.Target == EffectTarget.AllySide;
+        bool isHelpingHand = effects.VolatileStatus == VolatileConditionID.HelpingHand;
+
+        bool isWeather = effects.Weather != WeatherConditionID.None;
+        bool isTerrain = effects.Terrain != TerrainID.None;
+        bool isField = effects.FieldCondition != FieldConditionID.None;
+
+        bool isTailwind = effects.CourtCondition == CourtConditionID.Tailwind;
+        bool isScreens = effects.CourtCondition == CourtConditionID.Reflect || effects.CourtCondition == CourtConditionID.LightScreen || effects.CourtCondition == CourtConditionID.AuroraVeil;
+        bool isSafeguard = effects.CourtCondition == CourtConditionID.SafeGuard;
+
+        bool isAllyHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.Ally;
+        bool isSideHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.AllySide;
+
+        _unitSim.TurnSimLog.Add( $"Trying to apply a supportive status via {move.MoveSO.Name}!" );
+        _unitSim.TurnSimLog.Add( $"" );
+
+        if( isAllySetup )
+        {
+            Apply_SetupMove( target, move );
+            _unitSim.TurnSimLog.Add( $"Applied setup delta!" );
+        }
+
+        if( isHelpingHand && _ai.IsDoubleBattle )
+        {
+            target.VolatileStatuses.Add( VolatileConditionID.HelpingHand );
+            _unitSim.TurnSimLog.Add( $"Applied helping hand!" );
+        }
+
+        if( isWeather )
+        {
+            field.Weather = effects.Weather;
+            _unitSim.TurnSimLog.Add( $"Set {effects.Weather}" );
+        }
+
+        if( isTerrain )
+        {
+            field.Terrain = effects.Terrain;
+            _unitSim.TurnSimLog.Add( $"Set {effects.Terrain}" );
+        }
+
+        if( isField )
+        {
+            int duration = FieldConditionDB.Conditions[effects.FieldCondition].Duration;
+            field.FieldConditions.Add( effects.FieldCondition, duration );
+            _unitSim.TurnSimLog.Add( $"Set {effects.FieldCondition}" );
+        }
+
+        if( isTailwind || isScreens || isSafeguard )
+        {
+            int duration = CourtConditionDB.Conditions[effects.CourtCondition].Duration;
+            court.Add( effects.CourtCondition, duration );
+            _unitSim.TurnSimLog.Add( $"Set {effects.CourtCondition}" );
+        }
+
+        if( isAllyHeal || isSideHeal )
+        {
+            float healAmount = (float)move.MoveSO.HealAmount / 100f;
+
+            target.BeginningHPR += Mathf.Clamp01( healAmount );
+            target.CurrentHPR += Mathf.Clamp01( healAmount );
+
+            _unitSim.TurnSimLog.Add( $"Healing target by {healAmount}, from {target.CurrentHPR - healAmount} to {target.CurrentHPR}" );
+        }
     }
 
     private float Apply_HazardDamage( SimulatedUnit unit )
@@ -998,7 +1118,7 @@ public class BattleAI_BattleSim
         if( _unitSim.CanActOnTurn( attacker ) )
         {
             //--Attacker sets up
-            ApplySetupMove( attacker, attMove );
+            Apply_SetupMove( attacker, attMove );
         }
     }
 
@@ -1011,7 +1131,20 @@ public class BattleAI_BattleSim
         if( _unitSim.CanActOnTurn( attacker ) )
         {
             //--Attacker uses offensive status move
-            ApplyOffensiveStatusMove( target, attMove, field ); //--Target, move used by attacking pokemon, field
+            Apply_OffensiveStatus( target, attMove, field ); //--Target, move used by attacking pokemon, field
+        }
+    }
+
+    public void RunSupportiveStatusModule( SimulatedUnit attacker, SimulatedUnit target, SimulatedField field )
+    {
+        Move attMove = attacker.MTR?.Move ?? null;
+
+        _unitSim.TurnSimLog.Add( $"(Round: {_rounds}) Running a Supportive Status Module! Attacker {attacker.Name}, Move: {attMove?.MoveSO.Name}, Opponent: {target.Name}!" );
+
+        if( _unitSim.CanActOnTurn( attacker ) )
+        {
+            //--Attacker uses offensive status move
+            Apply_SupportiveStatus( target, attMove, field ); //--Target, move used by attacking pokemon, field
         }
     }
 
