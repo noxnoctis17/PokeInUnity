@@ -25,6 +25,11 @@ public class BattleAI_ActionEvaluation
             Actor = top.Attacker.Pokemon,
         };
 
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"================================================================" );
+        _ai.CurrentLog.Add( $"Building Action Evaluation for {eval.Type}..." );
+        _ai.CurrentLog.Add( $"" );
+
         BattleUnit targetUnit = null;
         if( target != null )
         {
@@ -35,8 +40,6 @@ public class BattleAI_ActionEvaluation
         }
         else if( type != ActionType.OffensiveSwitch && type != ActionType.DefensiveSwitch )
             Debug.LogError( $"Target is null for a move action!" );
-
-        _ai.CurrentLog.Add( $"===[Built Action Evaluation for {eval.Type}. ActionScore: {eval.Score}]===" );
 
         switch( type )
         {
@@ -85,12 +88,12 @@ public class BattleAI_ActionEvaluation
 
     private ActionEvaluation EvaluateAttackSim( ActionEvaluation eval )
     {
-        int score = eval.Score;
+        int score = 0;
         var top = eval.Top1;
 
-        _ai.CurrentLog.Add( $"===========================================================" );
-        _ai.CurrentLog.Add( $"===[Evaluating Attack Simulation. (Base Score: {score})]===" );
-        _ai.CurrentLog.Add( $"===========================================================" );
+        _ai.CurrentLog.Add( $"====================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Attack Simulation]===" );
+        _ai.CurrentLog.Add( $"====================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -259,19 +262,20 @@ public class BattleAI_ActionEvaluation
         eval.NextTurn_TheyAreForcedOut = theyAreForcedOutProb >= 0.7f;
 
         eval.Top2 = next;
-        eval.Score = score;
-        _ai.CurrentLog.Add( $"Final Score: {score}" );
+        eval.Score += score;
+        _ai.CurrentLog.Add( $"Evaluate Attack Simulation Score: {score}" );
+        _ai.CurrentLog.Add( $"Current Attack Decision Score: {eval.Score}" );
         return eval;
     }
 
     private ActionEvaluation EvaluateDefensiveSwitchSim( ActionEvaluation eval )
     {
         var top = eval.Top1;
-        int score = eval.Score;
+        int score = 0;
 
-        _ai.CurrentLog.Add( $"===============================================================" );
-        _ai.CurrentLog.Add( $"===[Evaluating Defensive Switch Simulation (Score: {score})]===" );
-        _ai.CurrentLog.Add( $"===============================================================" );
+        _ai.CurrentLog.Add( $"==============================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Defensive Switch Simulation]===" );
+        _ai.CurrentLog.Add( $"==============================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -393,18 +397,20 @@ public class BattleAI_ActionEvaluation
         }
 
         eval.Top2 = next;
-        eval.Score = score;
+        eval.Score += score;
+        _ai.CurrentLog.Add( $"Evaluate Defensive Switch Simulation Score: {score}" );
+        _ai.CurrentLog.Add( $"Current Defensive Switch Decision Score: {eval.Score}" );
         return eval;
     }
 
     private ActionEvaluation EvaluateOffensiveSwitchSim( ActionEvaluation eval )
     {
-        int score = eval.Score;
+        int score = 0;
         var top = eval.Top1;
 
-        _ai.CurrentLog.Add( $"===============================================================" );
-        _ai.CurrentLog.Add( $"===[Evaluating Offensive Switch Simulation (Score: {score})]===" );
-        _ai.CurrentLog.Add( $"===============================================================" );
+        _ai.CurrentLog.Add( $"==============================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Offensive Switch Simulation]===" );
+        _ai.CurrentLog.Add( $"==============================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -465,7 +471,9 @@ public class BattleAI_ActionEvaluation
             score -= 50;
 
         eval.Top2 = next;
-        eval.Score = score;
+        eval.Score += score;
+        _ai.CurrentLog.Add( $"Evaluate Offensive Switch Simulation Score: {score}" );
+        _ai.CurrentLog.Add( $"Current Offensive Switch Decision Score: {eval.Score}" );
         return eval;
     }
 
@@ -478,12 +486,12 @@ public class BattleAI_ActionEvaluation
         const int OPPONENT_SWITCH_WEIGHT            = 50;
         const int WE_SWITCH_WEIGHT                  = 75;
 
-        int score = eval.Score;
+        int score = 0;
         var top = eval.Top1;
 
-        _ai.CurrentLog.Add( $"====================================================" );
-        _ai.CurrentLog.Add( $"===[Evaluating Setup Simulation (Score: {score})]===" );
-        _ai.CurrentLog.Add( $"====================================================" );
+        _ai.CurrentLog.Add( $"===================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Setup Simulation]===" );
+        _ai.CurrentLog.Add( $"===================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -520,6 +528,7 @@ public class BattleAI_ActionEvaluation
         //--------------------------------
 
         var ourNextAttacker = top.Attacker_EndOfTurnHP > 0f ? top.Attacker : _ai.SwitchCommand.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Candidate;
+        ourNextAttacker ??= top.Attacker;
         var next = _ai.MoveCommand.GetMove_BestAttack( ourNextAttacker, top.Opponent, false, "Evaluate Setup Action (Look Ahead)" ).Top;
 
         if( next.Attacker_DiesBeforeActing )
@@ -613,18 +622,20 @@ public class BattleAI_ActionEvaluation
 
         eval.Top2 = next;
         eval.Top2.AttackerHasSweepHorizon = sweepBeginning;
-        eval.Score = score;
+        eval.Score += score;
+        _ai.CurrentLog.Add( $"Evaluate Setup Simulation Score: {score}" );
+        _ai.CurrentLog.Add( $"Current Setup Decision Score: {eval.Score}" );
         return eval;
     }
 
     private ActionEvaluation EvaluateOffensiveStatusSim( ActionEvaluation eval )
     {
-        int score = eval.Score;
+        int score = 0;
         var top = eval.Top1;
 
-        _ai.CurrentLog.Add( $"===============================================================" );
-        _ai.CurrentLog.Add( $"===[Evaluating Offensive Status Simulation (Score: {score})]===" );
-        _ai.CurrentLog.Add( $"===============================================================" );
+        _ai.CurrentLog.Add( $"==============================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Offensive Status Simulation]===" );
+        _ai.CurrentLog.Add( $"==============================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -761,13 +772,15 @@ public class BattleAI_ActionEvaluation
         }
 
         eval.Top2 = next;
-        eval.Score = score;
+        eval.Score += score;
+        _ai.CurrentLog.Add( $"Evaluate Offensive Status Simulation Score: {score}" );
+        _ai.CurrentLog.Add( $"Current Offensive Status Decision Score: {eval.Score}" );
         return eval;
     }
 
     private ActionEvaluation EvaluateSupportiveStatusSim( ActionEvaluation eval )
     {
-        int score = eval.Score;
+        int score = 0;
         var top1 = eval.Top1;
 
         //--ExchangeEvaluation is a PRE EVERYTHING attack exchange.
@@ -778,9 +791,9 @@ public class BattleAI_ActionEvaluation
         var eeAttackerPTKO = ee1.AttackerPTKO;
         var eeOpponentPTKO = ee1.OpponentPTKO;
 
-        _ai.CurrentLog.Add( $"================================================================" );
-        _ai.CurrentLog.Add( $"===[Evaluating Supportive Status Simulation (Score: {score})]===" );
-        _ai.CurrentLog.Add( $"================================================================" );
+        _ai.CurrentLog.Add( $"===============================================" );
+        _ai.CurrentLog.Add( $"===[Evaluating Supportive Status Simulation]===" );
+        _ai.CurrentLog.Add( $"===============================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top1.AttackerPTKO} with Move: {top1.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top1.OpponentPTKO} with Move: {top1.Opponent.MTR?.Move?.MoveSO.Name}" );
 
@@ -949,7 +962,9 @@ public class BattleAI_ActionEvaluation
         }
 
         eval.Top2 = top2;
-        eval.Score = score;
+        eval.Score += score;
+        _ai.CurrentLog.Add( $"Evaluate Supportive Status Simulation Score: {score}" );
+        _ai.CurrentLog.Add( $"Current Supportive Status Decision Score: {eval.Score}" );
         return eval;
     }
 

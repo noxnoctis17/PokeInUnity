@@ -11,12 +11,12 @@ public class BattleAI_ThreatIntentEvaluation
         _ai = ai;
     }
 
-    private float ApplyIntentAdjustment( float adjustment, float confidence )
+    private float ApplyIntentAdjustment( float adjustment, float evidence, float confidence )
     {
-        _ai.CurrentLog.Add( $"Final Adjustment: {adjustment} (to be clamped within -75f, 75f), Confidence: {confidence}" );
+        _ai.CurrentLog.Add( $"Final Adjustment: {adjustment}, Evidence: {evidence}, Confidence: {confidence} (Formula: (Adjustment * Evidence) * Confidence, to be clamped within -75f, 75f)" );
 
         adjustment = Mathf.Clamp( adjustment, -75f, 75f );
-        float applied = adjustment * confidence;
+        float applied = ( adjustment * evidence ) * confidence;
         
         return applied;
     }
@@ -106,6 +106,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -160,7 +161,7 @@ public class BattleAI_ThreatIntentEvaluation
             _ai.CurrentLog.Add( $"We both threaten KOs on each other but we're faster, we should remove them. Adjustment: {adjustment}" );
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -173,6 +174,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -206,7 +208,7 @@ public class BattleAI_ThreatIntentEvaluation
             }
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -219,6 +221,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -275,7 +278,7 @@ public class BattleAI_ThreatIntentEvaluation
             _ai.CurrentLog.Add( $"If we attack now, we'll threaten their offensive candidate with a KO next turn. Adjustment: {adjustment}" );
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -288,6 +291,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -441,7 +445,7 @@ public class BattleAI_ThreatIntentEvaluation
             }
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -454,6 +458,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -749,7 +754,7 @@ public class BattleAI_ThreatIntentEvaluation
             }
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -762,6 +767,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -781,7 +787,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         adjustment += 30f;
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -794,6 +800,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -820,7 +827,7 @@ public class BattleAI_ThreatIntentEvaluation
             adjustment -= 50f;
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -870,6 +877,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -940,7 +948,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         //--Ability checks for immunities to assumed attack will go here
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -953,6 +961,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -994,7 +1003,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         _ai.CurrentLog.Add( $"Further match up specific checks will be added here in the future. Ability interactions, weather wars, role comparisons, etc. Adjustment: {adjustment}" );
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1007,6 +1016,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1068,7 +1078,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         _ai.CurrentLog.Add( $"Further match up specific checks will be added here in the future. Ability interactions, weather wars, role comparisons, etc. Adjustment: {adjustment}" );
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1081,6 +1091,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1231,7 +1242,7 @@ public class BattleAI_ThreatIntentEvaluation
             }
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1244,6 +1255,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1638,7 +1650,7 @@ public class BattleAI_ThreatIntentEvaluation
             }
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1651,6 +1663,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1660,7 +1673,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         adjustment -= 25f;
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1673,6 +1686,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1682,7 +1696,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         adjustment += 25f;
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1732,6 +1746,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1802,7 +1817,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         //--Ability checks for immunities to assumed attack will go here
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1815,6 +1830,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1855,7 +1871,7 @@ public class BattleAI_ThreatIntentEvaluation
             adjustment -= 30f;
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1868,6 +1884,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -1927,7 +1944,7 @@ public class BattleAI_ThreatIntentEvaluation
             }
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -1940,6 +1957,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -2084,7 +2102,7 @@ public class BattleAI_ThreatIntentEvaluation
             _ai.CurrentLog.Add( $"Our offensive candidate has taunt or encore pressure, which could prevent further setup or lock them down. Adjustment: {adjustment}" );
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -2097,6 +2115,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -2491,7 +2510,7 @@ public class BattleAI_ThreatIntentEvaluation
             }
         }
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -2504,6 +2523,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -2513,7 +2533,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         adjustment -= 5f;
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }
@@ -2526,6 +2546,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         float score = 0f;
         float adjustment = 0f;
+        float evidence = tir.PrimaryIntent.Evidence;
         float confidence = tir.Confidence;
 
         ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
@@ -2535,7 +2556,7 @@ public class BattleAI_ThreatIntentEvaluation
 
         adjustment += 30f;
 
-        score += ApplyIntentAdjustment( adjustment, confidence );
+        score += ApplyIntentAdjustment( adjustment, evidence, confidence );
 
         return score;
     }

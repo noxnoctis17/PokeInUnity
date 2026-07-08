@@ -937,17 +937,6 @@ public class BattleAI_Projection
 
         int roleScore = 0;
 
-        // if( pbs.AttackerFulfilledRole && !pbs.OpponentFulfilledRole )
-        //     roleScore += 15;
-        // else if( !pbs.AttackerFulfilledRole && pbs.OpponentFulfilledRole )
-        //     roleScore -= 15;
-
-        // //--Utility being effective bias
-        // if( pbs.AttackerFulfilledUtilityRole && !pbs.OpponentFulfilledRole )
-        //     roleScore += 10;
-        // else if( pbs.OpponentFulfilledUtilityRole && pbs.AttackerFulfilledRole )
-        //     roleScore -= 10;
-
         roleScore += Mathf.RoundToInt( pbs.RoleFulfillmentProgress * 50f );
 
         //--Utility Bias

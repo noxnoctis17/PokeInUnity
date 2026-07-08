@@ -485,14 +485,10 @@ public class BattleAI : MonoBehaviour
     public IEnumerator ChooseCommand( BattleUnit unit )
     {
         yield return null;
-        yield return null;
 
         //--Handle Adapters
         CurrentUnitDeciding = unit;
         CurrentUnitAdapter = GetPokemonAs_Adapter( unit.Pokemon );
-        // Debug.LogError( $"Unit: {unit.Pokemon?.NickName}" );
-        // Debug.LogError( $"Adapter: {CurrentUnitAdapter?.Name}");
-        yield return null;
 
         CurrentLog.Add( $"=====[Choose Command][TURN {_round} - {CurrentUnitAdapter.Name} ({CurrentUnitAdapter.RoleProfile.PrimaryRole}), Offensive Piece Value: {Blackboard.OurTeamPieceValues[CurrentUnitAdapter?.Pokemon].OffensiveValue}]=====" );
 
@@ -523,12 +519,24 @@ public class BattleAI : MonoBehaviour
             var opp2 = Blackboard.TheirActiveBattleAIUnits[1];
 
             var opp1TB = ThreatIntent.ReadThreatBrain( opp1, CurrentUnitAdapter );
+            yield return null;
+
             var opp1TIC = ThreatIntent.GetThreatCandidates( opp1, CurrentUnitAdapter, opp1TB );
+            yield return null;
+
             var opp1TIR = ThreatIntent.GetThreatIntentResult( opp1TIC, opp1TB );
+            yield return null;
+
 
             var opp2TB = ThreatIntent.ReadThreatBrain( opp2, CurrentUnitAdapter );
+            yield return null;
+
             var opp2TIC = ThreatIntent.GetThreatCandidates( opp2, CurrentUnitAdapter, opp2TB );
+            yield return null;
+
             var opp2TIR = ThreatIntent.GetThreatIntentResult( opp2TIC, opp2TB );
+            yield return null;
+
 
             if( opp1TIR.Confidence >= opp2TIR.Confidence )
             {
@@ -545,11 +553,16 @@ public class BattleAI : MonoBehaviour
         {
             target = Blackboard.TheirActiveBattleAIUnits[0];
             ThreatBrain tb = ThreatIntent.ReadThreatBrain( target, CurrentUnitAdapter );
+            yield return null;
+
             tic = ThreatIntent.GetThreatCandidates( target, CurrentUnitAdapter, tb );
+            yield return null;
+
             tir = ThreatIntent.GetThreatIntentResult( tic, tb );
+            yield return null;
 
             CurrentLog.Add( $"" );
-            CurrentLog.Add( $"We think {target.Name} is going to: {tir.PrimaryIntent}" );
+            CurrentLog.Add( $"We think {target.Name} is going to: {tir.PrimaryIntent.IntentType}" );
             if( tir.PrimaryIntent.IntentResult.Type == ActionResultType.Switch )
             {
                 var ir = (SwitchCandidateResult)tir.PrimaryIntent.IntentResult;
@@ -583,10 +596,10 @@ public class BattleAI : MonoBehaviour
         
         //--Get Best Action based on high level heuristics, turn outcome simulation, flat board analysis, and simulaiton result adjustments.
         ActionEvaluation bestAction = null;
-        Action<ActionEvaluation> getBestAction = ( gba ) =>
+        void getBestAction( ActionEvaluation gba )
         {
             bestAction = gba;
-        };
+        }
 
         yield return GetBestAction( tir, getBestAction );
 
@@ -651,13 +664,14 @@ public class BattleAI : MonoBehaviour
         var target = tir.Threat;
         var spread = target.StatSpread.Spread;
         var realSpread = target.Pokemon.EffortValues;
+
         CurrentLog.Add( $"Deciding best action against {target.Name} ({target.RoleProfile.PrimaryRole})" );
         CurrentLog.Add( $"Assumed stat investments: {spread[Stat.HP]}/{spread[Stat.Attack]}/{spread[Stat.Defense]}/{spread[Stat.SpAttack]}/{spread[Stat.SpDefense]}/{spread[Stat.Speed]}" );
         CurrentLog.Add( $"Actual stat investments: {realSpread[Stat.HP]}/{realSpread[Stat.Attack]}/{realSpread[Stat.Defense]}/{realSpread[Stat.SpAttack]}/{realSpread[Stat.SpDefense]}/{realSpread[Stat.Speed]}" );
         CurrentLog.Add( $"" );
+
         //--Brain Layer Evaluations
-        var exchangePack    = Projection.GetExchangePack( CurrentUnitAdapter, target );
-        // var exchangeEval    = Projection.EvaluateExchange( CurrentUnitAdapter, target ); //--This is a PRE EVERYTHING attack exchange. this means any status effects or battlefield effects that would get applied this turn are not in effect, being a reliable "before" source!
+        var exchangePack    = Projection.GetExchangePack( CurrentUnitAdapter, target ); //--This is a PRE EVERYTHING attack exchange. this means any status effects or battlefield effects that would get applied this turn are not in effect, being a reliable "before" source!
         var tempo           = Projection.GetTempoState( exchangePack.UsVS_Threat );
         var boardContext    = Projection.GetBoardContext( CurrentUnitAdapter, target, exchangePack.UsVS_Threat );
         var threatProfile   = GetThreatProfile( exchangePack.UsVS_Threat, boardContext, target );
@@ -692,60 +706,60 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation attackActionEval = default;
         if( bestAttack.Move != null )
         {
-            attackActionEval = Build_AttackAction( tempo, exchangePack, boardContext, bestAttack, tir );
+            attackActionEval = Build_AttackAction( tempo, exchangePack, bestAttack, tir );
             actions.Add( attackActionEval );
         }
-        yield return null;
+
         yield return null;
 
         //--Defensive Switch
         ActionEvaluation defSwitchActionEval = default;
         if( defensiveSwitch.Pokemon != null )
         {
-            defSwitchActionEval = Build_DefensiveSwitchAction( tempo, exchangePack, boardContext, defensiveSwitch, tir );
+            defSwitchActionEval = Build_DefensiveSwitchAction( tempo, exchangePack, defensiveSwitch, tir );
             actions.Add( defSwitchActionEval );
         }
-        yield return null;
+
         yield return null;
 
         //--Offensive Switch
         ActionEvaluation offSwitchActionEval = default;
         if( offensiveSwitch.Pokemon != null )
         {
-            offSwitchActionEval = Build_OffensiveSwitchAction( tempo, exchangePack, boardContext, offensiveSwitch, tir );
+            offSwitchActionEval = Build_OffensiveSwitchAction( tempo, exchangePack, offensiveSwitch, tir );
             actions.Add( offSwitchActionEval );
         }
-        yield return null;
+
         yield return null;
 
         //--Setup. swords dance, iron defense, dragon dance
         ActionEvaluation setupActionEval = default;
         if( bestSetup.Move != null )
         {
-            setupActionEval = Build_SetupAction( tempo, exchangePack, boardContext, bestSetup, tir );
+            setupActionEval = Build_SetupAction( tempo, exchangePack, bestSetup, tir );
             actions.Add( setupActionEval );
         }
-        yield return null;
+
         yield return null;
 
         //--Offensive Status. Thunder Wave, Toxic, Stealth Rocks, Sleep Powder, Growl
         ActionEvaluation offensiveStatusActionEval = default;
         if( bestOffensiveStatus.Move != null )
         {
-            offensiveStatusActionEval = Build_OffensiveStatusAction( tempo, exchangePack, boardContext, bestOffensiveStatus, tir );
+            offensiveStatusActionEval = Build_OffensiveStatusAction( tempo, exchangePack, bestOffensiveStatus, tir );
             actions.Add( offensiveStatusActionEval );
         }
-        yield return null;
+
         yield return null;
 
         //--Support Status. screens, manual weather, redirection, trick room, tailwind, howl
         ActionEvaluation supportiveStatusActionEval = default;
         if( bestSupportiveStatus.Move != null )
         {
-            supportiveStatusActionEval = Build_SupportiveStatusAction( tempo, exchangePack, boardContext, bestSupportiveStatus, tir );
+            supportiveStatusActionEval = Build_SupportiveStatusAction( tempo, exchangePack, bestSupportiveStatus, tir );
             actions.Add( supportiveStatusActionEval );
         }
-        yield return null;
+
         yield return null;
 
         var doomedOutcome = CheckIfDoomedTurn( actions, exchangePack );
@@ -774,11 +788,13 @@ public class BattleAI : MonoBehaviour
                 CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Action Score ({actions[i].Type}): {actionScore}" );
                 CurrentLog.Add( $"" );
                 actions[i].Score += actionScore;
+                yield return null;
 
                 int vsIntentScore = ThreatIntentEvaluation.ActionVS_ThreatIntent( actions[i], tempo, exchangePack, boardContext, actions[i].Top1, tir );
                 CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s ActionVS_ThreatIntent Score ({actions[i].Type}): {vsIntentScore}" );
                 CurrentLog.Add( $"" );
                 actions[i].Score += vsIntentScore;
+                yield return null;
 
                 actions[i] = ActionEvaluation.EvaluateSimulation( actions[i] );
                 var survivalClass = Projection.ClassifySurvival( actions[i], doomedOutcome );
@@ -860,134 +876,56 @@ public class BattleAI : MonoBehaviour
         getBestAction?.Invoke( bestAction );
     }
 
-    private ActionEvaluation Build_AttackAction( TempoStateResult tempo, ExchangePack exchangePack, BoardContext boardContext, MoveThreatResult bestAttack, ThreatIntentResult tir )
+    private ActionEvaluation Build_AttackAction( TempoStateResult tempo, ExchangePack exchangePack, MoveThreatResult bestAttack, ThreatIntentResult tir )
     {
         var top = BattleSim.BuildIntentTOP( ActionType.Attack, bestAttack, tir );
-
-        // int attackScore = ActionScoring.AttackScore( tempo, exchangePack, boardContext, bestAttack, top, tir );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Attack Score: {attackScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int intentScore = Mathf.RoundToInt( ThreatIntentEvaluation.AttackThreatIntentCheck( tempo, exchangePack, boardContext, bestAttack, top, tir ) );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Attack's Threat Intent Check Score: {intentScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int actionScore = attackScore + intentScore;
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Complete Action Score: {actionScore}" );
-        // CurrentLog.Add( $"" );
-        
         var attackActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Attack, bestAttack, bestAttack.Target, bestAttack.TargetBattleUnit, bestAttack.Move, top, exchangePack );
         CurrentLog.Add( $"" );
-
-        // attackActionEval.Score += ActionEvaluation.EvaluateBattlefieldState( attackActionEval, boardContext );
 
         return attackActionEval;
     }
 
-    private ActionEvaluation Build_DefensiveSwitchAction( TempoStateResult tempo, ExchangePack exchangePack, BoardContext boardContext, SwitchCandidateResult defensiveSwitch, ThreatIntentResult tir )
+    private ActionEvaluation Build_DefensiveSwitchAction( TempoStateResult tempo, ExchangePack exchangePack, SwitchCandidateResult defensiveSwitch, ThreatIntentResult tir )
     {
         var intentTOP = BattleSim.BuildIntentTOP( ActionType.DefensiveSwitch, defensiveSwitch, tir );
-
-        // int defSwitchScore = ActionScoring.DefensiveSwitchScore( tempo, exchangePack, boardContext, defensiveSwitch, intentTOP, tir );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Defensive Switch Score: {defSwitchScore} via Candidate: {defensiveSwitch.Pokemon?.NickName}" );
-        // CurrentLog.Add( $"" );
-
-        // int intentScore = Mathf.RoundToInt( ThreatIntentEvaluation.DefensiveSwitchThreatIntentCheck( tempo, exchangePack, boardContext, defensiveSwitch, intentTOP, tir ) );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Defensive Switch's Threat Intent Check Score: {intentScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int actionScore = defSwitchScore + intentScore;
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Complete Action Score: {actionScore}" );
-        // CurrentLog.Add( $"" );
-
         var defSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.DefensiveSwitch, defensiveSwitch, null, null, defensiveSwitch.Pokemon, intentTOP, exchangePack );
         CurrentLog.Add( $"" );
         
-        // defSwitchActionEval.Score += ActionEvaluation.EvaluateBattlefieldState( defSwitchActionEval, boardContext );
-
         return defSwitchActionEval;
     }
 
-    private ActionEvaluation Build_OffensiveSwitchAction( TempoStateResult tempo, ExchangePack exchangePack, BoardContext boardContext, SwitchCandidateResult offensiveSwitch, ThreatIntentResult tir )
+    private ActionEvaluation Build_OffensiveSwitchAction( TempoStateResult tempo, ExchangePack exchangePack, SwitchCandidateResult offensiveSwitch, ThreatIntentResult tir )
     {
         var intentTOP = BattleSim.BuildIntentTOP( ActionType.OffensiveSwitch, offensiveSwitch, tir );
-
-        // int offSwitchScore = ActionScoring.OffensiveSwitchScore( tempo, exchangePack, offensiveSwitch, boardContext, intentTOP, tir );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Offensive Switch Score: {offSwitchScore} via Candidate: {offensiveSwitch.Pokemon?.NickName}" );
-        // CurrentLog.Add( $"" );
-
-        // int intentScore = Mathf.RoundToInt( ThreatIntentEvaluation.OffensiveSwitchThreatIntentCheck( tempo, exchangePack, boardContext, offensiveSwitch, intentTOP, tir ) );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Offensive Switch's Threat Intent Check Score: {intentScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int actionScore = offSwitchScore += intentScore;
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Complete Action Score: {actionScore}" );
-        // CurrentLog.Add( $"" );
-
         var offSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveSwitch, offensiveSwitch, null, null, offensiveSwitch.Pokemon, intentTOP, exchangePack );
         CurrentLog.Add( $"" );
-        // offSwitchActionEval.Score += ActionEvaluation.EvaluateBattlefieldState( offSwitchActionEval, boardContext );
 
         return offSwitchActionEval;
     }
 
-    private ActionEvaluation Build_SetupAction( TempoStateResult tempo, ExchangePack exchangePack, BoardContext boardContext, SetupThreatResult bestSetup, ThreatIntentResult tir )
+    private ActionEvaluation Build_SetupAction( TempoStateResult tempo, ExchangePack exchangePack, SetupThreatResult bestSetup, ThreatIntentResult tir )
     {
         var intentTOP = BattleSim.BuildIntentTOP( ActionType.Setup, bestSetup, tir );
-
-        // int setupScore = ActionScoring.SetupScore( tempo, exchangePack, boardContext, bestSetup, intentTOP, tir );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Setup Score: {setupScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int intentScore = Mathf.RoundToInt( ThreatIntentEvaluation.SetupThreatIntentCheck( tempo, exchangePack, boardContext, bestSetup, intentTOP, tir ) );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Setup's Threat Intent Check Score: {intentScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int actionScore = setupScore += intentScore;
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Complete Action Score: {actionScore}" );
-        // CurrentLog.Add( $"" );
-
         var setupActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Setup, bestSetup, bestSetup.Target, bestSetup.TargetBattleUnit, bestSetup.Move, intentTOP, exchangePack );
         CurrentLog.Add( $"" );
-        // setupActionEval.Score += ActionEvaluation.EvaluateBattlefieldState( setupActionEval, boardContext );
 
         return setupActionEval;
     }
 
-    private ActionEvaluation Build_OffensiveStatusAction( TempoStateResult tempo, ExchangePack exchangePack, BoardContext boardContext, StatusThreatResult bestOffensiveStatus, ThreatIntentResult tir )
+    private ActionEvaluation Build_OffensiveStatusAction( TempoStateResult tempo, ExchangePack exchangePack, StatusThreatResult bestOffensiveStatus, ThreatIntentResult tir )
     {
         var top = BattleSim.BuildIntentTOP( ActionType.OffensiveStatus, bestOffensiveStatus, tir );
-
-        // int statusScore = ActionScoring.OffensiveStatusScore( tempo, exchangePack, boardContext, bestOffensiveStatus, top, tir );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Offensive Status Score: {statusScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int intentScore = 0; //--TODO: Add VS_Intent blocks!
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Offensive Status's Threat Intent Check Score: {intentScore}" );
-        // CurrentLog.Add( $"" );
-
         var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveStatus, bestOffensiveStatus, bestOffensiveStatus.Target, bestOffensiveStatus.TargetBattleUnit, bestOffensiveStatus.Move, top, exchangePack );
         CurrentLog.Add( $"" );
-        // statusActionEval.Score += ActionEvaluation.EvaluateBattlefieldState( statusActionEval, boardContext );
 
         return statusActionEval;
     }
 
-    private ActionEvaluation Build_SupportiveStatusAction( TempoStateResult tempo, ExchangePack exchangePack, BoardContext boardContext, StatusThreatResult bestSupportiveStatus, ThreatIntentResult tir )
+    private ActionEvaluation Build_SupportiveStatusAction( TempoStateResult tempo, ExchangePack exchangePack, StatusThreatResult bestSupportiveStatus, ThreatIntentResult tir )
     {
         var top = BattleSim.BuildIntentTOP( ActionType.SupportiveStatus, bestSupportiveStatus, tir );
-
-        // int statusScore = ActionScoring.SupportiveStatusScore( tempo, exchangePack, boardContext, bestSupportiveStatus, top, tir );
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Supportive Status Score: {statusScore}" );
-        // CurrentLog.Add( $"" );
-
-        // int intentScore = 0; //--TODO: Add VS_Intent blocks!
-        // CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Supportive Status's Threat Intent Check Score: {intentScore}" );
-        // CurrentLog.Add( $"" );
-
         var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.SupportiveStatus, bestSupportiveStatus, bestSupportiveStatus.Target, bestSupportiveStatus.TargetBattleUnit, bestSupportiveStatus.Move, top, exchangePack );
         CurrentLog.Add( $"" );
-        // statusActionEval.Score += ActionEvaluation.EvaluateBattlefieldState( statusActionEval, boardContext );
 
         return statusActionEval;
     }
