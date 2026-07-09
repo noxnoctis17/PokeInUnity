@@ -415,7 +415,7 @@ public class BattleAI_FinalReasoning
             {
                 var opp = likelySwitches[i];
                 var move = attack.MovePayload;
-                MoveThreatResult ourMTR = new()
+                MoveThreatResult ourMTR = new() //--if spread moves get funky because of this the fix is likely setting target count here
                 {
                     Move = move,
                     Target = opp,
@@ -442,7 +442,7 @@ public class BattleAI_FinalReasoning
                 if( move.MoveSO.MoveCategory == MoveCategory.Status )
                     continue;
 
-                MoveThreatResult ourMTR = new(){ Move = move };
+                MoveThreatResult ourMTR = new(){ Move = move }; //--or setting target count here
                 int ptkos = 0;
 
                 for( int i = 0; i < likelySwitches.Count; i++ )
@@ -476,7 +476,7 @@ public class BattleAI_FinalReasoning
 
             //--Evaluate current target with bestCoverageMove
             var currentTarget = attack.Top1.Opponent;
-            var coverageMTR = new MoveThreatResult { Move = bestCoverageMove, Target = currentTarget };
+            var coverageMTR = new MoveThreatResult { Move = bestCoverageMove, Target = currentTarget }; //--or setting targets correctly here
 
             float eff = _ai.UnitSim.Get_MoveEffectiveness( currentTarget, bestCoverageMove );
             float mod = _ai.UnitSim.Get_MoveModifier( ourMon, currentTarget, bestCoverageMove );

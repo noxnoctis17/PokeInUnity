@@ -151,8 +151,8 @@ public class BattleAI_ActionEvaluation
         
         var ourActiveAdapters = _ai.GetActiveAllyUnits_AsBattleAIUnits( _ai.CurrentUnitDeciding.Pokemon );
         
-        var offensiveSwitch = _ai.SwitchCommand.GetSwitch_Revenge( ourActiveAdapters ).Pokemon;
-        var defensiveSwitch = _ai.SwitchCommand.GetSwitch_Defensive( top.Opponent ).Top.Attacker;
+        var offensiveSwitch = _ai.CandidateSelect.GetSwitch_Revenge( ourActiveAdapters ).Pokemon;
+        var defensiveSwitch = _ai.CandidateSelect.GetSwitch_Defensive( top.Opponent ).Top.Attacker;
 
         SimulatedUnit nextOpponent;
         MoveThreatResult nextOpponentMTR;
@@ -160,22 +160,22 @@ public class BattleAI_ActionEvaluation
         if( top.Opponent_EndOfTurnHP <= 0f && offensiveSwitch != null )
         {
             BattleAI_PokemonAdapter opponentOffensiveSwitchAdapter = _ai.GetPokemonAs_Adapter( offensiveSwitch );
-            nextOpponentMTR = _ai.MoveCommand.GetMove_BestAttack( opponentOffensiveSwitchAdapter, top.Attacker );
+            nextOpponentMTR = _ai.CandidateSelect.GetMove_BestAttack( opponentOffensiveSwitchAdapter, top.Attacker );
             nextOpponent = _ai.UnitSim.BuildSimUnit( opponentOffensiveSwitchAdapter, opponentOffensiveSwitchAdapter.BeginningHPR, nextOpponentMTR, top.Field );
         }
         else if( weForceSwitch && defensiveSwitch != null )
         {
             SimulatedUnit opponentDefensiveSwitchAdapter = defensiveSwitch;
-            nextOpponentMTR = _ai.MoveCommand.GetMove_BestAttack( opponentDefensiveSwitchAdapter, top.Attacker );
+            nextOpponentMTR = _ai.CandidateSelect.GetMove_BestAttack( opponentDefensiveSwitchAdapter, top.Attacker );
             nextOpponent = _ai.UnitSim.BuildSimUnit( opponentDefensiveSwitchAdapter, opponentDefensiveSwitchAdapter.CurrentHPR, nextOpponentMTR, top.Field );
         }
         else
         {
-            nextOpponentMTR = _ai.MoveCommand.GetMove_BestAttack( top.Opponent, top.Attacker );
+            nextOpponentMTR = _ai.CandidateSelect.GetMove_BestAttack( top.Opponent, top.Attacker );
             nextOpponent = _ai.UnitSim.BuildSimUnit( top.Opponent, top.Opponent_EndOfTurnHP, nextOpponentMTR, top.Field );
         }
 
-        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, nextOpponent ).Top;
+        var next = _ai.CandidateSelect.GetMove_BestAttack( top.Attacker, nextOpponent ).Top;
 
         bool weKOThem = next.Opponent_DiesBeforeActing || next.Opponent_EndOfTurnHP <= 0f;
         bool weDie = next.Attacker_DiesBeforeActing || next.Attacker_EndOfTurnHP <= 0f;
@@ -322,7 +322,7 @@ public class BattleAI_ActionEvaluation
         //--Look Ahead Portion-----------------
 
         //--We need to establish PTKOs and the general attack potential of the following round using the switch candidate.
-        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent ).Top;
+        var next = _ai.CandidateSelect.GetMove_BestAttack( top.Attacker, top.Opponent ).Top;
 
         //--First we compare threat
         bool weDie = next.Attacker_DiesBeforeActing || next.Attacker_EndOfTurnHP <= 0f;
@@ -436,7 +436,7 @@ public class BattleAI_ActionEvaluation
         _ai.CurrentLog.Add( $"Attacker threatens Opponent next turn: {opponentThreatenedNextTurn}. Score: {score}" );
 
         //--Look Ahead Section-------------------
-        var next = _ai.MoveCommand.GetMove_BestAttack( top.Attacker, top.Opponent ).Top;
+        var next = _ai.CandidateSelect.GetMove_BestAttack( top.Attacker, top.Opponent ).Top;
 
         bool weKOThem = next.Opponent_DiesBeforeActing || next.Opponent_EndOfTurnHP <= 0f;
         if( weKOThem )
@@ -527,9 +527,9 @@ public class BattleAI_ActionEvaluation
         //----------Look Ahead------------
         //--------------------------------
 
-        var ourNextAttacker = top.Attacker_EndOfTurnHP > 0f ? top.Attacker : _ai.SwitchCommand.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Candidate;
+        var ourNextAttacker = top.Attacker_EndOfTurnHP > 0f ? top.Attacker : _ai.CandidateSelect.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Candidate;
         ourNextAttacker ??= top.Attacker;
-        var next = _ai.MoveCommand.GetMove_BestAttack( ourNextAttacker, top.Opponent, false, "Evaluate Setup Action (Look Ahead)" ).Top;
+        var next = _ai.CandidateSelect.GetMove_BestAttack( ourNextAttacker, top.Opponent, false, "Evaluate Setup Action (Look Ahead)" ).Top;
 
         if( next.Attacker_DiesBeforeActing )
         {
@@ -671,8 +671,8 @@ public class BattleAI_ActionEvaluation
         //----------Look Ahead------------
         //--------------------------------
 
-        var ourNextAttacker = top.Attacker_EndOfTurnHP > 0f ? top.Attacker : _ai.SwitchCommand.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Candidate;
-        var next = _ai.MoveCommand.GetMove_BestAttack( ourNextAttacker, top.Opponent, false, "Evaluate Offensive Status Sim (Look Ahead)" ).Top;
+        var ourNextAttacker = top.Attacker_EndOfTurnHP > 0f ? top.Attacker : _ai.CandidateSelect.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Candidate;
+        var next = _ai.CandidateSelect.GetMove_BestAttack( ourNextAttacker, top.Opponent, false, "Evaluate Offensive Status Sim (Look Ahead)" ).Top;
 
         bool weNowMoveFirst = next.AttackerMovedFirst;
         if( !top.AttackerMovedFirst && weNowMoveFirst )
@@ -887,8 +887,8 @@ public class BattleAI_ActionEvaluation
         //----------Look Ahead------------
         //--------------------------------
 
-        var ourNextAttacker = top1.Attacker_EndOfTurnHP > 0f ? top1.Attacker : _ai.SwitchCommand.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Candidate;
-        var top2 = _ai.MoveCommand.GetMove_BestAttack( ourNextAttacker, top1.Opponent, false, "Evaluate Supportive Status Sim (Look Ahead)" ).Top;
+        var ourNextAttacker = top1.Attacker_EndOfTurnHP > 0f ? top1.Attacker : _ai.CandidateSelect.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Candidate;
+        var top2 = _ai.CandidateSelect.GetMove_BestAttack( ourNextAttacker, top1.Opponent, false, "Evaluate Supportive Status Sim (Look Ahead)" ).Top;
 
         float weSwitchNextProb = _ai.UnitSim.PredictSwitchProbability( top2.Attacker.Pokemon, top2.OpponentPTKO, top2.AttackerPTKO, top2.AttackerMovedFirst, top2.Opponent.BeginningHPR, top2.Attacker.BeginningHPR, top2.Attacker.Expendability );
         score -= Mathf.FloorToInt( 35f * weSwitchNextProb );
@@ -1020,13 +1020,13 @@ public class BattleAI_ActionEvaluation
         BattleAI_PokemonAdapter revengeCandidate = null;
         if( eval.Top1.Attacker_DiesBeforeActing || eval.Top1.Attacker_EndOfTurnHP <= 0 )
         {
-            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Pokemon;
+            var switchCandidate = _ai.CandidateSelect.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Pokemon;
             if( switchCandidate != null )
                 revengeCandidate = _ai.GetPokemonAs_Adapter( switchCandidate );
         }
         else if( eval.Top1.AttackerPTKO <= PotentialToKO.Safe && eval.Top1.OpponentPTKO >= PotentialToKO.TwoHKO )
         {
-            var switchCandidate = _ai.SwitchCommand.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Pokemon;
+            var switchCandidate = _ai.CandidateSelect.GetSwitch_Revenge( _ai.Blackboard.TheirActiveBattleAIUnits ).Pokemon;
             if( switchCandidate != null )
                 revengeCandidate = _ai.GetPokemonAs_Adapter( switchCandidate );
         }
@@ -1038,7 +1038,7 @@ public class BattleAI_ActionEvaluation
             nextPokemon = eval.Top1.Attacker;
 
         //--Look ahead at the next round
-        var followUp = _ai.MoveCommand.GetMove_BestAttack( nextPokemon, eval.Top1.Opponent ).Top;
+        var followUp = _ai.CandidateSelect.GetMove_BestAttack( nextPokemon, eval.Top1.Opponent ).Top;
 
         //--Revenge Kill Success
         if( followUp.Opponent_DiesBeforeActing )

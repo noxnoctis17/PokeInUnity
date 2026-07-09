@@ -331,7 +331,7 @@ public class BattleAI_UnitSim
         float attackerHPR = attacker.BeginningHPR;
 
         //--Move Threat Result
-        var attackerMTR = attacker.MTR ?? _ai.MoveCommand.GetMove_BestAttack( attacker, target );
+        var attackerMTR = attacker.MTR ?? _ai.CandidateSelect.GetMove_BestAttack( attacker, target );
 
         field ??= _ai.Blackboard.CurrentFieldSnapshot;
 

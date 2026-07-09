@@ -744,7 +744,7 @@ public class BattleAI_Projection
         if( iAmKO && !oppIsKO )
         {
             List<IBattleAIUnit> opps = new() { top1.Opponent };
-            var revengeKiller = _ai.SwitchCommand.GetSwitch_Revenge( opps );
+            var revengeKiller = _ai.CandidateSelect.GetSwitch_Revenge( opps );
             if( revengeKiller.Top.Opponent_DiesBeforeActing )
             {
                 revengeScore += 15;
@@ -1132,14 +1132,14 @@ public class BattleAI_Projection
     {
         //--Potential to KO
         //--Attacker PTKO Target
-        var attackerMTR = _ai.MoveCommand.GetMove_BestAttack( attacker, target, false, "Evaluate Exchange (attacker vs target)" );
+        var attackerMTR = _ai.CandidateSelect.GetMove_BestAttack( attacker, target, false, "Evaluate Exchange (attacker vs target)" );
         var targetWSR = Get_EstimatedDamageResult( attacker, target, attackerMTR );
         float targetHP = target.BeginningHPR;
 
         PotentialToKOResult attackerPTKOR = Get_PotentialToKOResult( targetWSR, attackerMTR, targetHP );
 
         //--Target PTKO Attacker
-        var targetMTR = _ai.MoveCommand.GetMove_BestAttack( target, attacker, false, "Evaluate Exchange (target vs attacker)" );
+        var targetMTR = _ai.CandidateSelect.GetMove_BestAttack( target, attacker, false, "Evaluate Exchange (target vs attacker)" );
         var attackerWSR = Get_EstimatedDamageResult( target, attacker, targetMTR );
         float attackerHP = attacker.BeginningHPR;
 
@@ -1388,7 +1388,7 @@ public class BattleAI_Projection
                 if( !mon.IsFainted && pivotHP > 0.35f )
                 {
                     BattleAI_PokemonAdapter monAdapter = _ai.GetPokemonAs_Adapter( mon );
-                    var targetThreateningMove = _ai.MoveCommand.GetMove_BestAttack( opponent, monAdapter, false, "Get Safe Pivot" );
+                    var targetThreateningMove = _ai.CandidateSelect.GetMove_BestAttack( opponent, monAdapter, false, "Get Safe Pivot" );
                     var attackerWSR = Get_EstimatedDamageResult( opponent, monAdapter, targetThreateningMove );
                     float targetHP = _ai.Get_HPRatio( opponent );
                     PotentialToKOResult pivotPTKO_target = Get_PotentialToKOResult( attackerWSR, targetThreateningMove, targetHP );
@@ -1478,6 +1478,7 @@ public class BattleAI_Projection
         float movePower = 0f;
         float modifier = 1f;
         float brnOrfbt = 1f;
+        float targets = moveThreat.TargetCount == 1 ? 1f : 0.75f;
 
         if( moveThreat != null && moveThreat.Move != null )
         {
@@ -1588,10 +1589,10 @@ public class BattleAI_Projection
         }
         else
         {
-            damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * MID_ROLL;
+            damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * targets * MID_ROLL;
             damagePercentage = Mathf.Floor( ( damage / targetMHP ) * 1000f ) / 1000f;
             
-            lowRoll = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * LOW_ROLL;
+            lowRoll = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * targets * LOW_ROLL;
             lowRollPercentage = Mathf.Floor( ( lowRoll / targetMHP ) * 1000f ) / 1000f;
         }
 
@@ -1745,8 +1746,8 @@ public class BattleAI_Projection
                 BattleAI_PokemonAdapter theirMon = _ai.GetPokemonAs_Adapter( theirTeam[t] );
 
                 //--MTRs
-                var ourMTR = _ai.MoveCommand.GetMove_BestAttack( ourMon, theirMon );
-                var theirMTR = _ai.MoveCommand.GetMove_BestAttack( theirMon, ourMon );
+                var ourMTR = _ai.CandidateSelect.GetMove_BestAttack( ourMon, theirMon );
+                var theirMTR = _ai.CandidateSelect.GetMove_BestAttack( theirMon, ourMon );
 
                 //--EDRs
                 var ourEDR = Get_EstimatedDamageResult( ourMon, theirMon, ourMTR );
@@ -1868,8 +1869,8 @@ public class BattleAI_Projection
                 var theirMon = theirTeam[t];
 
                 //--MTRs
-                var ourMTR = _ai.MoveCommand.GetMove_BestAttack( ourMon, theirMon );
-                var theirMTR = _ai.MoveCommand.GetMove_BestAttack( theirMon, ourMon );
+                var ourMTR = _ai.CandidateSelect.GetMove_BestAttack( ourMon, theirMon );
+                var theirMTR = _ai.CandidateSelect.GetMove_BestAttack( theirMon, ourMon );
 
                 //--EDRs
                 var ourEDR = Get_EstimatedDamageResult( ourMon, theirMon, ourMTR );
@@ -3363,32 +3364,6 @@ public struct TeamVSTeamAnalysis
 
     public int Our_Outspeeds;
     public int Their_Outspeeds;
-}
-
-public struct TurnOutcomeProjection
-{
-    public SimulatedUnit Attacker;
-    public SimulatedUnit Opponent;
-
-    public SimulatedField Field;
-
-    public PotentialToKO AttackerPTKO;
-    public PotentialToKO OpponentPTKO;
-
-    public float Attacker_EndOfTurnHP;
-    public float Opponent_EndOfTurnHP;
-
-    public bool Attacker_DiesBeforeActing;
-    public bool Opponent_DiesBeforeActing;
-
-    public bool AttackerCanAct;
-    public bool OpponentCanAct;
-
-    public bool MutualKO;
-    public bool AttackerMovedFirst;
-    public bool AttackerHasSweepHorizon;
-
-    public string SimulationLog;
 }
 
 public struct ProjectedBoardState

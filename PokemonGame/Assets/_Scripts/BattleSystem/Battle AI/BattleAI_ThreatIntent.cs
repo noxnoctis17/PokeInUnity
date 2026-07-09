@@ -111,12 +111,12 @@ public class BattleAI_ThreatIntent
         ThreatIntentCandidates tic = new()
         {
             Threat = threat,
-            MoveThreatResult = _ai.MoveCommand.GetMove_BestAttack( threat, us ),
+            MoveThreatResult = _ai.CandidateSelect.GetMove_BestAttack( threat, us ),
             DefensiveSwitchCandidateResult = defSCR,
             OffensiveSwitchCandidateResult = offSCR,
-            SetupThreatResult = _ai.MoveCommand.GetMove_Setup( threat, us ),
-            OffensiveStatusThreatResult = _ai.MoveCommand.GetMove_OffensiveStatus( threat, us ),
-            // SupportiveStatusThreatResult
+            SetupThreatResult = _ai.CandidateSelect.GetMove_Setup( threat, us ),
+            OffensiveStatusThreatResult = _ai.CandidateSelect.GetMove_OffensiveStatus( threat, us ),
+            SupportiveStatusThreatResult = _ai.CandidateSelect.GetMove_SupportiveStatus( threat, us ),
             // ProtectThreatResult
         };
 

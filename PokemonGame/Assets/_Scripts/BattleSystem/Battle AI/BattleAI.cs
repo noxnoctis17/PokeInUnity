@@ -20,8 +20,8 @@ public class BattleAI : MonoBehaviour
 //-------------------------------[AI SYSTEM CLASSES]---------------------------------------------------
 //-----------------------------------------------------------------------------------------------------
 
-    public BattleAI_MoveCommand MoveCommand { get; private set; }
-    public BattleAI_SwitchCommand SwitchCommand { get; private set; }
+    public BattleAI_SubmitCommand SubmitCommand { get; private set; }
+    public BattleAI_CandidateSelectors CandidateSelect { get; private set; }
     public BattleAI_ActionScoring ActionScoring { get; private set; }
     public BattleAI_ActionEvaluation ActionEvaluation { get; private set; }
     public BattleAI_Projection Projection { get; private set; }
@@ -77,8 +77,8 @@ public class BattleAI : MonoBehaviour
         UnitSim                 = new( this );
         Projection              = new( this );
         BattleSim               = new( this );
-        MoveCommand             = new( this );
-        SwitchCommand           = new( this );
+        SubmitCommand             = new( this );
+        CandidateSelect           = new( this );
         ActionEvaluation        = new( this );
         FinalReasoning          = new( this );
         RoleDetection           = new( this );
@@ -426,13 +426,13 @@ public class BattleAI : MonoBehaviour
         if( oppPokemon <= 0 )
         {
             Debug.Log( $"[AI Scoring][Request Forced Switch] Chose to get a Vacuum Switch!" );
-            return SwitchCommand.GetSwitch_Vacuum();
+            return CandidateSelect.GetSwitch_Vacuum();
         }
         else
         {
             Debug.Log( $"[AI Scoring][Request Forced Switch] Chose to get a Revenge Switch!" );
             var opps = CreateBattleAIUnits_FromBattleUnits( opposingUnits );
-            return SwitchCommand.GetSwitch_Revenge( opps ).Pokemon;
+            return CandidateSelect.GetSwitch_Revenge( opps ).Pokemon;
         }
     }
 
@@ -450,7 +450,7 @@ public class BattleAI : MonoBehaviour
     public Pokemon RequestLead()
     {
         // Debug.Log( $"[AI] Lead pokemon requested using GetSwitch_Vacuum!" );
-        return SwitchCommand.GetSwitch_Vacuum();
+        return CandidateSelect.GetSwitch_Vacuum();
     }
 
     public void SetCurrentUnitAdapter( BattleAI_PokemonAdapter adapter )
@@ -629,28 +629,28 @@ public class BattleAI : MonoBehaviour
         {
             case ActionType.Attack:
                 LastAction = bestAction;
-                MoveCommand.SubmitMoveCommand( bestAction );
+                SubmitCommand.SubmitMoveCommand( bestAction );
                 break;
 
             case ActionType.DefensiveSwitch:
                 LastAction = bestAction;
-                SwitchCommand.SubmitSwitchCommand( bestAction.SwitchPayload );
+                SubmitCommand.SubmitSwitchCommand( bestAction.SwitchPayload );
                 break;
 
             case ActionType.OffensiveSwitch:
                 LastAction = bestAction;
-                SwitchCommand.SubmitSwitchCommand( bestAction.SwitchPayload );
+                SubmitCommand.SubmitSwitchCommand( bestAction.SwitchPayload );
                 break;
 
             case ActionType.Setup:
                 LastAction = bestAction;
-                MoveCommand.SubmitMoveCommand( bestAction );
+                SubmitCommand.SubmitMoveCommand( bestAction );
                 IncreaseSetupAmount();
                 break;
 
             case ActionType.OffensiveStatus:
                 LastAction = bestAction;
-                MoveCommand.SubmitMoveCommand( bestAction );
+                SubmitCommand.SubmitMoveCommand( bestAction );
                 break;
         }
 
@@ -681,22 +681,22 @@ public class BattleAI : MonoBehaviour
         yield return null;
 
         //--Action Candidates + TOP
-        var bestAttack              = MoveCommand.GetMove_BestAttack( CurrentUnitAdapter, target, true, "Get Best Action" );
+        var bestAttack              = CandidateSelect.GetMove_BestAttack( CurrentUnitAdapter, target, true, "Get Best Action" );
         yield return null;
 
-        var defensiveSwitch         = SwitchCommand.GetSwitch_Defensive( CurrentUnitAdapter );
+        var defensiveSwitch         = CandidateSelect.GetSwitch_Defensive( CurrentUnitAdapter );
         yield return null;
 
-        var offensiveSwitch         = SwitchCommand.GetSwitch_Offensive( CurrentUnitAdapter );
+        var offensiveSwitch         = CandidateSelect.GetSwitch_Offensive( CurrentUnitAdapter );
         yield return null;
 
-        var bestSetup               = MoveCommand.GetMove_Setup( CurrentUnitAdapter, target, true );
+        var bestSetup               = CandidateSelect.GetMove_Setup( CurrentUnitAdapter, target, true );
         yield return null;
 
-        var bestOffensiveStatus     = MoveCommand.GetMove_OffensiveStatus( CurrentUnitAdapter, target, true );
+        var bestOffensiveStatus     = CandidateSelect.GetMove_OffensiveStatus( CurrentUnitAdapter, target, true );
         yield return null;
 
-        var bestSupportiveStatus    = MoveCommand.GetMove_SupportiveStatus( CurrentUnitAdapter, target, true );
+        var bestSupportiveStatus    = CandidateSelect.GetMove_SupportiveStatus( CurrentUnitAdapter, target, true );
         yield return null;
 
 
@@ -959,7 +959,7 @@ public class BattleAI : MonoBehaviour
             if( action.Type == ActionType.OffensiveSwitch || action.Type == ActionType.DefensiveSwitch )
             {
                 switchActionCount++;
-                var switchLookAhead = MoveCommand.GetMove_BestAttack( action.Top1.Attacker, action.Top1.Opponent ).Top;
+                var switchLookAhead = CandidateSelect.GetMove_BestAttack( action.Top1.Attacker, action.Top1.Opponent ).Top;
 
                 //--We use the look ahead PTKOs because those are the PTKOs that would be in effect for the following round. we use the "current" switch simulation HP Ratios because those would be the values we start the following round with.
                 bool forceSwitchNextRound = UnitSim.PredictSwitchProbability( action.Top1.Opponent.Pokemon, switchLookAhead.AttackerPTKO, switchLookAhead.OpponentPTKO, switchLookAhead.AttackerMovedFirst, switchLookAhead.Attacker.BeginningHPR, switchLookAhead.Opponent.BeginningHPR, switchLookAhead.Opponent.Expendability ) > 0.7f;
@@ -1004,13 +1004,13 @@ public class BattleAI : MonoBehaviour
 
             if( action.Top1.Attacker_DiesBeforeActing || action.Top1.Attacker_EndOfTurnHP <= 0 )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Revenge( Blackboard.TheirActiveBattleAIUnits ).Pokemon;
+                var switchCandidate = CandidateSelect.GetSwitch_Revenge( Blackboard.TheirActiveBattleAIUnits ).Pokemon;
                 if( switchCandidate != null )
                     revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
             else if( readSwitch )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Defensive( CurrentUnitAdapter ).Pokemon;
+                var switchCandidate = CandidateSelect.GetSwitch_Defensive( CurrentUnitAdapter ).Pokemon;
                 if( switchCandidate != null )
                     revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
@@ -1022,7 +1022,7 @@ public class BattleAI : MonoBehaviour
                 nextPokemon = action.Top1.Attacker;
 
             //--Keep in mind, this simulation is from the perspective of the opponent attacking us. Therefore, inside this TOP, WE are the opponent.
-            var opponentSweepTOP = MoveCommand.GetMove_BestAttack( action.Top1.Opponent, nextPokemon ).Top;
+            var opponentSweepTOP = CandidateSelect.GetMove_BestAttack( action.Top1.Opponent, nextPokemon ).Top;
             
             ourTeamToBeSwept = GetRemainingAllyPokemon( nextPokemon.Pokemon );
             bool movesFirst = opponentSweepTOP.Attacker.Speed > opponentSweepTOP.Opponent.Speed;
@@ -1065,13 +1065,13 @@ public class BattleAI : MonoBehaviour
 
             if( action.Top1.Attacker_DiesBeforeActing || action.Top1.Attacker_EndOfTurnHP <= 0 )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Revenge( Blackboard.TheirActiveBattleAIUnits ).Pokemon;
+                var switchCandidate = CandidateSelect.GetSwitch_Revenge( Blackboard.TheirActiveBattleAIUnits ).Pokemon;
                 if( switchCandidate != null )
                     revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
             else if( readSwitch )
             {
-                var switchCandidate = SwitchCommand.GetSwitch_Revenge( Blackboard.TheirActiveBattleAIUnits ).Pokemon;
+                var switchCandidate = CandidateSelect.GetSwitch_Revenge( Blackboard.TheirActiveBattleAIUnits ).Pokemon;
                 if( switchCandidate != null )
                     revengeCandidate = GetPokemonAs_Adapter( switchCandidate );
             }
@@ -1082,7 +1082,7 @@ public class BattleAI : MonoBehaviour
             else
                 nextPokemon = action.Top1.Attacker;
 
-            var followUp = MoveCommand.GetMove_BestAttack( nextPokemon, action.Top1.Opponent ).Top;
+            var followUp = CandidateSelect.GetMove_BestAttack( nextPokemon, action.Top1.Opponent ).Top;
 
             bool revengeKill = followUp.Opponent_DiesBeforeActing || followUp.Opponent_EndOfTurnHP <= 0 || ( followUp.OpponentPTKO >= PotentialToKO.TwoHKO && followUp.AttackerMovedFirst );
 
@@ -1938,13 +1938,13 @@ public class BattleAI : MonoBehaviour
 
             foreach( var opp in oppTeam )
             {
-                var ourBefore = MoveCommand.GetMove_BestAttack( gpd.Attacker1, opp ).Top;
-                var ourAfter = MoveCommand.GetMove_BestAttack( gpd.Attacker2, opp ).Top;
+                var ourBefore = CandidateSelect.GetMove_BestAttack( gpd.Attacker1, opp ).Top;
+                var ourAfter = CandidateSelect.GetMove_BestAttack( gpd.Attacker2, opp ).Top;
 
                 ourTOPs.Add( opp.Pokemon, ( ourBefore, ourAfter ) );
 
-                var theirBefore = MoveCommand.GetMove_BestAttack( opp, gpd.Attacker1 ).Top;
-                var theirAfter = MoveCommand.GetMove_BestAttack( opp, gpd.Attacker2 ).Top;
+                var theirBefore = CandidateSelect.GetMove_BestAttack( opp, gpd.Attacker1 ).Top;
+                var theirAfter = CandidateSelect.GetMove_BestAttack( opp, gpd.Attacker2 ).Top;
 
                 theirTOPs.Add( opp.Pokemon, ( theirBefore, theirAfter ) );
             }
@@ -3903,8 +3903,8 @@ public class BattleAI : MonoBehaviour
             BattleAI_PokemonAdapter theirMon = GetPokemonAs_Adapter( team[i] );
 
             //--MTRs
-            var ourMTR = MoveCommand.GetMove_BestAttack( ourMon, theirMon );
-            var theirMTR = MoveCommand.GetMove_BestAttack( theirMon, ourMon );
+            var ourMTR = CandidateSelect.GetMove_BestAttack( ourMon, theirMon );
+            var theirMTR = CandidateSelect.GetMove_BestAttack( theirMon, ourMon );
 
             //--EDRs
             var ourEDR = Projection.Get_EstimatedDamageResult( ourMon, theirMon, ourMTR );
@@ -4073,7 +4073,7 @@ public class BattleAI : MonoBehaviour
         Dictionary<Pokemon, SwitchCandidateResult> likelySwitches = new();
         List<SwitchCandidateResult> likelySRCs = new();
 
-        var scr = SwitchCommand.GetSwitch_Defensive( theirActiveMon, true );
+        var scr = CandidateSelect.GetSwitch_Defensive( theirActiveMon, true );
         Dictionary<Pokemon, SwitchCandidateResult> allCandidates = new();
 
         CustomLogSession likelyLog = new();
@@ -4135,7 +4135,7 @@ public class BattleAI : MonoBehaviour
         Dictionary<Pokemon, SwitchCandidateResult> likelySwitches = new();
         List<SwitchCandidateResult> likelySRCs = new();
 
-        var scr = SwitchCommand.GetSwitch_Offensive( theirActiveMon, true );
+        var scr = CandidateSelect.GetSwitch_Offensive( theirActiveMon, true );
         Dictionary<Pokemon, SwitchCandidateResult> allCandidates = new();
 
         CustomLogSession likelyLog = new();
@@ -4204,9 +4204,12 @@ public class MoveThreatResult : IActionResult
 {
     public float Score { get; set; }
     public float Modifier { get; set; }
+    public int TargetCount { get; set; }
     public IBattleAIUnit CurrentActor { get; set; }
     public IBattleAIUnit Target { get; set; }
+    public List<IBattleAIUnit> Targets { get; set; }
     public BattleUnit TargetBattleUnit { get; set; }
+    public List<BattleUnit> TargetBattleUnits { get; set; }
     public Move Move { get; set; }
     public float EstimatedDamage { get; set; }
     public TurnOutcomeProjection Top { get; set; }

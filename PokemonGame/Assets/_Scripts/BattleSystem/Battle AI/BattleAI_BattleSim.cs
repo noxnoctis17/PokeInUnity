@@ -1150,10 +1150,53 @@ public class BattleAI_BattleSim
 
 }
 
+public struct TurnOutcomeProjection
+{
+    public SimulatedField Field;
+    
+    public SimulatedUnit Attacker;
+    public SimulatedUnit Opponent;
+    public SimulatedUnit AttackerAlly;
+    public SimulatedUnit OpponentAlly;
+
+    public PotentialToKO AttackerPTKO;
+    public PotentialToKO OpponentPTKO;
+    public PotentialToKO AttackerAllyPTKO;
+    public PotentialToKO OpponentAllyPTKO;
+
+    public float Attacker_EndOfTurnHP;
+    public float Opponent_EndOfTurnHP;
+    public float AttackerAlly_EndOfTurnHP;
+    public float OpponentAlly_EndOfTurnHP;
+
+    public bool Attacker_DiesBeforeActing;
+    public bool Opponent_DiesBeforeActing;
+    public bool AttackerAlly_DiesBeforeActing;
+    public bool OpponentAlly_DiesBeforeActing;
+
+    public bool AttackerCanAct;
+    public bool OpponentCanAct;
+    public bool AttackerAlly_CanAct;
+    public bool OpponentAlly_CanAct;
+
+    public bool MutualKO;
+    public bool AttackerMovedFirst;
+    public bool OpponentMovedFirst;
+    public bool AttackerAllyMovedFirst;
+    public bool OpponentAllyMovedFirst;
+
+    public bool AttackerHasSweepHorizon;
+
+    public string SimulationLog;
+}
+
 public class BattleSimEvent
 {
     public SimulatedUnit Attacker;
     public SimulatedUnit Opponent;
+    public SimulatedUnit AttackerAlly;
+    public SimulatedUnit OpponentAlly;
+
     public List<SimulatedUnit> ActiveUnits;
     public List<SimulationModule> SimModules;
 
@@ -1161,22 +1204,24 @@ public class BattleSimEvent
 
     public PotentialToKO AttackerPTKO;
     public PotentialToKO OpponentPTKO;
+    public PotentialToKO AttackerAllyPTKO;
+    public PotentialToKO OpponentAllyPTKO;
 
     public bool AttackerMovesFirst;
+    public bool OpponentMovedFirst;
+    public bool AttackerAllyMovedFirst;
+    public bool OpponentAllyMovedFirst;
+
     public bool AttackerCanAct;
     public bool OpponentCanAct;
-
-    public bool AttackerIsSwitch;
-    public bool OpponentIsSwitch;
-
-    public bool AttackerSetup;
-    public bool OpponentSetup;
-
-    public bool AttackerStatus;
-    public bool OpponentStatus;
+    public bool AttackerAlly_CanAct;
+    public bool OpponentAlly_CanAct;
 
     public bool Attacker_DiesBeforeActing;
     public bool Opponent_DiesBeforeActing;
+    public bool AttackerAlly_DiesBeforeActing;
+    public bool OpponentAlly_DiesBeforeActing;
+
 }
 
 public class SimulationModule
@@ -1185,6 +1230,7 @@ public class SimulationModule
     public int Priority { get; private set; }
     public SimulatedUnit Attacker { get; private set; }
     public SimulatedUnit Opponent { get; private set; }
+    public List<SimulatedUnit> Targets { get; private set; }
     public Action<SimulatedUnit /*attacker*/, SimulatedUnit /*target*/, SimulatedField /*field*/> Module { get; private set; }
 
     public SimulationModule( SimModuleType type, int priority, SimulatedUnit attacker, SimulatedUnit opponent, Action< SimulatedUnit, SimulatedUnit, SimulatedField> module )
