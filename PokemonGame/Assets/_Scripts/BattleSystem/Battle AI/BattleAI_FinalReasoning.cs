@@ -28,7 +28,8 @@ public class BattleAI_FinalReasoning
         };
 
         _ai.CurrentLog.Add( $"" );
-        _ai.CurrentLog.Add( $"=====[Applying Final Reasoning. Looking for Rules...]=====" );
+        _ai.CurrentLog.Add( $"=====[Applying Final Reasoning. Current highest scoring action: {actions[0].Type} ({actions[0].Score}). Looking for Rules...]=====" );
+        _ai.CurrentLog.Add( $"" );
 
         foreach( var rule in _reasoningRules )
         {
@@ -40,7 +41,7 @@ public class BattleAI_FinalReasoning
         }
 
         _ai.CurrentLog.Add( $"" );
-        _ai.CurrentLog.Add( $"=[No rule found or decided on, going with highest scoring action ({actions[0].Type}, {actions[0].Score}).]=" );
+        _ai.CurrentLog.Add( $"No rule found or decided on, going with highest scoring action ({actions[0].Type}, {actions[0].Score})" );
         _ai.CurrentLog.Add( $"" );
 
         return actions[0]; //--index 0 should be the highest scored action.
@@ -418,7 +419,7 @@ public class BattleAI_FinalReasoning
                 MoveThreatResult ourMTR = new() //--if spread moves get funky because of this the fix is likely setting target count here
                 {
                     Move = move,
-                    Target = opp,
+                    Targets = new(){ opp },
                 };
 
                 float effectiveness = _ai.UnitSim.Get_MoveEffectiveness( opp, move );
@@ -426,7 +427,7 @@ public class BattleAI_FinalReasoning
                 ourMTR.Modifier = effectiveness * modifier;
 
                 var ourEDR = _ai.Projection.Get_EstimatedDamageResult( ourMon, opp, ourMTR );
-                var ourPTKO = _ai.Projection.Get_PotentialToKOResult( ourEDR, ourMTR, opp.CurrentHPR ).PTKO;
+                var ourPTKO = _ai.Projection.Get_PotentialToKOResult( ourEDR, ourMTR, opp ).PTKO;
 
                 _ai.CurrentLog.Add( $"Move: {move.MoveSO.Name}, Target: {opp.Name}, ourPTKO: {ourPTKO} ({(int)ourPTKO})." );
 
@@ -449,13 +450,13 @@ public class BattleAI_FinalReasoning
                 {
                     var opp = likelySwitches[i];
 
-                    ourMTR.Target = opp;
+                    ourMTR.Targets = new(){ opp };
                     float effectiveness = _ai.UnitSim.Get_MoveEffectiveness( opp, move );
                     float modifier = _ai.UnitSim.Get_MoveModifier( ourMon, opp, move );
                     ourMTR.Modifier = effectiveness * modifier;
 
                     var ourEDR = _ai.Projection.Get_EstimatedDamageResult( ourMon, opp, ourMTR );
-                    var ourPTKO = _ai.Projection.Get_PotentialToKOResult( ourEDR, ourMTR, opp.CurrentHPR ).PTKO;
+                    var ourPTKO = _ai.Projection.Get_PotentialToKOResult( ourEDR, ourMTR, opp ).PTKO;
 
                     _ai.CurrentLog.Add( $"Move: {move.MoveSO.Name}, Target: {opp.Name}, ourPTKO: {ourPTKO} ({(int)ourPTKO})." );
 
@@ -475,15 +476,15 @@ public class BattleAI_FinalReasoning
             _ai.CurrentLog.Add( $"Coverage move ({bestCoverageMove.MoveSO.Name}) aggregate PTKO score: {coverageMovePTKOs}" );
 
             //--Evaluate current target with bestCoverageMove
-            var currentTarget = attack.Top1.Opponent;
-            var coverageMTR = new MoveThreatResult { Move = bestCoverageMove, Target = currentTarget }; //--or setting targets correctly here
+            List<IBattleAIUnit> currentTargets = new(){ attack.Top1.Opponent };
+            var coverageMTR = new MoveThreatResult { Move = bestCoverageMove, Targets = currentTargets }; //--or setting targets correctly here
 
-            float eff = _ai.UnitSim.Get_MoveEffectiveness( currentTarget, bestCoverageMove );
-            float mod = _ai.UnitSim.Get_MoveModifier( ourMon, currentTarget, bestCoverageMove );
+            float eff = _ai.UnitSim.Get_MoveEffectiveness( currentTargets[0], bestCoverageMove );
+            float mod = _ai.UnitSim.Get_MoveModifier( ourMon, currentTargets[0], bestCoverageMove );
             coverageMTR.Modifier = eff * mod;
 
-            var coverageEDR = _ai.Projection.Get_EstimatedDamageResult( ourMon, currentTarget, coverageMTR );
-            var coveragePTKO = _ai.Projection.Get_PotentialToKOResult( coverageEDR, coverageMTR, currentTarget.CurrentHPR ).PTKO;
+            var coverageEDR = _ai.Projection.Get_EstimatedDamageResult( ourMon, currentTargets[0], coverageMTR );
+            var coveragePTKO = _ai.Projection.Get_PotentialToKOResult( coverageEDR, coverageMTR, currentTargets[0] ).PTKO;
 
             _ai.CurrentLog.Add( $"Coverage move aggregate PTKO score: {coverageMovePTKOs} vs Chosen Move Aggregate PTKO Score: {chosenMovePTKOs}" );
 

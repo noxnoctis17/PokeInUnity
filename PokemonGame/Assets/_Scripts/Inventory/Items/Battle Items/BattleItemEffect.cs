@@ -5,7 +5,7 @@ using System;
 
 public class BattleItemEffect
 {
-    public BattleItemEffectID ID { get; set; }
+    public ItemBattleEffectID ID { get; set; }
     public int Duration { get; private set; }
     public int DurationModifier { get; private set; }
     public int TimeLeft { get; set; }

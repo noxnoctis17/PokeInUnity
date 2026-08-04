@@ -270,10 +270,25 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         _battleSystem.RoundLog.Add( $"===[ROUND {_battleSystem.Rounds} (Queued Actions: {_battleSystem.CommandQueue.Count})]===" );
         _battleSystem.RoundLog.Add( $"" );
 
+        bool afterYou = false;
+        string reorderMoveKey = "";
+        UseMoveCommand reorderCommand = null;
         while( _battleSystem.CommandQueue.Count > 0 )
         {
             if( _battleSystem.CommandQueue.Count == 0 )
                 break;
+
+            //--Reorder commands before next command to handle oddly timed speed changes.
+            yield return ReorderCommands();
+
+            //--After You should be the last adjustment before executing the next command. We currently cache it at the end of the previous loop should it be detected.
+            if( afterYou )
+            {
+                MoveConditionDB.Conditions[reorderMoveKey].OnModifyCommandQueue?.Invoke( reorderCommand.User, reorderCommand.SingleTarget, reorderCommand.Move, _battleSystem );
+                afterYou = false;
+                reorderMoveKey = "";
+                reorderCommand = null;
+            }
 
             Debug.Log( $"[Command Queue({_battleSystem.CommandQueue.Count})] (ROUND {_battleSystem.Rounds}) Entered Command Queue's While Loop!" );
             
@@ -333,16 +348,15 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
             yield return _battleSystem.WaitForUIQueue();
             yield return new WaitForSeconds( 0.5f );
 
-            //--We simply just reorder commands after every turn. with constant speed changes being fired off in an intense weather double battle, it's really not worth it to track a battle flag, or
-            //--to give moves a flag to check for here. just do it anyway lol
+            //--Reorder Commands after command is executed
             if( !_battleSystem.BattleOver )
             {
                 yield return ReorderCommands();
 
                 if( moveCommand != null && MoveConditionDB.Conditions.ContainsKey( moveCommand.Move.MoveSO.Name ) && moveCommand.SingleTarget != null )
                 {
-                    var key = moveCommand.Move.MoveSO.Name;
-                    MoveConditionDB.Conditions[key].OnModifyCommandQueue?.Invoke( moveCommand.User, moveCommand.SingleTarget, moveCommand.Move, _battleSystem );
+                    reorderMoveKey = moveCommand.Move.MoveSO.Name;
+                    reorderCommand = moveCommand;
                 }
             }
 

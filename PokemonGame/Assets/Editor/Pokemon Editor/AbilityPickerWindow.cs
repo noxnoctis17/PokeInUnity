@@ -14,6 +14,7 @@ public class AbilityPickerWindow : EditorWindow
     private AbilityID _current;
     private Action<AbilityID> _onSelected;
     private List<AbilityID> _filteredList;
+    private bool _focusSearch;
 
     public static void Show( AbilityID current, Vector2 mousePos, Action<AbilityID> onSelected )
     {
@@ -23,11 +24,11 @@ public class AbilityPickerWindow : EditorWindow
         window._onSelected = onSelected;
 
         window.titleContent = new ( "Select Ability" );
-
         
         Rect rect = new( mousePos, Vector2.zero );
 
         window.ShowAsDropDown( rect, new( 300, 400 ) );
+        window._focusSearch = true;
     }
 
     private void OnEnable()
@@ -65,7 +66,15 @@ public class AbilityPickerWindow : EditorWindow
     private void DrawSearchBar()
     {
         EditorGUI.BeginChangeCheck();
+        GUI.SetNextControlName("AbilitySearch");
+
         _search = EditorGUILayout.TextField( "Search", _search );
+
+        if( _focusSearch )
+        {
+            EditorGUI.FocusTextInControl( "AbilitySearch" );
+            _focusSearch = false;
+        }
 
         if( EditorGUI.EndChangeCheck() )
             ApplySearch();

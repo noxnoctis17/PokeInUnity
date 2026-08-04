@@ -187,13 +187,13 @@ public class BattleAI_StatSpreads
         var primaryRole = adapter.RoleProfile.PrimaryRole;
 
         //--Item Signals
-        bool speedItem = adapter.Item == BattleItemEffectID.ChoiceScarf;
-        bool recoveryItem = adapter.Item == BattleItemEffectID.SitrusBerry || adapter.Item == BattleItemEffectID.Leftovers;
+        bool speedItem = adapter.Item == ItemBattleEffectID.ChoiceScarf;
+        bool recoveryItem = adapter.Item == ItemBattleEffectID.SitrusBerry || adapter.Item == ItemBattleEffectID.Leftovers;
 
         bool hyperOffensiveItem =
-        adapter.Item == BattleItemEffectID.LifeOrb || adapter.Item == BattleItemEffectID.ExpertBelt ||
-        adapter.Item == BattleItemEffectID.ChoiceBand || adapter.Item == BattleItemEffectID.ChoiceSpecs ||
-        ( adapter.Ability == AbilityID.Guts && ( adapter.Item == BattleItemEffectID.FlameOrb || adapter.Item == BattleItemEffectID.ToxicOrb || adapter.Item == BattleItemEffectID.StaticOrb ) );
+        adapter.Item == ItemBattleEffectID.LifeOrb || adapter.Item == ItemBattleEffectID.ExpertBelt ||
+        adapter.Item == ItemBattleEffectID.ChoiceBand || adapter.Item == ItemBattleEffectID.ChoiceSpecs ||
+        ( adapter.Ability == AbilityID.Guts && ( adapter.Item == ItemBattleEffectID.FlameOrb || adapter.Item == ItemBattleEffectID.ToxicOrb || adapter.Item == ItemBattleEffectID.StaticOrb ) );
 
         //--Gather Information from EV Spread
         var statSpread = _statSpreads[spreadType];
@@ -255,7 +255,7 @@ public class BattleAI_StatSpreads
         if( baseSpeed >= 100 )
             scores[NatureArchetype.OffensiveFast] += 1;
 
-        if( adapter.Item == BattleItemEffectID.ChoiceScarf )
+        if( adapter.Item == ItemBattleEffectID.ChoiceScarf )
             scores[NatureArchetype.OffensiveFast] += 1;
         
         if( hyperOffensiveItem && speedCommit == SpeedCommitment.Comitted )
@@ -320,10 +320,10 @@ public class BattleAI_StatSpreads
             }
         }
 
-        if( adapter.Item == BattleItemEffectID.RockyHelmet )
+        if( adapter.Item == ItemBattleEffectID.RockyHelmet )
             scores[NatureArchetype.BulkyPhysical] += 1;
 
-        if( adapter.Item == BattleItemEffectID.AssaultVest )
+        if( adapter.Item == ItemBattleEffectID.AssaultVest )
             scores[NatureArchetype.BulkySpecial] += 1;
 
         //--Mixed Fast
@@ -398,13 +398,13 @@ public class BattleAI_StatSpreads
         var primaryRole = adapter.RoleProfile.PrimaryRole;
 
         //--Item Signals
-        bool speedItem = adapter.Item == BattleItemEffectID.ChoiceScarf;
-        bool recoveryItem = adapter.Item == BattleItemEffectID.SitrusBerry || adapter.Item == BattleItemEffectID.Leftovers;
+        bool speedItem = adapter.Item == ItemBattleEffectID.ChoiceScarf;
+        bool recoveryItem = adapter.Item == ItemBattleEffectID.SitrusBerry || adapter.Item == ItemBattleEffectID.Leftovers;
 
         bool hyperOffensiveItem =
-        adapter.Item == BattleItemEffectID.LifeOrb || adapter.Item == BattleItemEffectID.ExpertBelt ||
-        adapter.Item == BattleItemEffectID.ChoiceBand || adapter.Item == BattleItemEffectID.ChoiceSpecs ||
-        ( adapter.Ability == AbilityID.Guts && ( adapter.Item == BattleItemEffectID.FlameOrb || adapter.Item == BattleItemEffectID.ToxicOrb || adapter.Item == BattleItemEffectID.StaticOrb ) );
+        adapter.Item == ItemBattleEffectID.LifeOrb || adapter.Item == ItemBattleEffectID.ExpertBelt ||
+        adapter.Item == ItemBattleEffectID.ChoiceBand || adapter.Item == ItemBattleEffectID.ChoiceSpecs ||
+        ( adapter.Ability == AbilityID.Guts && ( adapter.Item == ItemBattleEffectID.FlameOrb || adapter.Item == ItemBattleEffectID.ToxicOrb || adapter.Item == ItemBattleEffectID.StaticOrb ) );
 
         //--Gather Information from EV Spread
         var statSpread = _statSpreads[spreadType];
@@ -558,7 +558,7 @@ public class BattleAI_StatSpreads
                 if( primaryRole == RoleClass.RevengeKiller )
                     scores[Stat.Speed] += 3;
 
-                if( adapter.Item == BattleItemEffectID.ChoiceScarf )
+                if( adapter.Item == ItemBattleEffectID.ChoiceScarf )
                     scores[Stat.Speed] -= 2;
 
                 //--Offense Votes
@@ -569,13 +569,13 @@ public class BattleAI_StatSpreads
                 if( investedSpAtk )
                     scores[Stat.SpAttack] += 2;
 
-                if( hyperOffensiveItem && adapter.Item != BattleItemEffectID.ChoiceBand && adapter.Item != BattleItemEffectID.ChoiceScarf )
+                if( hyperOffensiveItem && adapter.Item != ItemBattleEffectID.ChoiceBand && adapter.Item != ItemBattleEffectID.ChoiceScarf )
                     scores[mainOffensiveStat] += 1;
 
                 if( adapter.RoleProfile.Signals.BurstDamage >= 40 )
                     scores[mainOffensiveStat] += 2;
 
-                if( adapter.Item == BattleItemEffectID.ChoiceBand || adapter.Item == BattleItemEffectID.ChoiceScarf )
+                if( adapter.Item == ItemBattleEffectID.ChoiceBand || adapter.Item == ItemBattleEffectID.ChoiceScarf )
                     scores[mainOffensiveStat] -= 2;
 
                 //--Speed Tier overall contribution
@@ -597,7 +597,7 @@ public class BattleAI_StatSpreads
                 }
                 else if( speBoostCount > atkBoostCount || speBoostCount > spatkBoostCount )
                 {
-                    if( adapter.Item == BattleItemEffectID.ChoiceScarf )
+                    if( adapter.Item == ItemBattleEffectID.ChoiceScarf )
                         scores[Stat.Speed] -= 1;
                     else
                         scores[Stat.Speed] += 2;
@@ -671,7 +671,7 @@ public class BattleAI_StatSpreads
                 if( investedHP )
                     scores[Stat.Defense] += 1;
 
-                if( adapter.Item == BattleItemEffectID.RockyHelmet )
+                if( adapter.Item == ItemBattleEffectID.RockyHelmet )
                     scores[Stat.Defense] += 2;
 
                 if( recoveryItem )
@@ -694,7 +694,7 @@ public class BattleAI_StatSpreads
 
                 //--Assault Vest can be held by physically bulky pokemon to patch their spdef. in some cases, this may be paired with a spdef boosting nature for mixed tanks. 
                 //--AV + SpDef investment can actually heavily imply a spdef boosting nature
-                if( adapter.Item == BattleItemEffectID.AssaultVest )
+                if( adapter.Item == ItemBattleEffectID.AssaultVest )
                 {
                     scores[Stat.Defense] += 1;
                     scores[Stat.SpDefense] += 3;
@@ -715,7 +715,7 @@ public class BattleAI_StatSpreads
                 if( investedHP )
                     scores[Stat.SpDefense] += 1;
 
-                if( adapter.Item == BattleItemEffectID.RockyHelmet )
+                if( adapter.Item == ItemBattleEffectID.RockyHelmet )
                     scores[Stat.SpDefense] += 1;
 
                 if( recoveryItem )
@@ -737,7 +737,7 @@ public class BattleAI_StatSpreads
                     scores[mainOffensiveStat] += 1;
 
                 //--Assault Vest could be used to replace a spdef boosting nature in favor of a def boosting nature. this isn't as weighted as physically defensive pokemon.
-                if( adapter.Item == BattleItemEffectID.AssaultVest )
+                if( adapter.Item == ItemBattleEffectID.AssaultVest )
                 {
                     scores[Stat.Defense] += 2;
                     scores[Stat.SpDefense] += 2;
@@ -755,19 +755,19 @@ public class BattleAI_StatSpreads
                 if( adapter.RoleProfile.Traits.Contains( RoleTrait.WideMoveCoverage ) )
                     scores[Stat.Speed] += 1;
 
-                if( adapter.Item == BattleItemEffectID.ChoiceScarf )
+                if( adapter.Item == ItemBattleEffectID.ChoiceScarf )
                 {
                     scores[mixedPrimaryAxis] += 3;
                     scores[Stat.Speed] -= 1;
                 }
 
-                if( hyperOffensiveItem && adapter.Item != BattleItemEffectID.ChoiceBand && adapter.Item != BattleItemEffectID.ChoiceSpecs )
+                if( hyperOffensiveItem && adapter.Item != ItemBattleEffectID.ChoiceBand && adapter.Item != ItemBattleEffectID.ChoiceSpecs )
                     scores[Stat.Speed] += 1;
 
-                if( adapter.Item == BattleItemEffectID.ChoiceBand && investedAtk )
+                if( adapter.Item == ItemBattleEffectID.ChoiceBand && investedAtk )
                     scores[Stat.Attack] += 1;
 
-                if( adapter.Item == BattleItemEffectID.ChoiceSpecs && investedSpAtk )
+                if( adapter.Item == ItemBattleEffectID.ChoiceSpecs && investedSpAtk )
                     scores[Stat.SpAttack] += 1;
             break;
 
@@ -847,13 +847,13 @@ public class BattleAI_StatSpreads
         var primaryRole = adapter.RoleProfile.PrimaryRole;
 
         //--Item Signals
-        bool speedItem = adapter.Item == BattleItemEffectID.ChoiceScarf;
-        bool recoveryItem = adapter.Item == BattleItemEffectID.SitrusBerry || adapter.Item == BattleItemEffectID.Leftovers;
+        bool speedItem = adapter.Item == ItemBattleEffectID.ChoiceScarf;
+        bool recoveryItem = adapter.Item == ItemBattleEffectID.SitrusBerry || adapter.Item == ItemBattleEffectID.Leftovers;
 
         bool hyperOffensiveItem =
-        adapter.Item == BattleItemEffectID.LifeOrb || adapter.Item == BattleItemEffectID.ExpertBelt ||
-        adapter.Item == BattleItemEffectID.ChoiceBand || adapter.Item == BattleItemEffectID.ChoiceSpecs ||
-        ( adapter.Ability == AbilityID.Guts && ( adapter.Item == BattleItemEffectID.FlameOrb || adapter.Item == BattleItemEffectID.ToxicOrb || adapter.Item == BattleItemEffectID.StaticOrb ) );
+        adapter.Item == ItemBattleEffectID.LifeOrb || adapter.Item == ItemBattleEffectID.ExpertBelt ||
+        adapter.Item == ItemBattleEffectID.ChoiceBand || adapter.Item == ItemBattleEffectID.ChoiceSpecs ||
+        ( adapter.Ability == AbilityID.Guts && ( adapter.Item == ItemBattleEffectID.FlameOrb || adapter.Item == ItemBattleEffectID.ToxicOrb || adapter.Item == ItemBattleEffectID.StaticOrb ) );
 
         //--Gather Information from EV Spread
         var statSpread = _statSpreads[spreadType];
@@ -1178,7 +1178,7 @@ public class BattleAI_StatSpreads
                         scores[Stat.Defense] += 1;
                 }
 
-                if( recoveryItem || adapter.Item == BattleItemEffectID.FocusSash )
+                if( recoveryItem || adapter.Item == ItemBattleEffectID.FocusSash )
                     scores[Stat.Speed] += 2;
 
                 if( adapter.RoleProfile.Traits.Contains( RoleTrait.WideMoveCoverage ) )
@@ -1216,7 +1216,7 @@ public class BattleAI_StatSpreads
                         scores[Stat.Defense] += 1;
                 }
 
-                if( recoveryItem || adapter.Item == BattleItemEffectID.FocusSash )
+                if( recoveryItem || adapter.Item == ItemBattleEffectID.FocusSash )
                     scores[Stat.Speed] += 2;
 
                 if( adapter.RoleProfile.Traits.Contains( RoleTrait.WideMoveCoverage ) )

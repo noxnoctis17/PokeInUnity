@@ -177,7 +177,7 @@ public class AbilityDB
                 Name = "Keen Eye",
                 Description = "Prevents other Pokemon from lowering this Pokemon's accuracy stat stage. This Pokemon ignores a target's evasiveness stat stage.",
 
-                OnStatStageChange = ( Dictionary<Stat, int> stages, Pokemon attacker, Pokemon target ) =>
+                OnStatStageChange = ( stages, attacker, target, source ) =>
                 {
                     //--If Self-Boost, return
                     if( attacker != null && attacker == target )
@@ -199,7 +199,7 @@ public class AbilityDB
                 Name = "Hyper Cutter",
                 Description = "Prevents other Pokemon from lowering this Pokemon's Attack stat stage.",
 
-                OnStatStageChange = ( Dictionary<Stat, int> stages, Pokemon attacker, Pokemon target ) =>
+                OnStatStageChange = ( stages, attacker, target, source ) =>
                 {
                     Debug.Log( $"Hyper Cutter reached! Attacker: {attacker.NickName}, Target: {target.NickName}" );
                     //--If Self-Boost, return
@@ -225,7 +225,7 @@ public class AbilityDB
                 Name = "Big Pecks",
                 Description = "Prevents other Pokemon from lowering this Pokemon's Defense stat stage.",
 
-                OnStatStageChange = ( Dictionary<Stat, int> stages, Pokemon attacker, Pokemon target ) =>
+                OnStatStageChange = ( stages, attacker, target, source ) =>
                 {
                     //--If Self-Boost, return
                     if( attacker != null && attacker == target )
@@ -247,7 +247,7 @@ public class AbilityDB
                 Name = "Clear Body",
                 Description = "Prevents other Pokemon from lowering any of this Pokemon's stat stages.",
 
-                OnStatStageChange = ( Dictionary<Stat, int> stages, Pokemon attacker, Pokemon target ) =>
+                OnStatStageChange = (stages, attacker, target, source ) =>
                 {
                     Debug.Log( $"Clear Body reached! Attacker: {attacker.NickName}, Target: {target.NickName}" );
                     //--If Self-Boost, return
@@ -286,7 +286,7 @@ public class AbilityDB
                 Name = "White Smoke",
                 Description = "Prevents other Pokemon from lowering any of this Pokemon's stat stages.",
 
-                OnStatStageChange = ( Dictionary<Stat, int> stages, Pokemon attacker, Pokemon target ) =>
+                OnStatStageChange = ( stages, attacker, target, source ) =>
                 {
                     Debug.Log( $"White Smoke reached! Attacker: {attacker.NickName}, Target: {target.NickName}" );
                     //--If Self-Boost, return
@@ -330,9 +330,12 @@ public class AbilityDB
                 OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield field ) =>
                 {
                     List<StatStage> statStages = new();
-                    StatStage stage = new();
-                    stage.Stat = Stat.Attack;
-                    stage.Change = -1;
+                    StatStage stage = new()
+                    {
+                        Stat = Stat.Attack,
+                        Change = -1
+                    };
+
                     statStages.Add( stage );
 
                     BattleSystem.Instance.TriggerAbilityCutIn( attacker );
@@ -356,6 +359,7 @@ public class AbilityDB
                         {
                             Pokemon = attacker,
                             MoveName = string.Empty,
+                            Ability = AbilityID.Intimidate,
                             Source = StageChangeSourceType.Ability,
                         };
 
@@ -401,6 +405,7 @@ public class AbilityDB
                         {
                             Pokemon = attacker,
                             MoveName = string.Empty,
+                            Ability = AbilityID.Demoralize,
                             Source = StageChangeSourceType.Ability,
                         };
 
@@ -1258,7 +1263,7 @@ public class AbilityDB
                 ID = AbilityID.MirrorArmor,
                 Description = "Bounces back only the stat-lowering effects that the Pokemon receives. ",
 
-                OnStatStageChange = ( Dictionary<Stat, int> stages, Pokemon attacker, Pokemon target ) =>
+                OnStatStageChange = ( stages, attacker, target, changeSource ) =>
                 {
                     Debug.Log( $"Mirror Armor triggered! Attacker: {attacker.NickName}, Target: {target.NickName}" );
                     //--If Self-Boost, return
@@ -1433,7 +1438,7 @@ public class AbilityDB
             }
         },
         {
-            AbilityID.DesecratedGround, new()
+            AbilityID.BlightSurge, new()
             {
                 Name = "Desecrated Ground",
                 Description = "Turns the ground into Blighted Terrain when the Pokemon enters a battle.",
@@ -1761,6 +1766,207 @@ public class AbilityDB
             {
                 Name = "Good As Gold",
             }
+        },
+        {
+            AbilityID.WeakArmor, new()
+            {
+                Name = "Weak Armor",
+            }
+        },
+        {
+            AbilityID.Download, new()
+            {
+                Name = "Download",
+            }
+        },
+        {
+            AbilityID.Trace, new()
+            {
+                Name = "Trace",
+            }
+        },
+        {
+            AbilityID.ArmorTail, new()
+            {
+                Name = "ArmorTail",
+                Description = "The mysterious tail covering the Pokemon's head makes opponents unable to use priority moves against the Pokemon or its allies.",
+
+                OnAbilityEnter = ( attacker, targets, field ) =>
+                {
+                    var court = field.GetPokemonCourtFromTrainer( attacker );
+                    court.AddCondition( CourtConditionID.AbilityPriorityGuard );
+                },
+                
+                OnAbilityExit = ( attacker, targets, field ) =>
+                {
+                    var court = field.GetPokemonCourtFromTrainer( attacker );
+
+                    if( court.Conditions.ContainsKey( CourtConditionID.AbilityPriorityGuard ) )
+                        court.RemoveCondition( CourtConditionID.AbilityPriorityGuard );
+                }
+            }
+        },
+        {
+            AbilityID.Dazzling, new()
+            {
+                Name = "Dazzling",
+                Description = "The Pokemon dazzles its opponents, making them unable to use priority moves against the Pokemon or its allies.",
+
+                OnAbilityEnter = ( attacker, targets, field ) =>
+                {
+                    var court = field.GetPokemonCourtFromTrainer( attacker );
+                    court.AddCondition( CourtConditionID.AbilityPriorityGuard );
+                },
+                
+                OnAbilityExit = ( attacker, targets, field ) =>
+                {
+                    var court = field.GetPokemonCourtFromTrainer( attacker );
+
+                    if( court.Conditions.ContainsKey( CourtConditionID.AbilityPriorityGuard ) )
+                        court.RemoveCondition( CourtConditionID.AbilityPriorityGuard );
+                }
+            }
+        },
+        {
+            AbilityID.QueenlyMajesty, new()
+            {
+                Name = "QueenlyMajesty",
+                Description = "The Pokemon's majesty pressures opponents and makes them unable to use priority moves against the Pokemon or its allies.",
+
+                OnAbilityEnter = ( attacker, targets, field ) =>
+                {
+                    var court = field.GetPokemonCourtFromTrainer( attacker );
+                    court.AddCondition( CourtConditionID.AbilityPriorityGuard );
+                },
+                
+                OnAbilityExit = ( attacker, targets, field ) =>
+                {
+                    var court = field.GetPokemonCourtFromTrainer( attacker );
+
+                    if( court.Conditions.ContainsKey( CourtConditionID.AbilityPriorityGuard ) )
+                        court.RemoveCondition( CourtConditionID.AbilityPriorityGuard );
+                }
+            }
+        },
+        {
+            AbilityID.EarlyBird, new()
+            {
+                Name = "Early Bird",
+                Description = "The Pokemon is only affected by sleep for 1 turn, instead of 2."
+                //--Ability is handled in SevereStatusConditionDB via sleep application branch
+            }
+        },
+        {
+            AbilityID.CudChew, new()
+            {
+                Name = "Cud Chew",
+                Description = "When the Pokemon eats a Berry, it will regurgitate that Berry at the end of the next turn and eat it one more time.",
+            }
+        },
+        {
+            AbilityID.RunAway, new()
+            {
+                Name = "Run Away",
+                Description = "Enables a sure getaway from wild Pokemon. It also boosts the priority of Pivot-effect moves by 1.",
+
+                //--Ability will be handled in escape logic to always allow escape.
+                //--however, i am currently thinking about also having it boosting the priority of pivot moves by +1
+                //--since it does not have an in-battle effect. 08/02/26
+            }
+        },
+        {
+            AbilityID.Rattled, new()
+            {
+                Name = "Rattled",
+                Description = "The Pokemon gets scared when hit by a Dark-, Ghost-, or Bug-type attack or if intimidated or demoralized, which boosts its Speed stat by 1 stage.",
+
+                OnAfterTakeDamage = ( attacker, us, move, bs ) =>
+                {
+                    var moveType = move.MoveType;
+                    if( moveType == PokemonType.Dark || moveType == PokemonType.Ghost || moveType == PokemonType.Bug )
+                    {
+                        List<StatStage> statStages = new();
+                        StatStage stage = new()
+                        {
+                            Stat = Stat.Speed,
+                            Change = 1,
+                        };
+                    
+                        statStages.Add( stage );
+                        StageChangeSource source = new()
+                        {
+                            Pokemon = attacker.Pokemon,
+                            MoveName = move.MoveSO.Name,
+                            Source = StageChangeSourceType.Move,
+                        };
+
+                        us.Pokemon.ApplyStatStageChange( statStages, source );
+                    }
+                },
+
+                OnStatStageChange = ( statStages, attacker, us, stageChangeSource ) =>
+                {
+                    if( stageChangeSource.Ability == AbilityID.Intimidate || stageChangeSource.Ability == AbilityID.Demoralize )
+                    {
+                        List<StatStage> speedChanges = new();
+                        StatStage stage = new()
+                        {
+                            Stat = Stat.Speed,
+                            Change = 1,
+                        };
+                    
+                        speedChanges.Add( stage );
+                        StageChangeSource source = new()
+                        {
+                            Pokemon = attacker,
+                            MoveName = string.Empty,
+                            Ability = stageChangeSource.Ability,
+                            Source = StageChangeSourceType.Ability,
+                        };
+
+                        us.ApplyStatStageChange( speedChanges, source );
+                    }
+                }
+            }
+        },
+        {
+            AbilityID.Moxie, new()
+            {
+                Name = "Moxie",
+                Description = "When the Pokemon knocks out a target, it shows moxie, which boosts its Attack stat by 1 stage.",
+
+                OnMoveCompleted = ( attacker, target, move, bs ) =>
+                {
+                    if( target.Pokemon.CurrentHP <= 0 )
+                    {
+                        List<StatStage> moxieChanges = new();
+                        StatStage stage = new()
+                        {
+                            Stat = Stat.Attack,
+                            Change = 1,
+                        };
+                    
+                        moxieChanges.Add( stage );
+                        StageChangeSource source = new()
+                        {
+                            Pokemon = attacker.Pokemon,
+                            MoveName = string.Empty,
+                            Ability = AbilityID.Moxie,
+                            Source = StageChangeSourceType.Ability,
+                        };
+
+                        attacker.Pokemon.ApplyStatStageChange( moxieChanges, source );
+                    }
+                }
+            }
+        },
+        {
+            AbilityID.ShellArmor, new()
+            {
+                Name = "Shell Armor",
+                Description = "A hard shell protects the Pokemon from all critical hits.",
+                //--Ability is handled during incoming crit roll check
+            }
         }
     };
 }
@@ -1846,7 +2052,7 @@ public enum AbilityID
     LeafGuard,
     Pressure,
     Infiltrator,
-    DesecratedGround,
+    BlightSurge,
     StickyHold,
     Steadfast,
     InnerFocus,
@@ -1888,4 +2094,19 @@ public enum AbilityID
     Simple,
     CloudNine,
     WeakArmor,
+    Download,
+    Trace,
+    Disguise,
+    ArmorTail,
+    Dazzling,
+    QueenlyMajesty,
+    GaleWings,
+    EarlyBird,
+    SapSipper,
+    CudChew,
+    Unburden,
+    RunAway,
+    Rattled,
+    Moxie,
+    ShellArmor,
 }

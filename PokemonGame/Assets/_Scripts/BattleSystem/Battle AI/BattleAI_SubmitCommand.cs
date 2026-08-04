@@ -25,8 +25,11 @@ public class BattleAI_SubmitCommand
     public void SubmitMoveCommand( ActionEvaluation action )
     {
         _ai.ResetSwitchAmount();
+        
         var attackStyle = ChooseAttackStyle();
         Move move = action.MovePayload;
+
+        List<BattleUnit> targets = new();
 
         switch( attackStyle )
         {
@@ -34,16 +37,16 @@ public class BattleAI_SubmitCommand
                 break;
             
             case AIDecisionType.RandomMove:
-                move = GetRandomMove( action.Target );
+                move = GetRandomMove( action.Targets[0] );
                 break;
         }
-
-        List<BattleUnit> targets = new();
         
         if( attackStyle == AIDecisionType.RandomMove )
         {
             if( move.MoveSO.MoveTarget == MoveTarget.Self || move.MoveSO.MoveTarget == MoveTarget.AllySide )
+            {
                 targets.Add( _ai.CurrentUnitDeciding );
+            }
             else if( move.MoveSO.MoveTarget == MoveTarget.OpposingSide )
             {
                 for( int t = 0; t < _ai.Blackboard.TheirActiveBattleAIUnits.Count; t++ )
@@ -70,10 +73,14 @@ public class BattleAI_SubmitCommand
                 }
             }
             else
-                targets.Add( action.Target );
+            {
+                targets = action.Targets;
+            }
         }
         else
-            targets.Add( action.Target );
+        {
+            targets = action.Targets;
+        }
 
         if( move != null )
         {
@@ -82,7 +89,7 @@ public class BattleAI_SubmitCommand
         else
         {
             Debug.LogError( $"{_ai.CurrentUnitDeciding.Pokemon.NickName} has not chosen a move even though it was supposed to! Getting random move!" );
-            move = GetRandomMove( action.Target );
+            move = GetRandomMove( action.Targets[0] );
             _ai.BattleSystem.SetMoveCommand( _ai.CurrentUnitDeciding, targets, move, true );
         }
     }

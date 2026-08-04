@@ -24,6 +24,7 @@ public class BattleAI : MonoBehaviour
     public BattleAI_CandidateSelectors CandidateSelect { get; private set; }
     public BattleAI_ActionScoring ActionScoring { get; private set; }
     public BattleAI_ActionEvaluation ActionEvaluation { get; private set; }
+    public BattleAI_EvaluateThreatResponse ThreatResponse { get; private set; }
     public BattleAI_Projection Projection { get; private set; }
     public BattleAI_BattleSim BattleSim { get; private set; }
     public BattleAI_UnitSim UnitSim { get; private set; }
@@ -33,6 +34,7 @@ public class BattleAI : MonoBehaviour
     public BattleAI_ThreatIntent ThreatIntent { get; private set; }
     public BattleAI_ThreatIntentEvaluation ThreatIntentEvaluation { get; private set; }
     public BattleAI_PairIntent PairIntent { get; private set; }
+    public BattleAI_CoordinationIntent CoordinationIntent { get; private set; }
     public BattleAI_Blackboard Blackboard { get; private set; }
 
 //-----------------------------------------------------------------------------------------------------
@@ -77,9 +79,10 @@ public class BattleAI : MonoBehaviour
         UnitSim                 = new( this );
         Projection              = new( this );
         BattleSim               = new( this );
-        SubmitCommand             = new( this );
-        CandidateSelect           = new( this );
+        SubmitCommand           = new( this );
+        CandidateSelect         = new( this );
         ActionEvaluation        = new( this );
+        ThreatResponse          = new( this );
         FinalReasoning          = new( this );
         RoleDetection           = new( this );
         StatSpreads             = new( this );
@@ -91,6 +94,7 @@ public class BattleAI : MonoBehaviour
         if( IsDoubleBattle )
         {
             PairIntent          = new( this );
+            CoordinationIntent  = new( this );
         }
 
         _round = 0;
@@ -171,7 +175,7 @@ public class BattleAI : MonoBehaviour
         for( int i = 0; i < party.Count; i++ )
         {
             var mon = party[i];
-            if( mon.CurrentHPR > 0f )
+            if( mon.EndHPR > 0f )
                 remaining.Add( mon );
             else
                 continue;
@@ -212,14 +216,33 @@ public class BattleAI : MonoBehaviour
 
     public BattleAI_PokemonAdapter GetActiveAllyAs_Adapter( Pokemon pokemon )
     {
-        bool ourUnits = Blackboard.OurActiveBattleAIUnits.Select( p => p.Pokemon == pokemon ).First();
-        bool theirUnits = Blackboard.TheirActiveBattleAIUnits.Select( p => p.Pokemon == pokemon ).First();
+        bool ourUnits = false;
+        bool theirUnits = false;
+
+        foreach( var mon in Blackboard.OurActiveBattleAIUnits )
+        {
+            if( mon.Pokemon == pokemon )
+                ourUnits = true;
+            else
+                continue;
+        }
+
+        if( !ourUnits )
+        {
+            foreach( var mon in Blackboard.TheirActiveBattleAIUnits )
+            {
+                if( mon.Pokemon == pokemon )
+                    theirUnits = true;
+                else
+                    continue;
+            }
+        }
 
         if( ourUnits )
         {
             foreach( var mon in Blackboard.OurActiveBattleAIUnits )
             {
-                if( mon?.Pokemon == pokemon )
+                if( mon.Pokemon == pokemon )
                     continue;
                 else
                     return GetPokemonAs_Adapter( mon.Pokemon );
@@ -230,7 +253,7 @@ public class BattleAI : MonoBehaviour
         {
             foreach( var mon in Blackboard.TheirActiveBattleAIUnits )
             {
-                if( mon?.Pokemon == pokemon )
+                if( mon.Pokemon == pokemon )
                     continue;
                 else
                     return GetPokemonAs_Adapter( mon.Pokemon );
@@ -612,7 +635,7 @@ public class BattleAI : MonoBehaviour
         yield return null;
 
         CurrentLog.Add( $"===[FINAL DECISION: {CurrentUnitDeciding.Pokemon.NickName} chose the {bestAction.Type} Action! Final Score: {bestAction.Score}]===" );
-        Debug.Log( CurrentLog.ToString() );
+        // Debug.Log( CurrentLog.ToString() );
         string path = Application.persistentDataPath + "/BattleAI_ChooseCommandLog.txt";
         System.IO.File.AppendAllText( path, CurrentLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
         CurrentLog.Clear();
@@ -649,6 +672,11 @@ public class BattleAI : MonoBehaviour
                 break;
 
             case ActionType.OffensiveStatus:
+                LastAction = bestAction;
+                SubmitCommand.SubmitMoveCommand( bestAction );
+                break;
+
+            case ActionType.SupportiveStatus:
                 LastAction = bestAction;
                 SubmitCommand.SubmitMoveCommand( bestAction );
                 break;
@@ -706,7 +734,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation attackActionEval = default;
         if( bestAttack.Move != null )
         {
-            attackActionEval = Build_AttackAction( tempo, exchangePack, bestAttack, tir );
+            attackActionEval = Build_AttackAction( exchangePack, bestAttack, tir );
             actions.Add( attackActionEval );
         }
 
@@ -716,7 +744,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation defSwitchActionEval = default;
         if( defensiveSwitch.Pokemon != null )
         {
-            defSwitchActionEval = Build_DefensiveSwitchAction( tempo, exchangePack, defensiveSwitch, tir );
+            defSwitchActionEval = Build_DefensiveSwitchAction( exchangePack, defensiveSwitch, tir );
             actions.Add( defSwitchActionEval );
         }
 
@@ -726,7 +754,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation offSwitchActionEval = default;
         if( offensiveSwitch.Pokemon != null )
         {
-            offSwitchActionEval = Build_OffensiveSwitchAction( tempo, exchangePack, offensiveSwitch, tir );
+            offSwitchActionEval = Build_OffensiveSwitchAction( exchangePack, offensiveSwitch, tir );
             actions.Add( offSwitchActionEval );
         }
 
@@ -736,7 +764,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation setupActionEval = default;
         if( bestSetup.Move != null )
         {
-            setupActionEval = Build_SetupAction( tempo, exchangePack, bestSetup, tir );
+            setupActionEval = Build_SetupAction( exchangePack, bestSetup, tir );
             actions.Add( setupActionEval );
         }
 
@@ -746,7 +774,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation offensiveStatusActionEval = default;
         if( bestOffensiveStatus.Move != null )
         {
-            offensiveStatusActionEval = Build_OffensiveStatusAction( tempo, exchangePack, bestOffensiveStatus, tir );
+            offensiveStatusActionEval = Build_OffensiveStatusAction( exchangePack, bestOffensiveStatus, tir );
             actions.Add( offensiveStatusActionEval );
         }
 
@@ -756,7 +784,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation supportiveStatusActionEval = default;
         if( bestSupportiveStatus.Move != null )
         {
-            supportiveStatusActionEval = Build_SupportiveStatusAction( tempo, exchangePack, bestSupportiveStatus, tir );
+            supportiveStatusActionEval = Build_SupportiveStatusAction( exchangePack, bestSupportiveStatus, tir );
             actions.Add( supportiveStatusActionEval );
         }
 
@@ -783,7 +811,11 @@ public class BattleAI : MonoBehaviour
             //--Standard Evaluation of all actions
             for( int i = 0; i < actions.Count; i++ )
             {
-                
+                CurrentLog.Add( $"===========================================================================" );
+                CurrentLog.Add( $"=====[Beginning Scoring loop for {actions[i].ActionResult.ActionType}]=====" );
+                CurrentLog.Add( $"===========================================================================" );
+                CurrentLog.Add( $"" );
+
                 int actionScore = ActionScoring.ActionScore( actions[i], tempo, exchangePack, boardContext, actions[i].Top1, tir );
                 CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Action Score ({actions[i].Type}): {actionScore}" );
                 CurrentLog.Add( $"" );
@@ -803,7 +835,7 @@ public class BattleAI : MonoBehaviour
                 actions[i].Score += ActionEvaluation.EvaluateBattlefieldState( actions[i], boardContext );
                 yield return null;
 
-                actions[i].Score += ActionEvaluation.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext, survivalClass );
+                actions[i].Score += ThreatResponse.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext, survivalClass );
                 yield return null;
                 
                 //--PBS
@@ -822,6 +854,13 @@ public class BattleAI : MonoBehaviour
                 yield return null;
 
                 actions[i].Score += futureScore + currentPlanBias + gamePlanAlignment;
+
+                CurrentLog.Add( $"" );
+                CurrentLog.Add( $"{actions[i].ActionResult.ActionType}'s Total Score: {actions[i].Score}" );
+                CurrentLog.Add( $"" );
+                CurrentLog.Add( $"" );
+                CurrentLog.Add( $"" );
+
                 yield return null;
             }
         }
@@ -848,7 +887,7 @@ public class BattleAI : MonoBehaviour
 
         //--Supportive Status Action Text
         string supportiveStatusActionText = bestSupportiveStatus.Move != null ?
-        $"Supportive Status Move ({bestSupportiveStatus.Move?.MoveSO.Name}): {bestSupportiveStatus.Score} (Survival Class: bestSupportiveStatus.SurvivalClass)" : $"Supportive Status move not found!";
+        $"Supportive Status Move ({bestSupportiveStatus.Move?.MoveSO.Name}): {supportiveStatusActionEval.Score} (Survival Class: bestSupportiveStatus.SurvivalClass)" : $"Supportive Status move not found!";
 
         CurrentLog.Add( $"" );
         CurrentLog.Add( $"===[Final Option Scores]===" );
@@ -876,55 +915,61 @@ public class BattleAI : MonoBehaviour
         getBestAction?.Invoke( bestAction );
     }
 
-    private ActionEvaluation Build_AttackAction( TempoStateResult tempo, ExchangePack exchangePack, MoveThreatResult bestAttack, ThreatIntentResult tir )
+    private ActionEvaluation Build_AttackAction( ExchangePack exchangePack, MoveThreatResult bestAttack, ThreatIntentResult tir )
     {
-        var top = BattleSim.BuildIntentTOP( ActionType.Attack, bestAttack, tir );
-        var attackActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Attack, bestAttack, bestAttack.Target, bestAttack.TargetBattleUnit, bestAttack.Move, top, exchangePack );
+        var intentTOP = BattleSim.BuildIntentTOP( ActionType.Attack, bestAttack, tir );
+        var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
+        var attackActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Attack, bestAttack, bestAttack.Targets, bestAttack.TargetBattleUnits, bestAttack.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
 
         return attackActionEval;
     }
 
-    private ActionEvaluation Build_DefensiveSwitchAction( TempoStateResult tempo, ExchangePack exchangePack, SwitchCandidateResult defensiveSwitch, ThreatIntentResult tir )
+    private ActionEvaluation Build_DefensiveSwitchAction( ExchangePack exchangePack, SwitchCandidateResult defensiveSwitch, ThreatIntentResult tir )
     {
         var intentTOP = BattleSim.BuildIntentTOP( ActionType.DefensiveSwitch, defensiveSwitch, tir );
-        var defSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.DefensiveSwitch, defensiveSwitch, null, null, defensiveSwitch.Pokemon, intentTOP, exchangePack );
+        var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
+        var defSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.DefensiveSwitch, defensiveSwitch, null, null, defensiveSwitch.Pokemon, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
         
         return defSwitchActionEval;
     }
 
-    private ActionEvaluation Build_OffensiveSwitchAction( TempoStateResult tempo, ExchangePack exchangePack, SwitchCandidateResult offensiveSwitch, ThreatIntentResult tir )
+    private ActionEvaluation Build_OffensiveSwitchAction( ExchangePack exchangePack, SwitchCandidateResult offensiveSwitch, ThreatIntentResult tir )
     {
         var intentTOP = BattleSim.BuildIntentTOP( ActionType.OffensiveSwitch, offensiveSwitch, tir );
-        var offSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveSwitch, offensiveSwitch, null, null, offensiveSwitch.Pokemon, intentTOP, exchangePack );
+        var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
+        var offSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveSwitch, offensiveSwitch, null, null, offensiveSwitch.Pokemon, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
 
         return offSwitchActionEval;
     }
 
-    private ActionEvaluation Build_SetupAction( TempoStateResult tempo, ExchangePack exchangePack, SetupThreatResult bestSetup, ThreatIntentResult tir )
+    private ActionEvaluation Build_SetupAction( ExchangePack exchangePack, SetupThreatResult bestSetup, ThreatIntentResult tir )
     {
         var intentTOP = BattleSim.BuildIntentTOP( ActionType.Setup, bestSetup, tir );
-        var setupActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Setup, bestSetup, bestSetup.Target, bestSetup.TargetBattleUnit, bestSetup.Move, intentTOP, exchangePack );
+        var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
+        var setupActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Setup, bestSetup, bestSetup.Targets, bestSetup.TargetBattleUnits, bestSetup.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
 
         return setupActionEval;
     }
 
-    private ActionEvaluation Build_OffensiveStatusAction( TempoStateResult tempo, ExchangePack exchangePack, StatusThreatResult bestOffensiveStatus, ThreatIntentResult tir )
+    private ActionEvaluation Build_OffensiveStatusAction( ExchangePack exchangePack, StatusThreatResult bestOffensiveStatus, ThreatIntentResult tir )
     {
-        var top = BattleSim.BuildIntentTOP( ActionType.OffensiveStatus, bestOffensiveStatus, tir );
-        var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveStatus, bestOffensiveStatus, bestOffensiveStatus.Target, bestOffensiveStatus.TargetBattleUnit, bestOffensiveStatus.Move, top, exchangePack );
+        var intentTOP = BattleSim.BuildIntentTOP( ActionType.OffensiveStatus, bestOffensiveStatus, tir );
+        var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
+        var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveStatus, bestOffensiveStatus, bestOffensiveStatus.Targets, bestOffensiveStatus.TargetBattleUnits, bestOffensiveStatus.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
 
         return statusActionEval;
     }
 
-    private ActionEvaluation Build_SupportiveStatusAction( TempoStateResult tempo, ExchangePack exchangePack, StatusThreatResult bestSupportiveStatus, ThreatIntentResult tir )
+    private ActionEvaluation Build_SupportiveStatusAction( ExchangePack exchangePack, StatusThreatResult bestSupportiveStatus, ThreatIntentResult tir )
     {
-        var top = BattleSim.BuildIntentTOP( ActionType.SupportiveStatus, bestSupportiveStatus, tir );
-        var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.SupportiveStatus, bestSupportiveStatus, bestSupportiveStatus.Target, bestSupportiveStatus.TargetBattleUnit, bestSupportiveStatus.Move, top, exchangePack );
+        var intentTOP = BattleSim.BuildIntentTOP( ActionType.SupportiveStatus, bestSupportiveStatus, tir );
+        var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
+        var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.SupportiveStatus, bestSupportiveStatus, bestSupportiveStatus.Targets, bestSupportiveStatus.TargetBattleUnits, bestSupportiveStatus.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
 
         return statusActionEval;
@@ -999,7 +1044,7 @@ public class BattleAI : MonoBehaviour
         {
             var action = actions[i];
             BattleAI_PokemonAdapter revengeCandidate = null;
-            float switchProb = UnitSim.PredictSwitchProbability( action.Top1.Attacker.Pokemon, action.Top1.OpponentPTKO, action.Top1.AttackerPTKO, action.Top1.AttackerMovedFirst, action.Top1.Opponent.CurrentHPR, action.Top1.Attacker.CurrentHPR, action.Top1.Attacker.Expendability );
+            float switchProb = UnitSim.PredictSwitchProbability( action.Top1.Attacker.Pokemon, action.Top1.OpponentPTKO, action.Top1.AttackerPTKO, action.Top1.AttackerMovedFirst, action.Top1.Opponent.EndHPR, action.Top1.Attacker.EndHPR, action.Top1.Attacker.Expendability );
             bool readSwitch = UnityEngine.Random.value <= switchProb;
 
             if( action.Top1.Attacker_DiesBeforeActing || action.Top1.Attacker_EndOfTurnHP <= 0 )
@@ -1026,7 +1071,7 @@ public class BattleAI : MonoBehaviour
             
             ourTeamToBeSwept = GetRemainingAllyPokemon( nextPokemon.Pokemon );
             bool movesFirst = opponentSweepTOP.Attacker.Speed > opponentSweepTOP.Opponent.Speed;
-            bool theyForceSwitch = UnitSim.PredictSwitchProbability( opponentSweepTOP.Opponent.Pokemon, opponentSweepTOP.AttackerPTKO, opponentSweepTOP.OpponentPTKO, movesFirst, opponentSweepTOP.Attacker.CurrentHPR, opponentSweepTOP.Opponent.CurrentHPR, opponentSweepTOP.Opponent.Expendability ) > 0.7f;
+            bool theyForceSwitch = UnitSim.PredictSwitchProbability( opponentSweepTOP.Opponent.Pokemon, opponentSweepTOP.AttackerPTKO, opponentSweepTOP.OpponentPTKO, movesFirst, opponentSweepTOP.Attacker.EndHPR, opponentSweepTOP.Opponent.EndHPR, opponentSweepTOP.Opponent.Expendability ) > 0.7f;
 
             theyKO = opponentSweepTOP.Opponent_DiesBeforeActing || opponentSweepTOP.Opponent_EndOfTurnHP <= 0f;
             sweepBeginning = theyKO || theyForceSwitch;
@@ -1060,7 +1105,7 @@ public class BattleAI : MonoBehaviour
         {
             var action = actions[i];
             BattleAI_PokemonAdapter revengeCandidate = null;
-            float switchProb = UnitSim.PredictSwitchProbability( action.Top1.Opponent.Pokemon, action.Top1.AttackerPTKO, action.Top1.OpponentPTKO, action.Top1.AttackerMovedFirst, action.Top1.Attacker.CurrentHPR, action.Top1.Opponent.CurrentHPR, action.Top1.Attacker.Expendability );
+            float switchProb = UnitSim.PredictSwitchProbability( action.Top1.Opponent.Pokemon, action.Top1.AttackerPTKO, action.Top1.OpponentPTKO, action.Top1.AttackerMovedFirst, action.Top1.Attacker.EndHPR, action.Top1.Opponent.EndHPR, action.Top1.Attacker.Expendability );
             bool readSwitch = UnityEngine.Random.value <= switchProb;
 
             if( action.Top1.Attacker_DiesBeforeActing || action.Top1.Attacker_EndOfTurnHP <= 0 )
@@ -1086,7 +1131,7 @@ public class BattleAI : MonoBehaviour
 
             bool revengeKill = followUp.Opponent_DiesBeforeActing || followUp.Opponent_EndOfTurnHP <= 0 || ( followUp.OpponentPTKO >= PotentialToKO.TwoHKO && followUp.AttackerMovedFirst );
 
-            float switchNextProb = UnitSim.PredictSwitchProbability( followUp.Opponent.Pokemon, followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, followUp.Attacker.BeginningHPR, action.Top1.Opponent.CurrentHPR, action.Top1.Opponent.Expendability );
+            float switchNextProb = UnitSim.PredictSwitchProbability( followUp.Opponent.Pokemon, followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, followUp.Attacker.BeginningHPR, action.Top1.Opponent.EndHPR, action.Top1.Opponent.Expendability );
             bool forcesSwitch = switchNextProb >= 0.7f;
 
             bool favorableTrade = action.Top1.Opponent_EndOfTurnHP <= 0f || action.Top1.MutualKO;
@@ -1161,7 +1206,7 @@ public class BattleAI : MonoBehaviour
         };
     }
 
-    public ThreatProfile GetThreatProfile( ExchangeEvaluation exchangeEval, BoardContext boardContext, IBattleAIUnit opponent )
+    public ThreatProfile GetThreatProfile( ExchangeEvaluation exchangeEval, BoardContext boardContext, IBattleAIUnit opponent, bool threatBrain = false )
     {
         ThreatProfile profile = new()
         {
@@ -1171,10 +1216,22 @@ public class BattleAI : MonoBehaviour
             ThreatPTKO = exchangeEval.OpponentPTKOR.PTKO,
         };
 
-        CurrentLog.Add( $"" );
-        CurrentLog.Add( $"===================================" );
-        CurrentLog.Add( $"=====[Building Threat Profile]=====" );
-        CurrentLog.Add( $"===================================" );
+        if( !threatBrain )
+        {
+            CurrentLog.Add( $"" );
+            CurrentLog.Add( $"===================================" );
+            CurrentLog.Add( $"=====[Building Threat Profile]=====" );
+            CurrentLog.Add( $"===================================" );
+            CurrentLog.Add( $"" );
+        }
+        else
+        {
+            CurrentLog.Add( $"" );
+            CurrentLog.Add( $"====================================================" );
+            CurrentLog.Add( $"=====[Building Opponent's Threat Profile on Us]=====" );
+            CurrentLog.Add( $"====================================================" );
+            CurrentLog.Add( $"" );
+        }
 
         //--Check opponent current sweep potential
         int threatened = 0;
@@ -1348,18 +1405,18 @@ public class BattleAI : MonoBehaviour
         if( oppHasSelfDebuffMove )
             decayScore += 2f;
 
-        if( opponent.Item == BattleItemEffectID.LifeOrb || oppHasRecoilMove )
+        if( opponent.Item == ItemBattleEffectID.LifeOrb || oppHasRecoilMove )
         {
             decayScore += 1f;
 
-            if( opponent.CurrentHPR <= 0.55f )
+            if( opponent.EndHPR <= 0.55f )
                 decayScore += 1f;
         }
 
         if( exchangeEval.AttackerSurvives && exchangeEval.AttackerThreatensKO )
             decayScore += 1f;
 
-        if( opponent.CurrentHPR <= 0.35f )
+        if( opponent.EndHPR <= 0.35f )
             decayScore += 1f;
 
         profile.DecayScore = decayScore;
@@ -1376,13 +1433,23 @@ public class BattleAI : MonoBehaviour
         //--Urgency
         profile.Urgency = GetThreatUrgency( profile.PressureScore );
 
-        // profile.Exists = profile.Urgency >= ThreatUrgency.Medium;
-        // profile.Exists = profile.Type != ThreatType.None || profile.Urgency >= ThreatUrgency.Medium;
-        profile.Exists = true;
-
-        CurrentLog.Add( $"Pressure Score: {profile.PressureScore}. Urgency: {profile.Urgency}. Threat Exists: {profile.Exists}. Threat Type: {profile.Type}" );
+        CurrentLog.Add( $"Constraining Pressure: {profile.ConstrainingPressure}" );
+        CurrentLog.Add( $"Immediate Pressure: {profile.ImmediatePressure}" );
+        CurrentLog.Add( $"Escalating Pressure: {profile.EscalatingPressure}" );
+        CurrentLog.Add( $"Persistent Pressure: {profile.PersistentPressure}" );
+        CurrentLog.Add( $"Disruptive Pressure: {profile.DisruptivePressure}" );
+        CurrentLog.Add( $"Base Pressure: {basePressure}, Decay Multiplier: {decayMultiplier}" );
+        CurrentLog.Add( $"" );
+        CurrentLog.Add( $"Final Results: Pressure Score: {profile.PressureScore}. Urgency: {profile.Urgency}. Threat Type: {profile.Type}" );
         CurrentLog.Add( $"===================================" );
         CurrentLog.Add( $"" );
+
+        if( threatBrain )
+        {
+            CurrentLog.Add( $"" );
+            CurrentLog.Add( $"" );
+            CurrentLog.Add( $"" );
+        }
 
         return profile;
     }
@@ -1932,7 +1999,7 @@ public class BattleAI : MonoBehaviour
         if( statsChanged )
         {
             var gp = gpd.GamePlan;
-            var oppTeam = GetAllyTeamAs_Adapter( gpd.TOP1.Opponent.Pokemon ).Where( p => p.CurrentHPR > 0f ).ToList();
+            var oppTeam = GetAllyTeamAs_Adapter( gpd.TOP1.Opponent.Pokemon ).Where( p => p.EndHPR > 0f ).ToList();
             Dictionary<Pokemon, ( TurnOutcomeProjection before, TurnOutcomeProjection after )> ourTOPs = new();
             Dictionary<Pokemon, ( TurnOutcomeProjection before, TurnOutcomeProjection after )> theirTOPs = new();
 
@@ -2519,7 +2586,7 @@ public class BattleAI : MonoBehaviour
             int switchFavorableMUs = 0;
             int currentFavorableMUs = 0;
 
-            var theirRemaining = Blackboard.TheirActiveBattleAIUnits.Where( p => p.CurrentHPR > 0f );
+            var theirRemaining = Blackboard.TheirActiveBattleAIUnits.Where( p => p.EndHPR > 0f );
 
             foreach( var mon in theirRemaining )
             {
@@ -2616,8 +2683,8 @@ public class BattleAI : MonoBehaviour
 
         var winconAdapter = GetPokemonAs_Adapter( gpd.GamePlan.OurPrimaryWinCon );
 
-        var ourRemaining = Blackboard.OurTeamAdapters.Values.Where( p => p.CurrentHPR > 0 ).ToList();
-        var theirRemaining = Blackboard.TheirTeamAdapters.Values.Where( p => p.CurrentHPR > 0 ).ToList();
+        var ourRemaining = Blackboard.OurTeamAdapters.Values.Where( p => p.EndHPR > 0 ).ToList();
+        var theirRemaining = Blackboard.TheirTeamAdapters.Values.Where( p => p.EndHPR > 0 ).ToList();
 
         //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         //--Field Creation Checks---------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2667,7 +2734,7 @@ public class BattleAI : MonoBehaviour
         bool weProvideFriendGuard = gpd.Attacker1.Ability == AbilityID.FriendGuard || gpd.Attacker2.Ability == AbilityID.FriendGuard;
         bool weProvideHelpingHand = gpd.Action.Type == ActionType.SupportiveStatus && gpd.Action.MovePayload.MoveSO.Name == "Helping Hand";
 
-        bool winconBenefitsTrickRoom = winconAdapter.CurrentHPR > 0f && winconAdapter.RoleProfile.PrimaryRole == RoleClass.TrickRoomAbuser || winconAdapter.RoleProfile.SecondaryRoles.Contains( RoleClass.TrickRoomAbuser ) ||
+        bool winconBenefitsTrickRoom = winconAdapter.EndHPR > 0f && winconAdapter.RoleProfile.PrimaryRole == RoleClass.TrickRoomAbuser || winconAdapter.RoleProfile.SecondaryRoles.Contains( RoleClass.TrickRoomAbuser ) ||
                 ( winconAdapter.RoleProfile.PrimaryRole == RoleClass.BulkyAttacker && ( winconAdapter.RoleProfile.Biases.Contains( RoleBias.SlowSpeed ) ||
                 winconAdapter.RoleProfile.Biases.Contains( RoleBias.TrickRoomSpeed ) ) );
 
@@ -3647,7 +3714,7 @@ public class BattleAI : MonoBehaviour
                         terrain = mod( move );
                 }
 
-                if( ourPokemon.Item != BattleItemEffectID.None )
+                if( ourPokemon.Item != ItemBattleEffectID.None )
                 {
                     if( UnitSim.ItemDMGModifiers.TryGetValue( ourPokemon.Item, out var mod ) )
                         item = mod( ourPokemon, threat, move );
@@ -3684,7 +3751,7 @@ public class BattleAI : MonoBehaviour
             // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Speed comparison checked. Score: {threatScore}" );
 
             //--Current HP Ratio. Lower HP means we're more threatened
-            float hpRatio = Get_HPRatio( ourPokemon );
+            float hpRatio = ourPokemon.BeginningHPR; //Get_HPRatio( ourPokemon );
 
             // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] {threat.Pokemon.NickName}'s Current HP Ratio is: {hpRatio}" );
 
@@ -3709,6 +3776,114 @@ public class BattleAI : MonoBehaviour
         // Debug.Log( $"[AI Scoring][Incoming Immediate Damage Check] The most threatening Pokemon is: {highestUnit.Pokemon.NickName}, with a Score of: {highestThreat}" );
 
         return new(){ Score = highestThreat, Unit = highestUnit };
+    }
+
+    public MoveThreatResult GetMove_StrongestAttack( IBattleAIUnit attacker, IBattleAIUnit target, SimulatedField field = null )
+    {
+        MoveThreatResult bestMTR = new();
+        field ??= Blackboard.CurrentFieldSnapshot;
+        float bestDamage = float.MinValue;
+
+        foreach( var move in attacker.ActiveMoves )
+        {
+            // float damage = Projection.Get_EstimatedDamageResult( attacker, target, );
+
+            //--Move type effectiveness
+            float effectiveness = UnitSim.Get_MoveEffectiveness( target, move );
+
+            //--If there a type immunity, skip this move
+            if( effectiveness == 0f )
+                continue;
+
+            var ally = GetActiveAllyAs_Adapter( attacker.Pokemon );
+            var targetAlly = GetActiveAllyAs_Adapter( target.Pokemon );
+
+            List<IBattleAIUnit> targets = new();
+
+            int targetCount = 1;
+            if( move.MoveSO.MoveTarget == MoveTarget.OpposingSide && targetAlly != null )
+            {
+                targetCount = 2;
+                targets.Add( targetAlly );
+            }
+
+            if( move.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
+            {
+                if( ally != null )
+                {
+                    targetCount++;
+                    targets.Add( ally );
+                }
+
+                if( targetAlly != null )
+                {
+                    targetCount++;
+                    targets.Add( targetAlly );
+                }
+            }
+
+            float modifier                  = effectiveness * UnitSim.Get_MoveModifier( attacker, target, move );
+            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, Targets = targets.ToList() };
+            var edr                         = Projection.Get_EstimatedDamageResult( attacker, target, mtr );
+            
+            mtr.EDR = edr;
+            float damage = edr.DamageEstimate;
+            if( damage > bestDamage )
+            {
+                bestDamage = damage;
+                bestMTR = mtr;
+            }
+        }
+
+        return bestMTR;
+    }
+
+    public IBattleAIUnit GetSwitch_CurrentPressure( List<IBattleAIUnit> opponents, SimulatedField field = null )
+    {
+        IBattleAIUnit bestRevenge = null;
+        field ??= Blackboard.CurrentFieldSnapshot;
+        float bestDamage = float.MinValue;
+        bool thresholdActive = false;
+
+        var activeUnits = GetActiveOpposingUnits_AsBattleAIUnits( opponents[0].Pokemon );
+        var ourUnits = GetOpposingTeamAs_IBattleAIUnit( opponents[0].Pokemon );
+        var bench = ourUnits.Where( p => !activeUnits.Any( u => u.Pokemon == p.Pokemon ) && p.Pokemon.CurrentHP > 0 ).ToList();
+
+        foreach( var mon in bench )
+        {
+            float threshold = thresholdActive ? bestDamage * 0.05f : 0f;
+
+            var mtr1 = GetMove_StrongestAttack( mon, opponents[0] );
+            var mtr2 = opponents.Count > 1 ? GetMove_StrongestAttack( mon, opponents[1] ) : null;
+
+            float ed1 = mtr1.EstimatedDamage;
+            float ed2 = mtr2 != null ? mtr2.EstimatedDamage : 0f;
+
+            float damage = ( ed1 + ed2 ) / opponents.Count;
+
+            bool ko1 = opponents[0].BeginningHPR - ed1 <= 0f;
+            bool ko2 = opponents.Count > 1 && opponents[1].BeginningHPR - ed2 <= 0f;
+            bool ko1Priority = ko1 && mtr1.Move.Priority > MovePriority.Zero;
+            bool ko2Priority = ko2 && mtr2 != null && mtr2.Move.Priority > MovePriority.Zero;
+
+            if( thresholdActive )
+            {
+                if( damage < threshold && mon.Speed < bestRevenge.Speed )
+                    continue;
+                else if( damage <= threshold && mon.Speed < bestRevenge.Speed && ( !ko1Priority || !ko2Priority ) )
+                    continue;
+                else if( damage >= threshold && mon.Speed < bestRevenge.Speed && ( !ko1Priority || !ko2Priority || !ko1 || !ko2 ) )
+                    continue;
+            }
+
+            if( damage > bestDamage )
+            {
+                bestDamage = damage;
+                bestRevenge = mon;
+            }
+        }
+
+        return bestRevenge;
     }
 
     public bool Check_UnitHasPriority( IBattleAIUnit attacker, IBattleAIUnit target )
@@ -3763,6 +3938,15 @@ public class BattleAI : MonoBehaviour
             return false;
 
         return true;
+    }
+
+    public bool CanUseProtect( Pokemon pokemon )
+    {
+        bool hasProtect = pokemon.CheckHasActiveMove( "Protect" );
+        bool isActiveBattleUnit = GetBattleUnit( CurrentUnitAdapter.Pokemon ) is var unit && unit != null && unit.Pokemon == pokemon;
+        bool hasNotUsedProtect = isActiveBattleUnit && unit.Flags[UnitFlags.SuccessiveProtectUses].Count <= 0;
+        
+        return hasProtect && isActiveBattleUnit && hasNotUsedProtect;
     }
 
     public bool Check_IsLastPokemon( Pokemon pokemon )
@@ -3843,10 +4027,10 @@ public class BattleAI : MonoBehaviour
             else if( accuracy < 90 )                    score -= 10;
             else if( accuracy < 100 )                   score -= 5;
 
-            float tarHPR                    = Get_HPRatio( target );
+            float tarHPR                    = target.BeginningHPR; //Get_HPRatio( target );
             MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move };
             var attEDR                      = Projection.Get_EstimatedDamageResult( attacker, target, mtr );
-            PotentialToKOResult attPTKOR    = Projection.Get_PotentialToKOResult( attEDR, mtr, tarHPR );
+            PotentialToKOResult attPTKOR    = Projection.Get_PotentialToKOResult( attEDR, mtr, target );
 
             score += Mathf.FloorToInt( attEDR.DamageEstimate * 150 );
 
@@ -3911,8 +4095,8 @@ public class BattleAI : MonoBehaviour
             var theirEDR = Projection.Get_EstimatedDamageResult( theirMon, ourMon, theirMTR );
 
             //--PTKOs
-            var ourPTKO = Projection.Get_PotentialToKOResult( ourEDR, ourMTR, theirMon.CurrentHPR ).PTKO;
-            var theirPTKO = Projection.Get_PotentialToKOResult( theirEDR, theirMTR, ourMon.CurrentHPR ).PTKO;
+            var ourPTKO = Projection.Get_PotentialToKOResult( ourEDR, ourMTR, theirMon ).PTKO;
+            var theirPTKO = Projection.Get_PotentialToKOResult( theirEDR, theirMTR, ourMon ).PTKO;
 
             if( theirPTKO - 1 > ourPTKO || theirPTKO > PotentialToKO.Risky && theirMTR.Top.AttackerMovedFirst )
                 threats.Add( ( (int)theirPTKO, team[i] ) );
@@ -3932,10 +4116,10 @@ public class BattleAI : MonoBehaviour
         return currentHP / maxHP;
     }
 
-    public float Get_HPRatio( IBattleAIUnit pokemon )
-    {
-        return pokemon.CurrentHPR;
-    }
+    // public float Get_HPRatio( IBattleAIUnit pokemon )
+    // {
+    //     return pokemon.EndHPR;
+    // }
 
     public float Get_HPRatio_AfterEntryHazards( Pokemon pokemon )
     {
@@ -3949,11 +4133,11 @@ public class BattleAI : MonoBehaviour
         return finalHPR;
     }
 
-    public float Get_HPRatio_AfterEntryHazards( IBattleAIUnit pokemon )
+    public float Get_HPRatio_AfterEntryHazards( IBattleAIUnit pokemon, SimulatedField field = null )
     {
         // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Getting HP Ratio for {pokemon.NickName} after taking entry hazard damage!" );
-        float hpR = Get_HPRatio( pokemon );
-        float damage = Get_EntryHazardDamage( pokemon );
+        float hpR = pokemon.BeginningHPR;
+        float damage = Get_EntryHazardDamage( pokemon, field );
 
         float finalHPR = Mathf.Max( 0f, hpR - damage );
         // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName}'s Raw HPR: {hpR}, HPR after Hazards: {finalHPR}" );
@@ -3969,7 +4153,7 @@ public class BattleAI : MonoBehaviour
         // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} was found in the {myCourtLoc}!" );
 
         //--Heavy duty boots prevents hazard damage.
-        if( pokemon.HeldItem != null && pokemon.BattleItemEffect?.ID == BattleItemEffectID.HeavyDutyBoots )
+        if( pokemon.HeldItem != null && pokemon.BattleItemEffect?.ID == ItemBattleEffectID.HeavyDutyBoots )
         {
             // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} is holding Heavy Duty Boots! No hazard damage should be taken! Damage: {damage}" );
             return damage;
@@ -4001,32 +4185,39 @@ public class BattleAI : MonoBehaviour
         return damage;
     }
 
-    public float Get_EntryHazardDamage( IBattleAIUnit pokemon )
+    public float Get_EntryHazardDamage( IBattleAIUnit pokemon, SimulatedField field = null )
     {
         float damage = 0;
-        var myCourtLoc = BattleSystem.Field.GetPokemonCourtLocationFromTrainer( pokemon.PID );
+        Dictionary<CourtConditionID, int> myCourt;
+
+        if( field != null )
+        {
+            myCourt = pokemon.CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions;
+        }
+        else
+        {
+            myCourt = pokemon.CourtLocation == CourtLocation.TopCourt ? Blackboard.CurrentFieldSnapshot.TopCourtConditions : Blackboard.CurrentFieldSnapshot.BottomCourtConditions;
+        }
 
         // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} was found in the {myCourtLoc}!" );
 
         //--Heavy duty boots prevents hazard damage.
-        if( pokemon.Item == BattleItemEffectID.HeavyDutyBoots )
+        if( pokemon.Item == ItemBattleEffectID.HeavyDutyBoots )
         {
             // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] {pokemon.NickName} is holding Heavy Duty Boots! No hazard damage should be taken! Damage: {damage}" );
             return damage;
         }
 
-        var court = BattleSystem.Field.ActiveCourts[myCourtLoc];
-        if( court.Conditions.ContainsKey( CourtConditionID.StealthRock ) )
+        if( myCourt.ContainsKey( CourtConditionID.StealthRock ) )
         {
             float effectiveness = TypeChart.GetEffectiveness( PokemonType.Rock, pokemon.Type.One ) * TypeChart.GetEffectiveness( PokemonType.Rock, pokemon.Type.Two );
             damage += ( 1f / 8f ) * effectiveness;
             // Debug.Log( $"[AI Scoring][HP Ratio][Hazard Damage] Stealth Rock was found in the {myCourtLoc}! Damage: {damage}" );
         }
 
-        if( court.Conditions.ContainsKey( CourtConditionID.Spikes ) )
+        if( myCourt.ContainsKey( CourtConditionID.Spikes ) )
         {
-            var spikes = court.Conditions[CourtConditionID.Spikes];
-            int layers = spikes.Layers;
+            int layers = pokemon.CourtLocation == CourtLocation.TopCourt ? field.TopSpikesLayers : field.BottomSpikesLayers;
 
             if( layers == 1 )
                 damage += 1f / 8f;
@@ -4046,7 +4237,7 @@ public class BattleAI : MonoBehaviour
         float damage = 0;
 
         //--Heavy duty boots prevents hazard damage.
-        if( pokemon.Item == BattleItemEffectID.HeavyDutyBoots )
+        if( pokemon.Item == ItemBattleEffectID.HeavyDutyBoots )
             return damage;
 
         if( hazard == CourtConditionID.StealthRock )
@@ -4206,13 +4397,13 @@ public class MoveThreatResult : IActionResult
     public float Modifier { get; set; }
     public int TargetCount { get; set; }
     public IBattleAIUnit CurrentActor { get; set; }
-    public IBattleAIUnit Target { get; set; }
     public List<IBattleAIUnit> Targets { get; set; }
-    public BattleUnit TargetBattleUnit { get; set; }
     public List<BattleUnit> TargetBattleUnits { get; set; }
     public Move Move { get; set; }
+    public EstimatedDamageResult EDR { get; set; }
     public float EstimatedDamage { get; set; }
     public TurnOutcomeProjection Top { get; set; }
+    public PotentialToKO PTKO { get; set; }
 
     public ActionResultType Type { get; set; }
     public ActionType ActionType { get; set; }
@@ -4223,8 +4414,8 @@ public struct SetupThreatResult : IActionResult
 {
     public Move Move { get; set; }
     public IBattleAIUnit CurrentActor { get; set; }
-    public IBattleAIUnit Target { get; set; }
-    public BattleUnit TargetBattleUnit;
+    public List<IBattleAIUnit> Targets { get; set; }
+    public List<BattleUnit> TargetBattleUnits;
     public TurnOutcomeProjection Top { get; set; }
 
     public StatStageDelta StageDelta;
@@ -4249,8 +4440,8 @@ public struct StatusThreatResult : IActionResult
     public int StatusValue;
     public Move Move { get; set; }
     public IBattleAIUnit CurrentActor { get; set; }
-    public IBattleAIUnit Target { get; set; }
-    public BattleUnit TargetBattleUnit;
+    public List<IBattleAIUnit> Targets { get; set; }
+    public List<BattleUnit> TargetBattleUnits;
     public TurnOutcomeProjection Top { get; set; }
 
     //--Offensive Status Values
@@ -4305,7 +4496,7 @@ public struct SwitchCandidateResult : IActionResult
     public ActionResultType Type { get; set; }
     public ActionType ActionType { get; set; }
     public IBattleAIUnit CurrentActor { get; set; }
-    public IBattleAIUnit Target { get; set; }
+    public List<IBattleAIUnit> Targets { get; set; }
     public IBattleAIUnit Candidate { get; set; }
     public Move Move { get; set; }
 
@@ -4330,6 +4521,7 @@ public struct PotentialToKOResult
     public int Score { get; set; }
     public PotentialToKO PTKO { get; set; }
     public float Modifier { get; set; }
+    public float EstimatedDamage { get; set; }
 }
 
 public struct TempoStateResult
@@ -4348,6 +4540,9 @@ public struct ExchangeEvaluation
 
     public IBattleAIUnit Attacker;
     public IBattleAIUnit Opponent;
+
+    public MoveThreatResult AttackerMTR;
+    public MoveThreatResult OpponentMTR;
 
     public bool AttackerMovesFirst;
     public bool OpponentMovesFirst;
@@ -4440,7 +4635,7 @@ public class ActionEvaluation
     public IActionResult ActionResult;
     public int Score;
     public Pokemon Actor;
-    public BattleUnit Target;
+    public List<BattleUnit> Targets;
     public Move MovePayload;
     public Pokemon SwitchPayload;
     public TurnOutcomeProjection Top1;
@@ -4501,9 +4696,7 @@ public enum ExpectedThreatBehavior
 }
 
 public struct ThreatProfile
-{
-    public bool Exists;
-
+{   
     public ThreatType Type;
     public ExpectedThreatBehavior ExpectedThreatBehavior;
 

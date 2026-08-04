@@ -32,18 +32,21 @@ MonoBehaviour:
   _drainPercentage: 0
   _healType: 0
   _healAmount: 0
+  _setDamageType: 0
+  _setDamageAmount: 0
   _hitRange: {x: 0, y: 0}
   _flags: 0200000001000000
   _moveEffects:
-    _target: 0
+    _target: 1
     _trigger: 0
     _statChangeList: []
     _severeStatus: 0
-    _volatileStatus: 0
+    _volatileStatus: 22
     _transientStatus: 0
     _bindingStatus: 0
     _weather: 0
     _terrain: 0
     _courtCondition: 0
+    _fieldCondition: 0
     _switchType: 0
   _secondaryMoveEffects: []

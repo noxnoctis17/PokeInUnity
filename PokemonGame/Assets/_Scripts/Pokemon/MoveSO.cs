@@ -335,6 +335,7 @@ public enum MoveFlags
     Cutting,
     Wind,
     TwoTurnMove, //--Dig, Fly, Dive, Phantom Force, etc.
+    Thaw,
 }
 
 public enum MoveAnimationType

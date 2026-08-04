@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using UnityEditor;
 
-[System.Serializable]
+[Serializable]
 public class GridClass<TGridObject>
 {
     [SerializeField] private bool _showDebug;
@@ -21,7 +21,8 @@ public class GridClass<TGridObject>
     private TGridObject[,] _gridArray;
     private TextMesh[,] _debugTextArray;
 
-    public GridClass(int width, int height, float cellSize, Vector3 originPosition, Func<GridClass<TGridObject>, int, int, TGridObject> createGridObject){
+    public GridClass(int width, int height, float cellSize, Vector3 originPosition, Func<GridClass<TGridObject>, int, int, TGridObject> createGridObject)
+    {
         _width = width;
         _height = height;
         _cellSize = cellSize;

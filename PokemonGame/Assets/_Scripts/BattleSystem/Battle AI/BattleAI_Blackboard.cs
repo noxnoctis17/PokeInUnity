@@ -21,6 +21,7 @@ public class BattleAI_Blackboard
     public TeamComposition OurTeamComposition { get; private set; }
     public TeamComposition TheirTeamComposition { get; private set; }
     public GamePlan GamePlan { get; private set; }
+    public CurrentPlan TheirCurrentPlan { get; private set; }
 
     //--Each Battle AI monob should now become an ai "agent".
     //--An "agent" should be able to use all tools available to it. it makes decisions and submits its decisions to the battle system.
@@ -125,7 +126,7 @@ public class BattleAI_Blackboard
             if( adapters.TryGetValue( mon, out var adapter ) )
             {
                 adapter.BeginningHPR = _ai.Get_HPRatio( mon );
-                adapter.CurrentHPR = adapter.BeginningHPR;
+                adapter.EndHPR = adapter.BeginningHPR;
 
                 adapter.Type = ( mon.PokeSO.Type1, mon.PokeSO.Type2 ); //--Once type changes are possible, update this
 
@@ -133,7 +134,7 @@ public class BattleAI_Blackboard
                 adapter.ActiveMoves = new( mon.ActiveMoves );
 
                 adapter.Ability = mon.AbilityID;
-                adapter.Item = mon.BattleItemEffect != null ? mon.BattleItemEffect.ID : BattleItemEffectID.None;
+                adapter.Item = mon.BattleItemEffect != null ? mon.BattleItemEffect.ID : ItemBattleEffectID.None;
 
                 adapter.SevereStatus = mon.SevereStatus != null ? mon.SevereStatus.ID : SevereConditionID.None;
                 adapter.SevereStatusTime = mon.SevereStatusTime;
@@ -1898,6 +1899,11 @@ public class BattleAI_Blackboard
         }
 
         return tiers;
+    }
+
+    public void SetEnemyCurrentPlan( CurrentPlan plan )
+    {
+        TheirCurrentPlan = plan;
     }
 }
 

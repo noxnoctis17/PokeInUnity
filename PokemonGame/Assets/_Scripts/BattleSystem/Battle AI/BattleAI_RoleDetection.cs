@@ -565,31 +565,31 @@ public class BattleAI_RoleDetection
     {
         var item = adapter.Item;
         
-        if( item == BattleItemEffectID.None )
+        if( item == ItemBattleEffectID.None )
             return;
 
-        if( item == BattleItemEffectID.ChoiceBand )
+        if( item == ItemBattleEffectID.ChoiceBand )
         {
             rs.PhysicalOffense += 25;
             rs.BurstDamage += 20;
             rs.Wallbreaking += 15;
         }
 
-        if( item == BattleItemEffectID.ChoiceSpecs )
+        if( item == ItemBattleEffectID.ChoiceSpecs )
         {
             rs.SpecialOffense += 25;
             rs.BurstDamage += 20;
             rs.Wallbreaking += 15;
         }
 
-        if( item == BattleItemEffectID.ChoiceScarf )
+        if( item == ItemBattleEffectID.ChoiceScarf )
         {
             rs.SpeedPressure += 25;
             rs.RevengeKilling += 15;
             rs.BurstDamage += 5;
         }
 
-        if( item == BattleItemEffectID.LifeOrb )
+        if( item == ItemBattleEffectID.LifeOrb )
         {
             rs.BurstDamage += 15;
             rs.SustainedDamage += 10;
@@ -598,7 +598,7 @@ public class BattleAI_RoleDetection
             rs.SpecialOffense += 10;
         }
 
-        if( item == BattleItemEffectID.ExpertBelt )
+        if( item == ItemBattleEffectID.ExpertBelt )
         {
             rs.BurstDamage += 10;
             rs.SustainedDamage += 5;
@@ -607,7 +607,7 @@ public class BattleAI_RoleDetection
             rs.SpecialOffense += 5;
         }
 
-        if( item == BattleItemEffectID.FocusSash )
+        if( item == ItemBattleEffectID.FocusSash )
         {
             rs.RevengeKilling += 10;
             rs.SetupPressure += 15;
@@ -615,7 +615,7 @@ public class BattleAI_RoleDetection
             rs.Disruption += 15;
         }
 
-        if( item == BattleItemEffectID.SitrusBerry )
+        if( item == ItemBattleEffectID.SitrusBerry )
         {
             rs.SelfSustain += 25;
             rs.PhysicalBulk += 15;
@@ -625,7 +625,7 @@ public class BattleAI_RoleDetection
             rs.DamageAbsorbing += 15;
         }
 
-        if( item == BattleItemEffectID.Leftovers )
+        if( item == ItemBattleEffectID.Leftovers )
         {
             rs.SelfSustain += 20;
             rs.PhysicalBulk += 10;
@@ -634,7 +634,7 @@ public class BattleAI_RoleDetection
             rs.DamageAbsorbing += 5;
         }
 
-        if( item == BattleItemEffectID.BlackSludge )
+        if( item == ItemBattleEffectID.BlackSludge )
         {
             rs.SelfSustain += 20;
             rs.PhysicalBulk += 10;
@@ -645,7 +645,7 @@ public class BattleAI_RoleDetection
             rs.DamageAbsorbing += 5;
         }
 
-        if( item == BattleItemEffectID.RockyHelmet )
+        if( item == ItemBattleEffectID.RockyHelmet )
         {
             rs.PhysicalBulk += 10;
             rs.PassivePressure += 15;
@@ -653,20 +653,20 @@ public class BattleAI_RoleDetection
             rs.DamageAbsorbing += 5;
         }
 
-        if( item == BattleItemEffectID.LightClay )
+        if( item == ItemBattleEffectID.LightClay )
         {
             rs.SupportUtility += 25;
             rs.TeamSupport += 20;
         }
 
-        if( item == BattleItemEffectID.HeatRock || item == BattleItemEffectID.DampRock || item == BattleItemEffectID.IcyRock || item == BattleItemEffectID.SmoothRock )
+        if( item == ItemBattleEffectID.HeatRock || item == ItemBattleEffectID.DampRock || item == ItemBattleEffectID.IcyRock || item == ItemBattleEffectID.SmoothRock )
         {
             rs.BattlefieldControl += 25;
             rs.TeamSupport += 15;
             rs.SetupPressure += 5;
         }
 
-        if( item == BattleItemEffectID.FlameOrb || item == BattleItemEffectID.ToxicOrb || item == BattleItemEffectID.StaticOrb )
+        if( item == ItemBattleEffectID.FlameOrb || item == ItemBattleEffectID.ToxicOrb || item == ItemBattleEffectID.StaticOrb )
         {
             var ability = adapter.Ability;
 
@@ -696,7 +696,7 @@ public class BattleAI_RoleDetection
                     rs.SpecialOffense += 10;
             }
 
-            if( ability == AbilityID.PoisonHeal && item == BattleItemEffectID.ToxicOrb )
+            if( ability == AbilityID.PoisonHeal && item == ItemBattleEffectID.ToxicOrb )
             {
                 rs.SelfSustain += 25;
                 rs.OffensiveUtility += 5;
@@ -707,14 +707,14 @@ public class BattleAI_RoleDetection
             }
         }
 
-        if( item == BattleItemEffectID.HeavyDutyBoots )
+        if( item == ItemBattleEffectID.HeavyDutyBoots )
         {
             rs.Pivoting += 15;
             rs.SustainedDamage += 5;
             rs.SelfSustain += 5;
         }
 
-        if( item == BattleItemEffectID.AirBalloon )
+        if( item == ItemBattleEffectID.AirBalloon )
         {
             rs.Pivoting += 5;
             rs.SetupPressure += 5;
@@ -723,7 +723,7 @@ public class BattleAI_RoleDetection
             rs.TeamSupport += 5;
         }
 
-        if( item == BattleItemEffectID.Charcoal || item == BattleItemEffectID.MysticWater || item == BattleItemEffectID.MetalCoat )
+        if( item == ItemBattleEffectID.Charcoal || item == ItemBattleEffectID.MysticWater || item == ItemBattleEffectID.MetalCoat )
         {
             rs.SustainedDamage += 5;
             
@@ -1304,7 +1304,7 @@ public class BattleAI_RoleDetection
         if( _us.PokemonHasMove_Recovery( adapter.Pokemon ) )
             rp.Traits.Add( RoleTrait.RecoveryMove );
 
-        if( adapter.Item == BattleItemEffectID.Leftovers || adapter.Item == BattleItemEffectID.SitrusBerry )
+        if( adapter.Item == ItemBattleEffectID.Leftovers || adapter.Item == ItemBattleEffectID.SitrusBerry )
             rp.Traits.Add( RoleTrait.RecoveryItem );
 
         if( _us.PokemonHasAbility_Recovery( adapter.Pokemon ) )
@@ -1477,14 +1477,20 @@ public class BattleAI_RoleDetection
         if( adapter.Ability == AbilityID.Demoralize )
             rp.Traits.Add( RoleTrait.DemoralizeSupport );
 
-        if( adapter.Pokemon.CheckHasActiveMove( "Follow Me" ) || adapter.Pokemon.CheckHasActiveMove( "Rage Powder" ) || adapter.Ability == AbilityID.LightningRod || adapter.Ability == AbilityID.StormDrain )
-            rp.Traits.Add( RoleTrait.Redirection );
+        if( adapter.Pokemon.CheckHasActiveMove( "Follow Me" ) || adapter.Pokemon.CheckHasActiveMove( "Rage Powder" ) )
+            rp.Traits.Add( RoleTrait.RedirectionMove );
+
+        if( adapter.Ability == AbilityID.LightningRod || adapter.Ability == AbilityID.StormDrain )
+            rp.Traits.Add( RoleTrait.RedirectionAbility );
 
         if( adapter.Ability == AbilityID.MarvelScale || adapter.Ability == AbilityID.ThickFat || adapter.Ability == AbilityID.LightningRod || adapter.Ability == AbilityID.StormDrain || adapter.Ability == AbilityID.FriendGuard )
             rp.Traits.Add( RoleTrait.DamageMitigation );
 
         if( adapter.Pokemon.CheckHasActiveMove( "Wide Guard" ) || adapter.Pokemon.CheckHasActiveMove( "Quick Guard" ) )
             rp.Traits.Add( RoleTrait.DamageMitigation );
+
+        if( adapter.Ability == AbilityID.ArmorTail || adapter.Ability == AbilityID.Dazzling || adapter.Ability == AbilityID.QueenlyMajesty || adapter.Ability == AbilityID.PsychicSurge || adapter.Pokemon.CheckHasActiveMove( "Quick Guard" ) )
+            rp.Traits.Add( RoleTrait.PriorityBlocker );
 
         //--Offensive Utility
         if( _us.PokemonHasMove_Priority( adapter.Pokemon ) )
@@ -1505,9 +1511,12 @@ public class BattleAI_RoleDetection
         if( adapter.Pokemon.CheckHasActiveMove( "Fake Out" ) )
             rp.Traits.Add( RoleTrait.FakeOut );
 
+        if( _us.PokemonHasMove_Spread( adapter.Pokemon ) )
+            rp.Traits.Add( RoleTrait.SpreadAttack );
+
         //--Misc
         //--Suicide Lead
-        if( rp.Traits.Contains( RoleTrait.HazardSetter ) && ( adapter.Item == BattleItemEffectID.FocusSash || baseSpeed >= 110 ) && rs.SelfSustain <= 25 && ( rs.SpeedControl >= 45 || rs.SpeedPressure >= 45 || rs.Disruption >= 45 ) )
+        if( rp.Traits.Contains( RoleTrait.HazardSetter ) && ( adapter.Item == ItemBattleEffectID.FocusSash || baseSpeed >= 110 ) && rs.SelfSustain <= 25 && ( rs.SpeedControl >= 45 || rs.SpeedPressure >= 45 || rs.Disruption >= 45 ) )
             rp.Traits.Add( RoleTrait.SuicideLead );
         
         //--Anti-Lead
@@ -1610,7 +1619,7 @@ public class BattleAI_RoleDetection
         if( _ai.UnitSim.CheckTypes( PokemonType.Ground, adapter ) || _ai.UnitSim.CheckTypes( PokemonType.Electric, adapter ) || adapter.Ability == AbilityID.LightningRod || adapter.Ability == AbilityID.VoltAbsorb )
             rp.Traits.Add( RoleTrait.ThunderWaveImmune );
 
-        if( _ai.UnitSim.CheckTypes( PokemonType.Grass, adapter ) || adapter.Item == BattleItemEffectID.SafetyGoggles )
+        if( _ai.UnitSim.CheckTypes( PokemonType.Grass, adapter ) || adapter.Item == ItemBattleEffectID.SafetyGoggles )
             rp.Traits.Add( RoleTrait.PowderImmune );
 
         if( adapter.Ability == AbilityID.Insomnia || adapter.Ability == AbilityID.VitalSpirit )
@@ -1791,8 +1800,10 @@ public enum RoleTrait
     //--Defensive Utility
     IntimidateSupport,
     DemoralizeSupport,
-    Redirection,
+    RedirectionMove,
+    RedirectionAbility,
     DamageMitigation,
+    PriorityBlocker,
 
     //--Offensive Utility
     Priority,
@@ -1801,6 +1812,7 @@ public enum RoleTrait
     TrappingMove,
     PerishSong,
     FakeOut,
+    SpreadAttack,
 
     //--Misc
     SuicideLead,

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -574,12 +575,12 @@ public class PokeTerrainEditor : EditorWindow
             float zCoord1 = ( -halfLineCount * GridCellSize );
             float gridCellOffset = ( GridCellSize / 2 );
 
-            Vector3 p0 = new Vector3( xCoord + gridCellOffset, GridObject.transform.position.y + 0.55f, zCoord0 + gridCellOffset );
-            Vector3 p1 = new Vector3( xCoord + gridCellOffset, GridObject.transform.position.y + 0.55f, zCoord1 + gridCellOffset );
+            Vector3 p0 = new Vector3( xCoord + gridCellOffset, GridObject.transform.position.y + 0.5f, zCoord0 + gridCellOffset );
+            Vector3 p1 = new Vector3( xCoord + gridCellOffset, GridObject.transform.position.y + 0.5f, zCoord1 + gridCellOffset );
             Handles.DrawAAPolyLine( 2f, p0, p1 );
 
-            p0 = new Vector3( zCoord0 + gridCellOffset, GridObject.transform.position.y + 0.55f, xCoord + gridCellOffset );
-            p1 = new Vector3( zCoord1 + gridCellOffset, GridObject.transform.position.y + 0.55f, xCoord + gridCellOffset );
+            p0 = new Vector3( zCoord0 + gridCellOffset, GridObject.transform.position.y + 0.5f, xCoord + gridCellOffset );
+            p1 = new Vector3( zCoord1 + gridCellOffset, GridObject.transform.position.y + 0.5f, xCoord + gridCellOffset );
             Handles.DrawAAPolyLine( 2f, p0, p1 );
         }
     }
@@ -654,12 +655,9 @@ public class PokeTerrainEditor : EditorWindow
             SpawnedObject.GetComponentInChildren<LedgeHop>().Init( TileDirection );
     }
 
-    private void TryRaiseTerrain( RaycastHit hit ){
-        //--Setup some local variables
-        float xBase = Mathf.FloorToInt( hit.point.x );
-        float yBase = Mathf.FloorToInt( hit.point.z );
-        int width = BrushSize;
-        int height = BrushSize;
+    private void TryRaiseTerrain( RaycastHit hit )
+    {
+        // //--Setup some local variables
         var col = hit.collider as TerrainCollider;
 
         //--Check if raycast hit a terrain collider. if not, return
@@ -668,30 +666,22 @@ public class PokeTerrainEditor : EditorWindow
             return;
         }
 
-        //--Get terrain data from collider
+        // //--Get terrain data from collider
         TerrainData terrainData = col.terrainData;
-        Transform terrain = hit.collider.GetComponent<Transform>();
+        Transform terrain = col.transform;
 
-        //--Add grid offset
-        xBase += 0.5f;
-        yBase += 0.5f;
+        var cell = GetTerrainCell( hit, terrain );
+        var region = GetTerrainCellBounds( cell, terrainData );
 
-        //--If brush size is even, offset by half a cell
-        if( BrushSize % 2 == 0 ) xBase += 0.5f;
-        if( BrushSize % 2 == 0 ) yBase += 0.5f;
+        int xBase = region.StartX;
+        int yBase = region.StartY;
+        int width = region.Width;
+        int height = region.Height;
 
-        //--Convert world position to terrain positions
-        xBase = Mathf.Clamp( Mathf.FloorToInt( ( ( xBase - terrain.position.x )  / terrainData.size.x ) * terrainData.heightmapResolution ), 0, terrainData.heightmapResolution - 1 );
-        yBase = Mathf.Clamp( Mathf.FloorToInt( ( ( yBase - terrain.position.z )  / terrainData.size.z ) * terrainData.heightmapResolution ), 0, terrainData.heightmapResolution - 1 );
-        width = Mathf.FloorToInt( ( width / terrainData.size.x ) * terrainData.heightmapResolution );
-        height = Mathf.FloorToInt( ( height / terrainData.size.z ) * terrainData.heightmapResolution );
-        
-        //--Round positions to brush size?
-        xBase -= width / 2;
-        yBase -= height / 2;
+        Debug.LogError( $"Cell ({cell.X},{cell.Y}) -> Region ({region.StartX},{region.StartY}) Size ({region.Width}x{region.Height})" );
 
         //--Setup float arrays for Get & Set Heights
-        float[,] currentHeight = terrainData.GetHeights( (int)xBase, (int)yBase, width, height );
+        float[,] currentHeight = terrainData.GetHeights( xBase, yBase, width, height );
         float[,] newHeight = currentHeight;
         float baseHeightRaise = TileHeight / terrainData.size.y;
 
@@ -704,8 +694,10 @@ public class PokeTerrainEditor : EditorWindow
         int slopeBandX = Mathf.RoundToInt( heightCacheX * TileSlopeWidth );
 
         //--Loop through the 2D array from our cached currentHeight, from GetHeights
-        for( int y = 0; y < heightCacheY; y++ ){
-            for( int x = 0; x < heightCacheX; x++){
+        for( int y = 0; y < heightCacheY; y++ )
+        {
+            for( int x = 0; x < heightCacheX; x++)
+            {
                 float slopeMultiplier = 1f;
                 float t;
                 
@@ -864,19 +856,19 @@ public class PokeTerrainEditor : EditorWindow
             }
         }
 
-        xBase = Mathf.FloorToInt( xBase );
-        yBase = Mathf.FloorToInt( yBase );
-        terrainData.SetHeights( (int)xBase, (int)yBase, newHeight );
+        terrainData.SetHeights( xBase, yBase, newHeight );
     }
 
-    private void TryLowerTerrain( RaycastHit placePoint ){
+    private void TryLowerTerrain( RaycastHit placePoint )
+    {
         int xBase = Mathf.FloorToInt( placePoint.point.x );
         int yBase = Mathf.FloorToInt( placePoint.point.z );
         int width = BrushSize;
         int height = BrushSize;
         var col = placePoint.collider as TerrainCollider;
 
-        if( col == null ){
+        if( col == null )
+        {
             Debug.LogError( "Terrain Collider not found!" );
             return;
         }
@@ -886,8 +878,8 @@ public class PokeTerrainEditor : EditorWindow
 
         xBase = Mathf.Clamp( Mathf.FloorToInt( ( ( xBase - terrain.position.x )  / terrainData.size.x ) * terrainData.heightmapResolution ), 0, terrainData.heightmapResolution - 1 );
         yBase = Mathf.Clamp( Mathf.FloorToInt( ( ( yBase - terrain.position.z )  / terrainData.size.z ) * terrainData.heightmapResolution ), 0, terrainData.heightmapResolution - 1 );
-        width = Mathf.FloorToInt( ( width / terrainData.size.x ) * terrainData.heightmapResolution );
-        height = Mathf.FloorToInt( ( height / terrainData.size.z ) * terrainData.heightmapResolution );
+        width = Mathf.RoundToInt( ( width / terrainData.size.x ) * ( terrainData.heightmapResolution - 1 ) );
+        height = Mathf.RoundToInt( ( height / terrainData.size.z ) * ( terrainData.heightmapResolution - 1 ) );
         
         
         float[,] currentHeight = terrainData.GetHeights( xBase, yBase, width, height );
@@ -950,11 +942,11 @@ public class PokeTerrainEditor : EditorWindow
                 float v = (float)y / ( alphaMap.GetLength( 0 ) - 1 );
 
                 float scale = 1.25f;
-                u = (u - 0.5f) / scale + 0.55f;
-                v = (v - 0.5f) / scale + 0.55f;
+                u = ( u - 0.5f ) / scale + 0.5f;
+                v = ( v - 0.5f ) / scale + 0.5f;
 
-                u = Mathf.Clamp01(u);
-                v = Mathf.Clamp01(v);
+                u = Mathf.Clamp01( u );
+                v = Mathf.Clamp01( v );
                 
                 float maskValue = GetRoadMask( SelectedRoadMask, GetRoadMaskIndex(), u, v );
 
@@ -1006,4 +998,57 @@ public class PokeTerrainEditor : EditorWindow
         snappedPosition.y = oldPosition.y;
         gobj.transform.position = snappedPosition.RoundY();
     }
+
+    private TerrainCell GetTerrainCell( RaycastHit hit, Transform terrain )
+    {
+        int x = Mathf.FloorToInt( hit.point.x - terrain.position.x );
+        int y = Mathf.FloorToInt( hit.point.z - terrain.position.z );
+
+        return new( x, y );
+    }
+
+    private TerrainCellBounds GetTerrainCellBounds( TerrainCell cell, TerrainData terrainData )
+    {
+        int samplesPerCellX = ( terrainData.heightmapResolution - 1 ) / Mathf.RoundToInt( terrainData.size.x );
+        int samplesPerCellY = ( terrainData.heightmapResolution - 1 ) / Mathf.RoundToInt( terrainData.size.z );
+
+        return new()
+        {
+            StartX = cell.X * samplesPerCellX,
+            StartY = cell.Y * samplesPerCellY,
+            Width = BrushSize * samplesPerCellX + 1,
+            Height = BrushSize * samplesPerCellY + 1,
+            SamplesPerCellX = samplesPerCellX,
+            SamplesPerCellY = samplesPerCellY,
+            TerrainCell = cell,
+        };
+    }
+}
+
+public readonly struct TerrainCell
+{
+    public readonly int X;
+    public readonly int Y;
+
+    public TerrainCell( float x, float y )
+    {
+        X = Mathf.FloorToInt( x );
+        Y = Mathf.FloorToInt( y );
+    }
+
+    public Vector3 Center( int cellSize = 1 )
+    {
+        return new Vector3( ( X + 0.5f ) * cellSize, 0, ( Y + 0.5f ) * cellSize );
+    }
+}
+
+public struct TerrainCellBounds
+{
+    public int StartX;
+    public int StartY;
+    public int Width;
+    public int Height;
+    public int SamplesPerCellX;
+    public int SamplesPerCellY;
+    public TerrainCell TerrainCell;
 }

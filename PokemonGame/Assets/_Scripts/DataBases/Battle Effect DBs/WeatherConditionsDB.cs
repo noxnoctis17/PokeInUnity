@@ -190,7 +190,7 @@ public class WeatherConditionsDB
                     OnWeatherEffect = ( pokemon ) =>
                     {
                         //--If the Pokemon is Rock, Ground, or Steel type we simply return. Else, the Pokemon takes sandstorm damage. Pokemon with Abilities like Sandforce and Sand Rush also do not take sandstorm damage!
-                        if( pokemon.BattleItemEffect?.ID == BattleItemEffectID.SafetyGoggles || pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
+                        if( pokemon.BattleItemEffect?.ID == ItemBattleEffectID.SafetyGoggles || pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) || pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush || pokemon.AbilityID == AbilityID.SandVeil || pokemon.AbilityID == AbilityID.SandForce )
                             return;
                         else
                         {

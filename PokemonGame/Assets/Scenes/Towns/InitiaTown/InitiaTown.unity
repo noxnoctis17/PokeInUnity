@@ -673,7 +673,7 @@ Transform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -100, y: 10, z: -64}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1505607950}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1596,6 +1596,50 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3309436244923593779, guid: 0b94f06294a51834c98c25d6b9a29994, type: 3}
   m_PrefabInstance: {fileID: 231330590}
   m_PrefabAsset: {fileID: 0}
+--- !u!21 &269226071
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: m_GrassUnlitBasic(Clone)
+  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Blend: 0
+    - _BlendMult: 1
+    - _BlendOff: 0
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    m_Colors: []
+  m_BuildTextureStacks: []
 --- !u!1 &274893035
 GameObject:
   m_ObjectHideFlags: 0
@@ -7135,7 +7179,7 @@ MonoBehaviour:
     normal: {x: 0, y: 1, z: 0}
     length: {x: 0.25, y: 0.05}
     color: {x: 0.15686275, y: 0.6862745, z: 0.32941177}
-  m_InstantiatedMaterial: {fileID: 1009113267}
+  m_InstantiatedMaterial: {fileID: 269226071}
 --- !u!4 &615406172
 Transform:
   m_ObjectHideFlags: 0
@@ -8384,7 +8428,7 @@ PrefabInstance:
     - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _trainerSO
       value: 
-      objectReference: {fileID: 11400000, guid: c5851f895724657459891ba829aea5d4, type: 2}
+      objectReference: {fileID: 11400000, guid: b5c5305545cf3424481fcb8e192d0a9b, type: 2}
     - target: {fileID: 2254997850878267763, guid: 251eecaf8e3307c458b36606a85e30bb, type: 3}
       propertyPath: _battleType
       value: 3
@@ -9066,50 +9110,6 @@ Transform:
   - {fileID: 296318718}
   m_Father: {fileID: 705313054}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!21 &1009113267
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: m_GrassUnlitBasic(Clone)
-  m_Shader: {fileID: -6465566751694194690, guid: f7780ef695275dd4e88339aa552f306d, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - unity_Lightmaps:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_LightmapsInd:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_ShadowMasks:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _Blend: 0
-    - _BlendMult: 1
-    - _BlendOff: 0
-    - _QueueControl: 0
-    - _QueueOffset: 0
-    m_Colors: []
-  m_BuildTextureStacks: []
 --- !u!1001 &1040249054
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -8,7 +8,7 @@ public interface IBattleAIUnit
     public string Name { get; set; }
     public string PID { get; set; }
     public float BeginningHPR { get; set; }
-    public float CurrentHPR { get; set; }
+    public float EndHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
     public int Level { get; set; }
     public int HP { get; set; }
@@ -27,7 +27,7 @@ public interface IBattleAIUnit
     public float Expendability { get; set; }
 
     public AbilityID Ability { get; set; }
-    public BattleItemEffectID Item { get; set; }
+    public ItemBattleEffectID Item { get; set; }
 
     public SevereConditionID SevereStatus { get; set; }
     public int SevereStatusTime { get; set; }

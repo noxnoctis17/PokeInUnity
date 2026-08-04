@@ -168,14 +168,18 @@ public class SevereConditionsDB
                     Name = "Sleep",
                     StartMessage = "has fallen asleep!",
                     StatusIcon = StatusIconAtlas.StatusIcons[SevereConditionID.SLP].Icon,
-                    OnApplyStatus = ( Pokemon pokemon ) =>
+                    OnApplyStatus = ( pokemon ) =>
                     {
                         //--Sleep is for 1-3 turns? i'm gunna make it a guaranteed 2 turns only
-                        pokemon.SevereStatusTime = 2;
+                        if( pokemon.AbilityID == AbilityID.EarlyBird )
+                            pokemon.SevereStatusTime = 1;
+                        else
+                            pokemon.SevereStatusTime = 2;
+                            
                         Debug.Log( $"{pokemon.PokeSO.Species}'s Sleep Counter is: {pokemon.SevereStatusTime}" );
                     },
 
-                    OnBeforeTurn = ( Pokemon pokemon ) =>
+                    OnBeforeTurn = ( pokemon ) =>
                     {
                         Debug.Log( $"{pokemon.PokeSO.Species}'s Sleep Counter is: {pokemon.SevereStatusTime}" );
                         if( pokemon.SevereStatusTime == 0 )

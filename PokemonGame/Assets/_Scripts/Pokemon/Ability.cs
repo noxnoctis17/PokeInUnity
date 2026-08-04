@@ -19,7 +19,7 @@ public class Ability
 
     public Func<Pokemon, Pokemon, Move, float, BattleSystem, float> OnModify_MovePower { get; set; }
 //--Stat Stage Modification---------------------------------------------------------
-    public Action<Dictionary<Stat, int>, Pokemon, Pokemon> OnStatStageChange { get; set; }
+    public Action<Dictionary<Stat, int>, Pokemon, Pokemon, StageChangeSource> OnStatStageChange { get; set; }
     public Action<Dictionary<Stat, int>, Pokemon, Pokemon> OnAfterStatStageChange { get; set; }
 //--Triggers on Entering the field--------------------------------------------------
     public Action<Pokemon, List<BattleUnit>, Battlefield> OnAbilityEnter { get; set; }
@@ -49,4 +49,5 @@ public class Ability
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAfterTakeDamage { get; set; }
     public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnAfterAttackerTakeDamage { get; set; }
     public Func<BattleUnit, BattleUnit, Move, int, BattleSystem, int> OnModifyDamage { get; set; }
+    public Action<BattleUnit, BattleUnit, BattleSystem> OnRoundEnd { get; set; }
 }

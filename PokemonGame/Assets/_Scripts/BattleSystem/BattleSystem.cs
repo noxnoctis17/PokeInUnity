@@ -950,6 +950,18 @@ public class BattleSystem : MonoBehaviour
         return false;
     }
 
+    private void ApplyAbilityStatStageChange( Pokemon attacker, Pokemon target, Stat stat, int change )
+    {
+        List<StatStage> changes = new(){ new(){ Stat = stat, Change = change } };
+        StageChangeSource source = new()
+        {
+            Pokemon = attacker,
+            Source = StageChangeSourceType.Ability,
+        };
+
+        target.ApplyStatStageChange( changes, source );
+    }
+
     public bool MoveSuccess( BattleUnit attacker, BattleUnit target, Move move, bool aiCheck = false )
     {
         //--Move Success DB Key
@@ -976,34 +988,48 @@ public class BattleSystem : MonoBehaviour
 
         if( target.Pokemon.AbilityID == AbilityID.LightningRod && move.MoveType == PokemonType.Electric )
         {
-            List<StatStage> changes = new(){ new(){ Stat = Stat.SpAttack, Change = 1 } };
-            StageChangeSource source = new()
-            {
-                Pokemon = attacker.Pokemon,
-                Source = StageChangeSourceType.Ability,
-            };
+            TriggerAbilityCutIn( target.Pokemon );
 
             target.Pokemon.AddStatusEvent( StatusEventType.Text, $"{target.Pokemon.NickName} drew in the attack with its Lightning Rod!" );
-            target.Pokemon.ApplyStatStageChange( changes, source );
+            ApplyAbilityStatStageChange( attacker.Pokemon, target.Pokemon, Stat.SpAttack, 1 );
             return false;
         }
 
         if( target.Pokemon.AbilityID == AbilityID.StormDrain && move.MoveType == PokemonType.Water )
         {
-            List<StatStage> changes = new(){ new(){ Stat = Stat.SpAttack, Change = 1 } };
-            StageChangeSource source = new()
-            {
-                Pokemon = attacker.Pokemon,
-                Source = StageChangeSourceType.Ability,
-            };
+            TriggerAbilityCutIn( target.Pokemon );
 
             target.Pokemon.AddStatusEvent( StatusEventType.Text, $"{target.Pokemon.NickName} drew in the attack with its Storm Drain!" );
-            target.Pokemon.ApplyStatStageChange( changes, source );
+            ApplyAbilityStatStageChange( attacker.Pokemon, target.Pokemon, Stat.SpAttack, 1 );
+            return false;
+        }
+
+        if( target.Pokemon.AbilityID == AbilityID.FlashFire && move.MoveType == PokemonType.Fire )
+        {
+            TriggerAbilityCutIn( target.Pokemon );
+            StatusEffectSource source = new()
+            {
+                Pokemon = attacker.Pokemon,
+                Source = EffectSource.Ability,
+            };
+            
+            target.Pokemon.SetVolatileStatus( VolatileConditionID.FlashFire, source );
+            return false;
+        }
+
+        if( target.Pokemon.AbilityID == AbilityID.SapSipper && move.MoveType == PokemonType.Grass )
+        {
+            TriggerAbilityCutIn( target.Pokemon );
+
+            target.Pokemon.AddStatusEvent( StatusEventType.Text, $"{target.Pokemon.NickName} absorbed the attack!" );
+            ApplyAbilityStatStageChange( attacker.Pokemon, target.Pokemon, Stat.Attack, 1 );
             return false;
         }
 
         if( target.Pokemon.AbilityID == AbilityID.WaterAbsorb && move.MoveType == PokemonType.Water )
         {
+            TriggerAbilityCutIn( target.Pokemon );
+
             float maxHP = target.Pokemon.MaxHP;
             int heal = Mathf.CeilToInt( maxHP * 0.25f );
             target.Pokemon.IncreaseHP( heal );
@@ -1055,12 +1081,19 @@ public class BattleSystem : MonoBehaviour
         {
             //--Quick Guard
             var opposingCourt = Field.GetOpposingCourtLocation( attacker );
-            if( Field.ActiveCourts[opposingCourt].Conditions.ContainsKey( CourtConditionID.QuickGuard ) )
+            var oppCourtConditions = Field.ActiveCourts[opposingCourt].Conditions;
+            if( !MoveTargetSelfSide( move ) && oppCourtConditions.ContainsKey( CourtConditionID.QuickGuard ) )
             {
                 if( !aiCheck )
                     AddDialogue( $"{target.Pokemon.NickName} is protected by Quick Guard!" );
 
                 return false;
+            }
+
+            if( !MoveTargetSelfSide( move ) && oppCourtConditions.ContainsKey( CourtConditionID.AbilityPriorityGuard ) )
+            {
+                if( !aiCheck )
+                    AddDialogue( $"But it's blocked by the opponent's ability!" );
             }
 
             //--Psychic Terrain
@@ -1080,8 +1113,27 @@ public class BattleSystem : MonoBehaviour
         {
             if( target.Flags[UnitFlags.SemiInvulnerable].IsActive )
             {
-                AddDialogue( $"But the move is unable to reach {target.Pokemon.NickName}!" );
-                return false;
+                bool hurricane = move.MoveSO.Name == "Hurricane" && target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.SkyHigh );
+                bool earthquake = false;
+                bool surf = false;
+
+                if( hurricane )
+                {
+                    AddDialogue( $"The move reaches {target.Pokemon.NickName} up in the sky...!" );
+                }
+                else if( earthquake )
+                {
+                    AddDialogue( $"The move shakes the earth around {target.Pokemon.NickName} underground...!" );
+                }
+                else if( surf )
+                {
+                    AddDialogue( $"The move disrupts the waters around {target.Pokemon.NickName} underwater...!" );
+                }
+                else
+                {
+                    AddDialogue( $"But the move is unable to reach {target.Pokemon.NickName}!" );
+                    return false;
+                }
             }
         }
 
@@ -1239,7 +1291,7 @@ public class BattleSystem : MonoBehaviour
         checkUnit.Pokemon.CureSevereStatus(); //--Clear any potential Severe Status, which would prevent FNT from being assigned
         checkUnit.Pokemon.ClearAllVolatileStatus(); //--This also happens on faint, so it should be taken care of. Reminder to do so on switch too
         checkUnit.Pokemon.CureTransientStatus();
-        checkUnit.Pokemon.CureBindingStatus();
+        checkUnit.Pokemon.CureAllBindingStatuses();
         checkUnit.ResetTurnsTakenInBattle();
         checkUnit.SetFlagActive( UnitFlags.ChoiceItem, false );
         checkUnit.SetUnitTrapped( false );

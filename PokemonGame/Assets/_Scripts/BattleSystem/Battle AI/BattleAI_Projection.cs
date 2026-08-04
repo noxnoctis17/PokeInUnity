@@ -31,7 +31,7 @@ public class BattleAI_Projection
         bool iAmKO = top1.Attacker_EndOfTurnHP <= 0;
         bool oppIsKO = top1.Opponent_EndOfTurnHP <= 0 ;
 
-        var futureExchangeEval = _ai.Projection.EvaluateExchange( top2.Attacker, top2.Opponent ); //--We use TOP1 attacker and opponent here because their HP is directly mutated by the simulation, so EE gets an accurate beginning to the next round.
+        var futureExchangeEval = _ai.Projection.EvaluateExchange( top2.Attacker, top2.Opponent );
         var futureTempoState = _ai.Projection.GetTempoState( futureExchangeEval );
 
         _ai.CurrentLog.Add( $"========================" );
@@ -769,6 +769,7 @@ public class BattleAI_Projection
             Current_Opponent = top1.Opponent,
             Next_Attacker = top2.Attacker,
             Next_Opponent = top2.Opponent,
+            ReplacedUnits = top2.ReplacedUnits.ToDictionary( kvp => kvp.Key, kvp => kvp.Value ),
 
             //--Material
             IGetImmediateKO = oppIsKO && top1.Opponent_DiesBeforeActing,
@@ -797,10 +798,6 @@ public class BattleAI_Projection
             OppCreatesPressureState = oppCreatesPressureState,
 
             //--Role Fulfillment
-            // AttackerFulfilledRole = attackerFulfilledRole,
-            // OpponentFulfilledRole = opponentFulfilledRole,
-            // AttackerFulfilledUtilityRole = attackerUtilityRoleFulfilled,
-            // OpponentFulfilledUtilityRole = opponentUtilityRoleFulfilled,
             RoleFulfillmentProgress = roleFulfillmentProgress,
             UtilityRole = utilityRole,
 
@@ -862,7 +859,7 @@ public class BattleAI_Projection
         _ai.CurrentLog.Add( $"[PBS] Material Score: {materialScore}. Score: {score}" );
 
         //--------------------------------------------------
-        //--Converstion
+        //--Conversion
         //--------------------------------------------------
         int conversionScore = 0;
 
@@ -877,6 +874,29 @@ public class BattleAI_Projection
         score += conversionScore;
 
         _ai.CurrentLog.Add( $"[PBS] Checking Conversion. I Get Immediate KO: {pbs.OppIsKONow}, I have immediate advantage: {immediateAdvantage}. Conversion Score: {conversionScore}" );
+
+        //--------------------------------------------------
+        //--Replacement
+        //--------------------------------------------------
+
+        int replacementScore = 0;
+
+        if( pbs.ReplacedUnits?.Count > 0 )
+        {
+            var ourQuality = GetReplacementQuality( pbs.ReplacedUnits, pbs.Current_Attacker, pbs.Current_Opponent, pbs.Next_Attacker, pbs.Next_Opponent );
+            var theirQuality = GetReplacementQuality( pbs.ReplacedUnits, pbs.Current_Opponent, pbs.Current_Attacker, pbs.Next_Opponent, pbs.Next_Attacker );
+
+            int qualityDelta = (int)ourQuality - (int)theirQuality;
+
+            replacementScore += qualityDelta * 10;
+
+            _ai.CurrentLog.Add( $"[PBS] Our Replacement Quality: {ourQuality}." );
+            _ai.CurrentLog.Add( $"[PBS] Their Replacement Quality: {theirQuality}." );
+            _ai.CurrentLog.Add( $"[PBS] Replacement Quality Delta: {qualityDelta}." );
+        }
+
+        score += replacementScore;
+        _ai.CurrentLog.Add( $"[PBS] Replacement Score: {replacementScore}. Score: {score}" );
 
         //--------------------------------------------------
         //--Stability
@@ -1038,14 +1058,15 @@ public class BattleAI_Projection
 
         //--------------------------------------------------
         //--------------------------------------------------
-        pbs.MaterialScore   = materialScore;
-        pbs.ConversionScore = conversionScore;
-        pbs.Stabilityscore  = stabilityScore;
-        pbs.ControlScore    = controlScore;
-        pbs.PressureScore   = pressureScore;
-        pbs.RoleScore       = roleScore;
-        pbs.TempoScore      = tempoScore;
-        pbs.SacScore        = sacScore;
+        pbs.MaterialScore       = materialScore;
+        pbs.ConversionScore     = conversionScore;
+        pbs.ReplacementScore    = replacementScore;
+        pbs.Stabilityscore      = stabilityScore;
+        pbs.ControlScore        = controlScore;
+        pbs.PressureScore       = pressureScore;
+        pbs.RoleScore           = roleScore;
+        pbs.TempoScore          = tempoScore;
+        pbs.SacScore            = sacScore;
         //--------------------------------------------------
         //--------------------------------------------------
 
@@ -1115,6 +1136,105 @@ public class BattleAI_Projection
         return result;
     }
 
+    public enum ReplacementQuality{ Catastrophic, Disaster, Poor, Neutral, Good, Excellent, Perfect }
+    private ReplacementQuality GetReplacementQuality( Dictionary<SimulatedUnit, ReplacementType> replacedUnits, IBattleAIUnit prev_attacker, IBattleAIUnit prev_opponent, IBattleAIUnit next_attacker, IBattleAIUnit next_opponent )
+    {
+        int score = 0;
+
+        var gp = _ai.Blackboard.GamePlan;
+        var prevEE = EvaluateExchange( prev_attacker, next_opponent );
+        var nextEE = EvaluateExchange( next_attacker, next_opponent );
+
+        foreach( var replacement in replacedUnits )
+        {
+            var reason = replacement.Value;
+            var unit = replacement.Key;
+
+            if( unit.Pokemon == prev_opponent.Pokemon || unit.Pokemon == next_opponent.Pokemon )
+                continue; //--We won't evaluate their replaced units here, or at least not yet.
+
+            if( reason == ReplacementType.KO )
+            {
+                //--Score the lost value from our KO'd unit
+                //--Did we lose a wincon or blocker?
+                if( gp.OurPrimaryWinCon == unit.Pokemon || gp.OurBlockers.Contains( unit.Pokemon ) )
+                {
+                    score -= 2;
+                }
+            }
+
+            //--Did we lose setup investment?
+            int positiveChanges = 0;
+            foreach( var sc in unit.StatStages )
+            {
+                if( sc.Value > 0 )
+                    positiveChanges += sc.Value;
+            }
+
+            if( positiveChanges >= 3 || ( reason == ReplacementType.Phaze && positiveChanges > 0 ) )
+                score -= 2;
+            else if( positiveChanges > 0 )
+                score -= 1;
+
+            //--Did we get forced into a bad match up?
+            if( nextEE.OpponentPTKO >= PotentialToKO.Risky )
+            {
+                if( nextEE.AttackerPTKO < PotentialToKO.Risky || ( nextEE.OpponentPTKO >= PotentialToKO.Dangerous && nextEE.OpponentMovesFirst ) )
+                {
+                    score -= 1;
+
+                    if( reason == ReplacementType.Phaze )
+                    {
+                        score -= 1;
+                    }
+                }
+            }
+
+            //--Score the value gained with our replacement
+            //--Good revenge match up
+            if( nextEE.AttackerPTKO >= PotentialToKO.Risky )
+            {
+                if( nextEE.OpponentPTKO < PotentialToKO.Risky || ( nextEE.AttackerPTKO >= PotentialToKO.Dangerous && nextEE.AttackerMovesFirst ) )
+                {
+                    score += 1;
+
+                    if( next_attacker.RoleProfile.PrimaryRole == RoleClass.RevengeKiller || next_attacker.RoleProfile.SecondaryRoles.Contains( RoleClass.RevengeKiller ) )
+                    {
+                        score += 1;
+                    }
+                }
+            }
+
+            if( prevEE.OpponentMovesFirst && nextEE.AttackerMovesFirst )
+            {
+                score += 1;
+            }
+
+            if( nextEE.AttackerPTKO >= PotentialToKO.Dangerous )
+            {
+                score += 1;
+
+                if( prevEE.AttackerPTKO < PotentialToKO.Risky || nextEE.OpponentPTKO < PotentialToKO.Risky )
+                {
+                    score += 1;
+                }
+            }
+
+            if( nextEE.OpponentPTKO < PotentialToKO.TwoHKO )
+            {
+                score += 1;
+            }
+        }
+
+        if( score >= 6 )        return ReplacementQuality.Perfect;
+        else if( score >= 4 )   return ReplacementQuality.Excellent;
+        else if( score >= 2 )   return ReplacementQuality.Good;
+        else if( score >= 0 )   return ReplacementQuality.Neutral;
+        else if( score >= -2 )  return ReplacementQuality.Poor;
+        else if( score >= -4 )  return ReplacementQuality.Disaster;
+        else                    return ReplacementQuality.Catastrophic;
+    }
+
     public TempoStateResult GetTempoState( ExchangeEvaluation eval )
     {
         // Debug.Log( $"[AI Scoring][Get Tempo] Starting Tempo State Check for Attacker: {attacker.Pokemon.NickName} vs Target: {target.Pokemon.NickName}" );
@@ -1136,14 +1256,14 @@ public class BattleAI_Projection
         var targetWSR = Get_EstimatedDamageResult( attacker, target, attackerMTR );
         float targetHP = target.BeginningHPR;
 
-        PotentialToKOResult attackerPTKOR = Get_PotentialToKOResult( targetWSR, attackerMTR, targetHP );
+        PotentialToKOResult attackerPTKOR = Get_PotentialToKOResult( targetWSR, attackerMTR, target );
 
         //--Target PTKO Attacker
         var targetMTR = _ai.CandidateSelect.GetMove_BestAttack( target, attacker, false, "Evaluate Exchange (target vs attacker)" );
         var attackerWSR = Get_EstimatedDamageResult( target, attacker, targetMTR );
         float attackerHP = attacker.BeginningHPR;
 
-        PotentialToKOResult targetPTKOR = Get_PotentialToKOResult( attackerWSR, targetMTR, attackerHP );
+        PotentialToKOResult targetPTKOR = Get_PotentialToKOResult( attackerWSR, targetMTR, attacker );
 
         // Debug.Log( $"[AI Scoring][Get Tempo] PTKO's Checked! Results: Attacker PTKO Target: {attackerPTKO_target.PTKO}, Target PTKO Attacker: {targetPTKO_attacker.PTKO}" );
 
@@ -1179,8 +1299,8 @@ public class BattleAI_Projection
         //--Predict Forced Switch for this turn
         float attackerSwitchesProbability = _unitSim.PredictSwitchProbability( attacker.Pokemon, targetPTKOR.PTKO, attackerPTKOR.PTKO, targetMovesFirst, targetHP, attackerHP, attacker.Expendability, log, attacker.Name );
         float opponentSwitchesProbability = _unitSim.PredictSwitchProbability( target.Pokemon, attackerPTKOR.PTKO, targetPTKOR.PTKO, attackerMovesFirst, attackerHP, targetHP, target.Expendability, log, target.Name );
-        bool attackerForcesSwitch = opponentSwitchesProbability > 0.7f;
-        bool targetForcesSwitch = attackerSwitchesProbability > 0.7f;
+        bool attackerForcesSwitch = opponentSwitchesProbability >= 0.8f;
+        bool targetForcesSwitch = attackerSwitchesProbability >= 0.8f;
 
         ExchangeState state = ExchangeState.Neutral;
 
@@ -1197,6 +1317,9 @@ public class BattleAI_Projection
 
             Attacker = attacker,
             Opponent = target,
+
+            AttackerMTR = attackerMTR,
+            OpponentMTR = targetMTR,
 
             AttackerMovesFirst = attackerMovesFirst,
             OpponentMovesFirst = targetMovesFirst,
@@ -1298,9 +1421,9 @@ public class BattleAI_Projection
         bool safePivotExists = CheckForSafePivot( target );
 
         //--Is Forced Trade Detection
-        bool lowHP = eval.AttackerHPR < 0.3f;
-        bool likelyDying = eval.OpponentPTKOR.PTKO >= PotentialToKO.Dangerous;
-        bool isForced = ( likelyDying && !safePivotExists ) || ( lowHP && eval.OpponentPTKOR.PTKO >= PotentialToKO.Risky );
+        bool lowHP = eval.AttackerHPR <= 0.3f;
+        bool likelyDying = eval.OpponentPTKO >= PotentialToKO.Dangerous;
+        bool isForced = ( likelyDying && !safePivotExists ) || ( lowHP && eval.OpponentPTKO >= PotentialToKO.Risky );
 
         //--Material Information
         var myTeamAlive = _ai.GetRemainingPartyAs_IBattleAIUnits( attacker.Pokemon );
@@ -1315,8 +1438,7 @@ public class BattleAI_Projection
         bool isTerminal = myAlive <= 2;
 
         //--Our Expendability Check
-        float hp = _ai.Get_HPRatio( attacker.Pokemon );
-        float expendability = GetExpendability( attacker, hp );
+        float expendability = GetExpendability( attacker, attacker.BeginningHPR );
 
         //--Material Status
         bool isAhead = false;
@@ -1350,8 +1472,6 @@ public class BattleAI_Projection
         BoardContext context = new()
         {
             IsForcedTrade = isForced,
-
-            HasSafePivot = safePivotExists,
 
             IsAhead = isAhead,
             IsBehind = isBehind,
@@ -1387,13 +1507,12 @@ public class BattleAI_Projection
                 var pivotHP = _ai.Get_HPRatio( mon );
                 if( !mon.IsFainted && pivotHP > 0.35f )
                 {
-                    BattleAI_PokemonAdapter monAdapter = _ai.GetPokemonAs_Adapter( mon );
-                    var targetThreateningMove = _ai.CandidateSelect.GetMove_BestAttack( opponent, monAdapter, false, "Get Safe Pivot" );
-                    var attackerWSR = Get_EstimatedDamageResult( opponent, monAdapter, targetThreateningMove );
-                    float targetHP = _ai.Get_HPRatio( opponent );
-                    PotentialToKOResult pivotPTKO_target = Get_PotentialToKOResult( attackerWSR, targetThreateningMove, targetHP );
+                    BattleAI_PokemonAdapter pivot = _ai.GetPokemonAs_Adapter( mon );
+                    var opponentMTR = _ai.CandidateSelect.GetMove_BestAttack( opponent, pivot, false, "Get Safe Pivot" );
+                    var opponentEDR = Get_EstimatedDamageResult( opponent, pivot, opponentMTR );
+                    var opponentPTKO = Get_PotentialToKOResult( opponentEDR, opponentMTR, opponent ).PTKO;
 
-                    if( pivotPTKO_target.PTKO < PotentialToKO.Risky )
+                    if( opponentPTKO < PotentialToKO.Risky )
                         pivots++;
                     else
                         continue;
@@ -1427,7 +1546,7 @@ public class BattleAI_Projection
         for( int i = 0; i < team.Count; i++ )
         {
             var mon = team[i];
-            currentHPTotal += mon.CurrentHPR;
+            currentHPTotal += mon.EndHPR;
             maxHPTotal++;
         }
 
@@ -1465,7 +1584,7 @@ public class BattleAI_Projection
         return expendability;
     }
 
-    public EstimatedDamageResult Get_EstimatedDamageResult( IBattleAIUnit attacker, IBattleAIUnit target, MoveThreatResult moveThreat )
+    public EstimatedDamageResult Get_EstimatedDamageResult( IBattleAIUnit attacker, IBattleAIUnit target, MoveThreatResult mtr, SimulatedField field = null )
     {
         const float MID_ROLL = 0.925f;
         const float LOW_ROLL = 0.85f;
@@ -1478,19 +1597,19 @@ public class BattleAI_Projection
         float movePower = 0f;
         float modifier = 1f;
         float brnOrfbt = 1f;
-        float targets = moveThreat.TargetCount == 1 ? 1f : 0.75f;
+        float targets = mtr.TargetCount == 1 ? 1f : 0.75f;
 
-        if( moveThreat != null && moveThreat.Move != null )
+        if( mtr != null && mtr.Move != null )
         {
-            key = moveThreat.Move.MoveSO.Name;
-            moveSO = moveThreat.Move.MoveSO;
-            movePower = moveThreat.Move.MovePower;
-            modifier = moveThreat.Modifier;
+            key = mtr.Move.MoveSO.Name;
+            moveSO = mtr.Move.MoveSO;
+            movePower = mtr.Move.MovePower;
+            modifier = _unitSim.Get_MoveEffectiveness( target, mtr.Move ) * _unitSim.Get_MoveModifier( attacker, target, mtr.Move, field );
 
             if( _unitSim.MovePowerConditions.TryGetValue( key, out var mod ) )
-                movePower = mod( attacker, target, moveThreat.Move );
+                movePower = mod( attacker, target, mtr.Move );
         }
-        else if( moveThreat == null || moveThreat.Move == null || moveThreat.Move.MoveSO.MoveCategory == MoveCategory.Status )
+        else if( mtr == null || mtr.Move == null || mtr.Move.MoveSO.MoveCategory == MoveCategory.Status )
         {
             EstimatedDamageResult zeroEDR = new()
             {
@@ -1538,8 +1657,8 @@ public class BattleAI_Projection
         {
             //--Right now MoveThreatResult has scenarios where it isn't returning a move. I need to iron this out asap!!!
             MoveCategory cat;
-            if( moveThreat.Move != null )
-                cat = moveThreat.Move.MoveSO.MoveCategory;
+            if( mtr.Move != null )
+                cat = mtr.Move.MoveSO.MoveCategory;
             else
                 cat = MoveCategory.Status;
 
@@ -1599,7 +1718,7 @@ public class BattleAI_Projection
         if( !_unitSim.CanActOnTurn( attacker ) )
             damagePercentage = 0;
 
-        moveThreat.EstimatedDamage = damagePercentage; //--store damage in MTR for sim use
+        mtr.EstimatedDamage = damagePercentage; //--store damage in MTR for sim use
 
         // Debug.Log( $"[AI Scoring][Estimated Damage Result] Calculation Results: Target {target.Name}'s Assumed Defending Stat: {defendingStat}, {defense}, Assumed Max HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Assumed Attacking stat {attackingStat}, {attack}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}, BRN/FBT: {brnOrfbt}. Final Damage Estimate: {damage}, Percentage of target's assumed Max HP: {damagePercentage}" );
         
@@ -1621,9 +1740,9 @@ public class BattleAI_Projection
         return edr;
     }
 
-    public PotentialToKOResult Get_PotentialToKOResult( EstimatedDamageResult edr, MoveThreatResult mtr, float targetHPR )
+    public PotentialToKOResult Get_PotentialToKOResult( EstimatedDamageResult edr, MoveThreatResult mtr, IBattleAIUnit target )
     {
-        PotentialToKO ptko = GetPTKO_FromDamageEstimate( edr, targetHPR );
+        PotentialToKO ptko = GetPTKO_FromDamageEstimate( edr, target );
         int score = Get_PotentialToKOScoreFromEnum( ptko );
         // Debug.LogError( $"PTKO: {ptko}, Score: {score}");
 
@@ -1631,15 +1750,16 @@ public class BattleAI_Projection
         {
             Score = score,
             PTKO = ptko,
-            Modifier = mtr != null ? mtr.Modifier : 0f
+            Modifier = mtr != null ? mtr.Modifier : 0f,
+            EstimatedDamage = edr.DamageEstimate,
         };
 
         return ptkor;
     }
 
-    private PotentialToKOResult Get_PTKOResultPreview( EstimatedDamageResult edr, MoveThreatResult mtr )
+    private PotentialToKOResult Get_PTKOResultPreview( EstimatedDamageResult edr, MoveThreatResult mtr, IBattleAIUnit target )
     {
-        PotentialToKO basePTKO = GetPTKO_FromDamageEstimate( edr, 1f );
+        PotentialToKO basePTKO = GetPTKO_FromDamageEstimate( edr, target );
         float moveModifier = mtr.Modifier;
 
         return new()
@@ -1688,11 +1808,18 @@ public class BattleAI_Projection
         };
     }
 
-    public PotentialToKO GetPTKO_FromDamageEstimate( EstimatedDamageResult edr, float targetHPR )
+    public PotentialToKO GetPTKO_FromDamageEstimate( EstimatedDamageResult edr, IBattleAIUnit target )
     {
+        float targetHPR = target.BeginningHPR;
         float damage = edr.DamageEstimate / targetHPR;
         float lowRoll = edr.LowRollEstimate / targetHPR;
         // Debug.Log( $"[AI Scoring][Get Walling Score] Damage Estimate: {damageEstimate}, Target HPR: {targetHPR}, Final Damage Done Ratio: {damage}" );
+
+        bool focusSash = target.Item == ItemBattleEffectID.FocusSash && target.BeginningHPR == 1f;
+        if( focusSash && ( damage >= 0.99f || lowRoll >= 0.99f ) )
+        {
+            return PotentialToKO.TwoHKO;
+        }
 
         if( lowRoll > 0.98f )           return PotentialToKO.OHKO;
 
@@ -1711,7 +1838,7 @@ public class BattleAI_Projection
     {
         var move    = _ai.Get_MostThreateningMove( attacker, target, true );
         var wsr     = Get_EstimatedDamageResult( attacker, target, move );
-        var result  = Get_PTKOResultPreview( wsr, move );
+        var result  = Get_PTKOResultPreview( wsr, move, target );
 
         return result.PTKO;
     }
@@ -1754,8 +1881,8 @@ public class BattleAI_Projection
                 var theirEDR = Get_EstimatedDamageResult( theirMon, ourMon, theirMTR );
 
                 //--PTKOs
-                var ourPTKO = Get_PotentialToKOResult( ourEDR, ourMTR, theirMon.CurrentHPR ).PTKO;
-                var theirPTKO = Get_PotentialToKOResult( theirEDR, theirMTR, ourMon.CurrentHPR ).PTKO;
+                var ourPTKO = Get_PotentialToKOResult( ourEDR, ourMTR, theirMon ).PTKO;
+                var theirPTKO = Get_PotentialToKOResult( theirEDR, theirMTR, ourMon ).PTKO;
 
                 ourPTKOS.Add( (int)ourPTKO );
                 theirPTKOS.Add( (int)theirPTKO );
@@ -1877,8 +2004,8 @@ public class BattleAI_Projection
                 var theirEDR = Get_EstimatedDamageResult( theirMon, ourMon, theirMTR );
 
                 //--PTKOs
-                var ourPTKO = Get_PotentialToKOResult( ourEDR, ourMTR, theirMon.CurrentHPR ).PTKO;
-                var theirPTKO = Get_PotentialToKOResult( theirEDR, theirMTR, ourMon.CurrentHPR ).PTKO;
+                var ourPTKO = Get_PotentialToKOResult( ourEDR, ourMTR, theirMon ).PTKO;
+                var theirPTKO = Get_PotentialToKOResult( theirEDR, theirMTR, ourMon ).PTKO;
 
                 ourPTKOS.Add( (int)ourPTKO );
                 theirPTKOS.Add( (int)theirPTKO );
@@ -1962,7 +2089,24 @@ public class BattleAI_Projection
         };
     }
 
-    public CurrentPlan EvaluateCurrentPlan( ExchangeEvaluation ee, BoardContext bc, ThreatProfile tp, GamePlan gp, CurrentPlan prevPlan )
+    public List<IBattleAIUnit> DetermineUnitSpeedOrder( List<IBattleAIUnit> units )
+    {
+        return units.OrderByDescending( u => u.Speed ).ToList();
+    }
+
+    public List<IBattleAIUnit> GetAllActiveUnits_InSpeedOrder()
+    {
+        var ourUnits = _ai.Blackboard.OurActiveBattleAIUnits;
+        var theirUnits = _ai.Blackboard.TheirActiveBattleAIUnits;
+        List<IBattleAIUnit> units = new();
+
+        units.AddRange( ourUnits );
+        units.AddRange( theirUnits );
+
+        return DetermineUnitSpeedOrder( units );
+    }
+
+    public CurrentPlan EvaluateCurrentPlan( ExchangeEvaluation ee, BoardContext bc, ThreatProfile tp, GamePlan gp, CurrentPlan prevPlan, bool threatBrain = false )
     {
         CurrentPlan nextPlan = new()
         {
@@ -1972,15 +2116,26 @@ public class BattleAI_Projection
         };
 
         bool previousIsNull = prevPlan == null;
-        float currentConfidence = 0f;
+        float currentConfidence = previousIsNull ? 0f : prevPlan.Confidence;
         PlanType bestPlan = PlanType.None;
         PlanType currentPlan = previousIsNull ? PlanType.None : prevPlan.Type;
 
-        _ai.CurrentLog.Add( $"" );
-        _ai.CurrentLog.Add( $"================================================================================" );
-        _ai.CurrentLog.Add( $"=====[Evaluating Current Plan. Previous Plan Exists: {!previousIsNull}. Current Confidence: {currentConfidence}. Current Plan Type: {currentPlan}]=====" );
-        _ai.CurrentLog.Add( $"================================================================================" );
-        _ai.CurrentLog.Add( $"" );
+        if( !threatBrain )
+        {
+            _ai.CurrentLog.Add( $"" );
+            _ai.CurrentLog.Add( $"================================================================================" );
+            _ai.CurrentLog.Add( $"=====[Evaluating Current Plan. Previous Plan Exists: {!previousIsNull}. Current Confidence: {currentConfidence}. Current Plan Type: {currentPlan}]=====" );
+            _ai.CurrentLog.Add( $"================================================================================" );
+            _ai.CurrentLog.Add( $"" );
+        }
+        else
+        {
+            _ai.CurrentLog.Add( $"" );
+            _ai.CurrentLog.Add( $"================================================================================" );
+            _ai.CurrentLog.Add( $"=====[Evaluating Threat's Current Plan. Previous Plan Exists: {!previousIsNull}. Current Confidence: {currentConfidence}. Current Plan Type: {currentPlan}]=====" );
+            _ai.CurrentLog.Add( $"================================================================================" );
+            _ai.CurrentLog.Add( $"" );
+        }
 
         float stabilizeScore = 0;
         float tradeScore = 0;
@@ -2242,6 +2397,8 @@ public class BattleAI_Projection
 
         float sackModifier = ( 1 - bc.MyExpendability * 0.7f );
 
+        var target = action.Targets?.Count > 0 ? action.Targets[0] : null;
+
         switch( plan.Type )
         {
             //----------------------------------------------------------------------------------------------------------------------
@@ -2267,10 +2424,10 @@ public class BattleAI_Projection
                             break;
 
                         var mon = threatsToSweeper[i].Mon;
-                        if( action.Target == null || action.Target.Pokemon == null )
+                        if( action.Targets == null || target.Pokemon == null )
                             break;
 
-                        if( action.Target.Pokemon == mon )
+                        if( target.Pokemon == mon )
                         {
                             score += 15;
                         }
@@ -2325,6 +2482,55 @@ public class BattleAI_Projection
                     }
                 }
 
+                if( action.Type == ActionType.SupportiveStatus )
+                {
+                    if( top1.Attacker.Pokemon == plan.FocusMon )
+                    {
+                        score += 20;
+                    }
+
+                    if( top2.AttackerPTKO > top1.AttackerPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    {
+                        score += 10;
+                    }
+
+                    if( top2.OpponentPTKO < top1.OpponentPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( action.ExchangePack.OurAllyExists )
+                    {
+                        var allyVS_Threat1 = action.ExchangePack.AllyVS_Threat;
+                        var allyVS_Threat2 = EvaluateExchange( top2.AttackerAlly, top1.Opponent );
+
+                        if( top1.AttackerAlly.Pokemon == plan.FocusMon )
+                        {
+                            score += 20;
+                        }
+
+                        if( top2.AttackerAllyPTKO > top1.AttackerAllyPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( !top1.AttackerAllyMovedFirst && allyVS_Threat2.AttackerMovesFirst )
+                        {
+                            score += 10;
+                        }
+
+                        if( allyVS_Threat2.OpponentPTKO < allyVS_Threat1.OpponentPTKO )
+                        {
+                            score += 10;
+                        }
+                    }
+                }
+
             break;
 
             //----------------------------------------------------------------------------------------------------------------------
@@ -2335,7 +2541,7 @@ public class BattleAI_Projection
 
                 if( action.Type == ActionType.Attack )
                 {
-                    if( action.Target.Pokemon == plan.FocusMon )
+                    if( target.Pokemon == plan.FocusMon )
                     {
                         score += 20;
 
@@ -2387,9 +2593,53 @@ public class BattleAI_Projection
                     score -= 25;
                 }
 
-                if( action.Target != null && action.Target.Pokemon != null && action.Target.Pokemon != plan.FocusMon && action.Type != ActionType.Setup )
+                if( action.Targets != null && target.Pokemon != null && target.Pokemon != plan.FocusMon && action.Type != ActionType.Setup )
                 {
                     score -= 15;
+                }
+
+                if( action.Type == ActionType.SupportiveStatus )
+                {
+                    if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                    {
+                        score += 10;
+                    }
+
+                    if( top2.AttackerPTKO > top1.AttackerPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    {
+                        score += 10;
+                    }
+
+                    if( top2.OpponentPTKO < top1.OpponentPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( action.ExchangePack.OurAllyExists )
+                    {
+                        var allyVS_Threat1 = action.ExchangePack.AllyVS_Threat;
+                        var allyVS_Threat2 = EvaluateExchange( top2.AttackerAlly, top1.Opponent );
+
+                        if( top2.AttackerAllyPTKO > top1.AttackerAllyPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( !top1.AttackerAllyMovedFirst && allyVS_Threat2.AttackerMovesFirst )
+                        {
+                            score += 10;
+                        }
+
+                        if( allyVS_Threat2.OpponentPTKO < allyVS_Threat1.OpponentPTKO )
+                        {
+                            score += 10;
+                        }
+                    }
                 }
                     
             break;
@@ -2407,6 +2657,47 @@ public class BattleAI_Projection
                 else
                 {
                     score -= 25;
+                }
+
+                if( action.Type == ActionType.OffensiveStatus )
+                {
+                    score += 5;
+
+                    var str = (StatusThreatResult)action.ActionResult;
+
+                    if( str.OffensiveStatusType == OffensiveStatusType.StatDebuff || str.OffensiveStatusType == OffensiveStatusType.StatusEffect )
+                    {
+                        score += 5;
+                    }
+                }
+
+                if( action.Type == ActionType.SupportiveStatus && action.ExchangePack.OurAllyExists )
+                {
+                    score += 5;
+
+                    var str = (StatusThreatResult)action.ActionResult;
+                    var allyVS_Threat1 = action.ExchangePack.AllyVS_Threat;
+                    var allyVS_Threat2 = EvaluateExchange( top2.AttackerAlly, top1.Opponent );
+
+                    if( str.Move.MoveSO.MoveEffects.VolatileStatus == VolatileConditionID.HelpingHand && top1.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                    {
+                        score += 5;
+                    }
+
+                    if( str.Move.MoveSO.MoveEffects.CourtCondition == CourtConditionID.Tailwind && allyVS_Threat1.AttackerMovesFirst )
+                    {
+                        score += 5;
+                    }
+
+                    if( str.SupportiveStatusType != SupportiveStatusType.Recovery && allyVS_Threat1.AttackerPTKO < PotentialToKO.Risky && allyVS_Threat1.AttackerPTKO <= allyVS_Threat2.AttackerPTKO )
+                    {
+                        score -= 5;
+                    }
+
+                    if( str.SupportiveStatusType != SupportiveStatusType.Recovery && allyVS_Threat1.OpponentPTKO > PotentialToKO.Risky && allyVS_Threat1.OpponentPTKO > allyVS_Threat2.OpponentPTKO )
+                    {
+                        score -= 10;
+                    }
                 }
 
                 if( pbs.IAmStable )
@@ -2511,6 +2802,63 @@ public class BattleAI_Projection
                     if( top1.Attacker_DiesBeforeActing )
                         score -= 15;
                 }
+
+                if( action.Type == ActionType.SupportiveStatus )
+                {
+                    score += 5;
+
+                    if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                    {
+                        score += 10;
+                    }
+
+                    if( top2.AttackerPTKO > top1.AttackerPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    {
+                        score += 10;
+                    }
+
+                    if( top2.OpponentPTKO < top1.OpponentPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( action.ExchangePack.OurAllyExists )
+                    {
+                        var str = (StatusThreatResult)action.ActionResult;
+                        var allyVS_Threat1 = action.ExchangePack.AllyVS_Threat;
+                        var allyVS_Threat2 = EvaluateExchange( top2.AttackerAlly, top1.Opponent );
+
+                        if( top2.AttackerAllyPTKO > top1.AttackerAllyPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( !top1.AttackerAllyMovedFirst && allyVS_Threat2.AttackerMovesFirst )
+                        {
+                            score += 10;
+                        }
+
+                        if( allyVS_Threat2.OpponentPTKO < allyVS_Threat1.OpponentPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( str.SupportiveStatusType != SupportiveStatusType.Recovery && allyVS_Threat2.OpponentPTKO <= PotentialToKO.Risky && allyVS_Threat1.OpponentPTKO > allyVS_Threat2.OpponentPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( allyVS_Threat1.OpponentPTKO >= PotentialToKO.Dangerous && allyVS_Threat2.OpponentPTKO < PotentialToKO.Risky )
+                        {
+                            score += 10;
+                        }
+                    }
+                }
                 
             break;
 
@@ -2559,7 +2907,7 @@ public class BattleAI_Projection
                     score += 5;
                 }
 
-                if( action.Target != null && action.Target.Pokemon != null && action.Target.Pokemon != top1.Opponent.Pokemon )
+                if( action.Targets != null && target.Pokemon != null && target.Pokemon != top1.Opponent.Pokemon )
                 {
                     score -= 20;
                 }
@@ -2599,6 +2947,63 @@ public class BattleAI_Projection
                     }
                 }
 
+                if( action.Type == ActionType.SupportiveStatus )
+                {
+                    score += 5;
+
+                    if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                    {
+                        score += 10;
+                    }
+
+                    if( top2.AttackerPTKO > top1.AttackerPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( !top1.AttackerMovedFirst && top2.AttackerMovedFirst )
+                    {
+                        score += 10;
+                    }
+
+                    if( top2.OpponentPTKO < top1.OpponentPTKO )
+                    {
+                        score += 10;
+                    }
+
+                    if( action.ExchangePack.OurAllyExists )
+                    {
+                        var str = (StatusThreatResult)action.ActionResult;
+                        var allyVS_Threat1 = action.ExchangePack.AllyVS_Threat;
+                        var allyVS_Threat2 = EvaluateExchange( top2.AttackerAlly, top1.Opponent );
+
+                        if( top2.AttackerAllyPTKO > top1.AttackerAllyPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( !top1.AttackerAllyMovedFirst && allyVS_Threat2.AttackerMovesFirst )
+                        {
+                            score += 10;
+                        }
+
+                        if( allyVS_Threat2.OpponentPTKO < allyVS_Threat1.OpponentPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( str.SupportiveStatusType != SupportiveStatusType.Recovery && allyVS_Threat2.OpponentPTKO <= PotentialToKO.Risky && allyVS_Threat1.OpponentPTKO > allyVS_Threat2.OpponentPTKO )
+                        {
+                            score += 10;
+                        }
+
+                        if( allyVS_Threat1.OpponentPTKO >= PotentialToKO.Dangerous && allyVS_Threat2.OpponentPTKO < PotentialToKO.Risky )
+                        {
+                            score += 10;
+                        }
+                    }
+                }
+
             break;
         }
 
@@ -2615,13 +3020,13 @@ public class BattleAI_Projection
             score -= 25;
         }
 
-        if( action.Target == null || action.Target.Pokemon == null )
+        if( action.Targets == null || target.Pokemon == null )
         {
             //--getting odd null errors for action targets, let's leave this as is for now like this as a null check
         }
         else
         {
-            if( action.Target.Pokemon == plan.FocusMon )
+            if( target.Pokemon == plan.FocusMon )
             {
                 score += 15;
             }
@@ -2794,9 +3199,9 @@ public class BattleAI_Projection
         var topRemaining = topCourtParty.Where( p => p.CurrentHP > 0 ).ToList();
         for( int i = 0; i < topRemaining.Count; i++ )
         {
-            topWeatherContext += _unitSim.Get_WeatherContextScore( topRemaining[i] );
-            topTerrainContext += _unitSim.Get_TerrainContextScore( topRemaining[i] );
-            topTrickRoomContext += _unitSim.Get_TrickRoomContextScore( topRemaining[i] );
+            topWeatherContext += _unitSim.Get_WeatherContextScore( topRemaining[i], field.Weather );
+            topTerrainContext += _unitSim.Get_TerrainContextScore( topRemaining[i], field.Terrain );
+            topTrickRoomContext += _unitSim.Get_TrickRoomContextScore( topRemaining[i], field.TrickRoomActive );
         }
 
         topWeatherContext /= Mathf.Max( topRemaining.Count, 1 );
@@ -2810,9 +3215,9 @@ public class BattleAI_Projection
         var bottomRemaining = bottomCourtParty.Where( p => p.CurrentHP > 0 ).ToList();
         for( int i = 0; i < bottomRemaining.Count; i++ )
         {
-            bottomWeatherContext += _unitSim.Get_WeatherContextScore( bottomRemaining[i] );
-            bottomTerrainContext += _unitSim.Get_TerrainContextScore( bottomRemaining[i] );
-            bottomTrickRoomContext += _unitSim.Get_TrickRoomContextScore( bottomRemaining[i] );
+            bottomWeatherContext += _unitSim.Get_WeatherContextScore( bottomRemaining[i], field.Weather );
+            bottomTerrainContext += _unitSim.Get_TerrainContextScore( bottomRemaining[i], field.Terrain );
+            bottomTrickRoomContext += _unitSim.Get_TrickRoomContextScore( bottomRemaining[i], field.TrickRoomActive );
         }
 
         bottomWeatherContext /= bottomRemaining.Count;
@@ -3335,6 +3740,597 @@ public class BattleAI_Projection
         return SurvivalClass.FragileCounterPressure;
     }
 
+    public StrategicProfile GetStrategicProfile( IBattleAIUnit unit, SimulatedField field = null )
+    {
+        if( unit == null )
+            return default;
+            
+        field ??= _ai.Blackboard.CurrentFieldSnapshot;
+        StrategicProfile sp = new();
+        
+        var ourCourt = unit.CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions;
+        var theirCourt = unit.CourtLocation == CourtLocation.TopCourt ? field.BottomCourtConditions : field.TopCourtConditions;
+
+        var rp = unit.RoleProfile;
+        var pr = rp.PrimaryRole;
+        var sr = rp.SecondaryRoles;
+        var biases = rp.Biases;
+        var traits = rp.Traits;
+
+        var ourUnits = _ai.GetActiveAllyUnits_AsBattleAIUnits( unit.Pokemon );
+        var theirUnits = _ai.GetActiveOpposingUnits_AsBattleAIUnits( unit.Pokemon );
+
+        var ourAlly = ourUnits.Count > 1 ? ourUnits.First( u => u.Pokemon != unit.Pokemon ) : null;
+
+        int ourWeatherScore = 0;
+        int ourTerrainScore = 0;
+        int ourTrickRoomScore = 0;
+        foreach( var mon in ourUnits )
+        {
+            ourWeatherScore += _unitSim.Get_WeatherContextScore( mon.Pokemon, field.Weather );
+            ourTerrainScore += _unitSim.Get_TerrainContextScore( mon.Pokemon, field.Terrain );
+            ourTrickRoomScore += _unitSim.Get_TrickRoomContextScore( mon.Pokemon, true );
+        }
+
+        ourWeatherScore /= ourUnits.Count;
+        ourTerrainScore /= ourUnits.Count;
+        ourTrickRoomScore /= ourUnits.Count;
+
+        int theirWeatherScore = 0;
+        int theirTerrainScore = 0;
+        int theirTrickRoomScore = 0;
+        List<PotentialToKO> ourPTKOs = new();
+        foreach( var mon in theirUnits )
+        {
+            theirWeatherScore += _unitSim.Get_WeatherContextScore( mon.Pokemon, field.Weather );
+            theirTerrainScore += _unitSim.Get_TerrainContextScore( mon.Pokemon, field.Terrain );
+            theirTrickRoomScore += _unitSim.Get_TrickRoomContextScore( mon.Pokemon, true );
+
+            var mtr = _ai.GetMove_StrongestAttack( unit, mon );
+            var ptko = Get_PotentialToKOResult( mtr.EDR, mtr, mon ).PTKO;
+            
+            ourPTKOs.Add( ptko );
+        }
+
+        theirWeatherScore /= theirUnits.Count;
+        theirTerrainScore /= theirUnits.Count;
+        theirTrickRoomScore /= theirUnits.Count;
+
+        //-----------------------
+        //--Static Capabilities--
+        //-----------------------
+
+        //--Speed Controller
+        if( traits.Contains( RoleTrait.TrickRoomSetter ) || traits.Contains( RoleTrait.TailwindSetter ) || traits.Contains( RoleTrait.SpeedControl ) )
+            sp.SpeedController = true;
+
+        //--Weather Setter
+        if( biases.Contains( RoleBias.WeatherControl ) || traits.Contains( RoleTrait.WeatherSetter ) )
+            sp.WeatherSetter = true;
+
+        //--Terrain Setter
+        if( traits.Contains( RoleTrait.TerrainSetter ) )
+            sp.TerrainSetter = true;
+
+        //--Priority Blocker
+        if( traits.Contains( RoleTrait.PriorityBlocker ) )
+            sp.BlocksPriority = true;
+
+        //--Redirector
+        if( traits.Contains( RoleTrait.RedirectionMove ) )
+            sp.Redirector = true;
+
+        //--Spread Pressure
+        if( traits.Contains( RoleTrait.SpreadAttack ) )
+            sp.SpreadPressure = true;
+
+        if( unit.Pokemon.CheckHasActiveMove( "Wide Guard" ) )
+            sp.SpreadProtector = true;
+
+        //--Priority Attacks
+        if( traits.Contains( RoleTrait.Priority ) && unit.Ability != AbilityID.Prankster )
+            sp.PriorityAttacks = true;
+
+        //--Priority Status
+        if( unit.Ability == AbilityID.Prankster )
+            sp.PriorityStatus = true;
+
+        //--Helping Hand Support
+        if( unit.Pokemon.CheckHasActiveMove( "Helping Hand" ) )
+            sp.HelpingHandSupport = true;
+
+        //---------------------------
+        //----Board Opportunities----
+        //---------------------------
+
+        //--Changes Current Weather
+        if( _unitSim.Pokemon_ChangesWeather( unit.Pokemon ) )
+            sp.ChangesCurrentWeather = true;
+
+        //--Changes Current Terrain
+        if( _unitSim.Pokemon_ChangesTerrain( unit.Pokemon ) )
+            sp.ChangesCurrentTerrain = true;
+
+        //--Battlefield Setter
+        bool changesWeather = sp.ChangesCurrentWeather;
+        bool changesTerrain = sp.ChangesCurrentTerrain;
+        bool setsReflect = unit.Pokemon.CheckHasActiveMove( "Reflect" ) && !ourCourt.ContainsKey( CourtConditionID.Reflect );
+        bool setsLightScreen = unit.Pokemon.CheckHasActiveMove( "Light Screen" ) && !ourCourt.ContainsKey( CourtConditionID.LightScreen );
+        bool setsAuroraVeil = unit.Pokemon.CheckHasActiveMove( "Aurora Veil" ) && !ourCourt.ContainsKey( CourtConditionID.AuroraVeil );
+        bool setsScreens = setsReflect || setsLightScreen || setsAuroraVeil;
+        bool setsTailwind = traits.Contains( RoleTrait.TailwindSetter ) && !ourCourt.ContainsKey( CourtConditionID.Tailwind );
+        bool setsTrickRoom = traits.Contains( RoleTrait.TrickRoomSetter ) && !field.FieldConditions.ContainsKey( FieldConditionID.TrickRoom );
+        bool battlefieldSetter = changesWeather || changesTerrain || setsScreens || setsTailwind || setsTrickRoom;
+
+        if( battlefieldSetter )
+            sp.BattlefieldSetter = true;
+
+        //--Battlefield Flipper
+        bool removesOpponentWeather = sp.ChangesCurrentWeather && field.Weather != WeatherConditionID.None && ( theirWeatherScore > ourWeatherScore ) || ( theirWeatherScore > 0 && ourWeatherScore <= 0 );
+        bool removesOpponentTerrain = sp.ChangesCurrentTerrain && field.Terrain != TerrainID.None && ( theirTerrainScore > ourTerrainScore ) || ( theirTerrainScore > 0 && ourTerrainScore <= 0 );
+        bool removesTrickRoom = traits.Contains( RoleTrait.TrickRoomSetter ) && field.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) && ( theirTrickRoomScore > ourTrickRoomScore ) || ( theirTrickRoomScore > 0 && ourTrickRoomScore <= 0 );
+        bool matchesTailwind = traits.Contains( RoleTrait.TailwindSetter ) && theirCourt.ContainsKey( CourtConditionID.Tailwind ) && !ourCourt.ContainsKey( CourtConditionID.Tailwind );
+        bool flipsBattlefield = removesOpponentWeather || removesOpponentTerrain || removesTrickRoom || matchesTailwind;
+
+        if( flipsBattlefield )
+            sp.BattlefieldFlipper = true;
+            
+        //--Blocks Battlefield Setup (Battlefield Denier? I suppose "denier could be "changer" or "flipper", and blocks setup/deny could be things like taunt)
+        bool oppHasPrankster = false;
+        bool oppHasTrickRoom = false;
+        foreach( var mon in theirUnits )
+        {
+            if( mon.Ability == AbilityID.Prankster )
+            {
+                oppHasPrankster = true;
+            }
+
+            if( mon.RoleProfile.Traits.Contains( RoleTrait.TrickRoomSetter ) )
+            {
+                oppHasTrickRoom = true;
+            }
+        }
+
+        bool blocksOppsPrankster = sp.BlocksPriority || oppHasPrankster && unit.Pokemon.CheckTypes( PokemonType.Dark );
+        bool pranksterTaunt = unit.Ability == AbilityID.Prankster && traits.Contains( RoleTrait.Taunt );
+        bool fakeOutAvailable = _ai.CanUseFakeOut( unit, theirUnits[0] ) || theirUnits.Count > 1 && _ai.CanUseFakeOut( unit, theirUnits[1] );
+        bool imprisons = oppHasTrickRoom && unit.Pokemon.CheckHasActiveMove( "Imprison" );
+
+        bool blocksSetup = oppHasPrankster && blocksOppsPrankster || sp.BlocksPriority || pranksterTaunt || fakeOutAvailable || imprisons;
+        if( blocksSetup )
+            sp.BlocksBattlefieldSetup = true;
+
+        //--Blocks Speed Control
+        bool theyHaveSpeedControlSpreadMove = false;
+        foreach( var mon in theirUnits )
+        {
+            if( !mon.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) && _unitSim.PokemonHas_SpeedControl( mon.Pokemon ) )
+            {
+                theyHaveSpeedControlSpreadMove = true;
+                break;
+            }
+        }
+
+        bool theyHaveTailwindSetter = false;
+        foreach( var mon in theirUnits )
+        {
+            if( mon.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) )
+            {
+                theyHaveTailwindSetter = true;
+                break;
+            }
+        }
+
+        bool weWideGuard = unit.Pokemon.CheckHasActiveMove( "Wide Guard" );
+        bool blocksSpeedControl = theyHaveSpeedControlSpreadMove && weWideGuard || matchesTailwind || pranksterTaunt && !theirCourt.ContainsKey( CourtConditionID.Tailwind ) && theyHaveTailwindSetter;
+
+        if( blocksSpeedControl )
+            sp.BlocksSpeedControl = true;
+
+        //--Blocks Weather Control
+        bool invalidatesWeather = unit.Ability == AbilityID.CloudNine;
+
+        if( invalidatesWeather || sp.ChangesCurrentWeather )
+            sp.BlocksWeatherControl = true;
+
+        //----------------------
+        //--Board Dependencies--
+        //----------------------
+
+        //--Weather Dependencies
+        bool hasWeatherSpeedAbility = _unitSim.PokemonHasAbility_WeatherSpeed( unit.Pokemon );
+        bool pokemonAbilityMatchesWeather = _unitSim.PokemonAbilityMatchesWeather( unit.Pokemon, field.Weather );
+        bool eruption = unit.Pokemon.CheckHasActiveMove( "Eruption" ) && field.Weather == WeatherConditionID.SUNNY;
+        bool waterSpout = unit.Pokemon.CheckHasActiveMove( "Water Spout" ) && field.Weather == WeatherConditionID.RAIN;
+        bool blizzard = unit.Pokemon.CheckHasActiveMove( "Blizzard" ) && field.Weather == WeatherConditionID.SNOW;
+        bool thunder = unit.Pokemon.CheckHasActiveMove( "Thunder" ) && field.Weather == WeatherConditionID.RAIN;
+
+        bool partnerHasAfterYou = ourAlly != null && ourAlly.Pokemon.CheckHasActiveMove( "After You" );
+        bool partnerHasWeatherSpeedAbility = ourAlly != null && _unitSim.PokemonHasAbility_WeatherSpeed( ourAlly.Pokemon );
+        bool dependsOnAfterYou = biases.Contains( RoleBias.SlowSpeed ) || biases.Contains( RoleBias.TrickRoomSpeed ) && partnerHasWeatherSpeedAbility && partnerHasAfterYou;
+
+        bool afterYouEruption = eruption && dependsOnAfterYou;
+        bool afterYouWaterSpout = waterSpout && dependsOnAfterYou;
+
+        bool weatherDependency = hasWeatherSpeedAbility || pokemonAbilityMatchesWeather || dependsOnAfterYou || afterYouEruption || afterYouWaterSpout || blizzard || thunder;
+
+        if( weatherDependency )
+            sp.DependsOnCurrentWeather = true;
+
+        //--After You
+        if( dependsOnAfterYou || afterYouEruption || afterYouWaterSpout )
+            sp.DependsOnFastAlly = true;
+
+        //--Terrain Dependencies
+        bool grassyGlide = unit.Pokemon.CheckHasActiveMove( "Grassy Glide" ) && field.Terrain == TerrainID.Grassy;
+        bool expandingForce = unit.Pokemon.CheckHasActiveMove( "Expanding Force" ) && field.Terrain == TerrainID.Psychic;
+
+        if( grassyGlide || expandingForce )
+            sp.DependsOnCurrentTerrain = true;
+
+        //--Trick Room
+        bool trickRoomSpeed = biases.Contains( RoleBias.SlowSpeed ) || biases.Contains( RoleBias.TrickRoomSpeed );
+        bool trickRoomClass = pr == RoleClass.TrickRoomAbuser || pr == RoleClass.BulkyAttacker && trickRoomSpeed || pr == RoleClass.WallBreaker && trickRoomSpeed || sr.Contains( RoleClass.TrickRoomAbuser );
+
+        if( trickRoomClass )
+            sp.DependsOnTrickRoom = true;
+
+        //------------------------
+        //--Strategic Importance--
+        //------------------------
+
+        bool weHaveSpeedControlSpreadMove = !traits.Contains( RoleTrait.TailwindSetter ) && _unitSim.PokemonHas_SpeedControl( unit.Pokemon );
+
+        List<bool> availableSupportPotential = new(){ weHaveSpeedControlSpreadMove, weWideGuard, blocksSpeedControl, fakeOutAvailable, battlefieldSetter, flipsBattlefield, pranksterTaunt };
+        int supportPotential = 0;
+        foreach( var potential in availableSupportPotential )
+        {
+            if( potential )
+                supportPotential++;
+        }
+
+        int disruptionPotential = 0;
+        List<bool> availableDisruptionPotential = new(){ pr == RoleClass.Disrupter, sr.Contains( RoleClass.Disrupter ), pranksterTaunt, traits.Contains( RoleTrait.StatusSpreader ), traits.Contains( RoleTrait.ItemDisruption ), traits.Contains( RoleTrait.Encore ), rp.Signals.Disruption > 30 };
+        foreach( var disrupt in availableDisruptionPotential )
+        {
+            if( disrupt )
+                disruptionPotential++;
+        }
+
+        //--Primary Offensive Piece
+        int ptkoScore = 0;
+        foreach( var ptko in ourPTKOs )
+        {
+            ptkoScore += (int)ptko;
+        }
+
+        ptkoScore /= ourPTKOs.Count;
+
+        if( (PotentialToKO)ptkoScore >= PotentialToKO.Risky )
+            sp.ProvidesStrongOffense = true;
+
+        //--Primary Support Piece
+        if( pr == RoleClass.UtilitySupport || pr == RoleClass.Disrupter || ( sr.Contains( RoleClass.UtilitySupport ) && (PotentialToKO)ptkoScore <= PotentialToKO.TwoHKO ) || supportPotential > 0 || disruptionPotential > 0 )
+            sp.ProvidesSupport = true;
+
+        //--Critical Support
+        if( supportPotential >= 3 )
+            sp.CriticalSupport = true;
+
+        //--Critical Disrupter
+        if( disruptionPotential >= 3 )
+            sp.CriticalDisruptor = true;
+
+        //--Current Win Condition
+
+        //--Current Loss Condition
+
+        //--Expendable
+
+        //--Irreplaceable
+
+
+        return sp;
+    }
+
+    public UnitComparison MakeUnitComparison( IBattleAIUnit attacker, IBattleAIUnit target )
+    {
+        UnitComparison uc = new()
+        {
+            Attacker = GetUnitComparison( attacker, target ),
+            Target = GetUnitComparison( target, attacker ),
+        };
+
+        return uc;
+    }
+
+    private UnitComparisonResult GetUnitComparison( IBattleAIUnit attacker, IBattleAIUnit target )
+    {
+        const int priority_offset = 7;
+        int attackersHighestPriority = 0;
+        int targetsHighestPriority = 0;
+
+        Dictionary<Move, PotentialToKOResult> freshPTKOs = new();
+        foreach( var move in attacker.ActiveMoves )
+        {
+            //--Create fresh clones and set hpr to 1
+            var attackerClone = _unitSim.CopySimUnit( attacker, null );
+            var targetClone = _unitSim.CopySimUnit( target, null );
+            attackerClone.BeginningHPR = 1f;
+            attackerClone.EndHPR = 1f;
+            targetClone.BeginningHPR = 1f;
+            targetClone.EndHPR = 1f;
+
+            //--Move type effectiveness
+            float effectiveness = _ai.UnitSim.Get_MoveEffectiveness( targetClone, move );
+
+            var ally = _ai.GetActiveAllyAs_Adapter( attackerClone.Pokemon );
+            var targetAlly = _ai.GetActiveAllyAs_Adapter( targetClone.Pokemon );
+
+            int targetCount = 1;
+            if( move.MoveSO.MoveTarget == MoveTarget.OpposingSide && targetAlly != null )
+            {
+                targetCount = 2;
+            }
+
+            if( move.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
+            {
+                if( ally != null )
+                    targetCount++;
+
+                if( targetAlly != null )
+                    targetCount++;
+            }
+
+            float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attackerClone, targetClone, move );
+            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, };
+            var edr                         = Get_EstimatedDamageResult( attackerClone, targetClone, mtr );
+            mtr.EDR = edr;
+
+            var ptkor = Get_PotentialToKOResult( edr, mtr, targetClone );
+
+            freshPTKOs.Add( move, ptkor );
+
+            int priority = (int)move.Priority - priority_offset;
+            if( move.Priority > MovePriority.Zero )
+            {
+                if( priority > attackersHighestPriority )
+                    attackersHighestPriority = priority;
+            }
+        }
+
+        freshPTKOs = freshPTKOs.OrderByDescending( kvp => kvp.Value.PTKO ).ThenByDescending( kvp => kvp.Value.EstimatedDamage ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
+        Dictionary<Move, PotentialToKOResult> currentPTKOs = new();
+        foreach( var move in attacker.ActiveMoves )
+        {
+            //--Move type effectiveness
+            float effectiveness = _ai.UnitSim.Get_MoveEffectiveness( target, move );
+
+            var ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
+            var targetAlly = _ai.GetActiveAllyAs_Adapter( target.Pokemon );
+
+            int targetCount = 1;
+            if( move.MoveSO.MoveTarget == MoveTarget.OpposingSide && targetAlly != null )
+            {
+                targetCount = 2;
+            }
+
+            if( move.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
+            {
+                if( ally != null )
+                    targetCount++;
+
+                if( targetAlly != null )
+                    targetCount++;
+            }
+
+            float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, move );
+            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, };
+            var edr                         = Get_EstimatedDamageResult( attacker, target, mtr );
+            mtr.EDR = edr;
+
+            var ptkor = Get_PotentialToKOResult( edr, mtr, target );
+
+            currentPTKOs.Add( move, ptkor );
+        }
+
+        currentPTKOs = currentPTKOs.OrderByDescending( kvp => kvp.Value.PTKO ).ThenByDescending( kvp => kvp.Value.EstimatedDamage ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
+        foreach( var move in target.ActiveMoves )
+        {
+            int priority = (int)move.Priority - priority_offset;
+            if( move.Priority > MovePriority.Zero )
+            {
+                if( priority > targetsHighestPriority )
+                    targetsHighestPriority = priority;
+            }
+        }
+
+        bool attackerFaster = false;
+        if( attacker.Speed > target.Speed )
+            attackerFaster = true;
+
+        bool attackerFasterPriority = false;
+        if( attackersHighestPriority > targetsHighestPriority )
+            attackerFasterPriority = true;
+
+        return new()
+        {
+            BestFreshPTKO = freshPTKOs.First().Value.PTKO,
+            BestCurrentPTKO = currentPTKOs.First().Value.PTKO,
+
+            FreshPTKOs = freshPTKOs.ToDictionary( kvp => kvp.Key, kvp => kvp.Value.PTKO ),
+            CurrentPTKOs = currentPTKOs.ToDictionary( kvp => kvp.Key, kvp => kvp.Value.PTKO ),
+
+            FasterSpeed = attackerFaster,
+            FasterPriority = attackerFasterPriority,
+        };
+    }
+
+    public LeadEvaluation GetLeadState( IBattleAIUnit attacker, IBattleAIUnit opponent )
+    {
+        var attackerTeamRemaining = _ai.GetRemainingAllyAdapters( attacker.Pokemon );
+        var opponentTeamRemaining = _ai.GetRemainingAllyAdapters( opponent.Pokemon );
+
+        float attackerTeamHP = 0;
+        foreach( var mon in attackerTeamRemaining )
+        {
+            attackerTeamHP += mon.BeginningHPR;
+        }
+
+        float opponentTeamHP = 0;
+        foreach( var mon in opponentTeamRemaining )
+        {
+            opponentTeamHP += mon.BeginningHPR;
+        }
+
+        var attackerActiveUnits = _ai.GetActiveOpposingUnits_AsBattleAIUnits( opponent.Pokemon );
+        var opponentActiveUnits = _ai.GetActiveOpposingUnits_AsBattleAIUnits( attacker.Pokemon );
+
+        int attackerOutSpeeds = 0;
+        int opponentOutSpeeds = 0;
+
+        int attackerBetterPTKOs = 0;
+        int opponentBetterPTKOs = 0;
+
+        foreach( var attackerMon in attackerActiveUnits )
+        {
+            foreach( var opponentMon in opponentActiveUnits )
+            {
+                if( attackerMon.Speed > opponentMon.Speed )
+                {
+                    attackerOutSpeeds++;
+                }
+                else if( opponentMon.Speed > attackerMon.Speed )
+                {
+                    opponentOutSpeeds++;
+                }
+
+                var attackerComp_Opponent = MakeUnitComparison( attackerMon, opponentMon );
+
+                if( attackerComp_Opponent.Attacker.BestCurrentPTKO > attackerComp_Opponent.Target.BestCurrentPTKO )
+                {
+                    attackerBetterPTKOs++;
+                }
+                else if( attackerComp_Opponent.Target.BestCurrentPTKO > attackerComp_Opponent.Attacker.BestCurrentPTKO )
+                {
+                    opponentBetterPTKOs++;
+                }
+            }
+        }
+
+        int attackerWeatherContext = 0;
+        int opponentWeatherContext = 0;
+
+        int attackerTerrainContext = 0;
+        int opponentTerrainContext = 0;
+        
+        int attackerTrickRoomContext = 0;
+        int opponentTrickRoomContext = 0;
+
+        foreach( var attackerMon in attackerActiveUnits )
+        {
+            attackerWeatherContext += _unitSim.Get_WeatherContextScore( attackerMon.Pokemon ) > 0 ? 1: 0;
+            attackerTerrainContext += _unitSim.Get_TerrainContextScore( attackerMon.Pokemon ) > 0 ? 1: 0;
+            attackerTrickRoomContext += _unitSim.Get_TrickRoomContextScore( attackerMon.Pokemon ) > 0 ? 1: 0;
+        }
+
+        foreach( var opponentMon in opponentActiveUnits )
+        {
+            opponentWeatherContext += _unitSim.Get_WeatherContextScore( opponentMon.Pokemon ) > 0 ? 1: 0;;
+            opponentTerrainContext += _unitSim.Get_TerrainContextScore( opponentMon.Pokemon ) > 0 ? 1: 0;;
+            opponentTrickRoomContext += _unitSim.Get_TrickRoomContextScore( opponentMon.Pokemon ) > 0 ? 1: 0;;
+        }
+
+        //--Calculate
+
+        int material = attackerTeamRemaining.Count - opponentTeamRemaining.Count;
+
+        int hp = 0;
+        if( attackerTeamHP - opponentTeamHP >= 2f )
+        {
+            hp += 2;
+        }
+        else if( attackerTeamHP - opponentTeamHP >= 1f )
+        {
+            hp += 1;
+        }
+        else if( attackerTeamHP - opponentTeamHP <= 1f )
+        {
+            hp -= 2;
+        }
+        else if( attackerTeamHP - opponentTeamHP <= 0f )
+        {
+            hp -= 1;
+        }
+
+        int speed = 0;
+        if( attackerOutSpeeds - opponentOutSpeeds >= 4 )
+        {
+            speed += 2;
+        }
+        else if( attackerOutSpeeds - opponentOutSpeeds >= 3 )
+        {
+            speed += 1;
+        }
+        else if( attackerOutSpeeds - opponentOutSpeeds >= 2 )
+        {
+            speed += 0;
+        }
+        else if( attackerOutSpeeds - opponentOutSpeeds <= -3 )
+        {
+            speed -= 1;
+        }
+        else if( attackerOutSpeeds - opponentOutSpeeds <= -4 )
+        {
+            speed -= 2;
+        }
+
+        int pressure = 0;
+        if( attackerBetterPTKOs - opponentBetterPTKOs >= 2 )
+        {
+            pressure += 2;
+        }
+        else if( attackerBetterPTKOs - opponentBetterPTKOs >= 1 )
+        {
+            pressure += 1;
+        }
+        else if( attackerBetterPTKOs - opponentBetterPTKOs <= -2 )
+        {
+            pressure -= 2;
+        }
+        else if( attackerBetterPTKOs - opponentBetterPTKOs <= -1 )
+        {
+            pressure -= 1;
+        }
+
+        int weather = attackerWeatherContext - opponentWeatherContext;
+        int terrain = attackerTerrainContext - opponentTerrainContext;
+        int trickroom = attackerTrickRoomContext - opponentTrickRoomContext;
+
+        int leadScore = material + hp + speed + pressure + weather + terrain + trickroom;
+
+        LeadState lead;
+        if( leadScore <= -4 )       lead = LeadState.Behind;
+        else if( leadScore <= -3)   lead = LeadState.Even;
+        else if( leadScore <= 2 )   lead = LeadState.Ahead;
+        else if( leadScore > 6 )    lead = LeadState.Dominating;
+        else                        lead = LeadState.Even;
+
+        return new()
+        {
+            Lead = lead,
+            Material = material,
+            HP = hp,
+            Speed = speed,
+            Pressure = pressure,
+            Weather = weather,
+            Terrain = terrain,
+            TrickRoom = trickroom,
+        };
+    }
+
     public void InitializeUniqueStatCalls()
     {
         UniqueStatCalls = new()
@@ -3373,6 +4369,7 @@ public struct ProjectedBoardState
     public SimulatedUnit Current_Opponent;
     public SimulatedUnit Next_Attacker;
     public SimulatedUnit Next_Opponent;
+    public Dictionary<SimulatedUnit, ReplacementType> ReplacedUnits;
 
     //--Immediate KO Results
     public bool IGetImmediateKO;
@@ -3433,6 +4430,7 @@ public struct ProjectedBoardState
     //--Individual Scores
     public int MaterialScore;
     public int ConversionScore;
+    public int ReplacementScore;
     public int Stabilityscore;
     public int ControlScore;
     public int PressureScore;
@@ -3460,4 +4458,85 @@ public struct DoomedOutcome
 
     public float PressureScore;
     public bool DoomedTurn;
+}
+
+public struct StrategicProfile
+{
+    //--Static Capabilities
+    public bool SpeedController;
+    public bool WeatherSetter;
+    public bool TerrainSetter;
+    public bool BlocksPriority;
+    public bool Redirector;
+    public bool SpreadPressure;
+    public bool SpreadProtector;
+    public bool PriorityAttacks;
+    public bool PriorityStatus;
+    public bool HelpingHandSupport;
+
+    //--Board Opportunities
+    public bool ChangesCurrentWeather;
+    public bool ChangesCurrentTerrain;
+
+    public bool BattlefieldSetter;
+    public bool BattlefieldFlipper;
+
+    public bool BlocksBattlefieldSetup;
+    public bool BlocksSpeedControl;
+    public bool BlocksWeatherControl;
+
+    //--Board Dependencies
+    public bool DependsOnCurrentWeather;
+    public bool DependsOnCurrentTerrain;
+    public bool DependsOnTrickRoom;
+    public bool DependsOnFastAlly;
+
+    //--Strategic Importance
+    public bool ProvidesStrongOffense;
+    public bool ProvidesSupport;
+
+    public bool CriticalSupport;
+    public bool CriticalDisruptor;
+
+    public bool CurrentWinCondition;
+    public bool CurrentLossCondition;
+
+    public bool Expendable;
+    public bool Irreplaceable;
+}
+
+public struct UnitComparisonResult
+{
+    public PotentialToKO BestFreshPTKO;
+    public PotentialToKO BestCurrentPTKO;
+    public Dictionary<Move, PotentialToKO> FreshPTKOs;
+    public Dictionary<Move, PotentialToKO> CurrentPTKOs;
+    public bool FasterSpeed;
+    public bool FasterPriority;
+}
+
+public struct UnitComparison
+{
+    public UnitComparisonResult Attacker;
+    public UnitComparisonResult Target;
+}
+
+public enum LeadState
+{
+    Behind,
+    Even,
+    Ahead,
+    Dominating,
+}
+
+public struct LeadEvaluation
+{
+    public LeadState Lead;
+    public int Material;
+    public int HP;
+    public int Speed;
+    public int Pressure;
+    public int Weather;
+    public int Terrain;
+    public int TrickRoom;
 }

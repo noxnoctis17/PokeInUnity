@@ -19,7 +19,7 @@ public class BattleAI_CandidateSelectors
         _proj = _ai.Projection;
     }
 
-    public MoveThreatResult GetMove_BestAttack( IBattleAIUnit attacker, IBattleAIUnit target, bool actionSelect = false, string source = "NO SOURCE", int depth = 0 )
+    public MoveThreatResult GetMove_BestAttack( IBattleAIUnit attacker, IBattleAIUnit target, bool actionSelect = false, string source = "NO SOURCE", int depth = 0, bool logSim = false )
     {
         // CustomLogSession moveLog = new();
         int bestScore = int.MinValue;
@@ -65,44 +65,81 @@ public class BattleAI_CandidateSelectors
             var ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
             var targetAlly = _ai.GetActiveAllyAs_Adapter( target.Pokemon );
 
+            List<IBattleAIUnit> targets = new(){ target };
             int targetCount = 1;
             if( move.MoveSO.MoveTarget == MoveTarget.OpposingSide && targetAlly != null )
             {
                 targetCount = 2;
+                targets.Add( targetAlly );
             }
 
             if( move.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
             {
                 if( ally != null )
+                {
                     targetCount++;
+                    targets.Add( ally );
+                }
 
                 if( targetAlly != null )
+                {
                     targetCount++;
+                    targets.Add( targetAlly );
+                }
             }
 
-            float attHPR                    = _ai.Get_HPRatio( attacker );
-            float tarHPR                    = _ai.Get_HPRatio( target );
+            float attHPR                    = attacker.BeginningHPR; //_ai.Get_HPRatio( attacker );
+            float tarHPR                    = target.BeginningHPR; //_ai.Get_HPRatio( target );
 
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, move );
-            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, };
+            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, Targets = targets };
             var attEDR                      = _proj.Get_EstimatedDamageResult( attacker, target, mtr );
             
-            var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, false, "Opponent's best attack (recursion)", depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
+            var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, false, "Opponent's best attack (recursion)", depth + 1 ) : _ai.GetMove_StrongestAttack( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
             var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
             
-            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attEDR, mtr, tarHPR );
-            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attHPR );
+            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attEDR, mtr, target );
+            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attacker );
 
             // moveLog.Add( $"[Best Simulated Move] PTKO for {attacker.Name}'s {move.MoveSO.Name} on {target.Name} (HPR: {tarHPR} is: {attPTKOR.PTKO} (Damage Estimate: {attEDR.DamageEstimate})" );
 
             var attackerSimUnit             = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
             var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
 
-            SimulationPackage attackerPack  = new(){ SimUnit = attackerSimUnit, ModuleType = SimModuleType.Attack };
-            SimulationPackage targetPack    = new(){ SimUnit = targetSimUnit, ModuleType = SimModuleType.Attack };
+            SimulatedUnit allySimUnit = null;
+            SimulatedUnit targetAllySimUnit = null;
 
-            var bse                         = _battleSim.BuildBattleSimEvent( attPTKOR.PTKO, tarPTKOR.PTKO, attackerPack, targetPack, fieldSim );            
-            var top                         = _battleSim.RunSimulation( bse );
+            MoveThreatResult allyMTR = null;
+            MoveThreatResult targetAllyMTR = null;
+
+            // if( ally != null )
+            // {
+            //     var allyTarget = targetAlly ?? target;
+            //     allyMTR = GetMove_BestAttack( ally, allyTarget, false, "Ally best attack on current target" ); //--Will be replaced by CIR
+            //     allySimUnit = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+            // }
+
+            // if( targetAlly != null )
+            // {
+            //     var targetAllyTarget = ally ?? attacker;
+            //     targetAllyMTR = GetMove_BestAttack( targetAlly, targetAllyTarget, false, "Target's Ally best attack on current target" ); //--Will be replaced by PIR
+            //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+            // }
+
+            List<SimulatedUnit> attackerTargets = _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, mtr );
+            List<SimulatedUnit> opponentTargets = _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, tarMTR );
+            List<SimulatedUnit> allyTargets = allySimUnit != null ? _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, allyMTR ) : new();
+            List<SimulatedUnit> opponentAllyTargets = targetAllySimUnit != null ? _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, targetAllyMTR ) : new();
+
+            SimulationPackage attackerPack      = _battleSim.BuildSimPackage( attackerSimUnit, attackerTargets, SimModuleType.Attack );
+            SimulationPackage targetPack        = _battleSim.BuildSimPackage( targetSimUnit, opponentTargets, SimModuleType.Attack );
+
+            SimulationPackage attackerAllyPack  = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+            SimulationPackage targetAllyPack    = targetAllySimUnit != null ? _battleSim.BuildSimPackage( targetAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+            var roundPack = _battleSim.BuildRoundPackage( attackerPack, attackerAllyPack, targetPack, targetAllyPack );
+            var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
+            var top = _battleSim.RunSimulation( bse, logSim );
 
             //--Begin Scoring
             int score = 0;
@@ -193,43 +230,80 @@ public class BattleAI_CandidateSelectors
             var fallback_ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
             var fallback_targetAlly = _ai.GetActiveAllyAs_Adapter( target.Pokemon );
 
+            List<IBattleAIUnit> fallbackTargets = new(){ target };
             int fallback_targetCount = 1;
             if( fallbackMove.MoveSO.MoveTarget == MoveTarget.OpposingSide && fallback_targetAlly != null )
             {
                 fallback_targetCount = 2;
+                fallbackTargets.Add( fallback_targetAlly );
             }
 
             if( fallbackMove.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
             {
                 if( fallback_ally != null )
+                {
                     fallback_targetCount++;
+                    fallbackTargets.Add( fallback_ally );
+                }
 
                 if( fallback_targetAlly != null )
+                {
                     fallback_targetCount++;
+                    fallbackTargets.Add( fallback_targetAlly );
+                }
             }
 
-            float attHPR                    = _ai.Get_HPRatio( attacker );
-            float tarHPR                    = _ai.Get_HPRatio( target );
+            float attHPR                    = attacker.BeginningHPR; //_ai.Get_HPRatio( attacker );
+            float tarHPR                    = target.BeginningHPR; //_ai.Get_HPRatio( target );
 
             float effectiveness             = _ai.UnitSim.Get_MoveEffectiveness( target, fallbackMove );
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, fallbackMove );
-            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = fallbackMove, TargetCount = fallback_targetCount, };
+            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = fallbackMove, TargetCount = fallback_targetCount, Targets = fallbackTargets };
             var attWSR                      = _proj.Get_EstimatedDamageResult( attacker, target, mtr );
 
             var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, false, source, depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
             var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
 
-            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attWSR, mtr, tarHPR );
-            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attHPR );
+            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attWSR, mtr, target );
+            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attacker );
 
-            var attackerSimUnit         = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
+            var attackerSimUnit             = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
             var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
 
-            SimulationPackage attackerPack  = new(){ SimUnit = attackerSimUnit, ModuleType = SimModuleType.Attack };
-            SimulationPackage targetPack    = new(){ SimUnit = targetSimUnit, ModuleType = SimModuleType.Attack };
+            SimulatedUnit allySimUnit = null;
+            SimulatedUnit targetAllySimUnit = null;
+            
+            MoveThreatResult allyMTR = null;
+            MoveThreatResult targetAllyMTR = null;
 
-            var bse                         = _battleSim.BuildBattleSimEvent( attPTKOR.PTKO, tarPTKOR.PTKO, attackerPack, targetPack, fieldSim );
-            var top                         = _battleSim.RunSimulation( bse );
+            // if( fallback_ally != null )
+            // {
+            //     var allyMTR = GetMove_BestAttack( fallback_ally, target, false, "Ally best attack on current target" );
+            //     var allySimUnit = _ai.UnitSim.BuildSimUnit( fallback_ally, fallback_ally.BeginningHPR, allyMTR, fieldSim );
+            //     attackerAllyPack = _battleSim.BuildSimPackage( allySimUnit, SimModuleType.Attack );
+            // }
+
+            // if( fallback_targetAlly != null )
+            // {
+            //     var targetAllyMTR = GetMove_BestAttack( fallback_targetAlly, attacker, false, "Target's Ally best attack on current target" );
+            //     var targetAllySimUnit = _ai.UnitSim.BuildSimUnit( fallback_targetAlly, fallback_targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+            //     targetAllyPack = _battleSim.BuildSimPackage( targetAllySimUnit, SimModuleType.Attack );
+            // }
+
+            List<SimulatedUnit> attackerTargets = _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, mtr );
+            List<SimulatedUnit> opponentTargets = _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, targetAllySimUnit, allySimUnit, tarMTR );
+            List<SimulatedUnit> allyTargets = allySimUnit != null ? _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, allyMTR ) : new();
+            List<SimulatedUnit> opponentAllyTargets = targetAllySimUnit != null ? _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, targetAllyMTR ) : new();
+
+            SimulationPackage attackerPack      = _battleSim.BuildSimPackage( attackerSimUnit, attackerTargets, SimModuleType.Attack );
+            SimulationPackage targetPack        = _battleSim.BuildSimPackage( targetSimUnit, opponentTargets, SimModuleType.Attack );
+
+            SimulationPackage attackerAllyPack  = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+            SimulationPackage targetAllyPack    = targetAllySimUnit != null ? _battleSim.BuildSimPackage( targetAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+            var roundPack = _battleSim.BuildRoundPackage( attackerPack, attackerAllyPack, targetPack, targetAllyPack );
+            var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
+            var top = _battleSim.RunSimulation( bse );
 
             bestScore       = 0;
             bestModifier    = modifier;
@@ -245,20 +319,29 @@ public class BattleAI_CandidateSelectors
 
         var final_ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
         var final_targetAlly = _ai.GetActiveAllyAs_Adapter( target.Pokemon );
+        List<IBattleAIUnit> finalTargets = new(){ target };
+        List<BattleUnit> finalTargetBattleUnits = new();
 
         int final_targetCount = 1;
         if( bestMove.MoveSO.MoveTarget == MoveTarget.OpposingSide && final_targetAlly != null )
         {
             final_targetCount = 2;
+            finalTargets.Add( final_targetAlly );
         }
 
         if( bestMove.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
         {
             if( final_ally != null )
+            {
                 final_targetCount++;
+                finalTargets.Add( final_ally );
+            }
 
             if( final_targetAlly != null )
+            {
                 final_targetCount++;
+                finalTargets.Add( final_targetAlly );
+            }
         }
 
         MoveThreatResult finalMtr = new()
@@ -266,7 +349,7 @@ public class BattleAI_CandidateSelectors
             Score = bestScore,
             Modifier = bestModifier,
             TargetCount = final_targetCount,
-            Target = target,
+            Targets = finalTargets,
             Move = bestMove,
             Top = bestTop,
 
@@ -275,8 +358,13 @@ public class BattleAI_CandidateSelectors
         };
 
         if( actionSelect )
-        {
-            finalMtr.TargetBattleUnit = _ai.GetBattleUnit( target.Pokemon );
+        { 
+            foreach( var finalTarget in finalTargets )
+            {
+                finalTargetBattleUnits.Add( _ai.GetBattleUnit( finalTarget.Pokemon ) );
+            }
+
+            finalMtr.TargetBattleUnits = finalTargetBattleUnits;
         }
 
         return finalMtr;
@@ -309,18 +397,18 @@ public class BattleAI_CandidateSelectors
         var oppTeam = _ai.GetAllyTeamAs_Adapter( target.Pokemon );
 
         //--Hp Ratios
-        float attHPR                            = _ai.Get_HPRatio( attacker );
-        float tarHPR                            = _ai.Get_HPRatio( target );
+        float attHPR                            = attacker.BeginningHPR; //_ai.Get_HPRatio( attacker );
+        float tarHPR                            = target.BeginningHPR; //_ai.Get_HPRatio( target );
 
         //--Get the best attack before using a boosting move and its PTKO.
         var attackerMTRbefore                   = GetMove_BestAttack( attacker, target, false, "Best Simulated Setup (Attacker MTR Before)" );
         var attEDRbefore                        = _proj.Get_EstimatedDamageResult( attacker, target, attackerMTRbefore );
-        PotentialToKOResult attPTKObefore       = _proj.Get_PotentialToKOResult( attEDRbefore, attackerMTRbefore, tarHPR );
+        PotentialToKOResult attPTKObefore       = _proj.Get_PotentialToKOResult( attEDRbefore, attackerMTRbefore, target );
 
         //--Create Target's PTKO on attacker
         var tarMTRbefore                        = GetMove_BestAttack( target, attacker, false, "Best Simulated Setup (Target MTR Before)", 1 ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
         var tarEDRbefore                        = _proj.Get_EstimatedDamageResult( target, attacker, tarMTRbefore );
-        PotentialToKOResult tarPTKORbefore      = _proj.Get_PotentialToKOResult( tarEDRbefore, tarMTRbefore, attHPR );
+        PotentialToKOResult tarPTKORbefore      = _proj.Get_PotentialToKOResult( tarEDRbefore, tarMTRbefore, attacker );
         
         //--Create Sim field
         var fieldSim                            = _ai.UnitSim.BuildSimField();
@@ -341,8 +429,8 @@ public class BattleAI_CandidateSelectors
             var tarEDRafter = _proj.Get_EstimatedDamageResult( target, attackerSetupSim, targetMTRafter );
 
             //--Post Setup PTKOs
-            PotentialToKOResult attPTKOafter    = _proj.Get_PotentialToKOResult( attEDRafter, attackerMTRafter, tarHPR );
-            PotentialToKOResult tarPTKORafter   = _proj.Get_PotentialToKOResult( tarEDRafter, targetMTRafter, attHPR );
+            PotentialToKOResult attPTKOafter    = _proj.Get_PotentialToKOResult( attEDRafter, attackerMTRafter, target );
+            PotentialToKOResult tarPTKORafter   = _proj.Get_PotentialToKOResult( tarEDRafter, targetMTRafter, attacker );
 
             int offensiveValue = _unitSim.ComputeOffensiveSetupValue( attPTKObefore, attPTKOafter, stageDelta );
             int defensiveValue = _unitSim.ComputeDefensiveSetupValue( tarPTKORafter, tarPTKORbefore, stageDelta ); //--we do after -> before here because we need this to be good for the attacker, not for the defender.
@@ -352,10 +440,10 @@ public class BattleAI_CandidateSelectors
             int sweepCount = 0;
             foreach( var oppAdapter in oppTeam )
             {
-                float oppHRP = _ai.Get_HPRatio( oppAdapter );
+                float oppHRP = oppAdapter.BeginningHPR; //_ai.Get_HPRatio( oppAdapter );
                 var bestVSopp = GetMove_BestAttack( attackerSetupSim, oppAdapter, false, "Best Simulated Setup (best vs target)" );
                 var vsOppWSR = _proj.Get_EstimatedDamageResult( attackerSetupSim, oppAdapter, bestVSopp );
-                PotentialToKOResult PTKOvsOpp = _proj.Get_PotentialToKOResult( vsOppWSR, bestVSopp, oppHRP );
+                PotentialToKOResult PTKOvsOpp = _proj.Get_PotentialToKOResult( vsOppWSR, bestVSopp, oppAdapter );
 
                 bool faster = attackerSetupSim.Speed > oppAdapter.Speed;
 
@@ -382,12 +470,12 @@ public class BattleAI_CandidateSelectors
                 //--Opp PTKO us Before Setup
                 var vsUsMTRbefore = GetMove_BestAttack( oppAdapter, attacker, false, "Best Simulated Setup (Opponent PTKO us before)" );
                 var vsUsWSRbefore = _proj.Get_EstimatedDamageResult( oppAdapter, attacker, vsUsMTRbefore );
-                PotentialToKOResult OppPTKObefore = _proj.Get_PotentialToKOResult( vsUsWSRbefore, vsUsMTRbefore, attHPR );
+                PotentialToKOResult OppPTKObefore = _proj.Get_PotentialToKOResult( vsUsWSRbefore, vsUsMTRbefore, attacker );
 
                 //--Opp PTKO us After Setup
                 var vsUsMTRafter = GetMove_BestAttack( oppAdapter, attackerSetupSim, false, "Best Simulated Setup (Opponent PTKO us after)" );
                 var vsUsWSRafter = _proj.Get_EstimatedDamageResult( oppAdapter, attackerSetupSim, vsUsMTRafter );
-                PotentialToKOResult OppPTKOafter = _proj.Get_PotentialToKOResult( vsUsWSRafter, vsUsMTRafter, attHPR );
+                PotentialToKOResult OppPTKOafter = _proj.Get_PotentialToKOResult( vsUsWSRafter, vsUsMTRafter, attacker );
 
                 bool faster = attackerSetupSim.Speed > oppAdapter.Speed;
 
@@ -423,17 +511,48 @@ public class BattleAI_CandidateSelectors
         var attackerSim = _unitSim.BuildSimUnit( attacker, attHPR, attackerMTRbefore, fieldSim );
         var opponentSim = _unitSim.BuildSimUnit( target, tarHPR, tarMTRbefore, fieldSim );
 
-        SimulationPackage attackerPack = new(){ SimUnit = attackerSim, ModuleType = SimModuleType.Setup };
-        SimulationPackage opponentPack = new(){ SimUnit = opponentSim, ModuleType = SimModuleType.Attack };
+        var ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
+        var targetAlly = _ai.GetActiveAllyAs_Adapter( target.Pokemon );
 
-        var bse = _battleSim.BuildBattleSimEvent( attPTKObefore.PTKO, tarPTKORbefore.PTKO, attackerPack, opponentPack, fieldSim );
+        SimulatedUnit allySimUnit = null;
+        SimulatedUnit targetAllySimUnit = null;
 
-        TurnOutcomeProjection top = _battleSim.RunSimulation( bse );
+        MoveThreatResult allyMTR = null;
+        MoveThreatResult targetAllyMTR = null;
+
+        // if( ally != null )
+        // {
+        //     var allyTarget = targetAlly ?? target;
+        //     allyMTR = GetMove_BestAttack( ally, allyTarget, false, "Ally best attack on current target" ); //--Will be replaced by CIR
+        //     allySimUnit = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+        // }
+
+        // if( targetAlly != null )
+        // {
+        //     var targetAllyTarget = ally ?? attacker;
+        //     targetAllyMTR = GetMove_BestAttack( targetAlly, targetAllyTarget, false, "Target's Ally best attack on current target" ); //--Will be replaced by PIR
+        //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+        // }
+
+        List<SimulatedUnit> attackerTargets = _battleSim.GetTOPTargets( attackerSim, opponentSim, allySimUnit, targetAllySimUnit, attackerMTRbefore );
+        List<SimulatedUnit> opponentTargets = _battleSim.GetTOPTargets( attackerSim, opponentSim, allySimUnit, targetAllySimUnit, tarMTRbefore );
+        List<SimulatedUnit> allyTargets = allySimUnit != null ? _battleSim.GetTOPTargets( attackerSim, opponentSim, allySimUnit, targetAllySimUnit, allyMTR ) : new();
+        List<SimulatedUnit> opponentAllyTargets = targetAllySimUnit != null ? _battleSim.GetTOPTargets( attackerSim, opponentSim, allySimUnit, targetAllySimUnit, targetAllyMTR ) : new();
+
+        SimulationPackage attackerPack      = _battleSim.BuildSimPackage( attackerSim, attackerTargets, SimModuleType.Setup );
+        SimulationPackage targetPack        = _battleSim.BuildSimPackage( opponentSim, opponentTargets, SimModuleType.Attack );
+
+        SimulationPackage attackerAllyPack  = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+        SimulationPackage targetAllyPack    = targetAllySimUnit != null ? _battleSim.BuildSimPackage( targetAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+        var roundPack = _battleSim.BuildRoundPackage( attackerPack, attackerAllyPack, targetPack, targetAllyPack );
+        var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
+        var top = _battleSim.RunSimulation( bse );
 
         best = new()
         {
             Move = bestSetup,
-            Target = attacker,
+            Targets = new() { attacker },
             Top = top,
             StageDelta = bestStageDelta,
             BeforePTKOR = bestBeforePTKO,
@@ -447,11 +566,10 @@ public class BattleAI_CandidateSelectors
         };
 
         if( actionSelect )
-            best.TargetBattleUnit = _ai.GetBattleUnit( target.Pokemon );
+            best.TargetBattleUnits = new(){ _ai.GetBattleUnit( target.Pokemon ) };
 
         return best;
     }
-
     
     private struct StatusValue
     {
@@ -503,8 +621,8 @@ public class BattleAI_CandidateSelectors
 
         //--Pre Status Use Simulation for comparison. "Before".
         //--HP Ratios
-        var attackerHPR_Before = _ai.Get_HPRatio( attacker );
-        var targetHPR_Before = _ai.Get_HPRatio( target );
+        var attackerHPR_Before = attacker.BeginningHPR; //_ai.Get_HPRatio( attacker );
+        var targetHPR_Before = target.BeginningHPR; //_ai.Get_HPRatio( target );
 
         //--Move Threat Result
         var attackerMTR_Before = GetMove_BestAttack( attacker, target );
@@ -515,8 +633,8 @@ public class BattleAI_CandidateSelectors
         var targetEDR_Before = _proj.Get_EstimatedDamageResult( target, attacker, attackerMTR_Before );
 
         //--Potential to KO Results
-        var attackerPTKOR_Before = _proj.Get_PotentialToKOResult( attackerEDR_Before, attackerMTR_Before, targetHPR_Before );
-        var targetPTKOR_Before = _proj.Get_PotentialToKOResult( targetEDR_Before, targetMTR_Before, attackerHPR_Before );
+        var attackerPTKOR_Before = _proj.Get_PotentialToKOResult( attackerEDR_Before, attackerMTR_Before, target );
+        var targetPTKOR_Before = _proj.Get_PotentialToKOResult( targetEDR_Before, targetMTR_Before, attacker );
 
         //--Attack Round Simulation
         var field_Before = _unitSim.BuildSimField();
@@ -656,23 +774,51 @@ public class BattleAI_CandidateSelectors
             return default;
         else
         {
-            MoveThreatResult statusMove = new(){ Move = bestMove };
+            List<IBattleAIUnit> statusTarget = new(){ target };
+            MoveThreatResult statusMove = new(){ Move = bestMove, TargetCount = 1, Targets = statusTarget };
             attackerSim.MTR = statusMove;
         }
 
         // float opponentSwitchProb = _unitSim.PredictSwitchProbability( attackerPTKOR_Before.PTKO, targetPTKOR_Before.PTKO, bse.AttackerMovesFirst, attackerHPR_Before, targetHPR_Before, target.Expendability );
         // bool opponentSwitches = UnityEngine.Random.value <= opponentSwitchProb;
 
-        SimulationPackage attackerPack = new(){ SimUnit = attackerSim, ModuleType = SimModuleType.OffensiveStatus };
-        SimulationPackage targetPack = new(){ SimUnit = targetSim, ModuleType = SimModuleType.Attack };
+        var ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
+        var targetAlly = _ai.GetActiveAllyAs_Adapter( target.Pokemon );
 
-        var bse = _battleSim.BuildBattleSimEvent( attackerPTKOR_Before.PTKO, targetPTKOR_Before.PTKO, attackerPack, targetPack, field_Before );
+        SimulatedUnit allySimUnit = null;
+        SimulatedUnit targetAllySimUnit = null;
 
-        TurnOutcomeProjection top = _battleSim.RunSimulation( bse );
-        // if( opponentSwitches )
-        //     top = _battleSim.SimulateOffensiveStatusRound( bse, true, false, false, true ); //--attacker status, opponent status, attacker switch, opponent switch
-        // else
-        //     top = _battleSim.SimulateOffensiveStatusRound( bse, true, false, false, false ); //--attacker status, opponent status, attacker switch, opponent switch
+        MoveThreatResult allyMTR = null;
+        MoveThreatResult targetAllyMTR = null;
+
+        // if( ally != null )
+        // {
+        //     var allyTarget = targetAlly ?? target;
+        //     allyMTR = GetMove_BestAttack( ally, allyTarget, false, "Ally best attack on current target" ); //--Will be replaced by CIR
+        //     allySimUnit = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+        // }
+
+        // if( targetAlly != null )
+        // {
+        //     var targetAllyTarget = ally ?? attacker;
+        //     targetAllyMTR = GetMove_BestAttack( targetAlly, targetAllyTarget, false, "Target's Ally best attack on current target" ); //--Will be replaced by PIR
+        //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+        // }
+
+        List<SimulatedUnit> attackerTargets = _battleSim.GetTOPTargets( attackerSim, targetSim, allySimUnit, targetAllySimUnit, attackerSim.MTR );
+        List<SimulatedUnit> opponentTargets = _battleSim.GetTOPTargets( attackerSim, targetSim, targetAllySimUnit, allySimUnit, targetSim.MTR );
+        List<SimulatedUnit> allyTargets = allySimUnit != null ? _battleSim.GetTOPTargets( attackerSim, targetSim, allySimUnit, targetAllySimUnit, allyMTR ) : new();
+        List<SimulatedUnit> opponentAllyTargets = targetAllySimUnit != null ? _battleSim.GetTOPTargets( attackerSim, targetSim, allySimUnit, targetAllySimUnit, targetAllyMTR ) : new();
+
+        SimulationPackage attackerPack      = _battleSim.BuildSimPackage( attackerSim, attackerTargets, SimModuleType.OffensiveStatus );
+        SimulationPackage targetPack        = _battleSim.BuildSimPackage( targetSim, opponentTargets, SimModuleType.Attack );
+
+        SimulationPackage attackerAllyPack  = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+        SimulationPackage targetAllyPack    = targetAllySimUnit != null ? _battleSim.BuildSimPackage( targetAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+        var roundPack = _battleSim.BuildRoundPackage( attackerPack, attackerAllyPack, targetPack, targetAllyPack );
+        var bse = _battleSim.BuildBattleSimEvent( roundPack, field_Before );
+        var top = _battleSim.RunSimulation( bse );
 
         // log.Add( top.SimulationLog );
         // Debug.Log( log.ToString() );
@@ -689,7 +835,7 @@ public class BattleAI_CandidateSelectors
             Impact = bestValue.Impact,
 
             Move = bestMove,
-            Target = target,
+            Targets = new(){ target },
             Top = top,
 
             AttackerPTKOR = attackerPTKOR_Before,
@@ -700,7 +846,7 @@ public class BattleAI_CandidateSelectors
         };
 
         if( actionSelect )
-            best.TargetBattleUnit = _ai.GetBattleUnit( target.Pokemon );
+            best.TargetBattleUnits = new(){ _ai.GetBattleUnit( target.Pokemon ) };
 
         return best;
     }
@@ -796,7 +942,7 @@ public class BattleAI_CandidateSelectors
 
             if( move.MoveSO.Name == "Curse" )
             {
-                if( attackerSim.CurrentHPR > 0.5f )
+                if( attackerSim.EndHPR > 0.5f )
                     weight += 15;
                 else
                     weight -= 5;
@@ -848,7 +994,7 @@ public class BattleAI_CandidateSelectors
         // log.Add( $"[{move.MoveSO.Name}] Reliability Value: {reliability}" );
 
         //--Immediate Impact--------------------------------------
-        var targetSim_Statused = _unitSim.BuildSimUnit_WithStatus( targetSim, targetSim.CurrentHPR, targetSim.MTR, field );
+        var targetSim_Statused = _unitSim.BuildSimUnit_WithStatus( targetSim, targetSim.EndHPR, targetSim.MTR, field );
 
         //--MTRs
         var attackerMTR_After = GetMove_BestAttack( attackerSim, targetSim_Statused );
@@ -859,8 +1005,8 @@ public class BattleAI_CandidateSelectors
         var targetEDR_After = _proj.Get_EstimatedDamageResult( targetSim_Statused, attackerSim, targetSim_Statused.MTR );
 
         //--PTKOs
-        var attackerPTKOR_After = _proj.Get_PotentialToKOResult( attackerEDR_After, attackerMTR_After, targetSim_Statused.CurrentHPR );
-        var targetPTKOR_After = _proj.Get_PotentialToKOResult( targetEDR_After, targetMTR_After, attackerSim.CurrentHPR );
+        var attackerPTKOR_After = _proj.Get_PotentialToKOResult( attackerEDR_After, attackerMTR_After, targetSim_Statused );
+        var targetPTKOR_After = _proj.Get_PotentialToKOResult( targetEDR_After, targetMTR_After, attackerSim );
 
         //--Score both sets of PTKOs to get overall value - value in a vacuum, and value in using this turn
         impact += ( attackerPTKOR_After.Score - attackerPTKOR_Before.Score ) * 2;
@@ -961,7 +1107,7 @@ public class BattleAI_CandidateSelectors
             switch( moveEffects.CourtCondition )
             {
                 case CourtConditionID.StickyWeb:
-                    if( mon.CheckTypes( PokemonType.Flying ) || mon.AbilityID == AbilityID.Levitate || mon.BattleItemEffect.ID == BattleItemEffectID.AirBalloon )
+                    if( mon.CheckTypes( PokemonType.Flying ) || mon.AbilityID == AbilityID.Levitate || mon.BattleItemEffect.ID == ItemBattleEffectID.AirBalloon )
                         affected = false;
                     break;
 
@@ -1170,7 +1316,7 @@ public class BattleAI_CandidateSelectors
 
         //--Impact----------------------------------------------------------
         var stageDelta = _unitSim.BuildStatStageDelta( move );
-        var targetSim_Debuffed = _unitSim.BuildSimUnit_WithStageDelta( targetSim, targetSim.CurrentHPR, targetSim.MTR, field, stageDelta );
+        var targetSim_Debuffed = _unitSim.BuildSimUnit_WithStageDelta( targetSim, targetSim.EndHPR, targetSim.MTR, field, stageDelta );
 
         var attackerMTR_After = GetMove_BestAttack( attackerSim, targetSim_Debuffed );
         var targetMTR_After = GetMove_BestAttack( targetSim_Debuffed, attackerSim );
@@ -1178,8 +1324,8 @@ public class BattleAI_CandidateSelectors
         var attackerEDR_After = _proj.Get_EstimatedDamageResult( attackerSim, targetSim_Debuffed, attackerMTR_After );
         var targetEDR_After = _proj.Get_EstimatedDamageResult( targetSim_Debuffed, attackerSim, targetMTR_After );
 
-        var attackerPTKOR_After = _proj.Get_PotentialToKOResult( attackerEDR_After, attackerMTR_After, targetSim_Debuffed.CurrentHPR );
-        var targetPTKOR_After = _proj.Get_PotentialToKOResult( targetEDR_After, targetMTR_After, attackerSim.CurrentHPR );
+        var attackerPTKOR_After = _proj.Get_PotentialToKOResult( attackerEDR_After, attackerMTR_After, targetSim_Debuffed );
+        var targetPTKOR_After = _proj.Get_PotentialToKOResult( targetEDR_After, targetMTR_After, attackerSim );
 
         impact += ( attackerPTKOR_After.Score - attackerPTKOR_Before.Score ) * 2;
         impact += ( targetPTKOR_Before.Score - targetPTKOR_After.Score ) * 2;
@@ -1278,7 +1424,7 @@ public class BattleAI_CandidateSelectors
         var targetBattleUnit = _ai.GetBattleUnit( targetSim.Pokemon );
         bool targetIsActive = false;
         Move lastUsedMove = null;
-        if( targetBattleUnit != null && targetBattleUnit.Pokemon != null )
+        if( targetBattleUnit != null && targetBattleUnit.Pokemon != null && lastUsedMove != null )
         {
             targetIsActive = true;
             lastUsedMove = targetBattleUnit.LastUsedMove;
@@ -1800,14 +1946,14 @@ public class BattleAI_CandidateSelectors
         var targetEDR_Before = _proj.Get_EstimatedDamageResult( target, attacker, attackerMTR_Before );
 
         //--Potential to KO Results
-        var attackerPTKOR_Before = _proj.Get_PotentialToKOResult( attackerEDR_Before, attackerMTR_Before, targetHPR_Before );
-        var targetPTKOR_Before = _proj.Get_PotentialToKOResult( targetEDR_Before, targetMTR_Before, attackerHPR_Before );
+        var attackerPTKOR_Before = _proj.Get_PotentialToKOResult( attackerEDR_Before, attackerMTR_Before, target );
+        var targetPTKOR_Before = _proj.Get_PotentialToKOResult( targetEDR_Before, targetMTR_Before, attacker );
 
         var field_Before = _unitSim.BuildSimField();
         var courtBefore = attacker.CourtLocation == CourtLocation.TopCourt ? field_Before.TopCourtConditions : field_Before.BottomCourtConditions;
 
         var attackerSim = _unitSim.BuildSimUnit( attacker, attackerHPR_Before, attackerMTR_Before, field_Before );
-        var targetSim = _unitSim.BuildSimUnit( target, targetHPR_Before, targetMTR_Before, field_Before );
+        var opponentSim = _unitSim.BuildSimUnit( target, targetHPR_Before, targetMTR_Before, field_Before );
 
         var ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
 
@@ -1823,8 +1969,8 @@ public class BattleAI_CandidateSelectors
                 Score = 0,
                 Modifier = 0,
                 CurrentActor = allySim,
-                Target = null,
-                TargetBattleUnit = null,
+                Targets = null,
+                TargetBattleUnits = null,
                 Move = null,
                 EstimatedDamage = 0f,
                 Top = default,
@@ -1876,7 +2022,7 @@ public class BattleAI_CandidateSelectors
                     statusLog.Add( $"[Get Move Supportive Status] Ally setup or ally heal does not work if it is not a double battle ({_ai.IsDoubleBattle}) or we have no ally ({ally == null})!" );
                     Debug.Log( statusLog.ToString() );
                     statusLog.Clear();
-                    return best;
+                    continue;
                 }
             }
 
@@ -1885,7 +2031,7 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"[Get Move Supportive Status] Helping Hand does not work if it is not a double battle ({_ai.IsDoubleBattle}) or we have no ally ({ally == null})!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isWeather && field_Before.Weather == effects.Weather )
@@ -1893,7 +2039,7 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"[Get Move Supportive Status] Ally setup or ally heal does not work if it is not a double battle ({_ai.IsDoubleBattle}) or we have no ally ({ally == null})!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isTerrain && field_Before.Terrain == effects.Terrain )
@@ -1901,33 +2047,33 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"[Get Move Supportive Status] Ally setup or ally heal does not work if it is not a double battle ({_ai.IsDoubleBattle}) or we have no ally ({ally == null})!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isField && field_Before.FieldConditions.ContainsKey( effects.FieldCondition ) )
             {
                 if( effects.FieldCondition == FieldConditionID.TrickRoom && field_Before.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) )
                 {
-                    int ourTRS = _unitSim.Get_TrickRoomContextScore( attacker.Pokemon );
+                    int ourTRS = _unitSim.Get_TrickRoomContextScore( attacker.Pokemon, true );
 
                     if( _ai.IsDoubleBattle )
                     {
                         if( ally != null )
                         {
-                            int allyTRS = _unitSim.Get_TrickRoomContextScore( ally.Pokemon );
+                            int allyTRS = _unitSim.Get_TrickRoomContextScore( ally.Pokemon, true );
 
                             if( allyTRS > 0 && ourTRS > 0 )
                             {
                                 statusLog.Add( $"Trick Room is already up and we both benefit from it, ignoring!" );
                                 Debug.Log( statusLog.ToString() );
-                                return best;
+                                continue;
                             }
 
                             if( allyTRS < 0 && ourTRS > 0 )
                             {
                                 statusLog.Add( $"Trick Room is already up and we currently benefit from it, ignoring!" );
-                                                                statusLog.Clear();
-                                return best;
+                                statusLog.Clear();
+                                continue;
                             }
 
                             if( allyTRS > 0 && ourTRS < 0 )
@@ -1935,7 +2081,7 @@ public class BattleAI_CandidateSelectors
                                 statusLog.Add( $"Trick Room is already up and our ally benefits from it, ignoring!" );
                                 Debug.Log( statusLog.ToString() );
                                 statusLog.Clear();
-                                return best;
+                                continue;
                             }
                         }
                     }
@@ -1944,7 +2090,7 @@ public class BattleAI_CandidateSelectors
                         statusLog.Add( $"Trick Room is already up and we currently benefit from it, ignoring!" );
                         Debug.Log( statusLog.ToString() );
                         statusLog.Clear();
-                        return best;
+                        continue;
                     }
                 }
             }
@@ -1954,7 +2100,7 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"Tailwind is already up, ignoring!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isReflect && courtBefore.ContainsKey( CourtConditionID.Reflect ) )
@@ -1962,7 +2108,7 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"Reflect is already up, ignoring!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isLightScreen && courtBefore.ContainsKey( CourtConditionID.LightScreen ) )
@@ -1970,7 +2116,7 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"Light Screen is already up, ignoring!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isAuroraVeil && courtBefore.ContainsKey( CourtConditionID.AuroraVeil ) )
@@ -1978,7 +2124,7 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"Aurora Veil is already up, ignoring!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isRedirection && ( !_ai.IsDoubleBattle || ally == null ) )
@@ -1986,7 +2132,7 @@ public class BattleAI_CandidateSelectors
                 statusLog.Add( $"Redirection doesn't work if it isn't a double battle or we have no ally!" );
                 Debug.Log( statusLog.ToString() );
                 statusLog.Clear();
-                return best;
+                continue;
             }
 
             if( isSelfHeal )
@@ -2005,30 +2151,32 @@ public class BattleAI_CandidateSelectors
             {
                 type = SupportiveStatusType.AllyProtection;
             }
+            else
+                continue;
 
             statusLog.Add( $"[Get Move Supportive Status] Move is a {type} move!" );
 
             switch( type )
             {
                 case SupportiveStatusType.Recovery:
-                    statusValue = ScoreRecovery( attackerSim, targetSim, move );
+                    statusValue = ScoreRecovery( attackerSim, opponentSim, move );
                 break;
 
                 case SupportiveStatusType.ForceMultiplier:
-                    statusValue = ScoreForceMultiplier( attackerSim, targetSim, move );
+                    statusValue = ScoreForceMultiplier( attackerSim, opponentSim, move );
                 break;
 
                 case SupportiveStatusType.BattlefieldControl:
-                    statusValue = ScoreBattlefieldControl( attackerSim, targetSim, move );
+                    statusValue = ScoreBattlefieldControl( attackerSim, opponentSim, move );
                 break;
 
                 case SupportiveStatusType.AllyProtection:
-                    statusValue = ScoreAllyProtection( attackerSim, targetSim, move );
+                    statusValue = ScoreAllyProtection( attackerSim, opponentSim, move );
                 break;
 
                 default:
                     statusLog.Add( $"[Get Move Supportive Status] Move doesn't have an appropriate Supportive Status Type!" );
-                break;
+                    continue;
             }
 
             statusLog.Add( $"[Get Move Supportive Status] Status Values for {move.MoveSO.Name}:" );
@@ -2069,27 +2217,64 @@ public class BattleAI_CandidateSelectors
             attackerSim.MTR = statusMove;
         }
 
-        IBattleAIUnit actualTarget = null;
-        if( bestMove.MoveTarget == MoveTarget.Enemy )
-            actualTarget = target;
+        SimulatedUnit actualTarget = opponentSim;
 
         if( bestMove.MoveTarget == MoveTarget.Ally )
-            actualTarget = allySim ?? attacker;
+        {
+            actualTarget = allySim;
+        }
+
+        //--For later
 
         if( bestMove.MoveTarget == MoveTarget.Self || bestMove.MoveTarget == MoveTarget.AllySide || bestMove.MoveTarget == MoveTarget.AllField )
-            actualTarget = attacker;
-
-        SimulatedUnit actualTargetSim = _unitSim.CopySimUnit( actualTarget, field_Before );
+        {
+            actualTarget = attackerSim;
+        }
         
-        SimulationPackage attackerPack = new(){ SimUnit = attackerSim, ModuleType = SimModuleType.SupportiveStatus };
-        SimulationPackage targetPack = new(){ SimUnit = actualTargetSim, ModuleType = SimModuleType.Attack };
+        var targetAlly = _ai.GetActiveAllyAs_Adapter( target.Pokemon );
 
-        var bse = _battleSim.BuildBattleSimEvent( attackerPTKOR_Before.PTKO, targetPTKOR_Before.PTKO, attackerPack, targetPack, field_Before );
+        SimulatedUnit allySimUnit = null;
+        SimulatedUnit targetAllySimUnit = null;
+
+        MoveThreatResult allyMTR = null;
+        MoveThreatResult targetAllyMTR = null;
+
+        // if( ally != null )
+        // {
+        //     var allyTarget = targetAlly ?? target;
+        //     allyMTR = GetMove_BestAttack( ally, allyTarget, false, "Ally best attack on current target" ); //--Will be replaced by CIR
+        //     allySimUnit = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+        // }
+
+        // if( targetAlly != null )
+        // {
+        //     var targetAllyTarget = ally ?? attacker;
+        //     targetAllyMTR = GetMove_BestAttack( targetAlly, targetAllyTarget, false, "Target's Ally best attack on current target" ); //--Will be replaced by PIR
+        //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+        // }
+
+        List<SimulatedUnit> attackerTargets = new(){ actualTarget }; //--This has to be done like this because targeting is awkward with supportive status moves
+        List<SimulatedUnit> opponentTargets = _battleSim.GetTOPTargets( attackerSim, opponentSim, allySimUnit, targetAllySimUnit, opponentSim.MTR );
+        List<SimulatedUnit> allyTargets = allySimUnit != null ? _battleSim.GetTOPTargets( attackerSim, opponentSim, allySimUnit, targetAllySimUnit, allyMTR ) : new();
+        List<SimulatedUnit> opponentAllyTargets = targetAllySimUnit != null ? _battleSim.GetTOPTargets( attackerSim, opponentSim, allySimUnit, targetAllySimUnit, targetAllyMTR ) : new();
+
+        SimulationPackage attackerPack      = _battleSim.BuildSimPackage( attackerSim, attackerTargets, SimModuleType.SupportiveStatus );
+        SimulationPackage opponentPack        = _battleSim.BuildSimPackage( opponentSim, opponentTargets, SimModuleType.Attack );
+
+        SimulationPackage attackerAllyPack  = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+        SimulationPackage opponentAllyPack    = targetAllySimUnit != null ? _battleSim.BuildSimPackage( targetAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+        var roundPack = _battleSim.BuildRoundPackage( attackerPack, attackerAllyPack, opponentPack, opponentAllyPack );
+        var bse = _battleSim.BuildBattleSimEvent( roundPack, field_Before );
 
         TurnOutcomeProjection top = _battleSim.RunSimulation( bse );
 
         best = new()
         {
+            Type = ActionResultType.Move,
+            ActionType = ActionType.SupportiveStatus,
+            OffensiveStatusType = OffensiveStatusType.None,
+            
             SupportiveStatusType = bestType,
             Score = bestScore,
 
@@ -2102,20 +2287,25 @@ public class BattleAI_CandidateSelectors
             Unique = bestValue.Unique,
 
             Move = bestMove,
-            Target = actualTarget,
+            Targets = new(){ actualTarget },
+            TargetBattleUnits = new(),
             Top = top,
 
             AttackerPTKOR = attackerPTKOR_Before,
             OpponentPTKOR = targetPTKOR_Before,
         };
 
-        if( actionSelect )
-        {
-            best.TargetBattleUnit = actualTarget != null ? _ai.GetBattleUnit( actualTarget.Pokemon ) : _ai.GetBattleUnit( attacker.Pokemon );
-        }
+        best.TargetBattleUnits = new();
+        if( actualTarget != null )
+            best.TargetBattleUnits.Add( _ai.GetBattleUnit( actualTarget.Pokemon ) );
+        else
+            best.TargetBattleUnits.Add( _ai.GetBattleUnit( attacker.Pokemon ) );
 
         if( bestMove != null )
-            statusLog.Add( $"[Get Move Supportive Status] Move's Target Flag: {bestMove?.MoveTarget}, Selected Target: {best.TargetBattleUnit.Pokemon?.NickName}" );
+        {
+            statusLog.Add( $"[Get Move Supportive Status] Move's Target Flag: {bestMove?.MoveTarget}, Selected Target: {best.TargetBattleUnits[0].Pokemon?.NickName}" );
+            statusLog.Add( $"[Get Move Supportive Status] TOP's Units, Attacker: {top.Attacker?.Name}, Opponent: {top.Opponent?.Name}, Attacker Ally: {top.AttackerAlly?.Name}, Opponent Ally: {top.OpponentAlly?.Name}" );
+        }
 
         statusLog.Add( $"" );
         statusLog.Add( $"=========================================================================" );
@@ -2125,70 +2315,6 @@ public class BattleAI_CandidateSelectors
         statusLog.Clear();
 
         return best;
-    }
-
-    private void ApplySupportEffect( IBattleAIUnit unit, Move move, SimulatedField field )
-    {
-        var moveTarget = move.MoveSO.MoveTarget;
-        var effects = move.MoveSO.MoveEffects;
-        var court = unit.CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions;
-        var battleField = _ai.BattleSystem.Field;
-        var realCourt = battleField.ActiveCourts[unit.CourtLocation];
-
-        bool isAllySetup = _unitSim.MoveIsSetup( move ) && effects.Target == EffectTarget.AllySide;
-        bool isHelpingHand = effects.VolatileStatus == VolatileConditionID.HelpingHand;
-
-        bool isWeather = effects.Weather != WeatherConditionID.None;
-        bool isTerrain = effects.Terrain != TerrainID.None;
-        bool isField = effects.FieldCondition != FieldConditionID.None;
-
-        bool isTailwind = effects.CourtCondition == CourtConditionID.Tailwind;
-        bool isScreens = effects.CourtCondition == CourtConditionID.Reflect || effects.CourtCondition == CourtConditionID.LightScreen || effects.CourtCondition == CourtConditionID.AuroraVeil;
-        bool isSafeguard = effects.CourtCondition == CourtConditionID.SafeGuard;
-
-        bool isAllyHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.Ally;
-        bool isSideHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.AllySide;
-
-        if( isAllySetup )
-        {
-            var stages = _unitSim.BuildStatStageDelta( move );
-            _unitSim.ApplyStatStages( unit, stages );
-        }
-
-        if( isHelpingHand && _ai.IsDoubleBattle )
-        {
-            unit.VolatileStatuses.Add( VolatileConditionID.HelpingHand );
-        }
-
-        if( isWeather )
-        {
-            field.Weather = effects.Weather;
-        }
-
-        if( isTerrain )
-        {
-            field.Terrain = effects.Terrain;
-        }
-
-        if( isField )
-        {
-            int duration = FieldConditionDB.Conditions[effects.FieldCondition].Duration;
-            field.FieldConditions.Add( effects.FieldCondition, duration );
-        }
-
-        if( isTailwind || isScreens || isSafeguard )
-        {
-            int duration = CourtConditionDB.Conditions[effects.CourtCondition].Duration;
-            court.Add( effects.CourtCondition, duration );
-        }
-
-        if( isAllyHeal || isSideHeal )
-        {
-            float healAmount = (float)move.MoveSO.HealAmount / 100f;
-
-            unit.BeginningHPR += Mathf.Clamp01( healAmount );
-            unit.CurrentHPR += Mathf.Clamp01( healAmount );
-        }
     }
 
     private StatusValue ScoreRecovery( IBattleAIUnit attacker, IBattleAIUnit target, Move move )
@@ -2354,7 +2480,7 @@ public class BattleAI_CandidateSelectors
                 escapeValue += 10;
             }
 
-            if( attacker.Item == BattleItemEffectID.Leftovers || attacker.Item == BattleItemEffectID.SitrusBerry )
+            if( attacker.Item == ItemBattleEffectID.Leftovers || attacker.Item == ItemBattleEffectID.SitrusBerry )
             {
                 escapeValue += 10;
             }
@@ -2471,7 +2597,7 @@ public class BattleAI_CandidateSelectors
 
         //--Apply Effect
         IBattleAIUnit attackerAfter = _unitSim.CopySimUnit( attacker, fieldBefore );
-        ApplySupportEffect( attackerAfter, move, fieldAfter );
+        _unitSim.ApplySupportEffect( attackerAfter, move, fieldAfter );
 
         //--Exchange Information
         var currentEE = _ai.Projection.EvaluateExchange( attacker, target );
@@ -2494,7 +2620,7 @@ public class BattleAI_CandidateSelectors
             var sim = _unitSim.GetSimUnit( mon, target, tempField );
 
             if( isTailwind || isScreens )
-                ApplySupportEffect( sim, move, tempField );
+                _unitSim.ApplySupportEffect( sim, move, tempField );
 
             ourTeamAfter.Add( sim );
         }
@@ -2514,7 +2640,7 @@ public class BattleAI_CandidateSelectors
 
             IBattleAIUnit allyAfter = _unitSim.CopySimUnit( ally, fieldBefore );
             var tempField = _unitSim.BuildSimField();
-            ApplySupportEffect( allyAfter, move, tempField );
+            _unitSim.ApplySupportEffect( allyAfter, move, tempField );
 
             allyAfterEE = _proj.EvaluateExchange( allyAfter, target );
         }
@@ -2913,7 +3039,7 @@ public class BattleAI_CandidateSelectors
 
         //--Apply Effect
         IBattleAIUnit attackerAfter = _unitSim.CopySimUnit( attacker, fieldBefore );
-        ApplySupportEffect( attackerAfter, move, fieldAfter );
+        _unitSim.ApplySupportEffect( attackerAfter, move, fieldAfter );
 
         //--Exchange Information
         var attackerVS_Target_Before = _ai.Projection.EvaluateExchange( attacker, target );
@@ -2934,7 +3060,7 @@ public class BattleAI_CandidateSelectors
         {
             var tempField = _unitSim.BuildSimField();
             var sim = _unitSim.GetSimUnit( mon, target, tempField );
-            ApplySupportEffect( sim, move, tempField );
+            _unitSim.ApplySupportEffect( sim, move, tempField );
 
             ourTeamAfter.Add( sim );
         }
@@ -2954,7 +3080,7 @@ public class BattleAI_CandidateSelectors
 
             IBattleAIUnit allyAfter = _unitSim.CopySimUnit( ally, fieldBefore );
             var tempField = _unitSim.BuildSimField();
-            ApplySupportEffect( allyAfter, move, tempField );
+            _unitSim.ApplySupportEffect( allyAfter, move, tempField );
 
             allyVS_Target_After = _proj.EvaluateExchange( allyAfter, target );
         }
@@ -2974,7 +3100,7 @@ public class BattleAI_CandidateSelectors
 
             IBattleAIUnit theirAllyAfter = _unitSim.CopySimUnit( theirAlly, fieldBefore );
             var tempField = _unitSim.BuildSimField();
-            ApplySupportEffect( theirAllyAfter, move, tempField );
+            _unitSim.ApplySupportEffect( theirAllyAfter, move, tempField );
 
             attackerVS_TheirAlly_After = _proj.EvaluateExchange( attacker, theirAllyAfter );
 
@@ -2984,7 +3110,7 @@ public class BattleAI_CandidateSelectors
 
                 IBattleAIUnit allyAfter = _unitSim.CopySimUnit( ally, fieldBefore );
                 var tempField2 = _unitSim.BuildSimField();
-                ApplySupportEffect( allyAfter, move, tempField2 );
+                _unitSim.ApplySupportEffect( allyAfter, move, tempField2 );
 
                 allyVS_TheirAlly_After = _proj.EvaluateExchange( allyAfter, theirAlly );
             }
@@ -2998,64 +3124,64 @@ public class BattleAI_CandidateSelectors
         int theirAllyBattlefieldContext = 0;
         if( isWeather )
         {
-            attackerBattlefieldContext += _unitSim.Get_WeatherContextScore( attacker.Pokemon );
-            targetBattlefieldContext += _unitSim.Get_WeatherContextScore( target.Pokemon );
+            attackerBattlefieldContext += _unitSim.Get_WeatherContextScore( attacker.Pokemon, effects.Weather );
+            targetBattlefieldContext += _unitSim.Get_WeatherContextScore( target.Pokemon, effects.Weather );
 
             if( ally != null )
-                ourAllyBattlefieldContext += _unitSim.Get_WeatherContextScore( ally.Pokemon );
+                ourAllyBattlefieldContext += _unitSim.Get_WeatherContextScore( ally.Pokemon, effects.Weather );
 
             if( theirAlly != null )
-                theirAllyBattlefieldContext += _unitSim.Get_WeatherContextScore( theirAlly.Pokemon );
+                theirAllyBattlefieldContext += _unitSim.Get_WeatherContextScore( theirAlly.Pokemon, effects.Weather );
         }
 
         if( isTerrain )
         {
-            attackerBattlefieldContext += _unitSim.Get_TerrainContextScore( attacker.Pokemon );
-            targetBattlefieldContext += _unitSim.Get_TerrainContextScore( target.Pokemon );
+            attackerBattlefieldContext += _unitSim.Get_TerrainContextScore( attacker.Pokemon, effects.Terrain );
+            targetBattlefieldContext += _unitSim.Get_TerrainContextScore( target.Pokemon, effects.Terrain );
 
             if( ally != null )
-                ourAllyBattlefieldContext += _unitSim.Get_TerrainContextScore( ally.Pokemon );
+                ourAllyBattlefieldContext += _unitSim.Get_TerrainContextScore( ally.Pokemon, effects.Terrain );
 
             if( theirAlly != null )
-                theirAllyBattlefieldContext += _unitSim.Get_TerrainContextScore( theirAlly.Pokemon );
+                theirAllyBattlefieldContext += _unitSim.Get_TerrainContextScore( theirAlly.Pokemon, effects.Terrain );
         }
 
         if( isField && effects.FieldCondition == FieldConditionID.TrickRoom )
         {
-            attackerBattlefieldContext += _unitSim.Get_TrickRoomContextScore( attacker.Pokemon );
-            targetBattlefieldContext += _unitSim.Get_TrickRoomContextScore( target.Pokemon );
+            attackerBattlefieldContext += _unitSim.Get_TrickRoomContextScore( attacker.Pokemon, true );
+            targetBattlefieldContext += _unitSim.Get_TrickRoomContextScore( target.Pokemon, true );
 
             if( ally != null )
-                ourAllyBattlefieldContext += _unitSim.Get_TrickRoomContextScore( ally.Pokemon );
+                ourAllyBattlefieldContext += _unitSim.Get_TrickRoomContextScore( ally.Pokemon, true );
 
             if( theirAlly != null )
-                theirAllyBattlefieldContext += _unitSim.Get_TrickRoomContextScore( theirAlly.Pokemon );
+                theirAllyBattlefieldContext += _unitSim.Get_TrickRoomContextScore( theirAlly.Pokemon, true );
         }
 
         int ourTotalTeamContext = 0;
         foreach( var mon in ourTeam )
         {
             if( isWeather )
-                ourTotalTeamContext += _unitSim.Get_WeatherContextScore( mon );
+                ourTotalTeamContext += _unitSim.Get_WeatherContextScore( mon, effects.Weather );
 
             if( isTerrain )
-                ourTotalTeamContext += _unitSim.Get_TerrainContextScore( mon );
+                ourTotalTeamContext += _unitSim.Get_TerrainContextScore( mon, effects.Terrain );
 
             if( isField && effects.FieldCondition == FieldConditionID.TrickRoom )
-                ourTotalTeamContext += _unitSim.Get_TrickRoomContextScore( mon );
+                ourTotalTeamContext += _unitSim.Get_TrickRoomContextScore( mon, true );
         }
 
         int theirTotalTeamContext = 0;
         foreach( var mon in theirTeam )
         {
             if( isWeather )
-                theirTotalTeamContext += _unitSim.Get_WeatherContextScore( mon );
+                theirTotalTeamContext += _unitSim.Get_WeatherContextScore( mon, effects.Weather );
 
             if( isTerrain )
-                theirTotalTeamContext += _unitSim.Get_TerrainContextScore( mon );
+                theirTotalTeamContext += _unitSim.Get_TerrainContextScore( mon, effects.Terrain );
 
             if( isField && effects.FieldCondition == FieldConditionID.TrickRoom )
-                theirTotalTeamContext += _unitSim.Get_TrickRoomContextScore( mon );
+                theirTotalTeamContext += _unitSim.Get_TrickRoomContextScore( mon, true );
         }
 
         int battlefieldDelta = ourTotalTeamContext - theirTotalTeamContext;
@@ -3125,7 +3251,7 @@ public class BattleAI_CandidateSelectors
         {
             if( isWeather )
             {
-                if( _unitSim.GetWeatherFromAbility( mon ) is var weather && weather != WeatherConditionID.None )
+                if( _unitSim.GetWeatherFrom_Ability( mon ) is var weather && weather != WeatherConditionID.None )
                 {
                     if( weather != effects.Weather )
                     {
@@ -3390,7 +3516,7 @@ public class BattleAI_CandidateSelectors
 
         //--Apply Effect
         IBattleAIUnit attackerAfter = _unitSim.CopySimUnit( attacker, fieldBefore );
-        ApplySupportEffect( attackerAfter, move, fieldAfter );
+        _unitSim.ApplySupportEffect( attackerAfter, move, fieldAfter );
 
         //--Exchange Information
         var attackerVS_Target_Before = _ai.Projection.EvaluateExchange( attacker, target );
@@ -3404,7 +3530,7 @@ public class BattleAI_CandidateSelectors
 
             IBattleAIUnit allyAfter = _unitSim.CopySimUnit( ally, fieldBefore );
             var tempField = _unitSim.BuildSimField();
-            ApplySupportEffect( allyAfter, move, tempField );
+            _unitSim.ApplySupportEffect( allyAfter, move, tempField );
 
             allyVS_Target_After = _proj.EvaluateExchange( allyAfter, target );
         }
@@ -3424,7 +3550,7 @@ public class BattleAI_CandidateSelectors
 
             IBattleAIUnit theirAllyAfter = _unitSim.CopySimUnit( theirAlly, fieldBefore );
             var tempField = _unitSim.BuildSimField();
-            ApplySupportEffect( theirAllyAfter, move, tempField );
+            _unitSim.ApplySupportEffect( theirAllyAfter, move, tempField );
 
             attackerVS_TheirAlly_After = _proj.EvaluateExchange( attacker, theirAllyAfter );
 
@@ -3434,7 +3560,7 @@ public class BattleAI_CandidateSelectors
 
                 IBattleAIUnit allyAfter = _unitSim.CopySimUnit( ally, fieldBefore );
                 var tempField2 = _unitSim.BuildSimField();
-                ApplySupportEffect( allyAfter, move, tempField2 );
+                _unitSim.ApplySupportEffect( allyAfter, move, tempField2 );
 
                 allyVS_TheirAlly_After = _proj.EvaluateExchange( allyAfter, theirAlly );
             }
@@ -3690,7 +3816,7 @@ public class BattleAI_CandidateSelectors
         reliability += accuracyScore + switchRead + successScore + allyValue;
 
         //--Impact
-        //--Current Situation Improvement should directly take into account any healing done. Healing is applied in ApplySupportEffect(), so all "after" exchange evaluations should be done with the healing in tact. this should theoretically change incoming PTKOs.
+        //--Current Situation Improvement should directly take into account any healing done. Healing is applied in _unitSim.ApplySupportEffect(), so all "after" exchange evaluations should be done with the healing in tact. this should theoretically change incoming PTKOs.
         int currentSituationImprovement = 0;
 
         if( isSideHeal || isAllyHeal )
@@ -3856,7 +3982,7 @@ public class BattleAI_CandidateSelectors
                 unique += 15;
             }
 
-            if( ally.Item == BattleItemEffectID.FocusSash )
+            if( ally.Item == ItemBattleEffectID.FocusSash )
             {
                 unique += 10;
             }
@@ -3940,29 +4066,31 @@ public class BattleAI_CandidateSelectors
         // defensiveSwitchLog.Add( $"===[Defensive Switch Candidate] Threat: {threat.Pokemon.NickName}, incoming move: {incomingMove.Move.MoveSO.Name}]===" );
 
         var threatsEDR_onCurrentMon = _proj.Get_EstimatedDamageResult( threat, returnPokemon, incomingMove );
-        PotentialToKOResult threatPTKOR_onCurrentMon = _proj.Get_PotentialToKOResult( threatsEDR_onCurrentMon, incomingMove, _ai.Get_HPRatio( returnPokemon ) );
+        PotentialToKOResult threatPTKOR_onCurrentMon = _proj.Get_PotentialToKOResult( threatsEDR_onCurrentMon, incomingMove, returnPokemon );
 
         // defensiveSwitchLog.Add( $"===[Defensive Switch Candidate] Getting Defensive Switch for {returnPokemon.Name}. Opponent PTKO on us: {threatPTKOR_onCurrentMon.PTKO} with move: {incomingMove.Move.MoveSO.Name}]===" );
 
         if( bench.Count > 0 )
         {
-            foreach( var candidateAdapter in bench )
+            foreach( var candidate in bench )
             {
-                if( candidateAdapter.Pokemon.IsFainted )
+                if( candidate.Pokemon.IsFainted )
                     continue;
 
-                if( !returnAll && _ai.BattleSystem.IsPokemonSelectedToShift( candidateAdapter.Pokemon ) )
+                if( !returnAll && _ai.BattleSystem.IsPokemonSelectedToShift( candidate.Pokemon ) )
                     continue;
 
                 // defensiveSwitchLog.Add( $"=[Defensive Switch Candidate][{candidateAdapter.Name}] Beginning evaluation for {candidateAdapter.Name}. Their current hp is: {candidateAdapter.Pokemon.CurrentHP} ({candidateAdapter.CurrentHPR})]=" );
 
                 int score = 100;
 
-                float candidateHPRafterHazards = _ai.Get_HPRatio_AfterEntryHazards( candidateAdapter );
+                float candidateHPRafterHazards = _ai.Get_HPRatio_AfterEntryHazards( candidate );
+                candidate.BeginningHPR = candidateHPRafterHazards;
+                candidate.EndHPR = candidateHPRafterHazards;
 
-                if( candidateHPRafterHazards <= 0f && !_ai.Check_IsLastPokemon( candidateAdapter.Pokemon ) )
+                if( candidateHPRafterHazards <= 0f && !_ai.Check_IsLastPokemon( candidate.Pokemon ) )
                 {
-                    var remaining = _ai.GetRemainingAllyPokemon( candidateAdapter.Pokemon );
+                    var remaining = _ai.GetRemainingAllyPokemon( candidate.Pokemon );
                     if( remaining.Count > 1 )
                         continue;
                 }
@@ -3970,39 +4098,70 @@ public class BattleAI_CandidateSelectors
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] HPR after Hazards is: {candidateHPRafterHazards}" );
 
                 //--Rebuild incoming move's MTR.
-                float effectiveness = TypeChart.GetTotalMoveEffectiveness( candidateAdapter.Type, incomingMove.Move );
+                float effectiveness = TypeChart.GetTotalMoveEffectiveness( candidate.Type, incomingMove.Move );
                 MoveThreatResult incomingMTR_vsCandidate = new()
                 {
-                    Modifier = effectiveness * _ai.UnitSim.Get_MoveModifier( candidateAdapter, threat, incomingMove.Move ),
+                    Modifier = effectiveness * _ai.UnitSim.Get_MoveModifier( candidate, threat, incomingMove.Move ),
                     Move = incomingMove.Move,
                     TargetCount = 1,
                 };
 
                 //--Offensive PTKO Result. This is the candidate's potential to KO the current opponent.
-                var threatHPR = _ai.Get_HPRatio( threat );
-                var candidateMTR = _ai.CandidateSelect.GetMove_BestAttack( candidateAdapter, threat, false, "Get Switch Defensive (our move)" );
-                var candidateEDR = _proj.Get_EstimatedDamageResult( candidateAdapter, threat, candidateMTR );
+                var threatHPR = threat.BeginningHPR; //_ai.Get_HPRatio( threat );
+                var candidateMTR = _ai.CandidateSelect.GetMove_BestAttack( candidate, threat, false, "Get Switch Defensive (our move)" );
+                var candidateEDR = _proj.Get_EstimatedDamageResult( candidate, threat, candidateMTR );
 
                 //--Defensive PTKO Result. This is the opponent's potential to KO this candidate.
-                var threatsEDR = _proj.Get_EstimatedDamageResult( threat, candidateAdapter, incomingMTR_vsCandidate );
+                var threatsEDR = _proj.Get_EstimatedDamageResult( threat, candidate, incomingMTR_vsCandidate );
 
-                PotentialToKOResult candidatePTKOR = _proj.Get_PotentialToKOResult( candidateEDR, candidateMTR, threatHPR );
-                PotentialToKOResult threatPTKOR = _proj.Get_PotentialToKOResult( threatsEDR, incomingMTR_vsCandidate, candidateHPRafterHazards );
+                PotentialToKOResult candidatePTKOR = _proj.Get_PotentialToKOResult( candidateEDR, candidateMTR, threat );
+                PotentialToKOResult threatPTKOR = _proj.Get_PotentialToKOResult( threatsEDR, incomingMTR_vsCandidate, candidate );
 
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Our PTKO them: {candidatePTKOR.PTKO}. Their PTKO us: {threatPTKOR.PTKO}" );
 
                 //--Build Simulation Units & Field
                 var fieldSim = _ai.UnitSim.BuildSimField();
 
-                var candidateSim = _ai.UnitSim.BuildSimUnit( candidateAdapter, candidateHPRafterHazards, candidateMTR, fieldSim );
+                var candidateSim = _ai.UnitSim.BuildSimUnit( candidate, candidateHPRafterHazards, candidateMTR, fieldSim );
                 var threatSim = _ai.UnitSim.BuildSimUnit( threat, threatHPR, incomingMTR_vsCandidate, fieldSim );
 
-                SimulationPackage candidatePack = new(){ SimUnit = candidateSim, ModuleType = SimModuleType.Switch };
-                SimulationPackage threatPack = new(){ SimUnit = threatSim, ModuleType = SimModuleType.Attack };
+                var ally = _ai.GetActiveAllyAs_Adapter( candidateSim.Pokemon );
+                var threatAlly = _ai.GetActiveAllyAs_Adapter( threatSim.Pokemon );
 
-                var bse = _battleSim.BuildBattleSimEvent( candidatePTKOR.PTKO, threatPTKOR.PTKO, candidatePack, threatPack, fieldSim );
-                var switchTOP = _battleSim.RunSimulation( bse ); //--Attacker is switch, opponent is switch
-                // var switchTOP = _battleSim.SimulateSwitchRound( battleSimContext, true, false ); //--Attacker is switch, opponent is switch
+                SimulatedUnit allySimUnit = null;
+                SimulatedUnit threatAllySimUnit = null;
+
+                MoveThreatResult allyMTR = null;
+                MoveThreatResult threatAllyMTR = null;
+
+                // if( ally != null )
+                // {
+                //     var allyTarget = targetAlly ?? target;
+                //     allyMTR = GetMove_BestAttack( ally, allyTarget, false, "Ally best attack on current target" ); //--Will be replaced by CIR
+                //     allySimUnit = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+                // }
+
+                // if( targetAlly != null )
+                // {
+                //     var targetAllyTarget = ally ?? attacker;
+                //     targetAllyMTR = GetMove_BestAttack( targetAlly, targetAllyTarget, false, "Target's Ally best attack on current target" ); //--Will be replaced by PIR
+                //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+                // }
+
+                List<SimulatedUnit> attackerTargets     = new(); //--A switching unit has no targets
+                List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( candidateSim, threatSim, threatAllySimUnit, allySimUnit, incomingMove );
+                List<SimulatedUnit> allyTargets         = allySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, allyMTR ) : new();
+                List<SimulatedUnit> opponentAllyTargets = threatAllySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, threatAllyMTR ) : new();
+
+                SimulationPackage candidatePack         = _battleSim.BuildSimPackage( candidateSim, attackerTargets, SimModuleType.Switch );
+                SimulationPackage threatPack            = _battleSim.BuildSimPackage( threatSim, opponentTargets, SimModuleType.Attack );
+
+                SimulationPackage attackerAllyPack      = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+                SimulationPackage threatAllyPack      = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+                var roundPack = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack, threatPack, threatAllyPack );
+                var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
+                var switchTOP = _battleSim.RunSimulation( bse );
 
                 // defensiveSwitchLog.Add( $"==[Defensive Switch Candidate][{candidateAdapter.Name}] Logging TOP]===" );
                 // defensiveSwitchLog.Add( $"{switchTOP.SimulationLog}" );
@@ -4034,7 +4193,7 @@ public class BattleAI_CandidateSelectors
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Modifier: {effectiveness}. Score: {score}" );
 
                 //--Consider candidate's expendability.
-                float expendability = _proj.GetExpendability( candidateAdapter, candidateHPRafterHazards );
+                float expendability = _proj.GetExpendability( candidate, candidateHPRafterHazards );
                 int sacrificeWeight = 35;
                 int expendabilityScore = Mathf.FloorToInt( expendability * sacrificeWeight );
                 score -= expendabilityScore;
@@ -4048,7 +4207,7 @@ public class BattleAI_CandidateSelectors
                     // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidateAdapter.Name}] Preserve Offensive Piece Bonus: {preserveOffensivePieceBonus}. Score: {score}" );
                 }
 
-                if( _ai.Blackboard.OurTeamPieceValues.TryGetValue( candidateAdapter.Pokemon, out var candidatePieceValue ) )
+                if( _ai.Blackboard.OurTeamPieceValues.TryGetValue( candidate.Pokemon, out var candidatePieceValue ) )
                 {
                     int deathValuePenalty = Mathf.FloorToInt( candidatePieceValue.OffensiveValue * 0.5f );
                     score -= deathValuePenalty;
@@ -4058,7 +4217,7 @@ public class BattleAI_CandidateSelectors
                 //--Penalty for likely undoing a pivot
                 if( _ai.LastSentInPokemon != null )
                 {
-                    if( candidateAdapter == _ai.LastSentInPokemon )
+                    if( candidate == _ai.LastSentInPokemon )
                     {
                         score -= 30;
                     
@@ -4129,24 +4288,25 @@ public class BattleAI_CandidateSelectors
                     SwitchCandidateResult src = new()
                     {
                         Score = score,
-                        Pokemon = candidateAdapter.Pokemon,
+                        Pokemon = candidate.Pokemon,
                         HPRatio = candidateHPRafterHazards,
                         SwitchOffensePTKOR = candidatePTKOR,
                         SwitchDefensePTKOR = threatPTKOR,
                         IsLegitimate = islegit,
                         Top = switchTOP,
+                        CurrentActor = returnPokemon,
 
                         Type = ActionResultType.Switch,
                         ActionType = ActionType.DefensiveSwitch,
                     };
 
-                    returnAllList.Add( candidateAdapter.Pokemon, src );
+                    returnAllList.Add( candidate.Pokemon, src );
                 }
 
                 if( score > bestScore )
                 {
                     bestScore = score;
-                    bestSwitch = candidateAdapter.Pokemon;
+                    bestSwitch = candidate.Pokemon;
                     bestHPRatio = candidateHPRafterHazards;
                     bestSwitch_OffensePTKOR = candidatePTKOR;
                     bestSwitch_DefensePTKOR = threatPTKOR;
@@ -4182,6 +4342,7 @@ public class BattleAI_CandidateSelectors
             SwitchDefensePTKOR = bestSwitch_DefensePTKOR,
             IsLegitimate = islegit,
             Top = bestCandidateTOP,
+            CurrentActor = returnPokemon,
 
             Type = ActionResultType.Switch,
             ActionType = ActionType.DefensiveSwitch,
@@ -4254,6 +4415,8 @@ public class BattleAI_CandidateSelectors
             int sacrificeWeight = 30;
 
             float hpRatioAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( candidate );
+            candidate.BeginningHPR = hpRatioAfterHazards;
+            candidate.EndHPR = hpRatioAfterHazards;
 
             float expendability = _proj.GetExpendability( candidate, hpRatioAfterHazards );
             int expendabilityScore = Mathf.FloorToInt( expendability * sacrificeWeight );
@@ -4270,32 +4433,63 @@ public class BattleAI_CandidateSelectors
 
             //--Get PTKOs
             //--Offensive PTKO Result. This is the candidate's potential to KO the current opponent.
-            var threatHPR                       = _ai.Get_HPRatio( threat.Unit );
+            var threatHPR                       = threat.Unit.BeginningHPR; //_ai.Get_HPRatio( threat.Unit );
             var candidateMove                   = _ai.CandidateSelect.GetMove_BestAttack( candidate, threat.Unit, false, "Get Switch Offensive (candidate move vs current threat)" );
             var candidateMoveModifier           = candidateMove.Modifier;
             var candidateWSR                    = _proj.Get_EstimatedDamageResult( candidate, threat.Unit, candidateMove );
-            PotentialToKOResult offensePTKOR    = _proj.Get_PotentialToKOResult( candidateWSR, candidateMove, threatHPR );
+            PotentialToKOResult offensePTKOR    = _proj.Get_PotentialToKOResult( candidateWSR, candidateMove, threat.Unit );
 
             //--Defensive PTKO Result. This is the opponent's potential to KO this candidate.
-            var threatsMove                     = _ai.CandidateSelect.GetMove_BestAttack( threat.Unit, candidate, false, "Get Switch Offensive (current threat vs candidate)" );
-            var threatsMoveModifier             = threatsMove.Modifier;
-            var threatsWSR                      = _proj.Get_EstimatedDamageResult( threat.Unit, candidate, threatsMove );
-            PotentialToKOResult defensePTKOR    = _proj.Get_PotentialToKOResult( threatsWSR, threatsMove, hpRatioAfterHazards );
+            var threatMTR                     = _ai.CandidateSelect.GetMove_BestAttack( threat.Unit, candidate, false, "Get Switch Offensive (current threat vs candidate)" );
+            var threatsMoveModifier             = threatMTR.Modifier;
+            var threatsWSR                      = _proj.Get_EstimatedDamageResult( threat.Unit, candidate, threatMTR );
+            PotentialToKOResult defensePTKOR    = _proj.Get_PotentialToKOResult( threatsWSR, threatMTR, candidate );
 
             // Debug.Log( $"[AI Scoring][Offensive Switch Candidate][{pokemon.NickName}] PTKOs Obtained. {pokemon.NickName} PTKO: {offensePTKOR.PTKO}. {threat.Unit.Pokemon.NickName} PTKO: {defensePTKOR.PTKO}" );
 
             //--Build Simulation Units & Field
             var fieldSim                        = _ai.UnitSim.BuildSimField();
-            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatsMove, fieldSim );
+            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatMTR, fieldSim );
 
             var candidateSim                    = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, candidateMove, fieldSim );
 
-            SimulationPackage candidatePack     = new(){ SimUnit = candidateSim, ModuleType = SimModuleType.Switch };
-            SimulationPackage threatPack        = new(){ SimUnit = threatSim, ModuleType = SimModuleType.Attack };
+            var ally = _ai.GetActiveAllyAs_Adapter( candidateSim.Pokemon );
+            var threatAlly = _ai.GetActiveAllyAs_Adapter( threatSim.Pokemon );
 
-            var bse                             = _battleSim.BuildBattleSimEvent( offensePTKOR.PTKO, defensePTKOR.PTKO, candidatePack, threatPack, fieldSim );
-            var top                             = _battleSim.RunSimulation( bse );
-            // var top                             = _battleSim.SimulateSwitchRound( bse, true, false );
+            SimulatedUnit allySimUnit = null;
+            SimulatedUnit threatAllySimUnit = null;
+
+            MoveThreatResult allyMTR = null;
+            MoveThreatResult threatAllyMTR = null;
+
+            // if( ally != null )
+            // {
+            //     var allyTarget = targetAlly ?? target;
+            //     allyMTR = GetMove_BestAttack( ally, allyTarget, false, "Ally best attack on current target" ); //--Will be replaced by CIR
+            //     allySimUnit = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+            // }
+
+            // if( targetAlly != null )
+            // {
+            //     var targetAllyTarget = ally ?? attacker;
+            //     targetAllyMTR = GetMove_BestAttack( targetAlly, targetAllyTarget, false, "Target's Ally best attack on current target" ); //--Will be replaced by PIR
+            //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+            // }
+
+            List<SimulatedUnit> attackerTargets     = new(); //--A switching unit has no targets
+            List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( candidateSim, threatSim, threatAllySimUnit, allySimUnit, threatMTR );
+            List<SimulatedUnit> allyTargets         = allySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, allyMTR ) : new();
+            List<SimulatedUnit> opponentAllyTargets = threatAllySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, threatAllyMTR ) : new();
+
+            SimulationPackage candidatePack         = _battleSim.BuildSimPackage( candidateSim, attackerTargets, SimModuleType.Switch );
+            SimulationPackage threatPack            = _battleSim.BuildSimPackage( threatSim, opponentTargets, SimModuleType.Attack );
+
+            SimulationPackage attackerAllyPack      = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+            SimulationPackage threatAllyPack      = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+            var roundPack = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack, threatPack, threatAllyPack );
+            var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
+            var top = _battleSim.RunSimulation( bse );
 
             //--Speed check.
             bool movesFirst = false;
@@ -4396,6 +4590,7 @@ public class BattleAI_CandidateSelectors
                     SwitchOffensePTKOR = offensePTKOR,
                     SwitchDefensePTKOR = defensePTKOR,
                     Top = top,
+                    CurrentActor = returnPokemon,
 
                     Type = ActionResultType.Switch,
                     ActionType = ActionType.OffensiveSwitch,
@@ -4432,6 +4627,7 @@ public class BattleAI_CandidateSelectors
             SwitchDefensePTKOR = bestSwitch_DefensePTKOR,
             MovesFirst = isFaster,
             Top = bestTop,
+            CurrentActor = returnPokemon,
 
             Type = ActionResultType.Switch,
             ActionType = ActionType.OffensiveSwitch,
@@ -4506,6 +4702,9 @@ public class BattleAI_CandidateSelectors
             int score = 100;
 
             float hpRatioAfterHazards = _ai.Get_HPRatio_AfterEntryHazards( candidate );
+            candidate.BeginningHPR = hpRatioAfterHazards;
+            candidate.EndHPR = hpRatioAfterHazards;
+
             if( hpRatioAfterHazards <= 0f && !_ai.Check_IsLastPokemon( candidate.Pokemon ) )
             {
                 if( remaining > 1 )
@@ -4514,17 +4713,17 @@ public class BattleAI_CandidateSelectors
 
             //--Get PTKOs
             //--Offensive PTKO Result. This is the candidate's potential to KO the current opponent.
-            var threatHPR                       = _ai.Get_HPRatio( threat.Unit );
+            var threatHPR                       = threat.Unit.BeginningHPR; //_ai.Get_HPRatio( threat.Unit );
             var candidateMove                   = _ai.CandidateSelect.GetMove_BestAttack( candidate, threat.Unit, false, "Get Switch Revenge (candidate vs current threat)" );
             var candidateMoveModifier           = candidateMove.Modifier;
             var candidateWSR                    = _proj.Get_EstimatedDamageResult( candidate, threat.Unit, candidateMove );
-            PotentialToKOResult offensePTKOR    = _proj.Get_PotentialToKOResult( candidateWSR, candidateMove, threatHPR );
+            PotentialToKOResult offensePTKOR    = _proj.Get_PotentialToKOResult( candidateWSR, candidateMove, threat.Unit );
 
             //--Defensive PTKO Result. This is the opponent's potential to KO this candidate.
-            var threatsMove                     = _ai.CandidateSelect.GetMove_BestAttack( threat.Unit, candidate, false, "Get Switch Revenge (current threat vs candidate)" );
-            var threatsMoveModifier             = threatsMove.Modifier;
-            var threatsWSR                      = _proj.Get_EstimatedDamageResult( threat.Unit, candidate, threatsMove );
-            PotentialToKOResult defensePTKOR    = _proj.Get_PotentialToKOResult( threatsWSR, threatsMove, hpRatioAfterHazards );
+            var threatMTR                       = _ai.CandidateSelect.GetMove_BestAttack( threat.Unit, candidate, false, "Get Switch Revenge (current threat vs candidate)" );
+            var threatsMoveModifier             = threatMTR.Modifier;
+            var threatsWSR                      = _proj.Get_EstimatedDamageResult( threat.Unit, candidate, threatMTR );
+            PotentialToKOResult defensePTKOR    = _proj.Get_PotentialToKOResult( threatsWSR, threatMTR, candidate );
 
             // log.Add( $"[AI Scoring][Revenge Switch Candidate] PTKOs Obtained. {candidate.Name} PTKO: {offensePTKOR.PTKO}. {threat.Unit.Name} PTKO: {defensePTKOR.PTKO}" );
 
@@ -4532,14 +4731,45 @@ public class BattleAI_CandidateSelectors
             var fieldSim                        = _ai.UnitSim.BuildSimField();
 
             var candidateSim                    = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, candidateMove, fieldSim );
-            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatsMove, fieldSim );
+            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat.Unit, threatHPR, threatMTR, fieldSim );
 
-            SimulationPackage candidatePack     = new(){ SimUnit = candidateSim, ModuleType = SimModuleType.Switch };
-            SimulationPackage threatPack        = new(){ SimUnit = threatSim, ModuleType = SimModuleType.Attack };
+            var ally = _ai.GetActiveAllyAs_Adapter( candidateSim.Pokemon );
+            var threatAlly = _ai.GetActiveAllyAs_Adapter( threatSim.Pokemon );
 
-            var bse                             = _battleSim.BuildBattleSimEvent( offensePTKOR.PTKO, defensePTKOR.PTKO, candidatePack, threatPack, fieldSim );
-            var top                             = _battleSim.RunSimulation( bse );
-            // var top                             = _battleSim.SimulateAttackRound( bse );
+            SimulatedUnit allySimUnit = null;
+            SimulatedUnit threatAllySimUnit = null;
+
+            MoveThreatResult allyMTR = null;
+            MoveThreatResult threatAllyMTR = null;
+
+            // if( ally != null )
+            // {
+            //     var allyTarget = targetAlly ?? target;
+            //     allyMTR = GetMove_BestAttack( ally, allyTarget, false, "Ally best attack on current target" ); //--Will be replaced by CIR
+            //     allySimUnit = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+            // }
+
+            // if( threatAlly != null )
+            // {
+            //     var threatAllyTarget = ally ?? attacker;
+            //     threatAllyMTR = GetMove_BestAttack( targetAlly, targetAllyTarget, false, "Target's Ally best attack on current target" ); //--Will be replaced by PIR
+            //     threatAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+            // }
+
+            List<SimulatedUnit> attackerTargets     = new(); //--A switching unit has no targets
+            List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( candidateSim, threatSim, threatAllySimUnit, allySimUnit, threatMTR );
+            List<SimulatedUnit> allyTargets         = allySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, allyMTR ) : new();
+            List<SimulatedUnit> opponentAllyTargets = threatAllySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, threatAllyMTR ) : new();
+
+            SimulationPackage candidatePack         = _battleSim.BuildSimPackage( candidateSim, attackerTargets, SimModuleType.Switch );
+            SimulationPackage threatPack            = _battleSim.BuildSimPackage( threatSim, opponentTargets, SimModuleType.Attack );
+
+            SimulationPackage attackerAllyPack      = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
+            SimulationPackage threatAllyPack      = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+
+            var roundPack = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack, threatPack, threatAllyPack );
+            var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
+            var top = _battleSim.RunSimulation( bse );
 
             //--Speed check.
             bool movesFirst = top.AttackerMovedFirst;
@@ -4648,7 +4878,7 @@ public class BattleAI_CandidateSelectors
                     {
                         SimulatedUnit opponentDefensiveSwitchAdapter = defensiveSwitch;
                         nextOpponentMTR = _ai.CandidateSelect.GetMove_BestAttack( opponentDefensiveSwitchAdapter, top.Attacker );
-                        nextOpponent = _ai.UnitSim.BuildSimUnit( opponentDefensiveSwitchAdapter, opponentDefensiveSwitchAdapter.CurrentHPR, nextOpponentMTR, fieldSim );
+                        nextOpponent = _ai.UnitSim.BuildSimUnit( opponentDefensiveSwitchAdapter, opponentDefensiveSwitchAdapter.EndHPR, nextOpponentMTR, fieldSim );
                     }
                     else
                     {
@@ -4664,20 +4894,54 @@ public class BattleAI_CandidateSelectors
                         var candidateEDR_FollowUp                   = _proj.Get_EstimatedDamageResult( top.Attacker, nextOpponent, candidateMTR_FollowUp );
                         var nextOpponentEDR_FollowUp                = _proj.Get_EstimatedDamageResult( nextOpponent, top.Attacker, nextOpponentMTR );
 
+                        //--Copy a fresh attacker unit for look ahead with appropriate hp ratios
+                        var top2Attacker = _unitSim.CopySimUnit( top.Attacker, fieldSim );
+                        top2Attacker.BeginningHPR = top.Attacker.EndHPR;
+                        top2Attacker.EndHPR = top.Attacker.EndHPR;
+
                         //--Follow up PTKORs
-                        var candidatePTKOR_FollowUp                 = _proj.Get_PotentialToKOResult( candidateEDR_FollowUp, candidateMTR_FollowUp, top.Attacker_EndOfTurnHP );
-                        var nextOpponentPTKOR_FollowUp              = _proj.Get_PotentialToKOResult( nextOpponentEDR_FollowUp, nextOpponentMTR, nextOpponent.BeginningHPR );
+                        var candidatePTKOR_FollowUp                 = _proj.Get_PotentialToKOResult( candidateEDR_FollowUp, candidateMTR_FollowUp, top2Attacker );
+                        var nextOpponentPTKOR_FollowUp              = _proj.Get_PotentialToKOResult( nextOpponentEDR_FollowUp, nextOpponentMTR, nextOpponent );
 
                         var candidateSim_FollowUp                   = _ai.UnitSim.BuildSimUnit( top.Attacker, top.Attacker_EndOfTurnHP, candidateMTR_FollowUp, fieldSim );
                         var threatSim_FollowUp                      = _ai.UnitSim.BuildSimUnit( nextOpponent, nextOpponent.BeginningHPR, nextOpponent.MTR, fieldSim );
 
-                        SimulationPackage candidatePack_FollowUp    = new(){ SimUnit = candidateSim_FollowUp, ModuleType = SimModuleType.Attack };
-                        SimulationPackage threatPack_FollowUp       = new(){ SimUnit = threatSim_FollowUp, ModuleType = SimModuleType.Attack };
+                        // var ally_followUp = _ai.GetActiveAllyAs_Adapter( candidateSim_FollowUp.Pokemon );
+                        // var targetAlly_followUp = _ai.GetActiveAllyAs_Adapter( threatSim_FollowUp.Pokemon );
 
-                        var bse_FollowUp                            = _battleSim.BuildBattleSimEvent( candidatePTKOR_FollowUp.PTKO, nextOpponentPTKOR_FollowUp.PTKO, candidatePack_FollowUp, threatPack_FollowUp, fieldSim );
-                        var followUp                                = _battleSim.RunSimulation( bse_FollowUp );
-                        // var followUp                             = _battleSim.SimulateAttackRound( battleSimCtx_FollowUp );
-                        
+                        SimulatedUnit allySimUnit_FollowUp = null;
+                        SimulatedUnit targetAllySimUnit_FollowUp = null;
+
+                        MoveThreatResult allyMTR_FollowUp = null;
+                        MoveThreatResult targetAllyMTR_FollowUp = null;
+
+                        // if( ally_followUp != null )
+                        // {
+                        //     allyMTR_FollowUp = GetMove_BestAttack( ally, threatSim, false, "Ally best attack on current target" );
+                        //     allySimUnit_FollowUp = _ai.UnitSim.BuildSimUnit( ally, ally.BeginningHPR, allyMTR, fieldSim );
+                        // }
+
+                        // if( targetAlly_followUp != null )
+                        // {
+                        //     targetAllyMTR_FollowUp = GetMove_BestAttack( targetAlly, candidateSim, false, "Target's Ally best attack on current target" );
+                        //     targetAllySimUnit_FollowUp = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
+                        // }
+
+                        List<SimulatedUnit> attackerTargets_FollowUp     = _battleSim.GetTOPTargets( candidateSim_FollowUp, threatSim_FollowUp, allySimUnit_FollowUp, targetAllySimUnit_FollowUp, candidateMTR_FollowUp );
+                        List<SimulatedUnit> opponentTargets_FollowUp     = _battleSim.GetTOPTargets( candidateSim_FollowUp, threatSim_FollowUp, allySimUnit_FollowUp, targetAllySimUnit_FollowUp, nextOpponentMTR );
+                        List<SimulatedUnit> allyTargets_FollowUp         = allySimUnit_FollowUp != null ? _battleSim.GetTOPTargets( candidateSim_FollowUp, threatSim_FollowUp, allySimUnit_FollowUp, targetAllySimUnit_FollowUp, allyMTR_FollowUp ) : new();
+                        List<SimulatedUnit> opponentAllyTargets_FollowUp = targetAllySimUnit_FollowUp != null ? _battleSim.GetTOPTargets( candidateSim_FollowUp, threatSim_FollowUp, allySimUnit_FollowUp, targetAllySimUnit_FollowUp, targetAllyMTR_FollowUp ) : new();
+
+                        SimulationPackage candidatePack_FollowUp    = _battleSim.BuildSimPackage( candidateSim_FollowUp, attackerTargets_FollowUp, SimModuleType.Attack );
+                        SimulationPackage threatPack_FollowUp       = _battleSim.BuildSimPackage( threatSim_FollowUp, opponentTargets_FollowUp, SimModuleType.Attack );
+
+                        SimulationPackage attackerAllyPack_FollowUp  = allySimUnit_FollowUp != null ? _battleSim.BuildSimPackage( allySimUnit_FollowUp, allyTargets_FollowUp, SimModuleType.Attack ) : default;
+                        SimulationPackage targetAllyPack_FollowUp    = targetAllySimUnit_FollowUp != null ? _battleSim.BuildSimPackage( targetAllySimUnit_FollowUp, opponentAllyTargets_FollowUp, SimModuleType.Attack ) : default;
+
+                        var roundPack_FollowUp = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack_FollowUp, threatPack, targetAllyPack_FollowUp );
+                        var bse_FollowUp = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
+                        var followUp = _battleSim.RunSimulation( bse );
+
                         float candidateForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.Opponent.Pokemon, followUp.AttackerPTKO, followUp.OpponentPTKO, followUp.AttackerMovedFirst, followUp.Attacker.BeginningHPR, followUp.Opponent.BeginningHPR, followUp.Opponent.Expendability );
                         float opponentForcesSwitch_FollowUp = _ai.UnitSim.PredictSwitchProbability( followUp.Attacker.Pokemon, followUp.OpponentPTKO, followUp.AttackerPTKO, followUp.AttackerMovedFirst, followUp.Opponent.BeginningHPR, followUp.Attacker.BeginningHPR, followUp.Attacker.Expendability );
 

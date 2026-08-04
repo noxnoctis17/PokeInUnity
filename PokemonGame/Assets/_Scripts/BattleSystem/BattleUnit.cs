@@ -103,7 +103,7 @@ public class BattleUnit : MonoBehaviour
             { UnitFlags.Imprisoned,             new() },
             { UnitFlags.Substitute,             new() },
             { UnitFlags.CompletedTurn,          new() },
-            { UnitFlags.SkillSwapped,           new() },
+            { UnitFlags.AbilityChanged,           new() },
             { UnitFlags.BatonPass,              new() { StatStages = new(), VolatileStatuses = new() } },
             { UnitFlags.SemiInvulnerable,       new() },
             { UnitFlags.TwoTurnMove,            new() },
@@ -118,6 +118,7 @@ public class BattleUnit : MonoBehaviour
             { UnitFlags.DoomDesire,             new() },
             { UnitFlags.FaintedPreviousTurn,    new() },
             { UnitFlags.EchoedVoiceCount,       new() },
+            { UnitFlags.LockOn,                 new() },
         };
     }
 
@@ -215,15 +216,19 @@ public class BattleUnit : MonoBehaviour
 
     public void DecideIfGrounded()
     {
-        if( Pokemon.CheckTypes( PokemonType.Flying ) || Pokemon.AbilityID == AbilityID.Levitate || Pokemon.BattleItemEffect?.ID == BattleItemEffectID.AirBalloon )
+        if( Pokemon.CheckTypes( PokemonType.Flying ) || Pokemon.AbilityID == AbilityID.Levitate || Pokemon.BattleItemEffect?.ID == ItemBattleEffectID.AirBalloon )
             SetFlagActive( UnitFlags.Ungrounded, true );
         else
             SetFlagActive( UnitFlags.Ungrounded, false );
     }
 
-    public void SetSubstitute()
+    public void RestoreGroundedState()
     {
-        int hp = Mathf.FloorToInt( Pokemon.MaxHP * 0.25f );
+        DecideIfGrounded();
+    }
+
+    public void SetSubstitute( int hp )
+    {
         Flags[UnitFlags.Substitute].IsActive = true;
         Flags[UnitFlags.Substitute].SubstituteHP = hp;
     }
@@ -303,6 +308,22 @@ public class BattleUnit : MonoBehaviour
         pass.VolatileStatuses.Clear();
     }
 
+    public void SetLockOn( BattleUnit target )
+    {
+        SetFlagActive( UnitFlags.LockOn, true );
+        var lockOn = Flags[UnitFlags.LockOn];
+
+        lockOn.Target = target;
+    }
+
+    public void ClearLockOn()
+    {
+        SetFlagActive( UnitFlags.LockOn, false );
+        var lockOn = Flags[UnitFlags.LockOn];
+
+        lockOn.Target = null;
+    }
+
     public void ClearAfterNextRoundQueue()
     {
         AfterNextRoundQueue.Clear();
@@ -337,6 +358,17 @@ public class BattleUnit : MonoBehaviour
             return 1f;
     }
 
+    private float GetFlashFire( BattleUnit attacker, Move move )
+    {
+        if( attacker.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.FlashFire ) && move.MoveType == PokemonType.Fire )
+        {
+            attacker.Pokemon.CureVolatileStatus( VolatileConditionID.FlashFire );
+            return 1.5f;
+        }
+        else
+            return 1f;
+    }
+
     public DamageDetails TakeDamage( Move move, BattleUnit attacker, WeatherCondition weather, TerrainCondition terrain, int targetCount, int hit )
     {
         var target = Pokemon;
@@ -350,7 +382,7 @@ public class BattleUnit : MonoBehaviour
         // Debug.Log( $"[Perform Move Command][Battle Unit][Take Damage] Target Modifier is: {targets}" );
 
         //--Calculate crit chance in accordance to move's crit behavior
-        if( move.MoveSO.CritBehavior != CritBehavior.NeverCrits )
+        if( Pokemon.AbilityID != AbilityID.ShellArmor && move.MoveSO.CritBehavior != CritBehavior.NeverCrits )
         {
             if( move.MoveSO.CritBehavior == CritBehavior.AlwaysCrits )
             {
@@ -460,11 +492,12 @@ public class BattleUnit : MonoBehaviour
 
         float helpingHand = GetHelpingHand( attacker );
         float brnORfbt = GetBurnOrFrostbite( attacker, move );
+        float flashFire = GetFlashFire( attacker, move );
         
         float random = UnityEngine.Random.Range( 0.85f, 1f );
 
         float modifiers = targets * random * STAB * effectiveness * critical * weatherModifier * terrainModifier * reflectModifier * lightScreenModifier * auroraVeilModifier
-                            * itemOnDamageModify * helpingHand * brnORfbt;
+                            * itemOnDamageModify * helpingHand * brnORfbt * flashFire;
 
         float level = attacker.Level;
         float damageCalc = ( ( 2f * level / 5f + 2f ) * power * attackStat / defenseStat / 50f + 2f ) * modifiers;
@@ -544,7 +577,7 @@ public enum UnitFlags
     Imprisoned,
     Substitute,
     CompletedTurn,
-    SkillSwapped,
+    AbilityChanged,
     BatonPass,
     SemiInvulnerable,
     TwoTurnMove,
@@ -559,6 +592,7 @@ public enum UnitFlags
     DoomDesire,
     FaintedPreviousTurn,
     EchoedVoiceCount,
+    LockOn,
 }
 
 public class BattleUnitFlag

@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.AI;
 
 public class MoveSuccessDB
 {
@@ -342,11 +341,49 @@ public class MoveSuccessDB
                 }
             },
             {
+                "Thunder", new()
+                {
+                    OnCheckSuccess = ( attacker, target, move, bs ) => true,
+
+                    OnCheckAccuracy = ( attacker, target, move, bs ) =>
+                    {
+                        if( bs.Field.Weather?.ID == WeatherConditionID.RAIN || target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.SkyHigh ) )
+                        {
+                            move.OverrideAccuracyType( AccuracyType.AlwaysHits );
+                        }
+                    },
+
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        move.OverrideAccuracyType( AccuracyType.Once );
+                    },
+                }
+            },
+            {
+                "Hurricane", new()
+                {
+                    OnCheckSuccess = ( attacker, target, move, bs ) => true,
+
+                    OnCheckAccuracy = ( attacker, target, move, bs ) =>
+                    {
+                        if( bs.Field.Weather?.ID == WeatherConditionID.RAIN || target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.SkyHigh ) )
+                        {
+                            move.OverrideAccuracyType( AccuracyType.AlwaysHits );
+                        }
+                    },
+
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        move.OverrideAccuracyType( AccuracyType.Once );
+                    },
+                }
+            },
+            {
                 "Substitute", new()
                 {
-                    FailureMessage = ( Pokemon user ) => ButItFailed(),
+                    FailureMessage = ( user ) => ButItFailed(),
 
-                    OnCheckSuccess = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
                     {
                         if( attacker.Flags[UnitFlags.Substitute].IsActive )
                             return false;
@@ -357,8 +394,6 @@ public class MoveSuccessDB
                         if( hp - subDamage <= 0 )
                             return false;
 
-                        attacker.Pokemon.DecreaseHP( subDamage );
-                        attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, string.Empty );
                         return true;
                     }
                 }
@@ -498,13 +533,22 @@ public class MoveSuccessDB
                         {
                             attacker.SetCharging( target, move );
                             attacker.SetFlagActive( UnitFlags.SemiInvulnerable, true );
-                            bs.AddDialogue( $"{attacker.Pokemon.NickName} boroughed under ground!" );
+                            // bs.AddDialogue( $"{attacker.Pokemon.NickName} boroughed under ground!" );
+
+                            StatusEffectSource source = new()
+                            {
+                                Pokemon = attacker.Pokemon,
+                                Source = EffectSource.Move,
+                            };
+
+                            attacker.Pokemon.SetVolatileStatus( VolatileConditionID.Boroughed, source );
                             return true;
                         }
                         else
                         {
                             attacker.ClearCharging();
                             attacker.SetFlagActive( UnitFlags.SemiInvulnerable, false );
+                            attacker.Pokemon.CureVolatileStatus( VolatileConditionID.Boroughed );
                             return false;
                         }
                     },
@@ -519,13 +563,51 @@ public class MoveSuccessDB
                         {
                             attacker.SetCharging( target, move );
                             attacker.SetFlagActive( UnitFlags.SemiInvulnerable, true );
-                            bs.AddDialogue( $"{attacker.Pokemon.NickName} flew into the sky!" );
+                            // bs.AddDialogue( $"{attacker.Pokemon.NickName} flew into the sky!" );
+
+                            StatusEffectSource source = new()
+                            {
+                                Pokemon = attacker.Pokemon,
+                                Source = EffectSource.Move,
+                            };
+
+                            attacker.Pokemon.SetVolatileStatus( VolatileConditionID.SkyHigh, source );
                             return true;
                         }
                         else
                         {
                             attacker.ClearCharging();
                             attacker.SetFlagActive( UnitFlags.SemiInvulnerable, false );
+                            attacker.Pokemon.CureVolatileStatus( VolatileConditionID.SkyHigh );
+                            return false;
+                        }
+                    },
+                }
+            },
+            {
+                "Dive", new()
+                {
+                    OnCheckNeedsToCharge = ( attacker, target, move, bs ) =>
+                    {
+                        if( !attacker.Flags[UnitFlags.Charging].IsActive )
+                        {
+                            attacker.SetCharging( target, move );
+                            attacker.SetFlagActive( UnitFlags.SemiInvulnerable, true );
+
+                            StatusEffectSource source = new()
+                            {
+                                Pokemon = attacker.Pokemon,
+                                Source = EffectSource.Move,
+                            };
+
+                            attacker.Pokemon.SetVolatileStatus( VolatileConditionID.Submerged, source );
+                            return true;
+                        }
+                        else
+                        {
+                            attacker.ClearCharging();
+                            attacker.SetFlagActive( UnitFlags.SemiInvulnerable, false );
+                            attacker.Pokemon.CureVolatileStatus( VolatileConditionID.Submerged );
                             return false;
                         }
                     },
@@ -782,6 +864,168 @@ public class MoveSuccessDB
                             return true;
                         else
                             return false;
+                    }
+                }
+            },
+            {
+                "Conversion", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        var moves = attacker.Pokemon.ActiveMoves;
+                        if( moves?.Count > 0 && !attacker.Pokemon.CheckTypes( moves[0].MoveType ) )
+                            return true;
+                        else
+                            return false;
+                    }
+                }
+            },
+            {
+                "Conversion 2", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( target.LastUsedMove == null )
+                            return false;
+                        else
+                            return true;
+                    }
+                }
+            },
+            {
+                "Stomp", new()
+                {
+                    OnCheckSuccess = ( attacker, target, move, bs ) => true,
+
+                    OnCheckAccuracy = ( attacker, target, move, bs ) =>
+                    {
+                        if( target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Minimize ) )
+                        {
+                            move.OverrideAccuracyType( AccuracyType.AlwaysHits );
+                        }
+                    },
+
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        move.OverrideAccuracyType( AccuracyType.Once );
+                    },
+                }
+            },
+            {
+                "Endeavor", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.CurrentHP <= target.Pokemon.CurrentHP )
+                            return false;
+                        else
+                            return true;
+                    }
+                }
+            },
+            {
+                "Shed Tail", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Flags[UnitFlags.Substitute].IsActive || attacker.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Substitute ) )
+                            return false;
+
+                        float hpr = attacker.Pokemon.CurrentHP / attacker.Pokemon.MaxHP;
+
+                        if( hpr <= 0.5f )
+                            return false;
+
+                        return true;
+                    }
+                }
+            },
+            {
+                "Swagger", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        var targetStages = target.Pokemon.StatStages;
+                        
+                        if( ( targetStages[Stat.Attack] == 6 || targetStages[Stat.Attack] == -6 ) && target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Confusion ) )
+                            return false;
+                        else
+                            return true;
+                    }
+                }
+            },
+            {
+                "Stockpile", new()
+                {
+                    FailureMessage = ( user ) => "But it is already at 3 stacks!",
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out var stockpile ) )
+                        {
+                            if( stockpile.Duration >= 3 )
+                                return false;
+                        }
+
+                        return true;
+                    }
+                }
+            },
+            {
+                "Spit Up", new()
+                {
+                    FailureMessage = ( user ) => "But it doesn't have any stacks stockpiled!",
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out var stockpile ) )
+                        {
+                            if( stockpile.Duration > 0 )
+                                return true;
+                        }
+
+                        return false;
+                    }
+                }
+            },
+            {
+                "Swallow", new()
+                {
+                    FailureMessage = ( user ) => "But it doesn't have any stacks stockpiled!",
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out var stockpile ) )
+                        {
+                            if( stockpile.Duration > 0 )
+                                return true;
+                        }
+
+                        return false;
+                    }
+                }
+            },
+            {
+                "Entrainment", new()
+                {
+                    FailureMessage = ( user ) => ButItFailed(),
+
+                    OnCheckSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.AbilityID == target.Pokemon.AbilityID )
+                            return false;
+                        else
+                            return true;
                     }
                 }
             }

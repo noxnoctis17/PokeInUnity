@@ -407,9 +407,16 @@ public class BattleAI_ActionScoring
             _ai.CurrentLog.Add( $"Switch candidate {intentTOP.Opponent.Name}'s potential to be KO'd on switch in is OHKO! Tanking Score!" );
             return -999;
         }
+        else if( intentTOP.OpponentPTKO >= PotentialToKO.Dangerous )
+        {
+            score -= 150;
+        }
         else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
         {
-            score -= 70;
+            if( tir.Confidence < 0.75f )
+                score -= 150;
+            else
+                score -= 75;
         }
 
         int offensiveDelta = switchCandidate.SwitchOffensePTKOR.Score - switchCandidate.SwitchDefensePTKOR.Score; //--should be offensive ptko score minus defensive ptko score.
@@ -853,47 +860,40 @@ public class BattleAI_ActionScoring
 
         var theirIntentPTKO = intentTOP.OpponentPTKO;
 
-        string moveName = "NONE";
+        string moveName = status.Move != null ? status.Move.MoveSO.Name : "NONE";
+
+        _ai.CurrentLog.Add( $"===[Beginning Supportive Status Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {ourPTKO}, their PTKO on me: (eval){theirPTKO} (intent){theirIntentPTKO}]===" );
+        _ai.CurrentLog.Add( $"We're looking to use a {status.SupportiveStatusType} move." );
 
         if( status.Move == null )
         {
-            _ai.CurrentLog.Add( $"({attackerName}) Had no viable offensive status move! Tanking Score!" );
+            _ai.CurrentLog.Add( $"({attackerName}) Had no viable supportive status move! Tanking Score!" );
             return -999;
         }
-        else
-            moveName = status.Move.MoveSO.Name;
 
-        //--Survival check
+        //--Survival check. This will need to become way more nuanced and potentially allowed to breathe.
         if( theirIntentPTKO >= PotentialToKO.Dangerous && !intentTOP.AttackerMovedFirst )
         {
-            _ai.CurrentLog.Add( $"The intentTOP says we're likely to die with no progress from it if we use an offensive status move now! Tanking Score!" );
-            return -999;
-        }
-        else if( theirIntentPTKO == PotentialToKO.Risky && !intentTOP.AttackerMovedFirst )
-        {
-            _ai.CurrentLog.Add( $"The intentTOP says we're likely to die with no progress from it if we use an offensive status move now! Tanking Score!" );
+            _ai.CurrentLog.Add( $"The intentTOP says we're likely to die with no progress from it if we use a supportive status move now! Tanking Score!" );
             return -999;
         }
 
         if( theirPTKO >= PotentialToKO.Dangerous && !usVS_Threat.AttackerMovesFirst )
         {
             score -= 80;
-            _ai.CurrentLog.Add( $"We're likely to die with no progress from it if we use an offensive status move now! Score: {score}" );
+            _ai.CurrentLog.Add( $"We're likely to die with no progress from it if we use a supportive status move now! Score: {score}" );
         }
         else if( theirPTKO >= PotentialToKO.Risky && !usVS_Threat.AttackerMovesFirst )
         {
             score -= 70;
-            _ai.CurrentLog.Add( $"We're likely to die with no progress from it if we use an offensive status move now! Score: {score}" );
+            _ai.CurrentLog.Add( $"We're likely to die with no progress from it if we use a supportive status move now! Score: {score}" );
         }
-
-        _ai.CurrentLog.Add( $"===[Beginning Supportive Status Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {ourPTKO}, their PTKO on me: (eval){theirPTKO} (intent){theirIntentPTKO}]===" );
-        _ai.CurrentLog.Add( $"We're looking to use a {status.SupportiveStatusType} move." );
 
         BattleAI_PokemonAdapter ally = _ai.GetActiveAllyAs_Adapter( _ai.CurrentUnitAdapter.Pokemon );
         BattleAI_PokemonAdapter threatAlly = _ai.GetActiveAllyAs_Adapter( tir.Threat.Pokemon );
         if( pack.IsDoubles )
         {
-            if( status.Target.Pokemon == _ai.CurrentUnitAdapter.Pokemon )
+            if( status.Targets[0].Pokemon == _ai.CurrentUnitAdapter.Pokemon )
             {
                 if( ally != null )
                 {

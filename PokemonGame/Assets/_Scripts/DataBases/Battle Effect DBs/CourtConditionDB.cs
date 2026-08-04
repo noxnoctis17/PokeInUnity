@@ -94,13 +94,13 @@ public class CourtConditionDB
 
                     OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
                     {
-                        unit.SetFlagActive( UnitFlags.Reflect, true );
+                        // unit.SetFlagActive( UnitFlags.Reflect, true );
                         Debug.Log( $"{unit.Pokemon.NickName} is now in Reflect! Incoming physical damage should theoretically be reduced by 1/3" );
                     },
 
                     OnExitCourt = ( BattleUnit unit, Battlefield field ) =>
                     {
-                        unit.SetFlagActive( UnitFlags.Reflect, false );
+                        // unit.SetFlagActive( UnitFlags.Reflect, false );
                         Debug.Log( $"{unit.Pokemon.NickName} is no longer in Reflect!" );
                     }
                 }  
@@ -156,6 +156,7 @@ public class CourtConditionDB
                         //--This is an entry hazard, and must be placed in the opposing court of the user!
                         var court = field.ActiveCourts[location];
                         court.Conditions[CourtConditionID.LeechSeed].IsInfinite = true;
+                        court.Conditions[CourtConditionID.LeechSeed].FlaggedForRemoval = false;
                     },
 
                     OnEnterCourt = ( unit, field ) =>
@@ -164,12 +165,13 @@ public class CourtConditionDB
                         //--Instead, I will check to see if the entering Pokemon is a Fire type, and if so, remove the hazard
                         //--Similar to how poison types will remove toxic spikes
                         var court = field.GetUnitCourt( unit );
-                        if( court.Conditions.ContainsKey( CourtConditionID.LeechSeed ) )
+                        if( court.Conditions.TryGetValue( CourtConditionID.LeechSeed, out var seeds ) )
                         {
                             if( unit.Pokemon.CheckTypes( PokemonType.Fire ) )
                             {
                                 unit.Pokemon.AddStatusEvent( StatusEventType.Text, $"{unit.Pokemon.NickName} burned up the seeds on the field!" );
-                                court.Conditions.Remove( CourtConditionID.LeechSeed );
+                                seeds.FlaggedForRemoval = true;
+                                return;
                             }
                         }
                     },
@@ -187,6 +189,12 @@ public class CourtConditionDB
 
                         var drainedCourt = field.ActiveCourts[drainedSide];
                         var healedCourt  = field.ActiveCourts[healedSide];
+
+                        if( drainedCourt.Conditions.TryGetValue( CourtConditionID.LeechSeed, out var seeds ) )
+                        {
+                            if( seeds.FlaggedForRemoval )
+                                return;
+                        }
 
                         for( int i = 0; i < drainedCourt.Units.Count; i++ )
                         {
@@ -231,7 +239,7 @@ public class CourtConditionDB
 
                     OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
                     {
-                        if( unit.Pokemon.BattleItemEffect?.ID == BattleItemEffectID.HeavyDutyBoots )
+                        if( unit.Pokemon.BattleItemEffect?.ID == ItemBattleEffectID.HeavyDutyBoots )
                             return;
 
                         float effectiveness = TypeChart.GetEffectiveness( PokemonType.Rock, unit.Pokemon.PokeSO.Type1 ) * TypeChart.GetEffectiveness( PokemonType.Rock, unit.Pokemon.PokeSO.Type2 );
@@ -262,7 +270,7 @@ public class CourtConditionDB
 
                     OnEnterCourt = ( BattleUnit unit, Battlefield field ) =>
                     {
-                        if( unit.Pokemon.CheckTypes( PokemonType.Flying ) && !unit.Flags[UnitFlags.Ungrounded].IsActive || unit.Pokemon.AbilityID == AbilityID.Levitate && !unit.Flags[UnitFlags.Ungrounded].IsActive || unit.Pokemon.BattleItemEffect?.ID == BattleItemEffectID.HeavyDutyBoots )
+                        if( unit.Pokemon.CheckTypes( PokemonType.Flying ) && !unit.Flags[UnitFlags.Ungrounded].IsActive || unit.Pokemon.AbilityID == AbilityID.Levitate && !unit.Flags[UnitFlags.Ungrounded].IsActive || unit.Pokemon.BattleItemEffect?.ID == ItemBattleEffectID.HeavyDutyBoots )
                             return;
 
                         var location = field.GetUnitCourt( unit ).Location;
@@ -297,6 +305,7 @@ public class CourtConditionDB
                         var court = field.ActiveCourts[location];
                         var condition = court.Conditions[CourtConditionID.ToxicSpikes];
                         condition.IsInfinite = true;
+                        condition.FlaggedForRemoval = false;
 
                         if( condition.Layers < 3 )
                             condition.Layers++;
@@ -315,14 +324,17 @@ public class CourtConditionDB
                         var spikes = court.Conditions[CourtConditionID.ToxicSpikes];
                         int layers = spikes.Layers;
 
+                        if( spikes.FlaggedForRemoval )
+                            return;
+
                         if( unit.Pokemon.CheckTypes( PokemonType.Poison ) )
                         {
                             unit.Pokemon.AddStatusEvent( StatusEventType.Text, $"{unit.Pokemon.NickName} absorbed the poisoned spikes!" );
-                            court.RemoveCondition( CourtConditionID.ToxicSpikes );
+                            spikes.FlaggedForRemoval = true;
                             return;
                         }
 
-                        if( unit.Pokemon.BattleItemEffect?.ID == BattleItemEffectID.HeavyDutyBoots )
+                        if( unit.Pokemon.BattleItemEffect?.ID == ItemBattleEffectID.HeavyDutyBoots )
                             return;
 
                         unit.Pokemon.AddStatusEvent( StatusEventType.Text, $"The poisoned spikes dig into {unit.Pokemon.NickName}!" );
@@ -385,6 +397,21 @@ public class CourtConditionDB
                     //--SetSevereStatus()
                     //--SetVolatileStatus()
                 }
+            },
+            {
+                CourtConditionID.AbilityPriorityGuard, new( -1, 0 )
+                {
+                    ConditionType = ConditionType.AllySide_Buff,
+                    //--Effect will be set by priority blocking abilities armor tail, dazzling, and queenly majesty.
+                    //--effect will be checked for in BattleSystem.MoveSuccess, in the priority check block alongside quick guard and psychic terrain
+                }
+            },
+            {
+                CourtConditionID.Mist, new( 5, 0 )
+                {
+                    ConditionType = ConditionType.AllySide_Buff,
+                    //--Effect will be checked for inside Pokemon.ApplyStatStageChange()
+                }
             }
         };
     }
@@ -407,5 +434,6 @@ public enum CourtConditionID
     QuickGuard,
     WideGuard,
     SafeGuard,
-    
+    AbilityPriorityGuard,
+    Mist,
 }

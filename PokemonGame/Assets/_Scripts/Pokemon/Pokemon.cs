@@ -3,6 +3,7 @@ using UnityEngine;
 using System;
 using System.Linq;
 using UnityEditor;
+using System.Runtime.InteropServices;
 
 [Serializable]
 public class Pokemon
@@ -25,12 +26,16 @@ public class Pokemon
     [SerializeField] private int _spatkEVs = 0;
     [SerializeField] private int _spdefEVs = 0;
     [SerializeField] private int _speEVs = 0;
+    private PokemonType _type1;
+    private PokemonType _type2;
 //==============================================================================
     public string PID => _pid;
     public Gender Gender => _gender;
     public PokemonSO PokeSO => _pokeSO;
     public int Level => _level;
     public string NickName => _nickName;
+    public PokemonType Type1 => _type1;
+    public PokemonType Type2 => _type2;
     public Ability Ability => _ability;
     public AbilityID AbilityID => _abilityID;
     public int CurrentAbilityIndex => _currentAbilityIndex; //--Might change these to a singular AbilityID instead of playing around with indicies, let's see how the rest of the implementation goes...
@@ -113,6 +118,8 @@ public class Pokemon
         _pokeSO = trainerPokemon.PokeSO;
         _level = trainerPokemon.Level;
         CurrentWeight = _pokeSO.Weight;
+        
+        RestoreTypes();
 
         //--Nickname
         if( trainerPokemon.NickName != "" )
@@ -195,6 +202,8 @@ public class Pokemon
         _currentBallType        = saveData.CurrentBall;
         CurrentWeight           = _pokeSO.Weight;
 
+        RestoreTypes();
+
         InitializeEVs();
         AssignEVs( Stat.HP,         saveData.HP_EVs, true );
         AssignEVs( Stat.Attack,     saveData.ATK_EVs, true );
@@ -237,8 +246,9 @@ public class Pokemon
         if(  string.IsNullOrEmpty( _nickName ) )
             _nickName = PokeSO.Species;
 
+        RestoreTypes();
+
         InitializeNatures();
-        // Debug.Log( $"[Pokemon][Nature] {NickName}'s Default Nature is: {_defaultNature}" );
         if( _defaultNature == NatureID.None )
             GetRandomNature();
 
@@ -382,13 +392,13 @@ public class Pokemon
             Debug.LogError( $"[Pokemon][Ability] NO abilities found in {PokeSO.Species} PokemonSO!" );
     }
 
-    public void SkillSwap( AbilityID id )
+    public void MakeAbility( AbilityID id )
     {
         _ability = AbilityDB.Abilities[id];
         _abilityID = id;
     }
 
-    public void ResetSkillSwap()
+    public void ResetAbility()
     {
         GetCurrentAbilityFromIndex();
     }
@@ -778,11 +788,35 @@ public class Pokemon
     {
         for( int i = 0; i < statStages.Count; i++ )
             Debug.Log( $"Stat Stage Changed! Stat effected: {statStages[i].Stat}, Changed by: {statStages[i].Change}" );
+
         //--We convert our stat stages to a dictionary because the AbilityDB action takes in a dictionary that lets us remove a boost from it.
         //--We then use the modified dictionary, by looping through and providing the appropriate change in stat stages, which should never alter
         //--an ability-blocked stat. Abilities that utilize OnStatStageChange have their ability "activated" whenever, where ever we call ApplyStatChange() on a pokemon that has an appropriate ability.
         var stageDictionary = statStages.ToDictionary( x => x.Stat, x => x.Change );
-        Ability?.OnStatStageChange?.Invoke( stageDictionary, source.Pokemon, this );
+        Ability?.OnStatStageChange?.Invoke( stageDictionary, source.Pokemon, this, source );
+        
+        var ourCourt = BattleSystem.Instance.Field.GetPokemonCourtFromTrainer( this );
+        var sourceCourt = BattleSystem.Instance.Field.GetPokemonCourtFromTrainer( source.Pokemon );
+        var ourCourtConditions = ourCourt.Conditions;
+
+        int preventedChanges = 0;
+        if( ourCourtConditions.ContainsKey( CourtConditionID.Mist ) && ourCourt != sourceCourt )
+        {
+            for( int i = 0; i < statStages.Count; i++ )
+            {
+                if( statStages[i].Change < 0 )
+                {
+                    stageDictionary.Remove( statStages[i].Stat );
+                    preventedChanges++;
+                }
+            }
+        }
+
+        if( preventedChanges > 0 )
+        {
+            BattleSystem.Instance.AddDialogue( $"A protective mist prevents {NickName}'s stats from being lowered!" );
+            return;
+        }
 
         if( MoveConditionDB.Conditions.ContainsKey( source.MoveName ) )
             MoveConditionDB.Conditions[source.MoveName]?.OnStatStageChange?.Invoke( stageDictionary, source.Pokemon, this );
@@ -858,6 +892,11 @@ public class Pokemon
     public Dictionary<Stat, int> CloneStatStages()
     {
         return StatStages.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+    }
+
+    public void ReplaceStatStages( Dictionary<Stat, int> statStages )
+    {
+        StatStages = statStages.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
     }
 
     public Dictionary<Stat, Dictionary<DirectModifierCause, float>> CloneDirectModifiers()
@@ -1097,8 +1136,7 @@ public class Pokemon
     public void SetVolatileStatus( VolatileConditionID id, StatusEffectSource source, int duration = -1 ) //--consider adding the attacker or something as well
     {
         // Debug.Log( $"[Volatile Status] Trying to set Volatile Status {id} on {NickName}!" );
-        if( VolatileStatuses == null )
-            VolatileStatuses = new();
+        VolatileStatuses ??= new();
 
         bool canApply = CanApplyVolatileStatus( id, source );
 
@@ -1114,7 +1152,8 @@ public class Pokemon
         condition?.OnStart?.Invoke( this );
         Ability?.OnSetVolatileStatus?.Invoke( id, this, source );
 
-        AddStatusEvent( $"{_pokeSO.Species} {condition.StartMessage}" );
+        if( !string.IsNullOrEmpty( condition.StartMessage ) )
+            AddStatusEvent( $"{_pokeSO.Species} {condition.StartMessage}" );
     }
 
     private bool CanApplyVolatileStatus( VolatileConditionID id, StatusEffectSource source )
@@ -1243,9 +1282,26 @@ public class Pokemon
         AddStatusEvent( $"{_pokeSO.Species} {status.StartMessage}" );
     }
 
-    public void CureBindingStatus()
+    public void CureAllBindingStatuses()
     {
         BindingStatuses?.Clear();
+    }
+
+    public void TempChangeType( PokemonType type )
+    {
+        _type1 = type;
+        _type2 = PokemonType.None;
+    }
+
+    public void RestoreTypes()
+    {
+        _type1 = PokeSO.Type1;
+        _type2 = PokeSO.Type2;
+    }
+
+    public void RestoreWeight()
+    {
+        CurrentWeight = PokeSO.Weight;
     }
 
     public Move GetRandomMove()
@@ -1312,7 +1368,7 @@ public class Pokemon
     {
         ClearAllVolatileStatus();
         CureTransientStatus();
-        CureBindingStatus();
+        CureAllBindingStatuses();
         ResetStatChanges();
         CalculateStats();
     }
@@ -1323,7 +1379,7 @@ public class Pokemon
         CureSevereStatus();
         ClearAllVolatileStatus();
         CureTransientStatus();
-        CureBindingStatus();
+        CureAllBindingStatuses();
         ResetStatChanges();
         CalculateStats();
         CurrentHP = MaxHP;
@@ -1403,11 +1459,11 @@ public enum DirectModifierCause
     Unmodified,
     BRN, FBT, PAR,
     WeatherDEF, WeatherSpDEF, WeatherSPD,
-    Tailwind, Reflect, LightScreen,
+    Tailwind, Reflect, LightScreen, AuroraVeil,
     ChoiceBand, ChoiceSpecs, ChoiceScarf,
     LightBall, Guts, MarvelScale,
     SolarPower, SandVeil, Hustle, SnowCloak,
-    Eviolite,
+    Eviolite, AssaultVest,
 
 }
 
@@ -1469,6 +1525,7 @@ public class StageChangeSource
 {
     public Pokemon Pokemon { get; set; }
     public string MoveName { get; set; }
+    public AbilityID Ability { get; set; }
     public StageChangeSourceType Source { get; set; }
 }
 

@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.Mathematics;
 using UnityEngine;
 
 public class MoveConditionDB
@@ -542,11 +541,11 @@ public class MoveConditionDB
                         AbilityID attackerAbility = attacker.Pokemon.AbilityID;
                         AbilityID targetAbility = target.Pokemon.AbilityID;
 
-                        attacker.Pokemon.SkillSwap( targetAbility );
-                        target.Pokemon.SkillSwap( attackerAbility );
+                        attacker.Pokemon.MakeAbility( targetAbility );
+                        target.Pokemon.MakeAbility( attackerAbility );
 
-                        attacker.SetFlagActive( UnitFlags.SkillSwapped, true );
-                        target.SetFlagActive( UnitFlags.SkillSwapped, true );
+                        attacker.SetFlagActive( UnitFlags.AbilityChanged, true );
+                        target.SetFlagActive( UnitFlags.AbilityChanged, true );
 
                         bs.TriggerAbilityCutIn( attacker.Pokemon );
                         attacker.Pokemon.Ability?.OnAbilityEnter?.Invoke( attacker.Pokemon, bs.GetOpposingUnits( attacker ), bs.Field );
@@ -1165,6 +1164,518 @@ public class MoveConditionDB
                         {
                             //--idk yet. we'll return to this.
                         }
+                    }
+                }
+            },
+            {
+                "Brine", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        if( target.Pokemon.IsBelowHPPercent( 50 ) )
+                        {
+                            return move.MovePower * 2;
+                        }
+                        else
+                            return move.MovePower;
+                    }
+                }
+            },
+            {
+                "Conversion", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        attacker.Pokemon.TempChangeType( attacker.Pokemon.ActiveMoves[0].MoveType );
+                    }
+                }
+            },
+            {
+                "Conversion 2", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        var targetLastMove = target.LastUsedMove;
+
+                        if( targetLastMove == null )
+                            return;
+
+                        var types = ( PokemonType[] )Enum.GetValues( typeof(PokemonType) );
+                        List<PokemonType> resistances = new();
+
+                        foreach( var type in types )
+                        {
+                            if( attacker.Pokemon.CheckTypes( type ) )
+                                continue;
+
+                            float effectiveness = TypeChart.GetTotalEffectiveness( targetLastMove.MoveType, attacker.Pokemon.Type1, attacker.Pokemon.Type2 );
+                            if( effectiveness < 0 )
+                                resistances.Add( type );
+                        }
+
+                        if( resistances.Count > 0 )
+                        {
+                            int r = UnityEngine.Random.Range( 0, resistances.Count );
+                            attacker.Pokemon.TempChangeType( resistances[r] );
+                        }
+                        else
+                            return;
+                    }
+                }
+            },
+            {
+                "Magnet Rise", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        attacker.SetFlagActive( UnitFlags.Ungrounded, true );
+                    }
+                }
+            },
+            {
+                "Lock-On", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        attacker.SetLockOn( target );
+                    }
+                }
+            },
+            {
+                "Power Swap", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        Dictionary<Stat, int> targetNewStatStages = new();
+                        Dictionary<Stat, int> attackerNewStatStages = new();
+
+                        foreach( var sc in target.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Attack || sc.Key == Stat.SpAttack )
+                                attackerNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        foreach( var sc in attacker.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Attack || sc.Key == Stat.SpAttack )
+                                targetNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        foreach( var sc in target.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Attack || sc.Key == Stat.SpAttack )
+                                continue;
+
+                            targetNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        foreach( var sc in attacker.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Attack || sc.Key == Stat.SpAttack )
+                                continue;
+
+                            attackerNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        attacker.Pokemon.ReplaceStatStages( attackerNewStatStages );
+                        target.Pokemon.ReplaceStatStages( targetNewStatStages );
+                        bs.AddDialogue( $"{attacker.Pokemon.NickName} swapped its offensive stat changes with {target.Pokemon.NickName}!" );
+                    }
+                }
+            },
+            {
+                "Guard Swap", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        Dictionary<Stat, int> targetNewStatStages = new();
+                        Dictionary<Stat, int> attackerNewStatStages = new();
+
+                        foreach( var sc in target.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Defense || sc.Key == Stat.SpDefense )
+                                attackerNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        foreach( var sc in attacker.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Defense || sc.Key == Stat.SpDefense )
+                                targetNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        foreach( var sc in target.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Defense || sc.Key == Stat.SpDefense )
+                                continue;
+
+                            targetNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        foreach( var sc in attacker.Pokemon.StatStages )
+                        {
+                            if( sc.Key == Stat.Defense || sc.Key == Stat.SpDefense )
+                                continue;
+
+                            attackerNewStatStages.Add( sc.Key, sc.Value );
+                        }
+
+                        attacker.Pokemon.ReplaceStatStages( attackerNewStatStages );
+                        target.Pokemon.ReplaceStatStages( targetNewStatStages );
+                        bs.AddDialogue( $"{attacker.Pokemon.NickName} swapped its defensive stat changes with {target.Pokemon.NickName}!" );
+                    }
+                }
+            },
+            {
+                "Stomp", new()
+                {
+                    OnModifyMoveDamage = ( attacker, target, move, damage ) =>
+                    {
+                        if( target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Minimize ) )
+                            return damage * 2;
+                        else
+                            return damage;
+                    }
+                }
+            },
+            {
+                "Endeavor", new()
+                {
+                    OnModifyMoveDamage = ( attacker, target, move, damage ) =>
+                    {
+                        return target.Pokemon.CurrentHP - attacker.Pokemon.CurrentHP;
+                    }
+                }
+            },
+            {
+                "Substitute", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, damage ) =>
+                    {
+                        int subDamage = Mathf.FloorToInt( attacker.Pokemon.MaxHP * 0.25f );
+
+                        attacker.Pokemon.DecreaseHP( subDamage );
+                        attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, string.Empty );
+
+                        int hp = Mathf.FloorToInt( attacker.Pokemon.MaxHP * 0.25f );
+                        attacker.SetSubstitute( hp );
+                    }
+                }
+            },
+            {
+                "Shed Tail", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        //--apply effects of shed tail manually.
+                        int subDamage = Mathf.FloorToInt( attacker.Pokemon.MaxHP * 0.5f );
+                        int hp = attacker.Pokemon.CurrentHP;
+
+                        attacker.Pokemon.DecreaseHP( subDamage );
+                        attacker.Pokemon.AddStatusEvent( StatusEventType.Damage, string.Empty );
+                    },
+
+                    OnMoveEffectsCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        StatusEffectSource source = new()
+                        {
+                            Pokemon = attacker.Pokemon,
+                            Source = EffectSource.Move,
+                        };
+                            
+                        attacker.Pokemon.SetVolatileStatus( VolatileConditionID.Substitute, source );
+
+                        int hp = Mathf.FloorToInt( attacker.Pokemon.MaxHP * 0.25f );
+                        attacker.SetSubstitute( hp );
+                    }
+                }
+            },
+            {
+                "Surf", new()
+                {
+                    OnModifyMoveDamage = ( attacker, target, move, damage ) =>
+                    {
+                        if( target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Submerged ) )
+                            return damage * 2;
+                        else
+                            return damage;
+                    }
+                }
+            },
+            {
+                "Earthquake", new()
+                {
+                    OnModifyMoveDamage = ( attacker, target, move, damage ) =>
+                    {
+                        if( target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Boroughed ) )
+                            return damage * 2;
+                        else
+                            return damage;
+                    }
+                }
+            },
+            {
+                "Stockpile", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        var attackerStatStages = attacker.Pokemon.StatStages;
+                        bool canBoostDef = true;
+                        bool canBoostSpDef = true;
+
+                        ( VolatileCondition condition, int duration ) stockpile = ( null, 0 );
+                        if( attacker.Pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out stockpile ) )
+                        {
+                            if( stockpile.duration >= 3 )
+                                return;
+                        }
+
+                        foreach( var sc in attackerStatStages )
+                        {
+                            if( sc.Key == Stat.Defense && sc.Value >= 6 )
+                                canBoostDef = false;
+
+                            if( sc.Key == Stat.SpDefense && sc.Value >= 6 )
+                                canBoostSpDef = false;
+                        }
+
+                        List<StatStage> stockpileChanges = new();
+
+                        if( canBoostDef )
+                        {
+                            StatStage defense = new()
+                            {
+                                Stat = Stat.Defense,
+                                Change = 1,
+                            };
+
+                            stockpileChanges.Add( defense );
+                            stockpile.condition.StockpiledDEF++;
+                        }
+                        
+                        if( canBoostSpDef )
+                        {
+                            StatStage spDefense = new()
+                            {
+                                Stat = Stat.SpDefense,
+                                Change = 1,
+                            };
+                        
+                            stockpileChanges.Add( spDefense );
+                            stockpile.condition.StockpiledSpDEF++;
+                        }
+
+                        if( stockpileChanges.Count > 0 )
+                        {
+                            StageChangeSource source = new()
+                            {
+                                Pokemon = attacker.Pokemon,
+                                MoveName = "Stockpile",
+                                Ability = AbilityID.None,
+                                Source = StageChangeSourceType.Move,
+                            };
+
+                            attacker.Pokemon.ApplyStatStageChange( stockpileChanges, source );
+                        }
+                    },
+
+                    OnMoveEffectsCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out var stockpile ) )
+                        {
+                            bs.AddDialogue( $"{attacker.Pokemon.NickName} stockpiled! It has {stockpile.Duration} stacks!" );
+                        }
+                    }
+                }
+            },
+            {
+                "Spit Up", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        int power = 0;
+                        attacker.Pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out var stockpile );
+                        power = stockpile.Duration * 100;
+
+                        //--Using Spit Up consumes all stockpile stacks and removes all def and spdef boosts gained.
+                        List<StatStage> stockpileChanges = new();
+
+                        int defBoosts = stockpile.Condition.StockpiledDEF;
+                        int spdefBoosts = stockpile.Condition.StockpiledSpDEF;
+
+                        for( int i = 0; i < defBoosts; i++ )
+                        {
+                            StatStage defense = new()
+                            {
+                                Stat = Stat.Defense,
+                                Change = -1,
+                            };
+
+                            stockpileChanges.Add( defense );
+                        }
+
+                        for( int i = 0; i < spdefBoosts; i++ )
+                        {
+                            StatStage spDefense = new()
+                            {
+                                Stat = Stat.Defense,
+                                Change = -1,
+                            };
+
+                            stockpileChanges.Add( spDefense );
+                        }
+
+                        if( stockpileChanges.Count > 0 )
+                        {
+                            StageChangeSource source = new()
+                            {
+                                Pokemon = attacker.Pokemon,
+                                MoveName = "Stockpile",
+                                Ability = AbilityID.None,
+                                Source = StageChangeSourceType.Move,
+                            };
+
+                            attacker.Pokemon.ApplyStatStageChange( stockpileChanges, source );
+                        }
+
+                        attacker.Pokemon.CureVolatileStatus( VolatileConditionID.Stockpile );
+                        return power;
+                    }
+                }
+            },
+            {
+                "Swallow", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        if( attacker.Pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out var stockpile ) )
+                        {
+                            int heal = 0;
+                            int stacks = stockpile.Duration;
+                            int maxHP = attacker.Pokemon.MaxHP;
+
+                            if( stacks == 3 )
+                                heal = maxHP;
+                            else if( stacks == 2 )
+                                heal = Mathf.RoundToInt( maxHP * 0.5f );
+                            else if( stacks == 1 )
+                                heal = Mathf.RoundToInt( maxHP * 0.25f );
+
+                            //--Using Swallow consumes all stockpile stacks and removes all def and spdef boosts gained.
+                            List<StatStage> stockpileChanges = new();
+
+                            int defBoosts = stockpile.Condition.StockpiledDEF;
+                            int spdefBoosts = stockpile.Condition.StockpiledSpDEF;
+
+                            for( int i = 0; i < defBoosts; i++ )
+                            {
+                                StatStage defense = new()
+                                {
+                                    Stat = Stat.Defense,
+                                    Change = -1,
+                                };
+
+                                stockpileChanges.Add( defense );
+                            }
+
+                            for( int i = 0; i < spdefBoosts; i++ )
+                            {
+                                StatStage spDefense = new()
+                                {
+                                    Stat = Stat.Defense,
+                                    Change = -1,
+                                };
+
+                                stockpileChanges.Add( spDefense );
+                            }
+
+                            if( stockpileChanges.Count > 0 )
+                            {
+                                StageChangeSource source = new()
+                                {
+                                    Pokemon = attacker.Pokemon,
+                                    MoveName = "Stockpile",
+                                    Ability = AbilityID.None,
+                                    Source = StageChangeSourceType.Move,
+                                };
+
+                                attacker.Pokemon.ApplyStatStageChange( stockpileChanges, source );
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "Rapid Spin", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        attacker.Pokemon.CureAllBindingStatuses();
+
+                        var court = bs.Field.GetPokemonCourtFromTrainer( attacker.Pokemon );
+
+                        List<CourtConditionID> hazardsToRemove = new();
+                        foreach( var kvp in court.Conditions )
+                        {
+                            if( kvp.Value.ConditionType == ConditionType.OpposingSide_Hazard )
+                                hazardsToRemove.Add( kvp.Key );
+                        }
+
+                        foreach( var hazard in hazardsToRemove )
+                        {
+                            court.RemoveCondition( hazard );
+                        }
+
+                        bs.AddDialogue( $"{attacker.Pokemon.NickName} cleared its side of the field and freed itself!" );
+                    }
+                }
+            },
+            {
+                "Clear Smog", new()
+                {
+                    OnMoveCompleted = ( attacker, target, move, bs ) =>
+                    {
+                        target.Pokemon.ClearStatStages();
+                        bs.AddDialogue( $"{target.Pokemon.NickName} had all of its stat stages reset!" );
+                    }
+                }
+            },
+            {
+                "Eruption", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        int hp = attacker.Pokemon.CurrentHP;
+                        int maxHP = attacker.Pokemon.MaxHP;
+                        int power = ( 150 * hp ) / maxHP;
+
+                        return Mathf.Max( power, 1 );
+                    }
+                }
+            },
+            {
+                "Water Spout", new()
+                {
+                    OnModifyMovePower = ( attacker, target, move, hit ) =>
+                    {
+                        int hp = attacker.Pokemon.CurrentHP;
+                        int maxHP = attacker.Pokemon.MaxHP;
+                        int power = ( 150 * hp ) / maxHP;
+
+                        return Mathf.Max( power, 1 );
+                    }
+                }
+            },
+            {
+                "Entrainment", new()
+                {
+                    OnMoveSuccess = ( attacker, target, move, bs ) =>
+                    {
+                        target.Pokemon.MakeAbility( attacker.Pokemon.AbilityID );
+                        target.SetFlagActive( UnitFlags.AbilityChanged, true );
+                        bs.AddDialogue( $"{attacker.Pokemon.NickName} made {target.Pokemon.NickName}'s ability {attacker.Pokemon.Ability?.Name}" );
+
+                        bs.TriggerAbilityCutIn( target.Pokemon );
+                        target.Pokemon.Ability?.OnAbilityEnter?.Invoke( target.Pokemon, bs.GetOpposingUnits( target ), bs.Field );
                     }
                 }
             }

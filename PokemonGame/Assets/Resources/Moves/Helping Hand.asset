@@ -17,13 +17,12 @@ MonoBehaviour:
   _description: The user assists an ally by boosting the power of that ally's attack.
   _moveCategory: 2
   _moveTarget: 4
-  _moveType: 0
+  _moveType: 1
   _animationType: 3
   _statOverride: 0
   _power: 0
   _accuracy: 0
   _accuracyType: 2
-  _alwaysHits: 1
   _pp: 20
   _movePriority: 12
   _critBehavior: 0
@@ -33,6 +32,8 @@ MonoBehaviour:
   _drainPercentage: 0
   _healType: 0
   _healAmount: 0
+  _setDamageType: 0
+  _setDamageAmount: 0
   _hitRange: {x: 0, y: 0}
   _flags: 
   _moveEffects:
@@ -46,5 +47,6 @@ MonoBehaviour:
     _weather: 0
     _terrain: 0
     _courtCondition: 0
+    _fieldCondition: 0
     _switchType: 0
   _secondaryMoveEffects: []

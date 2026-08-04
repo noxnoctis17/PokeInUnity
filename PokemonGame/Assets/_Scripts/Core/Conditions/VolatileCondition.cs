@@ -12,6 +12,8 @@ public class VolatileCondition
     public string EndMessage { get; set; }
     public bool Passable { get; set; }
     public GameObject VFX { get; set; }
+    public int StockpiledDEF { get; set; }
+    public int StockpiledSpDEF { get; set; }
 
     public Action<BattleUnit, BattleUnit, BattleSystem> OnApplyStatus { get; set; } //-- i think we can use this one to get battle units and all that as opposed to on start. we can block or change stuff here.
     public Action<Pokemon> OnStart { get; set; }

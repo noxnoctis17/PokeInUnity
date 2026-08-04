@@ -10,7 +10,7 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
     public string Name { get; set; }
     public string PID { get; set; }
     public float BeginningHPR { get; set; }
-    public float CurrentHPR { get; set; }
+    public float EndHPR { get; set; }
     public ( PokemonType One, PokemonType Two ) Type { get; set; }
     public int Level { get; set; }
     public int HP { get; set; }
@@ -29,7 +29,7 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
     public float Expendability { get; set; }
 
     public AbilityID Ability { get; set; }
-    public BattleItemEffectID Item { get; set; }
+    public ItemBattleEffectID Item { get; set; }
 
     public SevereConditionID SevereStatus { get; set; }
     public int SevereStatusTime { get; set; } //--For toxic, this increments.
@@ -54,7 +54,7 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         PID = pokemon.PID;
 
         BeginningHPR = _ai.Get_HPRatio( pokemon );
-        CurrentHPR = BeginningHPR;
+        EndHPR = BeginningHPR;
 
         Type = ( pokemon.PokeSO.Type1, pokemon.PokeSO.Type2 );
 
@@ -63,7 +63,7 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         ActiveMoves = new( pokemon.ActiveMoves );
 
         Ability = pokemon.AbilityID;
-        Item = pokemon.BattleItemEffect != null ? pokemon.BattleItemEffect.ID : BattleItemEffectID.None;
+        Item = pokemon.BattleItemEffect != null ? pokemon.BattleItemEffect.ID : ItemBattleEffectID.None;
 
         SevereStatus = pokemon.SevereStatus != null ? pokemon.SevereStatus.ID : SevereConditionID.None;
         SevereStatusTime = pokemon.SevereStatusTime;

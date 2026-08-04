@@ -43,7 +43,7 @@ public class BindingConditionsDB
 
         if( pokemon.BindingStatuses[id].Duration == 0 )
         {
-            pokemon.CureBindingStatus();
+            pokemon.CureAllBindingStatuses();
             pokemon.AddStatusEvent( $"{freedText}" );
             var unit = BattleSystem.Instance.GetPokemonBattleUnit( pokemon );
             unit.SetUnitTrapped( false );

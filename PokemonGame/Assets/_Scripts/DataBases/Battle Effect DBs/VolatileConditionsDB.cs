@@ -159,16 +159,35 @@ public class VolatileConditionsDB : MonoBehaviour
                     Name = "Rampage",
                     StartMessage = "is on a rampage!",
 
-                    OnStart = ( Pokemon pokemon ) =>
+                    OnStart = ( pokemon ) =>
                     {
                         // increment status counter
+                        int r = Random.Range( 2, 4 );
+                        pokemon.SetVolatileStatusTime( VolatileConditionID.Rampage, r );
                     },
 
-                    OnBeforeTurn = ( pokemon, move ) => true, //--This is where rampage actually lives i think
+                    OnBeforeTurn = ( pokemon, move ) => true, //--This is where we may need to figure out how to select a random target
+                                                                //--i may actually create a "OnBeforeTargetSelect" that lets me do so.
 
-                    OnAfterTurn = ( Pokemon pokemon ) =>
+                    OnAfterTurn = ( pokemon ) =>
                     {
                         // decrement status counter
+                        if( pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Rampage, out var rampage ) )
+                        {
+                            rampage.Duration--;
+                        }
+
+                        if( rampage.Duration <= 0 )
+                        {
+                            StatusEffectSource source = new()
+                            {
+                                Pokemon = pokemon,
+                                Source = EffectSource.Move,
+                            };
+
+                            int confusionDuration = Random.Range( 2, 6 );
+                            pokemon.SetVolatileStatus( VolatileConditionID.Confusion, source, confusionDuration );
+                        }
                     },
                 }
             },
@@ -187,8 +206,7 @@ public class VolatileConditionsDB : MonoBehaviour
                             Pokemon = attacker.Pokemon,
                             Source = EffectSource.Move,
                         };
-
-                        attacker.SetSubstitute();
+                            
                         attacker.Pokemon.SetVolatileStatus( VolatileConditionID.Substitute, source );
                     },
 
@@ -458,6 +476,67 @@ public class VolatileConditionsDB : MonoBehaviour
                             return true;
                     }
                 }
+            },
+            {
+                VolatileConditionID.SkyHigh, new()
+                {
+                    Name = "Sky High",
+                    StartMessage = "It flew into the sky!",
+                    Passable = false,
+                }
+            },
+            {
+                VolatileConditionID.Boroughed, new()
+                {
+                    Name = "Boroughed",
+                    StartMessage = "It boroughed under ground!",
+                    Passable = false,
+                }
+            },
+            {
+                VolatileConditionID.Submerged, new()
+                {
+                    Name = "Submerged",
+                    StartMessage = "It dove under the water!",
+                    Passable = false,
+
+                    OnStart = ( pokemon ) =>
+                    {
+                        StatusEffectSource source = new()
+                        {
+                            Pokemon = pokemon,
+                            Source = EffectSource.Move,
+                        };
+
+                        pokemon.SetVolatileStatus( VolatileConditionID.Submerged, source );
+                    }
+                }
+            },
+            {
+                VolatileConditionID.Stockpile, new()
+                {
+                    Name = "Stockpile",
+                    StartMessage = string.Empty,
+                    Passable = true,
+                    //--Move effects are handled inside MoveConditionDB
+
+                    OnStart = ( pokemon ) =>
+                    {
+                        //--We use duration to track stacks, since duration is not uniformly ticked down in the round end phases
+                        //--and instead duration is only ever ticked down deliberately in OnAfterTurn calls via RoundEndPhase_StatusDuration
+
+                        int stacks = 0;
+                        if( pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Stockpile, out var stockpile ) )
+                        {
+                            stacks += stockpile.Duration;
+                        }
+
+                        if( stacks < 3 )
+                            stacks++;
+
+                        pokemon.SetVolatileStatusTime( VolatileConditionID.Stockpile, stacks );
+                    },
+                }
             }
         };
     }
@@ -484,4 +563,10 @@ public enum VolatileConditionID
     Perish,
     HealBlocked,
     Disabled,
+    FlashFire,
+    Minimize,
+    SkyHigh,
+    Boroughed,
+    Submerged,
+    Stockpile,
 }

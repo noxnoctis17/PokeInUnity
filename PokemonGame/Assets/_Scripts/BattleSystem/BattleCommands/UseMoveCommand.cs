@@ -62,6 +62,10 @@ public class UseMoveCommand : IBattleCommand
         {
             return (int)move.Priority + 3;
         }
+        else if( attacker.Pokemon.AbilityID == AbilityID.GaleWings && move.MoveType == PokemonType.Flying && attacker.Pokemon.CurrentHP == attacker.Pokemon.MaxHP )
+        {
+            return (int)move.Priority + 1;
+        }
         else
             return (int)move.Priority;
     }

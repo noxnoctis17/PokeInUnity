@@ -42,7 +42,8 @@ public class GameStateController : MonoBehaviour
         WildmonStateDisplayTest = new();
     }
 
-    private void Awake(){
+    private void Awake()
+    {
         //--Initialize Databases
         TypeColorsDB.Init();
         SevereConditionsDB.Init();

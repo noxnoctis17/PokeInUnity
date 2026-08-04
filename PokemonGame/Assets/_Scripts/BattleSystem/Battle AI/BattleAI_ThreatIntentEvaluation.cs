@@ -135,7 +135,7 @@ public class BattleAI_ThreatIntentEvaluation
                 adjustment += 15f;
                 _ai.CurrentLog.Add( $"We are an offensive unit. We are faster and threaten a KO. Adjustment: {adjustment}" );
             }
-            else if( _ai.CurrentUnitAdapter.CurrentHPR <= 0.45 && usVS_Threat.OpponentThreatensKO && !iAmFaster )
+            else if( _ai.CurrentUnitAdapter.EndHPR <= 0.45 && usVS_Threat.OpponentThreatensKO && !iAmFaster )
             {
                 adjustment -= 25f;
                 _ai.CurrentLog.Add( $"We are an offensive unit. We have less than 45% hp, the opponent threatens a KO, and we are slower than them. Adjustment: {adjustment}" );
@@ -554,7 +554,7 @@ public class BattleAI_ThreatIntentEvaluation
 
                 if( theyToxic && weAreToxicWeak )
                 {
-                    if( us.CurrentHPR >= 0.6f )
+                    if( us.EndHPR >= 0.6f )
                     {
                         adjustment += 15f;
                         _ai.CurrentLog.Add( $"They toxic and we are burn toxic weak with more than 60% hp remaining. Adjustment: {adjustment}" );
@@ -914,7 +914,7 @@ public class BattleAI_ThreatIntentEvaluation
                 _ai.CurrentLog.Add( $"And we lose a critical item to our role. Adjustment: {adjustment}" );
             }
 
-            bool offensiveItem = ourCand.Item == BattleItemEffectID.ChoiceBand || ourCand.Item == BattleItemEffectID.ChoiceSpecs || ourCand.Item == BattleItemEffectID.LifeOrb; //--make item class a role trait.
+            bool offensiveItem = ourCand.Item == ItemBattleEffectID.ChoiceBand || ourCand.Item == ItemBattleEffectID.ChoiceSpecs || ourCand.Item == ItemBattleEffectID.LifeOrb; //--make item class a role trait.
             if( offensiveItem )
             {
                 adjustment -= 15f;
@@ -1783,7 +1783,7 @@ public class BattleAI_ThreatIntentEvaluation
                 _ai.CurrentLog.Add( $"And we lose a critical item to our role. Adjustment: {adjustment}" );
             }
 
-            bool offensiveItem = ourCand.Item == BattleItemEffectID.ChoiceBand || ourCand.Item == BattleItemEffectID.ChoiceSpecs || ourCand.Item == BattleItemEffectID.LifeOrb; //--make item class a role trait.
+            bool offensiveItem = ourCand.Item == ItemBattleEffectID.ChoiceBand || ourCand.Item == ItemBattleEffectID.ChoiceSpecs || ourCand.Item == ItemBattleEffectID.LifeOrb; //--make item class a role trait.
             if( offensiveItem )
             {
                 adjustment -= 20f;

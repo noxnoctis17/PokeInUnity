@@ -15,7 +15,8 @@ MonoBehaviour:
   _moveName: Earthquake
   _hasTM: 1
   _description: "The user sets off an earthquake that strikes every Pok\xE9mon around
-    it."
+    it. It can hit targets that are currently boroughed, who will receive double
+    damage."
   _moveCategory: 0
   _moveTarget: 3
   _moveType: 9
@@ -23,7 +24,7 @@ MonoBehaviour:
   _statOverride: 0
   _power: 100
   _accuracy: 100
-  _alwaysHits: 0
+  _accuracyType: 0
   _pp: 10
   _movePriority: 7
   _critBehavior: 0
@@ -31,6 +32,10 @@ MonoBehaviour:
     RecoilType: 0
     RecoilDamage: 0
   _drainPercentage: 0
+  _healType: 0
+  _healAmount: 0
+  _setDamageType: 0
+  _setDamageAmount: 0
   _hitRange: {x: 0, y: 0}
   _flags: 
   _moveEffects:
@@ -40,9 +45,10 @@ MonoBehaviour:
     _severeStatus: 0
     _volatileStatus: 0
     _transientStatus: 0
+    _bindingStatus: 0
     _weather: 0
     _terrain: 0
     _courtCondition: 0
-    _switchEffect:
-      SwitchType: 0
+    _fieldCondition: 0
+    _switchType: 0
   _secondaryMoveEffects: []

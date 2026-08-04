@@ -390,6 +390,7 @@ public class PokemonSO : ScriptableObject
     //--Evolutions
     public void AddEvolution()
     {
+        _evolutions ??= new();
         _evolutions.Add( new() );
     }
 
@@ -752,7 +753,7 @@ public enum GrowthRate
 
 public class TypeChart
 {
-    static readonly float[][] chart = 
+    private static readonly float[][] _chart = 
     {
         //--Types                    NOR FIR WAT ELE GRA ICE FIG POI GRO FLY PSY BUG ROC GHO DRA DAR STE FAI
 
@@ -781,13 +782,13 @@ public class TypeChart
 
     public static float GetEffectiveness( PokemonType attackType, PokemonType defenseType )
     {
-        if ( attackType == PokemonType.None || defenseType == PokemonType.None )
+        if( attackType == PokemonType.None || defenseType == PokemonType.None )
             return 1;
 
         int row = (int)attackType - 1;
         int col = (int)defenseType - 1;
 
-        return chart[row][col];
+        return _chart[row][col];
     }
 
     public static float GetTotalEffectiveness( PokemonType attackType, PokemonType defenseType1, PokemonType defenseType2 )
@@ -797,14 +798,18 @@ public class TypeChart
 
     public static float GetTotalMoveEffectiveness( ( PokemonType One, PokemonType Two ) type, Move move )
     {
-        if ( type.One == PokemonType.None || type.Two == PokemonType.None || move.MoveType == PokemonType.None )
-            return 1;
+        float effectiveness = GetTotalEffectiveness( move.MoveType, type.One, type.Two );
 
-        float effectiveness = GetEffectiveness( move.MoveType, type.One ) * GetEffectiveness( move.MoveType, type.Two );
-
-        if( move.MoveSO.SetDamageType != SetDamageType.None && effectiveness > 1f && effectiveness != 0f ) //--Set damage moves (night shade, seismic toss) cannot be super effective/don't receive a damage bonus from type effectiveness.
+        if( move.MoveSO.SetDamageType != SetDamageType.None && effectiveness != 0f ) //--Set damage moves (night shade, seismic toss) cannot be super effective/don't receive a damage bonus from type effectiveness.
             effectiveness = 1f;
 
+        // Debug.LogError( $"Move: {move.MoveSO.Name}'s effectiveness on type combo {type.One}/{type.Two} is: {effectiveness}. Set Damage Type: {move.MoveSO.SetDamageType}");
+
         return effectiveness;
+    }
+
+    public static float[][] GetAllTypes()
+    {
+        return _chart;
     }
 }

@@ -1,8 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Experimental.GraphView;
+using UnityEditor.U2D.Sprites;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -13,7 +16,8 @@ public class PokemonEditor : EditorWindow
     [MenuItem( "Tools/Pokemon SO Editor" )]
     public static void OpenPokemonEditor() => GetWindow<PokemonEditor>( "PokemonSO Editor", typeof(PokemonEditor), typeof(MoveEditor), typeof(TrainerEditor), typeof(RentalTeamEditor) );
     public static PokemonSO OpenedPokemon;
-    
+    private const int DIRECTION_COUNT = 8;
+
     //--Basics
     private VisualTreeAsset _uxml;
     private ListView _pokemonListView;
@@ -86,7 +90,9 @@ public class PokemonEditor : EditorWindow
     // hurt portrait
     // angry portrait
     private Button _assignSpriteSheetButton;
+    private Button _importSpriteSheetButton;
     private ObjectField _spriteSheetField;
+    private Toggle _allowReimport;
 
     public static void OpenPokemonEditor( PokemonSO pokemon )
     {
@@ -197,8 +203,10 @@ public class PokemonEditor : EditorWindow
 
         //--Sprite Sheet Setup
         _assignSpriteSheetButton = rootVisualElement.Q<Button>( "AssignSpriteSheetButton" );
+        _importSpriteSheetButton = rootVisualElement.Q<Button>( "ImportSpriteSheetButton" );
         _spriteSheetField = rootVisualElement.Q<ObjectField>( "SpriteSheetField" );
         _spriteSheetField.objectType = typeof(Texture2D);
+        _allowReimport = rootVisualElement.Q<Toggle>( "AllowReimport" );
 
         RegisterFieldCallbacks();
 
@@ -221,7 +229,7 @@ public class PokemonEditor : EditorWindow
 
             if( pokemon != null )
             {
-                Debug.Log( $"Loading {pokemon.Species}" );
+                // Debug.Log( $"Loading {pokemon.Species}" );
                 _pokemonList.Add( pokemon );
             }
         }
@@ -530,12 +538,13 @@ public class PokemonEditor : EditorWindow
             row.style.paddingRight  = 2;
             row.style.paddingBottom = 2;
 
+            IntegerField levelField = new();
+            levelField.style.width = 50;
+
             ObjectField moveSOField = new();
             moveSOField.objectType = typeof( MoveSO );
             moveSOField.style.flexGrow = 1;
-
-            IntegerField levelField = new();
-            levelField.style.width = 50;
+            
 
             Button openInEditor = new() { text = "Open in Editor" };
             Button removeButton = new() { text = "X" };
@@ -557,8 +566,8 @@ public class PokemonEditor : EditorWindow
                 RefreshLevelUpMovesList();
             };
 
-            row.Add( moveSOField );
             row.Add( levelField );
+            row.Add( moveSOField );
             row.Add( openInEditor );
             row.Add( removeButton );
 
@@ -1096,6 +1105,11 @@ public class PokemonEditor : EditorWindow
             GetSpriteSheet( _loadedSpriteSheet );
         });
 
+        _importSpriteSheetButton.RegisterCallback<ClickEvent>( evt =>
+        {
+            ImportSpriteSheet();
+        });
+
         _bulkSyncTMsButton.RegisterCallback<ClickEvent>( evt =>
         {
             if( _pokemonList == null || _tmKeys == null )
@@ -1334,6 +1348,197 @@ public class PokemonEditor : EditorWindow
         _previewPlayer.Play();
     }
 
+    private void ImportSpriteSheet()
+    {
+        string directory = "C:/My Cloud/GameDev/Pokegame/Rendered Pokemon Sprites/Pokemon";
+        string importPath = EditorUtility.OpenFolderPanel( "Select Sprite Sheets for Import", directory, "" );
+        string[] importedFiles = Directory.GetFiles( importPath );
+        List<string> addedFiles = new();
+
+        // bool allowReimport = _allowReimport.value;
+
+        string species = _currentPokemon.Species;
+
+        if( !importPath.Contains( species ) )
+        {
+            EditorUtility.DisplayDialog( "Invalid Sprite Folder", $"The selected folder does not belong to {_currentPokemon.Species}.", "OK" );
+            return;
+        }
+
+        foreach( string file in importedFiles )
+        {
+            if( file.Contains( ".png" ) )
+            {
+                string root = Application.dataPath;
+                string saveDirectory = Path.Combine( root, "Resources/Sprites/Pokemon", species );
+                string fileName = Path.GetFileName( file );
+
+                if( !fileName.Contains( species ) )
+                {
+                    Debug.LogError( $"Wrong Species Sheet found ({fileName})! Skipping!" );
+                    continue;
+                }
+                
+                if( !Directory.Exists( saveDirectory ) )
+                    Directory.CreateDirectory( saveDirectory );
+
+                string filePath = Path.Combine( saveDirectory, fileName );
+
+                bool allowReimport = false;
+                if( File.Exists( filePath ) )
+                {
+                    allowReimport = EditorUtility.DisplayDialog( $"Overwrite Existing Sheet?", $"{fileName} already exists. Continue?", "Overwrite", "Cancel" );
+                }
+
+                if( !File.Exists( filePath ) || allowReimport )
+                {
+                    Debug.Log( $"[Sprite Sheet Importer] File Save Path: {filePath}, File: {file}" );
+                    File.Copy( file, filePath, true );
+                    addedFiles.Add( file );
+                }
+            }
+        }
+
+        AssetDatabase.Refresh();
+
+        foreach( string file in addedFiles )
+        {
+            if( file.Contains( ".png" ) )
+            {
+                string fileName = Path.GetFileName( file );
+                string assetPath = $"Assets/Resources/Sprites/Pokemon/{species}/{fileName}";
+
+                Debug.Log( $"[Sprite Sheet Importer] Configuring Imported Sprite Sheet at Asset Path: {assetPath}" );
+                var importer = AssetImporter.GetAtPath( assetPath ) as TextureImporter;
+
+                ConfigureSpriteSheet( importer );
+                var sheet = SliceSpriteSheet( importer );
+                GetSpriteSheet( sheet );
+            }
+        }
+
+        AssetDatabase.Refresh();
+    }
+
+    private void ConfigureSpriteSheet( TextureImporter importer )
+    {
+        importer.textureType = TextureImporterType.Sprite;
+        importer.spriteImportMode = SpriteImportMode.Multiple;
+        importer.spritePixelsPerUnit = 100;
+        importer.filterMode = FilterMode.Point;
+        importer.textureCompression = TextureImporterCompression.Uncompressed;
+        importer.isReadable = true;
+        
+        EditorUtility.SetDirty( importer );
+        importer.SaveAndReimport();
+    }
+
+    private Texture2D SliceSpriteSheet( TextureImporter importer )
+    {
+        const int animationCell = 100;
+        const int portraitCell = 40;
+
+        string assetPath = importer.assetPath;
+        var sheet = AssetDatabase.LoadAssetAtPath( assetPath, typeof(Texture2D) ) as Texture2D;
+
+        int sheetWidth = sheet.width;
+        int sheetHeight = sheet.height;
+
+        bool portraits = assetPath.Contains( "_Portraits" );
+
+        int cellSize = portraits ? portraitCell : animationCell;
+
+        int cols = sheetWidth / cellSize;
+        int rows = sheetHeight / cellSize;
+
+        var factory = new SpriteDataProviderFactories();
+        factory.Init();
+
+        var dataProvider = factory.GetSpriteEditorDataProviderFromObject( sheet );
+        dataProvider.InitSpriteEditorDataProvider();
+
+        var spriteRects = dataProvider.GetSpriteRects().ToList();
+        spriteRects.Clear();
+
+        var spriteNameFileIdDataProvider = dataProvider.GetDataProvider<ISpriteNameFileIdDataProvider>();
+        var nameFileIdPairs = spriteNameFileIdDataProvider.GetNameFileIdPairs().ToList();
+
+        int spriteIndex = 0;
+        Debug.Log( $"[Sprite Sheet Importer] Beginning manual slicing of sheet {sheet}" );
+        for( int r = 0; r < rows; r++ )
+        {
+            for( int c = 0; c < cols; c++ )
+            {
+                int x = c * cellSize;
+                int y = sheetHeight - ( ( r + 1 ) * cellSize );
+                SpriteAlignment alignment = portraits ? SpriteAlignment.Center : SpriteAlignment.BottomCenter;
+
+                SpriteRect rect = new()
+                {
+                    name = $"{Path.GetFileNameWithoutExtension( assetPath )}_{spriteIndex}",
+                    spriteID = GUID.Generate(),
+                    rect = new Rect( x, y, cellSize, cellSize ),
+                    alignment = alignment,
+                };
+
+                Debug.Log( $"[Sprite Sheet Importer] Created rect for {rect.name}. Checking for opaque pixels..." );
+
+                if( DetectPixelsInSpriteRect( rect.rect, sheet ) )
+                {
+                    Debug.Log( $"[Sprite Sheet Importer] found pixels in {x}, {y} (cell size: {cellSize}), adding index {spriteIndex} to spriteRects" );
+                    spriteRects.Add( rect );
+
+                    nameFileIdPairs.Add( new SpriteNameFileIdPair( rect.name, rect.spriteID ) );
+
+                    spriteIndex++;
+                }
+                else
+                    continue;
+            }
+        }
+
+    
+        spriteNameFileIdDataProvider.SetNameFileIdPairs( nameFileIdPairs );
+
+        // Apply the changes made to the data provider
+        dataProvider.SetSpriteRects( spriteRects.ToArray() );
+        dataProvider.Apply();
+
+        // Reimport the asset to have the changes applied
+        // var assetImporter = dataProvider.targetObject as AssetImporter;
+        importer.isReadable = false;
+        importer.SaveAndReimport();
+
+        return sheet;
+    }
+
+    private bool DetectPixelsInSpriteRect( Rect rect, Texture2D sheet )
+    {
+        int startX = (int)rect.x;
+        int startY = (int)rect.y;
+
+        int endX = startX + (int)rect.width;
+        int endY = startY + (int)rect.height;
+
+        Debug.Log( $"[Sprite Sheet Importer] Checking rect ({rect.x}, {rect.y}, {rect.width}, {rect.height}) for Opaque Pixels for {sheet.name}." );
+        Debug.Log( $"[Sprite Sheet Importer] StartX: {startX}, StartY: {startY}, EndX: {endX}, EndY: {endY}" );
+
+        for( int y = startY; y < endY; y++ )
+        {
+            for( int x = startX; x < endX; x++ )
+            {
+                float a = sheet.GetPixel( x, y ).a;
+                // Debug.Log( $"[Sprite Sheet Importer] Checking pixel y:{y}, x:{x}. Alpha: {a}" );
+                if( a > 0.1f )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private void GetSpriteSheet( Texture2D sheet )
     {
         string path = AssetDatabase.GetAssetPath( sheet );
@@ -1357,9 +1562,8 @@ public class PokemonEditor : EditorWindow
         AssignSpriteSheet( sheet.name, sprites );
     }
 
-    private const int DIRECTION_COUNT = 8;
     //--This shit cray
-    private List<List<Sprite>> SliceSpriteSheet( List<Sprite> sprites )
+    private List<List<Sprite>> GetSheetFrames( List<Sprite> sprites )
     {
         int framesPerDirection = sprites.Count / DIRECTION_COUNT;
 
@@ -1408,7 +1612,7 @@ public class PokemonEditor : EditorWindow
             }
             
 
-            var directionalSprites = SliceSpriteSheet( sprites );
+            var directionalSprites = GetSheetFrames( sprites );
             if( directionalSprites == null )
                 return;
 

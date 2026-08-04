@@ -4,18 +4,18 @@ using UnityEngine;
 
 public class BattleItemDB
 {
-    public static Dictionary<BattleItemEffectID, BattleItemEffect> BattleItemEffects = new()
+    public static Dictionary<ItemBattleEffectID, BattleItemEffect> BattleItemEffects = new()
     {
         {
-            BattleItemEffectID.None, new()
+            ItemBattleEffectID.None, new()
             {
                 //--None
             }
         },
         {
-            BattleItemEffectID.FlameOrb, new()
+            ItemBattleEffectID.FlameOrb, new()
             {
-                ID = BattleItemEffectID.FlameOrb,
+                ID = ItemBattleEffectID.FlameOrb,
                 
                 OnItemRoundEnd = ( Pokemon pokemon ) =>
                 {
@@ -38,9 +38,9 @@ public class BattleItemDB
 
         },
         {
-            BattleItemEffectID.ToxicOrb, new()
+            ItemBattleEffectID.ToxicOrb, new()
             {
-                ID = BattleItemEffectID.ToxicOrb,
+                ID = ItemBattleEffectID.ToxicOrb,
                 
                 OnItemRoundEnd = ( Pokemon pokemon ) =>
                 {
@@ -63,9 +63,9 @@ public class BattleItemDB
 
         },
         {
-            BattleItemEffectID.StaticOrb, new()
+            ItemBattleEffectID.StaticOrb, new()
             {
-                ID = BattleItemEffectID.StaticOrb,
+                ID = ItemBattleEffectID.StaticOrb,
                 
                 OnItemRoundEnd = ( Pokemon pokemon ) =>
                 {
@@ -88,9 +88,9 @@ public class BattleItemDB
 
         },
         {
-            BattleItemEffectID.LifeOrb, new()
+            ItemBattleEffectID.LifeOrb, new()
             {
-                ID = BattleItemEffectID.LifeOrb,
+                ID = ItemBattleEffectID.LifeOrb,
                 
                 OnDamageModify = ( BattleUnit attacker, Pokemon target, Move move ) =>
                 {
@@ -110,9 +110,9 @@ public class BattleItemDB
 
         },
         {
-            BattleItemEffectID.ChoiceBand, new()
+            ItemBattleEffectID.ChoiceBand, new()
             {
-                ID = BattleItemEffectID.ChoiceBand,
+                ID = ItemBattleEffectID.ChoiceBand,
 
                 OnItemEnter = ( unit ) =>
                 {
@@ -132,9 +132,9 @@ public class BattleItemDB
 
         },
         {
-            BattleItemEffectID.ChoiceSpecs, new()
+            ItemBattleEffectID.ChoiceSpecs, new()
             {
-                ID = BattleItemEffectID.ChoiceBand,
+                ID = ItemBattleEffectID.ChoiceBand,
 
                 OnItemEnter = ( unit ) =>
                 {
@@ -153,9 +153,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.ChoiceScarf, new()
+            ItemBattleEffectID.ChoiceScarf, new()
             {
-                ID = BattleItemEffectID.ChoiceScarf,
+                ID = ItemBattleEffectID.ChoiceScarf,
 
                 OnItemEnter = ( unit ) =>
                 {
@@ -174,9 +174,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.FocusSash, new()
+            ItemBattleEffectID.FocusSash, new()
             {
-                ID = BattleItemEffectID.FocusSash,
+                ID = ItemBattleEffectID.FocusSash,
 
                 OnEnd = ( unit ) =>
                 {
@@ -217,9 +217,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.SitrusBerry, new()
+            ItemBattleEffectID.SitrusBerry, new()
             {
-                ID = BattleItemEffectID.SitrusBerry,
+                ID = ItemBattleEffectID.SitrusBerry,
 
                 OnAfterTakeDamage = ( unit ) =>
                 {
@@ -247,9 +247,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.Leftovers, new()
+            ItemBattleEffectID.Leftovers, new()
             {
-                ID = BattleItemEffectID.Leftovers,
+                ID = ItemBattleEffectID.Leftovers,
 
                 OnItemRoundEnd = ( pokemon ) =>
                 {
@@ -266,9 +266,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.BlackSludge, new()
+            ItemBattleEffectID.BlackSludge, new()
             {
-                ID = BattleItemEffectID.BlackSludge,
+                ID = ItemBattleEffectID.BlackSludge,
 
                 OnItemRoundEnd = ( pokemon ) =>
                 {
@@ -289,9 +289,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.MysticWater, new()
+            ItemBattleEffectID.MysticWater, new()
             {
-                ID = BattleItemEffectID.MysticWater,
+                ID = ItemBattleEffectID.MysticWater,
                 
                 OnDamageModify = ( BattleUnit attacker, Pokemon target, Move move ) =>
                 {
@@ -306,9 +306,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.Charcoal, new()
+            ItemBattleEffectID.Charcoal, new()
             {
-                ID = BattleItemEffectID.Charcoal,
+                ID = ItemBattleEffectID.Charcoal,
                 
                 OnDamageModify = ( BattleUnit attacker, Pokemon target, Move move ) =>
                 {
@@ -323,9 +323,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.LightBall, new()
+            ItemBattleEffectID.LightBall, new()
             {
-                ID = BattleItemEffectID.LightBall,
+                ID = ItemBattleEffectID.LightBall,
                 
                 OnItemEnter = ( BattleUnit unit ) =>
                 {
@@ -349,9 +349,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.RockyHelmet, new()
+            ItemBattleEffectID.RockyHelmet, new()
             {
-                ID = BattleItemEffectID.RockyHelmet,
+                ID = ItemBattleEffectID.RockyHelmet,
 
                 OnMoveContactTarget = ( attacker, target, move ) =>
                 {
@@ -367,9 +367,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.ExpertBelt, new()
+            ItemBattleEffectID.ExpertBelt, new()
             {
-                ID = BattleItemEffectID.ExpertBelt,
+                ID = ItemBattleEffectID.ExpertBelt,
 
                 OnDamageModify = ( attacker, target, move ) =>
                 {
@@ -382,9 +382,9 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.MetalCoat, new()
+            ItemBattleEffectID.MetalCoat, new()
             {
-                ID = BattleItemEffectID.MetalCoat,
+                ID = ItemBattleEffectID.MetalCoat,
 
                 OnDamageModify = ( attacker, target, move ) =>
                 {
@@ -399,23 +399,23 @@ public class BattleItemDB
             }
         },
         {
-            BattleItemEffectID.HeavyDutyBoots, new()
+            ItemBattleEffectID.HeavyDutyBoots, new()
             {
-                ID = BattleItemEffectID.HeavyDutyBoots,
+                ID = ItemBattleEffectID.HeavyDutyBoots,
                 //--Effect for this item is handled in all places entry hazard damage is checked, including the AI system.
             }
         },
         {
-            BattleItemEffectID.SafetyGoggles, new()
+            ItemBattleEffectID.SafetyGoggles, new()
             {
-                ID = BattleItemEffectID.SafetyGoggles,
+                ID = ItemBattleEffectID.SafetyGoggles,
                 //--Effect for this item should be handled in sandstorm damage check + powder move check
             }
         },
         {
-            BattleItemEffectID.Eviolite, new()
+            ItemBattleEffectID.Eviolite, new()
             {
-                ID = BattleItemEffectID.Eviolite,
+                ID = ItemBattleEffectID.Eviolite,
 
                 OnItemEnter = ( unit ) =>
                 {
@@ -433,11 +433,27 @@ public class BattleItemDB
                     unit.Pokemon.RemoveDirectStatModifier( Stat.SpDefense, DirectModifierCause.Eviolite );
                 }
             }
+        },
+        {
+            ItemBattleEffectID.AssaultVest, new()
+            {
+                ID = ItemBattleEffectID.AssaultVest,
+
+                OnItemEnter = ( unit ) =>
+                {
+                    unit.Pokemon.ApplyDirectStatModifier( Stat.SpDefense, DirectModifierCause.AssaultVest, 1.5f );
+                },
+
+                OnItemExit = ( unit ) =>
+                {
+                    unit.Pokemon.RemoveDirectStatModifier( Stat.SpDefense, DirectModifierCause.AssaultVest );
+                }
+            }
         }
     };
 }
 
-public enum BattleItemEffectID
+public enum ItemBattleEffectID
 {
     None,
     FlameOrb,
@@ -468,5 +484,6 @@ public enum BattleItemEffectID
     LumBerry,
     SafetyGoggles,
     Eviolite,
-
+    MentalHerb,
+    CovertCloak,
 }

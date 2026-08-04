@@ -176,6 +176,7 @@ public class BattleCommandCenter : MonoBehaviour
 
                 if( CheckMoveAccuracy( move, attacker, target ) )
                 {
+                    BattleSystem.SetLastUsedMove( move );
                     //--Charging is checked for in CheckMoveAccuracy(). If a move needs to charge, it skips the accuracy check (as true) and the database entry handles setting the flag
                     //--The flag being set means we're in a charging state, and should not follow through with a full attack loop, so we break out of PerformMoveCommand() entirely.
                     if( attacker.Flags[UnitFlags.Charging].IsActive && attacker.Flags[UnitFlags.Charging].Count == 0 )
@@ -337,8 +338,6 @@ public class BattleCommandCenter : MonoBehaviour
                 //--Move Use Abilities, such as Technician -- 02/08/26 -- wrong, technician needs to be applied before completion. something else must've been here lol --07/02/26
                 attacker.Pokemon.Ability?.OnMoveCompleted?.Invoke( attacker, target, move, BattleSystem );
 
-                BattleSystem.SetLastUsedMove( move );
-
                 yield return ShowTypeEffectiveness( typeEffectiveness );
 
                 if( totalHits > 1 )
@@ -380,6 +379,9 @@ public class BattleCommandCenter : MonoBehaviour
                 }
 
                 // Debug.Log( $"[Move Command] Finished {attacker.Pokemon.NickName}'s full attack loop! Running After Move!" );
+
+                if( MoveConditionDB.Conditions.TryGetValue( move.MoveSO.Name, out var onMoveEffectsCompleted ) )
+                    onMoveEffectsCompleted.OnMoveEffectsCompleted?.Invoke( attacker, target, move, BattleSystem );
 
                 yield return RunAfterMove( damageDetails, move.MoveSO, attacker, target );
 
@@ -466,6 +468,12 @@ public class BattleCommandCenter : MonoBehaviour
                 if( needsToCharge )
                     return true;
             }
+        }
+
+        if( attacker.Flags[UnitFlags.LockOn].IsActive && attacker.Flags[UnitFlags.LockOn].Target.Pokemon == target.Pokemon )
+        {
+            attacker.ClearLockOn();
+            return true;
         }
 
         float moveAccuracy = move.MoveSO.Accuracy;
@@ -949,14 +957,18 @@ public class BattleCommandCenter : MonoBehaviour
         unit.SetLastUsedMove( null );
         unit.ClearCharging();
         unit.SetFlagActive( UnitFlags.IncreasedStatStage, false );
+        unit.Pokemon.RestoreTypes();
+        unit.Pokemon.RestoreWeight();
+        unit.RestoreGroundedState();
+        unit.ClearLockOn();
 
         if( unit.Pokemon.SevereStatus?.ID == SevereConditionID.TOX )
             unit.Pokemon.SevereStatusTime = 1;
 
-        if( unit.Flags[UnitFlags.SkillSwapped].IsActive )
+        if( unit.Flags[UnitFlags.AbilityChanged].IsActive )
         {
-            unit.Pokemon.ResetSkillSwap();
-            unit.SetFlagActive( UnitFlags.SkillSwapped, false );
+            unit.Pokemon.ResetAbility();
+            unit.SetFlagActive( UnitFlags.AbilityChanged, false );
         }
 
         if( unit.Flags[UnitFlags.Substitute].IsActive && !unit.Flags[UnitFlags.BatonPass].IsActive )
@@ -1079,6 +1091,8 @@ public class BattleCommandCenter : MonoBehaviour
         //--Call OnEnterCourt from all existing court conditions on the incoming pokemon
         if( BattleSystem.Field.ActiveCourts[courtLocation].Conditions.Count > 0 )
         {
+            List<CourtConditionID> effectsFlaggedForRemoval = new();
+
             foreach( var condition in BattleSystem.Field.ActiveCourts[courtLocation].Conditions )
             {
                 condition.Value?.OnEnterCourt?.Invoke( unit, BattleSystem.Field );
@@ -1089,6 +1103,9 @@ public class BattleCommandCenter : MonoBehaviour
                 BattleSystem.AddToEventQueue( () => BattleSystem.CheckForFaint( unit ) );
                 yield return null;
                 yield return BattleSystem.WaitForEventQueue();
+
+                if( condition.Value.FlaggedForRemoval )
+                    effectsFlaggedForRemoval.Add( condition.Key );
             }
 
             BattleSystem.AddToEventQueue( () => BattleSystem.CheckForFaint( unit ) );
@@ -1103,6 +1120,11 @@ public class BattleCommandCenter : MonoBehaviour
             }
 
             yield return BattleSystem.WaitForUIQueue();
+
+            for( int i = 0; i < effectsFlaggedForRemoval.Count; i++ )
+            {
+                BattleSystem.Field.ActiveCourts[courtLocation].Conditions.Remove( effectsFlaggedForRemoval[i] );
+            }
         }
 
         //--Check if the Pokemon has an entrace ability, then we need to show status changes for all pokemon on the field in case they are effected.

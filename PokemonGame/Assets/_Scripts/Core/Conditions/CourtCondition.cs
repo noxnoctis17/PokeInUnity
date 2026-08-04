@@ -13,6 +13,7 @@ public class CourtCondition
     public int DurationModifier { get; private set; }
     public int TimeLeft { get; set; }
     public bool IsInfinite { get; set; } //--For hazards, as they do not have a timed duration on the field
+    public bool FlaggedForRemoval { get; set; }
     public string StartMessage { get; set; }
     public Func<BattleSystem, Pokemon, string> TrickRoomStartMessage { get; set; }
     public Func<BattleSystem, Pokemon, string> TrickRoomAlreadyActiveMessage { get; set; }
