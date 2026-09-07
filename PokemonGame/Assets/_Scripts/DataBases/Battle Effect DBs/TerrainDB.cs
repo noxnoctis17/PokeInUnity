@@ -98,11 +98,11 @@ public class TerrainDB : MonoBehaviour
                     StartByMoveMessage = "The battlefield became desecrated!",
                     EndMessage = "The blighted terrain has faded!",
 
-                    OnTerrainEffect = ( BattleUnit unit ) =>
+                    OnTerrainEffect = ( unit ) =>
                     {
                         if( unit.Flags[UnitFlags.Ungrounded].IsActive )
                         {
-                            if( !unit.Pokemon.CheckTypes( PokemonType.Ghost ) && !unit.Pokemon.CheckTypes( PokemonType.Dark ) )
+                            if( !unit.Pokemon.CheckTypes( PokemonType.Ghost ) && !unit.Pokemon.CheckTypes( PokemonType.Dark ) && !unit.Pokemon.CheckTypes( PokemonType.Normal ) && !unit.Pokemon.CheckTypes( PokemonType.Fighting ) )
                             {
                                 int damage = Mathf.FloorToInt( unit.Pokemon.MaxHP / 16f );
                                 unit.Pokemon.DecreaseHP( damage );
@@ -111,7 +111,7 @@ public class TerrainDB : MonoBehaviour
                         }
                     },
 
-                    OnDamageModify = ( BattleUnit source, Pokemon target, Move move ) =>
+                    OnDamageModify = ( source, target, move ) =>
                     {
                         if( source.Flags[UnitFlags.Ungrounded].IsActive && ( move.MoveSO.Type == PokemonType.Ghost || move.MoveSO.Type == PokemonType.Dark ) )
                             return 1.3f;

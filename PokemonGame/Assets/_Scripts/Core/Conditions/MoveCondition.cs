@@ -21,7 +21,7 @@ public class MoveCondition
     public Func<BattleUnit, BattleUnit, Move, int> OnOverrideAttackingStat { get; set; }
     public Func<BattleUnit, BattleUnit, Move, int> OnOverrideDefensiveStat { get; set; }
     public Func<BattleUnit, BattleUnit, Move, BattleSystem, BattleUnit> OnTargetRedirect { get; set; }
-    public Action<BattleUnit, BattleUnit, Move, BattleSystem> OnModifyCommandQueue { get; set; }
+    public Action<BattleUnit, BattleUnit, BattleSystem> OnModifyCommandQueue { get; set; }
     public Action<BattleUnit, Move, BattleSystem> OnAfterRound { get; set; }
 
 }

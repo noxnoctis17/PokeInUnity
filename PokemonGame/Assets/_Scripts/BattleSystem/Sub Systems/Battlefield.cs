@@ -45,23 +45,21 @@ public class Battlefield
             currentWeather = Weather.ID;
         }
 
-        foreach( var court in ActiveCourts )
+        var activeUnits = _battleSystem.GetActiveUnits();
+
+        foreach( var unit in activeUnits )
         {
-            foreach( var unit in court.Value.Units )
-            {
-                Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
-            }
+            Weather?.OnEnterWeather?.Invoke( unit.Pokemon );
         }
     }
 
     private void ExitWeather()
     {
-        foreach( var court in ActiveCourts )
+        var activeUnits = _battleSystem.GetActiveUnits();
+
+        foreach( var unit in activeUnits )
         {
-            foreach( var unit in court.Value.Units )
-            {
-                Weather?.OnExitWeather?.Invoke( unit.Pokemon );
-            }
+            Weather?.OnExitWeather?.Invoke( unit.Pokemon );
         }
     }
 

@@ -14,7 +14,7 @@ public class BattleAI_UnitSim
     public Dictionary<ItemBattleEffectID, Func<IBattleAIUnit, IBattleAIUnit, Move, float>> ItemDMGModifiers { get; private set; }
     public Dictionary<string, Func<IBattleAIUnit, IBattleAIUnit, Move, int>> MovePowerConditions { get; private set; }
     public Dictionary<SevereConditionID, Action<IBattleAIUnit>> SevereConditions { get; private set; }
-    public CustomLogSession TurnSimLog { get; private set; }
+    // public CustomLogSession TurnSimLog { get; private set; }
 
     public BattleAI_UnitSim( BattleAI ai )
     {
@@ -22,7 +22,7 @@ public class BattleAI_UnitSim
         _bs = _ai.BattleSystem;
         _field = _bs.Field;
 
-        TurnSimLog = new();
+        // TurnSimLog = new();
 
         DicsInit();
     }
@@ -61,37 +61,54 @@ public class BattleAI_UnitSim
     //     TurnSimLog.Add( $"" );
     // }
 
-    public void LogSimField( SimulatedField field )
+    public void LogSimField( SimulatedField field, CustomLogSession simLog = null )
     {
-        TurnSimLog.Add( $"===[Simulated Field]===" );
-        TurnSimLog.Add( $"Weather: {field.Weather}, Duration: {field.WeatherDuration}" );
-        TurnSimLog.Add( $"Terrain: {field.Terrain}, Duration: {field.TerrainDuration}" );
-        TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
+        simLog?.Add( $"===[Simulated Field]===" );
+        simLog?.Add( $"Weather: {field.Weather}, Duration: {field.WeatherDuration}" );
+        simLog?.Add( $"Terrain: {field.Terrain}, Duration: {field.TerrainDuration}" );
+        simLog?.Add( $"" );
+
+        simLog?.Add( $"Top Court Condition Count: {field.TopCourtConditions.Count}" );
         foreach( var kvp in field.TopCourtConditions )
-            TurnSimLog.Add( $"Condition: {kvp.Key}, Duration: {kvp.Value}" );
-        TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
+            simLog?.Add( $"Condition: {kvp.Key}, Duration: {kvp.Value}" );
+
+        simLog?.Add( $"" );
+        simLog?.Add( $"Bottom Court Condition Count: {field.BottomCourtConditions.Count}" );
         foreach( var kvp in field.BottomCourtConditions )
-            TurnSimLog.Add( $"Condition: {kvp.Key}, Duration: {kvp.Value}" );
-        TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"Field Conditions Count: {field.FieldConditions.Count}" );
+            simLog?.Add( $"Condition: {kvp.Key}, Duration: {kvp.Value}" );
+
+        simLog?.Add( $"" );
+        simLog?.Add( $"Field Conditions Count: {field.FieldConditions.Count}" );
         foreach( var kvp in field.FieldConditions )
-            TurnSimLog.Add( $"Condition: {kvp.Key}, Duration: {kvp.Value}" );
-        TurnSimLog.Add( $"" );
-        TurnSimLog.Add( $"" );
+            simLog?.Add( $"Condition: {kvp.Key}, Duration: {kvp.Value}" );
+
+        simLog?.Add( $"" );
+        simLog?.Add( $"" );
     }
 
-    public void LogTop( TurnOutcomeProjection top )
+    public void LogTop( TurnOutcomeProjection top, CustomLogSession simLog = null )
     {
-        TurnSimLog.Add( $"Attacker End HP: {top.Attacker_EndOfTurnHP}" );
-        TurnSimLog.Add( $"Opponent End HP: {top.Opponent_EndOfTurnHP}" );
-        TurnSimLog.Add( $"Attacker Ally End HP: {top.AttackerAlly?.EndHPR}" );
-        TurnSimLog.Add( $"Opponent Ally End HP: {top.OpponentAlly?.EndHPR}" );
-        TurnSimLog.Add( $"Attacker Dies Before Acting: {top.Attacker_DiesBeforeActing}" );
-        TurnSimLog.Add( $"Opponent Dies Before Acting: {top.Opponent_DiesBeforeActing}" );
-        TurnSimLog.Add( $"Mutual KO: {top.MutualKO}" );
-        TurnSimLog.Add( $"" );
+        simLog?.Add( $"Attacker End HP: {top.Attacker?.EndHPR}" );
+        simLog?.Add( $"Opponent End HP: {top.Opponent?.EndHPR}" );
+        simLog?.Add( $"Attacker Ally End HP: {top.AttackerAlly?.EndHPR}" );
+        simLog?.Add( $"Opponent Ally End HP: {top.OpponentAlly?.EndHPR}" );
+        simLog?.Add( $"Attacker Dies Before Acting: {top.Attacker_DiesBeforeActing}" );
+        simLog?.Add( $"Opponent Dies Before Acting: {top.Opponent_DiesBeforeActing}" );
+        simLog?.Add( $"Mutual KO: {top.MutualKO}" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"Comparing Expected Turn Order to Turn Order History" );
+        simLog?.Add( $"" );
+
+        simLog?.Add( $"Expected Turn Order:" );
+        foreach( var kvp in top.ExpectedTurnOrder )
+            simLog?.Add( $"{kvp.Value}. {kvp.Key.Name} (Speed: {kvp.Key.Speed})" );
+
+        simLog?.Add( $"" );
+        simLog?.Add( $"" );
+
+        simLog?.Add( $"Simulation's Turn Order History:" );
+        foreach( var kvp in top.TurnOrderHistory )
+            simLog?.Add( $"{kvp.Value}. {kvp.Key.Name} (Speed: {kvp.Key.Speed})" );
     }
 
     //--Create Simple Sim Unit directly from Pokemon
@@ -168,7 +185,7 @@ public class BattleAI_UnitSim
             Defense = pokemon.Defense,
             SpAttack = pokemon.SpAttack,
             SpDefense = pokemon.SpDefense,
-            Speed = _ai.GetUnitContextualSpeed( pokemon ),
+            Speed = pokemon.Speed,
 
             RoleProfile = pokemon.RoleProfile,
             StatSpread = pokemon.StatSpread,
@@ -194,7 +211,54 @@ public class BattleAI_UnitSim
             DirectStatModifiers = directModifiers,
         };
 
+        RecalculateStats( unit );
+
         return unit;
+    }
+
+    public void RecalculateStats( SimulatedUnit unit )
+    {
+        unit.Attack = _ai.GetUnitInferredStat( unit, Stat.Attack );
+        unit.Defense = _ai.GetUnitInferredStat( unit, Stat.Defense );
+        unit.SpAttack = _ai.GetUnitInferredStat( unit, Stat.SpAttack );
+        unit.SpDefense = _ai.GetUnitInferredStat( unit, Stat.SpDefense );
+        unit.Speed = _ai.GetUnitInferredStat( unit, Stat.Speed );
+    }
+
+    public void ApplyDirectStatModifier( SimulatedUnit unit, Stat stat, DirectModifierCause cause, float modifier )
+    {
+        if( !unit.DirectStatModifiers.TryGetValue( stat, out var statDict ) )
+        {
+            statDict = new();
+            unit.DirectStatModifiers[stat] = statDict;
+        }
+
+        statDict[cause] = modifier;
+
+        RecalculateStats( unit );
+    }
+
+    //--When we remove direct stat changes, we actually need to remove the value that was
+    //--added to the list of modifiers for that stat, because those modifiers are
+    //--multipled together to get the total modifier that gets multiplied to the stat (before stat stages)
+    public void RemoveDirectStatModifier( SimulatedUnit unit, Stat stat, DirectModifierCause cause )
+    { 
+        if( !unit.DirectStatModifiers.TryGetValue( stat, out var statDict ) )
+            return;
+
+        if( cause == DirectModifierCause.Unmodified )
+            return;
+
+        if( statDict.ContainsKey( cause ) )
+        {
+            // Debug.LogError( $"Removing {cause} from {unit.Name}");
+            statDict.Remove( cause );
+        }
+
+        // if( unit.DirectStatModifiers[stat].ContainsKey( cause ) )
+            // Debug.LogError( $"Cause not removed from direct modifiers!" );
+
+        RecalculateStats( unit );
     }
 
     public StatStageDelta BuildStatStageDelta( Pokemon pokemon )
@@ -348,7 +412,7 @@ public class BattleAI_UnitSim
         return BuildSimUnit( attacker, attackerHPR, attackerMTR, field );
     }
 
-    public SimulatedUnit CopySimUnit( IBattleAIUnit unit, SimulatedField field )
+    public SimulatedUnit CopySimUnit( IBattleAIUnit unit, SimulatedField field = null )
     {
         float hpr = unit.BeginningHPR;
         var mtr = unit.MTR;
@@ -519,21 +583,51 @@ public class BattleAI_UnitSim
         return attackerMovesFirst;
     }
 
+    public bool PokemonHasItem_Offensive( IBattleAIUnit unit )
+    {
+        var item = unit.Item;
+
+        if( PokemonHasItem_TypeDamageBoost( unit ) )
+            return true;
+
+        return item switch
+        {
+            ItemBattleEffectID.FlameOrb => true,
+            ItemBattleEffectID.ToxicOrb => true,
+            ItemBattleEffectID.StaticOrb => true,
+            ItemBattleEffectID.LifeOrb => true,
+            ItemBattleEffectID.ChoiceBand => true,
+            ItemBattleEffectID.ChoiceSpecs => true,
+            _ => false,
+        };
+    }
+
+    public bool PokemonHasItem_TypeDamageBoost( IBattleAIUnit unit )
+    {
+        var item = unit.Item;
+        return item switch
+        {
+            ItemBattleEffectID.Charcoal => true,
+            ItemBattleEffectID.MysticWater => true,
+            _ => false,
+        };
+    }
+
     public WeatherConditionID GetWeatherFrom_Ability( Pokemon pokemon )
     {
         var ability = pokemon.AbilityID;
 
         if( ability == AbilityID.Drought )
-            return WeatherConditionID.SUNNY;
+            return WeatherConditionID.Sun;
 
         if( ability == AbilityID.Drizzle )
-            return WeatherConditionID.RAIN;
+            return WeatherConditionID.Rain;
 
         if( ability == AbilityID.Sandstream )
-            return WeatherConditionID.SANDSTORM;
+            return WeatherConditionID.Sand;
 
         if( ability == AbilityID.SnowWarning )
-            return WeatherConditionID.SNOW;
+            return WeatherConditionID.Snow;
         
         return WeatherConditionID.None;
     }
@@ -546,17 +640,17 @@ public class BattleAI_UnitSim
         {
             var weather = move.MoveSO.MoveEffects.Weather;
 
-            if( weather == WeatherConditionID.SUNNY )
-                return WeatherConditionID.SUNNY;
+            if( weather == WeatherConditionID.Sun )
+                return WeatherConditionID.Sun;
 
-            if( weather == WeatherConditionID.RAIN )
-                return WeatherConditionID.RAIN;
+            if( weather == WeatherConditionID.Rain )
+                return WeatherConditionID.Rain;
 
-            if( weather == WeatherConditionID.SANDSTORM )
-                return WeatherConditionID.SANDSTORM;
+            if( weather == WeatherConditionID.Sand )
+                return WeatherConditionID.Sand;
 
-            if( weather == WeatherConditionID.SNOW )
-                return WeatherConditionID.SNOW;
+            if( weather == WeatherConditionID.Snow )
+                return WeatherConditionID.Snow;
         }
 
         return WeatherConditionID.None;
@@ -566,33 +660,69 @@ public class BattleAI_UnitSim
     {
         var weather = move.MoveSO.MoveEffects.Weather;
 
-        if( weather == WeatherConditionID.SUNNY )
-            return WeatherConditionID.SUNNY;
+        if( weather == WeatherConditionID.Sun )
+            return WeatherConditionID.Sun;
 
-        if( weather == WeatherConditionID.RAIN )
-            return WeatherConditionID.RAIN;
+        if( weather == WeatherConditionID.Rain )
+            return WeatherConditionID.Rain;
 
-        if( weather == WeatherConditionID.SANDSTORM )
-            return WeatherConditionID.SANDSTORM;
+        if( weather == WeatherConditionID.Sand )
+            return WeatherConditionID.Sand;
 
-        if( weather == WeatherConditionID.SNOW )
-            return WeatherConditionID.SNOW;
+        if( weather == WeatherConditionID.Snow )
+            return WeatherConditionID.Snow;
         
         return WeatherConditionID.None;
     }
 
-    public TerrainID GetTerrainFromAbility( Pokemon pokemon )
+    public TerrainID GetTerrainFrom_Ability( Pokemon pokemon )
     {
         var ability = pokemon.AbilityID;
 
-        if( ability == AbilityID.GrassySurge )
-            return TerrainID.Grassy;
+        return ability switch
+        {
+            AbilityID.BlightSurge => TerrainID.Blighted,
+            AbilityID.ElectricSurge => TerrainID.Electric,
+            AbilityID.GrassySurge => TerrainID.Grassy,
+            AbilityID.MistySurge => TerrainID.Misty,
+            AbilityID.PsychicSurge => TerrainID.Psychic,
+            _ => TerrainID.None,
+        };
+    }
 
-        if( ability == AbilityID.PsychicSurge )
-            return TerrainID.Psychic;
+    public TerrainID GetTerrainFrom_Move( Move move )
+    {
+        var terrain = move.MoveSO.MoveEffects.Terrain;
 
-        if( ability == AbilityID.BlightSurge )
-            return TerrainID.Blighted;
+        return terrain switch
+        {
+            TerrainID.Blighted => terrain,
+            TerrainID.Electric => terrain,
+            TerrainID.Grassy => terrain,
+            TerrainID.Misty => terrain,
+            TerrainID.Psychic => terrain,
+            _ => TerrainID.None,
+        };
+    }
+
+    public TerrainID GetTerrainFrom_Moveset( Pokemon pokemon )
+    {
+        var moves = pokemon.ActiveMoves;
+
+        foreach( var move in moves )
+        {
+            var terrain = move.MoveSO.MoveEffects.Terrain;
+
+            return terrain switch
+            {
+                TerrainID.Blighted => terrain,
+                TerrainID.Electric => terrain,
+                TerrainID.Grassy => terrain,
+                TerrainID.Misty => terrain,
+                TerrainID.Psychic => terrain,
+                _ => TerrainID.None,
+            };
+        }
 
         return TerrainID.None;
     }
@@ -604,10 +734,10 @@ public class BattleAI_UnitSim
         return weather switch
         {
             WeatherConditionID.None => false,
-            WeatherConditionID.SUNNY => ability == AbilityID.Chlorophyll,
-            WeatherConditionID.RAIN => ability == AbilityID.SwiftSwim || ability == AbilityID.Hydration,
-            WeatherConditionID.SANDSTORM => ability == AbilityID.SandRush || ability == AbilityID.SandForce || ability == AbilityID.SandVeil,
-            WeatherConditionID.SNOW => ability == AbilityID.SlushRush || ability == AbilityID.IceBody,
+            WeatherConditionID.Sun => ability == AbilityID.Chlorophyll,
+            WeatherConditionID.Rain => ability == AbilityID.SwiftSwim || ability == AbilityID.Hydration,
+            WeatherConditionID.Sand => ability == AbilityID.SandRush || ability == AbilityID.SandForce || ability == AbilityID.SandVeil,
+            WeatherConditionID.Snow => ability == AbilityID.SlushRush || ability == AbilityID.IceBody,
             _ => false,
         };
     }
@@ -619,25 +749,25 @@ public class BattleAI_UnitSim
         {
             var name = move.MoveSO.Name;
 
-            if( weather == WeatherConditionID.SUNNY )
+            if( weather == WeatherConditionID.Sun )
             {
-                if( name == "Heat Wave" || name == "Eruption" || name == "Solar Beam" )
+                if( name == "Heat Wave" || name == "Eruption" || name == "Solar Beam" || name == "Solar Blade" )
                     return true;
             }
 
-            if( weather == WeatherConditionID.RAIN )
+            if( weather == WeatherConditionID.Rain )
             {
                 if( name == "Thunder" || name == "Muddy Water" || name == "Water Spout" || name == "Hurricane" )
                     return true;
             }
 
-            if( weather == WeatherConditionID.SANDSTORM )
+            if( weather == WeatherConditionID.Sand )
             {
                 if( name == "Rock Slide" )
                     return true;
             }
 
-            if( weather == WeatherConditionID.SNOW )
+            if( weather == WeatherConditionID.Snow )
             {
                 if( name == "Blizzard" )
                     return true;
@@ -645,6 +775,119 @@ public class BattleAI_UnitSim
         }
 
         return false;
+    }
+
+    public bool Move_AbusesWeather( Move move, WeatherConditionID weather )
+    {
+        var name = move.MoveSO.Name;
+
+        if( weather == WeatherConditionID.Sun )
+        {
+            if( name == "Heat Wave" || name == "Eruption" || name == "Solar Beam" || name == "Solar Blade" )
+                return true;
+        }
+
+        if( weather == WeatherConditionID.Rain )
+        {
+            if( name == "Thunder" || name == "Muddy Water" || name == "Water Spout" || name == "Hurricane" )
+                return true;
+        }
+
+        if( weather == WeatherConditionID.Sand )
+        {
+            if( name == "Rock Slide" )
+                return true;
+        }
+
+        if( weather == WeatherConditionID.Snow )
+        {
+            if( name == "Blizzard" )
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool Move_TypeMatchesWeatherDamage( Move move, WeatherConditionID weather, AbilityID ability = AbilityID.None )
+    {
+        var type = move.MoveType;
+
+        if( weather == WeatherConditionID.Sun )
+        {
+            if( type == PokemonType.Fire )
+                return true;
+        }
+
+        if( weather == WeatherConditionID.Rain )
+        {
+            if( type == PokemonType.Water)
+                return true;
+        }
+
+        if( weather == WeatherConditionID.Sand )
+        {
+            if( ability == AbilityID.SandForce && ( type == PokemonType.Rock || type == PokemonType.Ground || type == PokemonType.Steel ) )
+                return true;
+        }
+
+        if( weather == WeatherConditionID.Snow )
+        {
+            if( type == PokemonType.Ice )
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool Move_AbusesTerrain( Move move, TerrainID terrain )
+    {
+        var name = move.MoveSO.Name;
+
+        if( terrain == TerrainID.Blighted )
+        {
+            // if( name ==)
+        }
+
+        if( terrain == TerrainID.Electric )
+        {
+            if( name == "Rising Voltage" || name == "Psyblade" )
+                return true;
+        }
+
+        if( terrain == TerrainID.Grassy )
+        {
+            if( name == "Grassy Glide" || name == "Floral Healing" )
+                return true;
+        }
+
+        if( terrain == TerrainID.Misty )
+        {
+            if( name == "Misty Explosion" )
+                return true;
+        }
+
+        if( terrain == TerrainID.Psychic )
+        {
+            if( name == "Expanding Force" )
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool Move_TypeMatchesTerrainDamage( Move move, TerrainID terrain )
+    {
+        var type = move.MoveType;
+
+        return terrain switch
+        {
+            TerrainID.Blighted =>   type == PokemonType.Ghost || type == PokemonType.Dark,
+            TerrainID.Electric =>   type == PokemonType.Electric,
+            TerrainID.Grassy =>     type == PokemonType.Grass,
+            TerrainID.Misty =>      type == PokemonType.Fairy,
+            TerrainID.Psychic =>    type == PokemonType.Psychic,
+            _ => false,
+        };
     }
 
     public bool PokemonBenefitsFromSevereStatus( Pokemon pokemon )
@@ -864,12 +1107,29 @@ public class BattleAI_UnitSim
         return weather switch
         {
             WeatherConditionID.None => false,
-            WeatherConditionID.SUNNY => pokemon.AbilityID == AbilityID.Chlorophyll,
-            WeatherConditionID.RAIN => pokemon.AbilityID == AbilityID.SwiftSwim,
-            WeatherConditionID.SANDSTORM => pokemon.AbilityID == AbilityID.SandRush,
-            WeatherConditionID.SNOW => pokemon.AbilityID == AbilityID.SlushRush,
+            WeatherConditionID.Sun => pokemon.AbilityID == AbilityID.Chlorophyll,
+            WeatherConditionID.Rain => pokemon.AbilityID == AbilityID.SwiftSwim,
+            WeatherConditionID.Sand => pokemon.AbilityID == AbilityID.SandRush,
+            WeatherConditionID.Snow => pokemon.AbilityID == AbilityID.SlushRush,
             _ => false,
         };
+    }
+
+    public bool Pokemon_SetWeather( Pokemon pokemon, out WeatherConditionID setWeather, WeatherConditionID weather )
+    {
+        if( PokemonHasWeatherSetter_Ability( pokemon ) )
+        {
+            var pokemonsWeather = GetWeatherFrom_Ability( pokemon );
+
+            if( pokemonsWeather == weather )
+            {
+                setWeather = pokemonsWeather;
+                return true;
+            }
+        }
+
+        setWeather = WeatherConditionID.None;
+        return false;
     }
 
     public bool Pokemon_ChangesWeather( Pokemon pokemon, SimulatedField field = null )
@@ -883,10 +1143,10 @@ public class BattleAI_UnitSim
         {
             switch( pokemon.AbilityID )
             {
-                case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
-                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
-                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
-                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+                case AbilityID.Drought: candidatesWeather = WeatherConditionID.Sun; break;
+                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.Rain; break;
+                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.Sand; break;
+                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.Snow; break;
             }
 
             if( candidatesWeather != WeatherConditionID.None && candidatesWeather != field.Weather )
@@ -901,19 +1161,20 @@ public class BattleAI_UnitSim
         field ??= _ai.Blackboard.CurrentFieldSnapshot;
         var top = scr.Top;
 
-        var switchCandidate = top.Attacker.Pokemon;
-        bool switchSetsWeather = PokemonHasWeatherSetter_Ability( switchCandidate );
+        var switchCandidate = scr.Candidate;
+
+        bool switchSetsWeather = PokemonHasWeatherSetter_Ability( switchCandidate.Pokemon );
         bool switchChangesWeather = false;
         WeatherConditionID candidatesWeather = WeatherConditionID.None;
 
         if( switchSetsWeather )
         {
-            switch( switchCandidate.AbilityID )
+            switch( switchCandidate.Ability )
             {
-                case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
-                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
-                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
-                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+                case AbilityID.Drought: candidatesWeather = WeatherConditionID.Sun; break;
+                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.Rain; break;
+                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.Sand; break;
+                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.Snow; break;
             }
 
             if( candidatesWeather != WeatherConditionID.None && candidatesWeather != field.Weather )
@@ -921,6 +1182,18 @@ public class BattleAI_UnitSim
         }
 
         return switchChangesWeather;
+    }
+
+    public bool Switch_ChangesWeather( SwitchCandidateResult scr, out WeatherConditionID switchesWeather, SimulatedField field = null )
+    {
+        if( Switch_ChangesWeather( scr, field ) )
+        {
+            switchesWeather = GetWeatherFrom_Ability( scr.Candidate.Pokemon );
+            return true;
+        }
+
+        switchesWeather = WeatherConditionID.None;
+        return false;
     }
 
     public bool Move_ChangesWeather( Move move, SimulatedField field = null )
@@ -938,6 +1211,78 @@ public class BattleAI_UnitSim
         }
 
         return moveChangesWeather;
+    }
+
+    public bool Move_ChangesTerrain( Move move, SimulatedField field = null )
+    {
+        field ??= _ai.Blackboard.CurrentFieldSnapshot;
+        var terrain = move.MoveSO.MoveEffects.Terrain;
+
+        bool moveSetsTerrain = terrain != TerrainID.None;
+        bool moveChangesTerrain = false;
+
+        if( moveSetsTerrain )
+        {
+            if( terrain != TerrainID.None && terrain != field.Terrain )
+                moveChangesTerrain = true;
+        }
+
+        return moveChangesTerrain;
+    }
+
+    public bool Pokemon_SetTerrain( Pokemon pokemon, out TerrainID setTerrain, TerrainID terrain )
+    {
+        if( PokemonHasTerrainSetter_Ability( pokemon ) )
+        {
+            var pokemonsTerrain = GetTerrainFrom_Ability( pokemon );
+
+            if( pokemonsTerrain == terrain )
+            {
+                setTerrain = pokemonsTerrain;
+                return true;
+            }
+        }
+
+        setTerrain = TerrainID.None;
+        return false;
+    }
+
+    public bool Switch_ChangesTerrain( SwitchCandidateResult scr, SimulatedField field = null )
+    {
+        field ??= _ai.Blackboard.CurrentFieldSnapshot;
+        var top = scr.Top;
+
+        var switchCandidate = scr.Candidate;
+        bool switchSetsTerrain = PokemonHasTerrainSetter_Ability( switchCandidate.Pokemon );
+        bool switchChangesTerrain = false;
+        TerrainID candidatesWeather = TerrainID.None;
+
+        if( switchSetsTerrain )
+        {
+            switch( switchCandidate.Ability )
+            {
+                case AbilityID.PsychicSurge: candidatesWeather = TerrainID.Psychic; break;
+                case AbilityID.GrassySurge: candidatesWeather = TerrainID.Grassy; break;
+                case AbilityID.BlightSurge: candidatesWeather = TerrainID.Blighted; break;
+            }
+
+            if( candidatesWeather != TerrainID.None && candidatesWeather != field.Terrain )
+                switchChangesTerrain = true;
+        }
+
+        return switchChangesTerrain;
+    }
+
+    public bool Switch_ChangesTerrain( SwitchCandidateResult scr, out TerrainID switchesTerrain, SimulatedField field = null )
+    {
+        if( Switch_ChangesTerrain( scr, field ) )
+        {
+            switchesTerrain = GetTerrainFrom_Ability( scr.Candidate.Pokemon );
+            return true;
+        }
+
+        switchesTerrain = TerrainID.None;
+        return false;
     }
 
     public bool PokemonHasTerrainSetter_Ability( Pokemon pokemon )
@@ -1119,6 +1464,33 @@ public class BattleAI_UnitSim
         return false;
     }
 
+    public bool PokemonHasMove_DamagingAttack( Pokemon pokemon )
+    {
+        var moves = pokemon.ActiveMoves;
+
+        foreach( var move in moves )
+        {
+            if( move.MoveSO.MoveCategory != MoveCategory.Status )
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool PokemonHasMove_Coverage( Pokemon pokemon )
+    {
+        var moves = pokemon.ActiveMoves;
+        
+        int damagingMoves = 0;
+        foreach( var move in moves )
+        {
+            if( move.MoveSO.MoveCategory != MoveCategory.Status )
+                damagingMoves++;
+        }
+
+        return damagingMoves > 1;
+    }
+
     public bool PokemonHasMove_HazardSet( Pokemon pokemon )
     {
         if( pokemon.CheckHasActiveMove( "Stealth Rock" ) || pokemon.CheckHasActiveMove( "Sticky Web" ) || pokemon.CheckHasActiveMove( "Leech Seed" ) || pokemon.CheckHasActiveMove( "Spikes" ) || pokemon.CheckHasActiveMove( "Toxic Spikes" ) )
@@ -1143,11 +1515,82 @@ public class BattleAI_UnitSim
         return false;
     }
 
+    public bool PokemonHasMove_SideBuff( Pokemon pokemon )
+    {
+        var moves = pokemon.ActiveMoves;
+
+        foreach( var move in moves )
+        {
+            var effects = move.MoveSO.MoveEffects;
+            var moveTarget = move.MoveSO.MoveTarget;
+            var effectTarget = move.MoveSO.MoveEffects.Target;
+            var statChanges = effects.StatChangeList;
+
+            if( move.MoveSO.MoveCategory != MoveCategory.Status || statChanges == null || statChanges?.Count <= 0 || ( moveTarget != MoveTarget.Ally && moveTarget != MoveTarget.AllySide ) )
+                continue;
+
+            if( statChanges.Count > 0 )
+            {
+                int positiveChanges = 0;
+                foreach( var sc in statChanges )
+                {
+                    if( sc.Change > 0 )
+                        positiveChanges++;
+                }
+
+                if( positiveChanges > 0 && ( moveTarget == MoveTarget.Ally || moveTarget == MoveTarget.AllySide ) )
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool TryExtractFirstFoundSidebuff( Pokemon pokemon, out Move buff )
+    {
+        var moves = pokemon.ActiveMoves;
+        buff = null;
+
+        foreach( var move in moves )
+        {
+            var effects = move.MoveSO.MoveEffects;
+            var moveTarget = move.MoveSO.MoveTarget;
+            var effectTarget = move.MoveSO.MoveEffects.Target;
+            var statChanges = effects.StatChangeList;
+
+            if( move.MoveSO.MoveCategory != MoveCategory.Status || statChanges == null || statChanges?.Count <= 0 || ( moveTarget != MoveTarget.Ally && moveTarget != MoveTarget.AllySide ) )
+                continue;
+
+            if( statChanges.Count > 0 )
+            {
+                int positiveChanges = 0;
+                foreach( var sc in statChanges )
+                {
+                    if( sc.Change > 0 )
+                        positiveChanges++;
+                }
+
+                if( positiveChanges > 0 && ( moveTarget == MoveTarget.Ally || moveTarget == MoveTarget.AllySide ) )
+                {
+                    buff = move;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public bool PokemonIsOffensiveRole( IBattleAIUnit unit )
     {
         var primary = unit.RoleProfile.PrimaryRole;
 
         return primary == RoleClass.BulkyAttacker || primary == RoleClass.RevengeKiller || primary == RoleClass.SetupSweeper || primary == RoleClass.Sweeper || primary == RoleClass.TrickRoomAbuser || primary == RoleClass.WallBreaker;
+    }
+
+    public bool MoveIsSandforceBoosted( Move move )
+    {
+        return move.MoveType == PokemonType.Rock || move.MoveType == PokemonType.Ground || move.MoveType == PokemonType.Steel;
     }
 
     public bool MoveIsEntryHazard( Move move )
@@ -1227,13 +1670,63 @@ public class BattleAI_UnitSim
             return false;
     }
 
+    public bool MoveIsSideHeal( Move move )
+    {
+        var heal = move.MoveSO.HealType;
+        var moveTarget = move.MoveSO.MoveTarget;
+        var name = move.MoveSO.Name;
+
+        if( ( moveTarget == MoveTarget.Ally || moveTarget == MoveTarget.AllySide ) && heal != HealType.None )
+            return true;
+
+        if( name == "Healing Wish" || name == "Wish" || name == "Aromatherapy" )
+            return true;
+
+        return false;
+    }
+
+    public bool MoveIsSpreadAttack( Move move )
+    {
+        if( move == null )
+            return false;
+
+        if( move.MoveSO.MoveCategory == MoveCategory.Status )
+            return false;
+
+        var moveTarget = move.MoveSO.MoveTarget;
+        if( moveTarget == MoveTarget.AllAdjacent || moveTarget == MoveTarget.OpposingSide )
+            return true;
+
+        return false;
+    }
+
     public bool MoveIsDebuff( Move move )
     {
         var statChanges = move.MoveSO.MoveEffects.StatChangeList;
         var target = move.MoveSO.MoveEffects.Target;
         var cat = move.MoveSO.MoveCategory;
 
-        if( statChanges == null || statChanges.Count <= 0 || target == EffectTarget.Self || target == EffectTarget.AllySide || cat != MoveCategory.Status )
+        if( statChanges == null || statChanges?.Count <= 0 || target == EffectTarget.Self || target == EffectTarget.AllySide || cat != MoveCategory.Status )
+            return false;
+
+        foreach( var sc in statChanges )
+        {
+            if( sc.Change < 0 )
+                return true;
+            else
+                continue;
+        }
+
+        return false;
+    }
+
+    public bool MoveIsAttackAndDebuffHybrid( Move move )
+    {
+        var statChanges = move.MoveSO.MoveEffects.StatChangeList;
+        var target = move.MoveSO.MoveEffects.Target;
+        var cat = move.MoveSO.MoveCategory;
+
+        if( statChanges == null || statChanges?.Count <= 0 || target == EffectTarget.Self || target == EffectTarget.AllySide || cat == MoveCategory.Status )
             return false;
 
         foreach( var sc in statChanges )
@@ -1311,6 +1804,10 @@ public class BattleAI_UnitSim
 
         //--Redirection check
         if( effects.TransientStatus == TransientConditionID.CenterOfAttention )
+            return true;
+
+        //--After You check
+        if( moveSO.Name == "After You" )
             return true;
 
         return false;
@@ -1443,6 +1940,19 @@ public class BattleAI_UnitSim
         return false;
     }
 
+    public bool PokemonHasMove_AttackAndDebuffHybrid( Pokemon pokemon )
+    {
+        var moves = pokemon.ActiveMoves;
+
+        foreach( var move in moves )
+        {
+            if( MoveIsAttackAndDebuffHybrid( move ) )
+                return true;
+        }
+
+        return false;
+    }
+
     public bool MoveIsPhaze( Move move )
     {
         var effects = move.MoveSO.MoveEffects;
@@ -1563,8 +2073,9 @@ public class BattleAI_UnitSim
         {
             var moveTarget = move.MoveSO.MoveTarget;
             var effectTarget = move.MoveSO.MoveEffects.Target;
-
-            if( move.MoveSO.HealType != HealType.None && ( moveTarget == MoveTarget.Ally || moveTarget == MoveTarget.AllySide || effectTarget == EffectTarget.AllySide ) )
+            bool pollenPuff = move.MoveSO.Name == "Pollen Puff";
+            
+            if( pollenPuff || move.MoveSO.HealType != HealType.None && ( moveTarget == MoveTarget.Enemy || moveTarget == MoveTarget.Ally || moveTarget == MoveTarget.AllySide || effectTarget == EffectTarget.AllySide ) )
                 return true;
             else
                 continue;
@@ -1627,11 +2138,12 @@ public class BattleAI_UnitSim
             var category = move.MoveSO.MoveCategory;
             var effects = move.MoveSO.MoveEffects;
             var target = move.MoveSO.MoveTarget;
+            bool moveIsAfterYou = move.MoveSO.Name == "After You";
             bool isSetupMove = effects.StatChangeList?.Count > 0 && effects.Target == EffectTarget.Self;
             bool moveEffectsTargetUs = move.MoveSO.MoveEffects.Target == EffectTarget.Self || effects.Target == EffectTarget.AllySide;
             bool moveTargetsUs = target == MoveTarget.AllField || target == MoveTarget.Ally || target == MoveTarget.AllySide || target == MoveTarget.Self;
             bool moveIsProtection = effects.TransientStatus == TransientConditionID.Protect || effects.CourtCondition == CourtConditionID.QuickGuard || effects.CourtCondition == CourtConditionID.WideGuard;
-            bool isSupportiveStatus =  category == MoveCategory.Status && !isSetupMove && ( moveEffectsTargetUs || moveTargetsUs ) && !moveIsProtection;
+            bool isSupportiveStatus = moveIsAfterYou || ( category == MoveCategory.Status && !isSetupMove && ( moveEffectsTargetUs || moveTargetsUs ) && !moveIsProtection );
             
             if( isSupportiveStatus )
                 statusMoves.Add( move );
@@ -1959,7 +2471,10 @@ public class BattleAI_UnitSim
         if( field.Weather != WeatherConditionID.None )
         {
             if( _ai.UnitSim.WeatherDMGModifiers.TryGetValue( field.Weather, out var mod ) )
-                weather = mod( move );
+            {
+                if( ( field.Weather != WeatherConditionID.Sand ) || ( field.Weather == WeatherConditionID.Sand && attacker.Ability == AbilityID.SandForce ) )
+                    weather = mod( move );
+            }
         }
 
         if( field.Terrain != TerrainID.None )
@@ -2039,7 +2554,7 @@ public class BattleAI_UnitSim
         if( weather == WeatherConditionID.None )
             return 0;
 
-        if( weather == WeatherConditionID.SUNNY )
+        if( weather == WeatherConditionID.Sun )
         {
             if( pokemon.CheckTypes( PokemonType.Fire ) )
                 score += 5;
@@ -2065,7 +2580,7 @@ public class BattleAI_UnitSim
             return score;
         }
 
-        if( weather == WeatherConditionID.RAIN )
+        if( weather == WeatherConditionID.Rain )
         {
             if( pokemon.CheckTypes( PokemonType.Water ) )
                 score += 5;
@@ -2091,7 +2606,7 @@ public class BattleAI_UnitSim
             return score;
         }
 
-        if( weather == WeatherConditionID.SANDSTORM )
+        if( weather == WeatherConditionID.Sand )
         {
             if( pokemon.CheckTypes( PokemonType.Rock ) || pokemon.CheckTypes( PokemonType.Ground ) || pokemon.CheckTypes( PokemonType.Steel ) )
                 score += 10;
@@ -2102,7 +2617,7 @@ public class BattleAI_UnitSim
             return score;
         }
 
-        if( weather == WeatherConditionID.SNOW )
+        if( weather == WeatherConditionID.Snow )
         {
             if( pokemon.CheckTypes( PokemonType.Ice ) )
                 score += 10;
@@ -2321,7 +2836,7 @@ public class BattleAI_UnitSim
         WeatherDMGModifiers = new()
         {
             {
-                WeatherConditionID.SUNNY, ( move ) =>
+                WeatherConditionID.Sun, ( move ) =>
                 {
                     if( move.MoveType == PokemonType.Fire )
                         return 1.5f;
@@ -2332,7 +2847,7 @@ public class BattleAI_UnitSim
                 }
             },
             {
-                WeatherConditionID.RAIN, ( move ) =>
+                WeatherConditionID.Rain, ( move ) =>
                 {
                     if( move.MoveType == PokemonType.Water )
                         return 1.5f;
@@ -2343,7 +2858,7 @@ public class BattleAI_UnitSim
                 }
             },
             {
-                WeatherConditionID.SANDSTORM, ( move ) =>
+                WeatherConditionID.Sand, ( move ) =>
                 {
                     bool boosts = move.MoveType == PokemonType.Rock || move.MoveType == PokemonType.Ground || move.MoveType == PokemonType.Steel;
 
@@ -2354,7 +2869,7 @@ public class BattleAI_UnitSim
                 }
             },
             {
-                WeatherConditionID.SNOW, ( move ) =>
+                WeatherConditionID.Snow, ( move ) =>
                 {
                     if( move.MoveType == PokemonType.Ice )
                         return 1.5f;
@@ -2458,9 +2973,13 @@ public class BattleAI_UnitSim
             {
                 "Eruption", ( attacker, target, move ) =>
                 {
-                    int hp = attacker.Pokemon.CurrentHP;
-                    int maxHP = attacker.Pokemon.MaxHP;
-                    int power = ( 150 * hp ) / maxHP;
+                    // int hp = attacker.Pokemon.CurrentHP;
+                    // int maxHP = attacker.Pokemon.MaxHP;
+                    // int power = ( 150 * hp ) / maxHP;
+
+                    float maxHP = attacker.Pokemon.MaxHP;
+                    float currentHP = attacker.EndHPR * maxHP;
+                    int power = Mathf.FloorToInt( ( 150 * currentHP ) / maxHP );
 
                     return Mathf.Max( power, 1 );
                 }
@@ -2468,13 +2987,20 @@ public class BattleAI_UnitSim
             {
                 "Water Spout", ( attacker, target, move ) =>
                 {
-                    int hp = attacker.Pokemon.CurrentHP;
-                    int maxHP = attacker.Pokemon.MaxHP;
-                    int power = ( 150 * hp ) / maxHP;
+                    float maxHP = attacker.Pokemon.MaxHP;
+                    float currentHP = attacker.EndHPR * maxHP;
+                    int power = Mathf.FloorToInt( ( 150 * currentHP ) / maxHP );
 
                     return Mathf.Max( power, 1 );
                 }
             },
+            {
+                "Triple Axel", ( attacker, target, move ) =>
+                {
+                    //--Triple Axel is going to be treated as a 3-hit, 40 base power move just like the smogon calculator
+                    return 40;
+                }
+            }
         };
     }
 

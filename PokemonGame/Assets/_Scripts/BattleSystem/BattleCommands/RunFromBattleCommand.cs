@@ -6,9 +6,13 @@ public class RunFromBattleCommand : IBattleCommand
 {
     public BattleUnit User => _user;
     private int _commandPriority;
+    private bool _afterYou;
+    private bool _quash;
     public int CommandPriority => _commandPriority;
     public int AttackPriority => CommandPriority;
-    public int UnitAgility => CommandPriority;
+    public int UnitSpeed => CommandPriority;
+    public bool AfterYou => _afterYou;
+    public bool Quash => _quash;
     private BattleSystem _battleSystem;
     private BattleUnit _user;
 

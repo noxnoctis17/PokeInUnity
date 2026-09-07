@@ -226,7 +226,7 @@ public class MoveConditionDB
                 {
                     OnMoveHitTarget = ( BattleUnit attacker, BattleUnit target, Move move, int damage, int hit, BattleSystem bs ) =>
                     {
-                        var activeUnits = bs.GetActivePokemon();
+                        var activeUnits = bs.GetActiveUnits();
 
                         for( int i = 0; i < activeUnits.Count; i++ )
                         {
@@ -246,7 +246,7 @@ public class MoveConditionDB
                         if( bs == null )
                             return;
 
-                        if( bs.Field.Weather?.ID != WeatherConditionID.SUNNY )
+                        if( bs.Field.Weather?.ID != WeatherConditionID.Sun )
                             return;
 
                         Debug.Log( $"It's sunny! Growth will increase by 2 instead of 1!" );
@@ -290,7 +290,7 @@ public class MoveConditionDB
                         if( bs.Field.Weather?.ID == WeatherConditionID.None )
                             return;
 
-                        else if( bs.Field.Weather?.ID == WeatherConditionID.SUNNY )
+                        else if( bs.Field.Weather?.ID == WeatherConditionID.Sun )
                             move.OverrideHealing( 66 );
 
                         else
@@ -739,36 +739,23 @@ public class MoveConditionDB
             {
                 "After You", new()
                 {
-                    OnModifyCommandQueue = ( attacker, target, move, bs ) =>
+                    OnModifyCommandQueue = ( attacker, target, bs ) =>
                     {
-                        IBattleCommand targetCommand = null;
-                        foreach( var command in bs.CommandQueue )
+                        if( bs.TryGetPokemonCommand( target.Pokemon, out var command ) )
                         {
-                            if( command.User == target )
-                            {
-                                targetCommand = command;
-                                break;
-                            }
-                            else
-                                continue;
+                            command.SetAfterYou();
                         }
-
-                        if( targetCommand == null )
+                    }
+                }
+            },
+            {
+                "Quash", new()
+                {
+                    OnModifyCommandQueue = ( attacker, target, bs ) =>
+                    {
+                        if( bs.TryGetPokemonCommand( target.Pokemon, out var command ) )
                         {
-                            Debug.LogError( "After You failed when it shouldn't have! Target command not found!" );
-                            return;
-                        }
-
-                        var commandList = bs.CommandQueue.ToList();
-                        commandList.Remove( targetCommand );
-
-                        bs.CommandQueue.Clear();
-                        bs.CommandQueue.Enqueue( targetCommand );
-
-                        for( int i = 0; i < commandList.Count; i++ )
-                        {
-                            var command = commandList[i];
-                            bs.CommandQueue.Enqueue( command );
+                            command.SetQuash();
                         }
                     }
                 }
@@ -886,7 +873,7 @@ public class MoveConditionDB
                 {
                     OnMoveCompleted = ( attacker, target, move, bs ) =>
                     {
-                        var activeUnits = bs.GetActivePokemon();
+                        var activeUnits = bs.GetActiveUnits();
 
                         for( int i = 0; i < activeUnits.Count; i++ )
                         {

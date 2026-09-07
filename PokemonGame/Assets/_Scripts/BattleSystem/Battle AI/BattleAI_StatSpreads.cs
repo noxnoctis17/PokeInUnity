@@ -138,13 +138,21 @@ public class BattleAI_StatSpreads
             break;
 
             case RoleClass.TrickRoomAbuser:
+                if( rp.Biases.Contains( RoleBias.Physical ) )
+                    return StatSpreadType.TrickRoom_PhysicalAttacker;
+                else if( rp.Biases.Contains( RoleBias.Special ) )
+                    return StatSpreadType.TrickRoom_SpecialAttacker;
             break;
 
             case RoleClass.AllRounder:
-                if( rp.Biases.Contains( RoleBias.Physical ) )
+                if( rp.Biases.Contains( RoleBias.Physical ) && ( adapter.Item != ItemBattleEffectID.FocusSash || rp.Traits.Contains( RoleTrait.RecoveryItem ) ) )
                     return StatSpreadType.AllRounder_Atk;
-                else if( rp.Biases.Contains( RoleBias.Special ) )
+                else if( rp.Biases.Contains( RoleBias.Special ) && ( adapter.Item != ItemBattleEffectID.FocusSash || rp.Traits.Contains( RoleTrait.RecoveryItem ) ) )
                     return StatSpreadType.AllRounder_SpAtk;
+                else if( rp.Biases.Contains( RoleBias.Physical ) )
+                    return StatSpreadType.FastPhysicalAttacker;
+                else if( rp.Biases.Contains( RoleBias.Special ) )
+                    return StatSpreadType.FastSpecialAttacker;
             break;
         };
 
@@ -892,21 +900,21 @@ public class BattleAI_StatSpreads
         bool fastAtk = ( atk + spe >= 350 ) || ( investedAtk && speedCommit == SpeedCommitment.Comitted ) || ( maxAtk && maxSpe );
         bool fastSpAtk = ( spatk + spe >= 350 ) || ( investedSpAtk && speedCommit == SpeedCommitment.Comitted ) || ( maxSpAtk && maxSpe );
 
-        Stat mainOffensiveStat;
-        if( physical )
-            mainOffensiveStat = Stat.Attack;
-        else if( special )
-            mainOffensiveStat = Stat.SpAttack;
-        else if( atk > spatk )
-            mainOffensiveStat = Stat.Attack;
-        else if( spatk > atk )
-            mainOffensiveStat = Stat.SpAttack;
-        else if( baseAttack > baseSpAttack )
-            mainOffensiveStat = Stat.Attack;
-        else if( baseSpAttack > baseAttack )
-            mainOffensiveStat = Stat.SpAttack;
-        else
-            mainOffensiveStat = Stat.Attack;
+        // Stat mainOffensiveStat;
+        // if( physical )
+        //     mainOffensiveStat = Stat.Attack;
+        // else if( special )
+        //     mainOffensiveStat = Stat.SpAttack;
+        // else if( atk > spatk )
+        //     mainOffensiveStat = Stat.Attack;
+        // else if( spatk > atk )
+        //     mainOffensiveStat = Stat.SpAttack;
+        // else if( baseAttack > baseSpAttack )
+        //     mainOffensiveStat = Stat.Attack;
+        // else if( baseSpAttack > baseAttack )
+        //     mainOffensiveStat = Stat.SpAttack;
+        // else
+        //     mainOffensiveStat = Stat.Attack;
 
         Stat mixedPrimaryAxis;
         if( adapter.RoleProfile.Signals.SpecialAttackCount >= 3 && adapter.RoleProfile.Signals.PhysicalAttackCount <= 2 )
@@ -1457,6 +1465,34 @@ public class BattleAI_StatSpreads
                     },
                 }
             },
+            {
+                StatSpreadType.TrickRoom_PhysicalAttacker, new()
+                {
+                    Spread = new()
+                    {
+                        { Stat.HP, 252 },
+                        { Stat.Attack, 252 },
+                        { Stat.Defense, 0 },
+                        { Stat.SpAttack, 0 },
+                        { Stat.SpDefense, 4 },
+                        { Stat.Speed, 0 },
+                    },
+                }
+            },
+            {
+                StatSpreadType.TrickRoom_SpecialAttacker, new()
+                {
+                    Spread = new()
+                    {
+                        { Stat.HP, 252 },
+                        { Stat.Attack, 0 },
+                        { Stat.Defense, 4 },
+                        { Stat.SpAttack, 252 },
+                        { Stat.SpDefense, 0 },
+                        { Stat.Speed, 0 },
+                    },
+                }
+            },
         };
     }
 
@@ -1479,6 +1515,8 @@ public enum StatSpreadType
     ArcanineSpread,
     AllRounder_Atk,
     AllRounder_SpAtk,
+    TrickRoom_PhysicalAttacker,
+    TrickRoom_SpecialAttacker,
 }
 
 public class StatSpread

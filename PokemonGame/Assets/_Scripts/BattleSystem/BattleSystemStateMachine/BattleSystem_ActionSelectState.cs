@@ -14,6 +14,7 @@ public class BattleSystem_ActionSelectState : State<BattleSystem>
     {
         _battleSystem = owner;
         BattleSystem.OnCommandAdded += IncreaseCommandCount;
+        BattleSystem.OnCommandRemoved += DecreaseCommandCount;
         _commands = 0;
 
         _handleTurnSkipping = StartCoroutine( HandleTurnSkipping() );
@@ -37,6 +38,14 @@ public class BattleSystem_ActionSelectState : State<BattleSystem>
         if( _commands < _battleSystem.ActivePlayerUnitsCount )
             _commands++;
 
+        Debug.Log( $"[Action Select][Move Command] Command entred by: {_battleSystem.UnitInSelectionState.Pokemon.NickName}, Count After Increase: {_commands}" );
+    }
+
+    private void DecreaseCommandCount()
+    {
+        Debug.Log( $"[Action Select][Move Command] Command entred by: {_battleSystem.UnitInSelectionState.Pokemon.NickName}, Count Before Command Increase: {_commands}" );
+        _commands--;
+        Mathf.Clamp( _commands, 0, _commands );
         Debug.Log( $"[Action Select][Move Command] Command entred by: {_battleSystem.UnitInSelectionState.Pokemon.NickName}, Count After Increase: {_commands}" );
     }
 

@@ -139,12 +139,12 @@ public class BattleTrainer
         int indexA = Party.IndexOf( a );
         int indexB = Party.IndexOf( b );
 
-        Debug.Log( $"Swapping. Index A: {indexA}, Index B: {indexB}" );
+        // Debug.Log( $"Swapping. Index A: {indexA}, Index B: {indexB}" );
 
         if( indexA < 0 || indexB < 0 )
             return;
         
-        Debug.Log( $"Swapping {a.NickName} and {b.NickName}" );
+        // Debug.Log( $"Swapping {a.NickName} and {b.NickName}" );
         ( Party[indexA], Party[indexB] ) = ( Party[indexB], Party[indexA] );
         BattleSystem.OnBattlePartyUpdated?.Invoke( Party );
     }
@@ -152,6 +152,22 @@ public class BattleTrainer
 
 public static class BattleTrainerFactory
 {
+    public static BattleTrainer FromWild( List<Pokemon> wildParty )
+    {
+        return new BattleTrainer(
+            controller: ControlType.CPU,
+            name: "Wild",
+            trainerClass: TrainerClasses.None,
+            trainerCenter: null,
+            portrait: null,
+            dialogueColor: null,
+            party: wildParty,
+            skillLevel: 0,
+            battleTheme: default,
+            onDefeated: null
+        );
+    }
+
     public static BattleTrainer FromNPC( Trainer npc )
     {
         return new BattleTrainer(

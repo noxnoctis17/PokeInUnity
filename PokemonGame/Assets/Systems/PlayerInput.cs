@@ -573,8 +573,41 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         {
             ""name"": ""UIBattle"",
             ""id"": ""e96f18df-53c2-4649-af6c-eb4bc8ae3919"",
-            ""actions"": [],
-            ""bindings"": []
+            ""actions"": [
+                {
+                    ""name"": ""ReturnToPreviousUnit"",
+                    ""type"": ""Button"",
+                    ""id"": ""dc08ccd6-6954-4ed3-ae58-e4a0ffdab5ff"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                }
+            ],
+            ""bindings"": [
+                {
+                    ""name"": """",
+                    ""id"": ""bfeee18e-8b68-419b-b932-0bea08cea087"",
+                    ""path"": ""<Gamepad>/buttonSouth"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""ReturnToPreviousUnit"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""0cfa6001-b4c1-4411-a1c5-7305a6b9d94a"",
+                    ""path"": ""<Keyboard>/x"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""ReturnToPreviousUnit"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                }
+            ]
         },
         {
             ""name"": ""UIBattle_Backup"",
@@ -1391,6 +1424,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         m_UI_TrackedDeviceOrientation = m_UI.FindAction("TrackedDeviceOrientation", throwIfNotFound: true);
         // UIBattle
         m_UIBattle = asset.FindActionMap("UIBattle", throwIfNotFound: true);
+        m_UIBattle_ReturnToPreviousUnit = m_UIBattle.FindAction("ReturnToPreviousUnit", throwIfNotFound: true);
         // UIBattle_Backup
         m_UIBattle_Backup = asset.FindActionMap("UIBattle_Backup", throwIfNotFound: true);
         m_UIBattle_Backup_Navigate = m_UIBattle_Backup.FindAction("Navigate", throwIfNotFound: true);
@@ -1593,10 +1627,12 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
     // UIBattle
     private readonly InputActionMap m_UIBattle;
     private List<IUIBattleActions> m_UIBattleActionsCallbackInterfaces = new List<IUIBattleActions>();
+    private readonly InputAction m_UIBattle_ReturnToPreviousUnit;
     public struct UIBattleActions
     {
         private @PlayerInput m_Wrapper;
         public UIBattleActions(@PlayerInput wrapper) { m_Wrapper = wrapper; }
+        public InputAction @ReturnToPreviousUnit => m_Wrapper.m_UIBattle_ReturnToPreviousUnit;
         public InputActionMap Get() { return m_Wrapper.m_UIBattle; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -1606,10 +1642,16 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         {
             if (instance == null || m_Wrapper.m_UIBattleActionsCallbackInterfaces.Contains(instance)) return;
             m_Wrapper.m_UIBattleActionsCallbackInterfaces.Add(instance);
+            @ReturnToPreviousUnit.started += instance.OnReturnToPreviousUnit;
+            @ReturnToPreviousUnit.performed += instance.OnReturnToPreviousUnit;
+            @ReturnToPreviousUnit.canceled += instance.OnReturnToPreviousUnit;
         }
 
         private void UnregisterCallbacks(IUIBattleActions instance)
         {
+            @ReturnToPreviousUnit.started -= instance.OnReturnToPreviousUnit;
+            @ReturnToPreviousUnit.performed -= instance.OnReturnToPreviousUnit;
+            @ReturnToPreviousUnit.canceled -= instance.OnReturnToPreviousUnit;
         }
 
         public void RemoveCallbacks(IUIBattleActions instance)
@@ -1807,6 +1849,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
     }
     public interface IUIBattleActions
     {
+        void OnReturnToPreviousUnit(InputAction.CallbackContext context);
     }
     public interface IUIBattle_BackupActions
     {

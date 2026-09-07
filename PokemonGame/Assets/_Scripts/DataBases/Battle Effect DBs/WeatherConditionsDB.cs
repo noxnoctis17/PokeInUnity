@@ -35,7 +35,7 @@ public class WeatherConditionsDB
               }  
             },
             {   //--Harsh Sunlight
-                WeatherConditionID.SUNNY, new WeatherCondition()
+                WeatherConditionID.Sun, new WeatherCondition()
                 {
                     Name = "Harsh Sunlight",
                     StartMessage = "The sunlight is harsh!",
@@ -91,7 +91,7 @@ public class WeatherConditionsDB
             },
 
             {   //--RAIN
-                WeatherConditionID.RAIN, new WeatherCondition()
+                WeatherConditionID.Rain, new WeatherCondition()
                 {
                     Name = "Heavy Rain",
                     StartMessage = "Rain is falling heavily!",
@@ -107,7 +107,7 @@ public class WeatherConditionsDB
                         {
                             pokemon.Ability?.OnAbilityTriggered?.Invoke( pokemon );
                             Debug.Log( $"{pokemon.NickName}'s Swift Swim is active!" );
-                            pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                            pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE, 2f );
                             Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         }
                     },
@@ -119,7 +119,7 @@ public class WeatherConditionsDB
                         if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SwiftSwim )
                         {
                             Debug.Log( $"{pokemon.NickName}'s Swift Swim is no longer active!" );
-                            pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                            pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE );
                             Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         }
                     },
@@ -148,7 +148,7 @@ public class WeatherConditionsDB
             },
 
             {   //--SANDSTORM
-                WeatherConditionID.SANDSTORM, new WeatherCondition()
+                WeatherConditionID.Sand, new WeatherCondition()
                 {
                     Name = "Sandstorm",
                     StartMessage = "A sandstorm is raging!",
@@ -174,7 +174,7 @@ public class WeatherConditionsDB
                         {
                             pokemon.Ability?.OnAbilityTriggered?.Invoke( pokemon );
                             Debug.Log( $"{pokemon.NickName}'s Sand Rush is active!" );
-                            pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                            pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE, 2f );
                             Debug.Log( $"{pokemon.NickName}'s Speed Stat is: {pokemon.Speed}" );
                         }
 
@@ -218,7 +218,7 @@ public class WeatherConditionsDB
                         if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SandRush )
                         {
                             Debug.Log( $"{pokemon.NickName}'s Sand Rush is no longer active!" );
-                            pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                            pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE );
                             Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         }
 
@@ -233,7 +233,7 @@ public class WeatherConditionsDB
             },
 
             {   //--SNOW
-                WeatherConditionID.SNOW, new WeatherCondition()
+                WeatherConditionID.Snow, new WeatherCondition()
                 {
                     Name = "Snowscape",
                     StartMessage = "The falling snow chills the air!",
@@ -259,7 +259,7 @@ public class WeatherConditionsDB
                         {
                             pokemon.Ability?.OnAbilityTriggered?.Invoke( pokemon );
                             Debug.Log( $"{pokemon.NickName}'s Slush Rush is active!" );
-                            pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                            pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE, 2f );
                             Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         }
 
@@ -288,7 +288,7 @@ public class WeatherConditionsDB
                         if( pokemon.PokeSO.Abilities[pokemon.CurrentAbilityIndex] == AbilityID.SlushRush )
                         {
                             Debug.Log( $"{pokemon.NickName}'s Slush Rush is no longer active!" );
-                            pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                            pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE );
                             Debug.Log( $"{pokemon.NickName}'s SPD Stat is: {pokemon.Speed}" );
                         }
 
@@ -323,10 +323,10 @@ public enum WeatherConditionID
     None,
 
     //--Weather
-    SUNNY,
-    RAIN,
-    SANDSTORM,
-    SNOW,
+    Sun,
+    Rain,
+    Sand,
+    Snow,
     SHADOWSKY,
 
 }

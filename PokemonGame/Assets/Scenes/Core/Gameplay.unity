@@ -4187,7 +4187,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &133070291
 Transform:
   m_ObjectHideFlags: 0
@@ -19462,7 +19462,7 @@ MonoBehaviour:
   _thrownPokeBall: {fileID: 8549802671793140530, guid: 797f76f456cb5ef498b1357a61821ab4, type: 3}
   _singleTargetCamera: {fileID: 1562469237}
   SwitchUnitToPosition: {fileID: 0}
-  _unitInSelectionState: 0
+  _unitInSelectionIndex: 0
   ActiveSecondPlayerUnitsCount: 0
 --- !u!114 &569117055
 MonoBehaviour:
@@ -33438,6 +33438,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 133070291}
+  - {fileID: 2105697916}
   m_Father: {fileID: 569117053}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &965895767
@@ -36030,7 +36031,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1015433911}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.24253564, y: 0.0000000119759545, z: -0.0000000029939882, w: 0.97014254}
+  m_LocalRotation: {x: 0.2425356, y: -0.000000028912503, z: 0.0000000072281248, w: 0.97014254}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -41166,7 +41167,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1170984981}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.24253567, y: 0.000000031294668, z: -0.000000007823668, w: 0.97014254}
+  m_LocalRotation: {x: 0.24253562, y: -0.000000028912504, z: 0.0000000072281257, w: 0.97014254}
   m_LocalPosition: {x: -60.078636, y: -92.806404, z: -48.998394}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -62290,7 +62291,7 @@ MonoBehaviour:
   _doublesArenaSize: 3
   _arenaGizmoCenter: {fileID: 634146526}
   _1v1_AITrainerTop: {fileID: 133070292}
-  _1v1_AITrainerBottom: {fileID: 0}
+  _1v1_AITrainerBottom: {fileID: 2105697917}
   _spectator1: {fileID: 307290450}
   _singlesTrainer1: {fileID: 415478639}
   _singlesTrainer2: {fileID: 1416128762}
@@ -68051,7 +68052,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1899367338}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.24253562, y: -0.000000016692645, z: 0.000000004173161, w: 0.97014254}
+  m_LocalRotation: {x: 0.24253564, y: 0.0000000119759545, z: -0.0000000029939882, w: 0.97014254}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -73797,6 +73798,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2105459390}
   m_CullTransparentMesh: 1
+--- !u!1 &2105697915
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2105697916}
+  - component: {fileID: 2105697917}
+  m_Layer: 0
+  m_Name: 1v1_AITrainerBottom
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &2105697916
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2105697915}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 964773672}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2105697917
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2105697915}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af7d5a1a098a3794f98a0b1f3b0fc3f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &2106288527
 GameObject:
   m_ObjectHideFlags: 0

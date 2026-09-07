@@ -26,7 +26,7 @@ public class BattleAI_PairIntent
         var availableStrategies = GetAvailableStrategies( patterns, evidence );
         Dictionary<PairStrategy, PairStrategyIntent> strategyScores = new();
 
-        pir.POE = evidence;
+        pir.Poe = evidence;
 
         CustomLogSession stratLog = new();
         stratLog.Add( $"================================" );
@@ -251,7 +251,7 @@ public class BattleAI_PairIntent
                     //--Score Strategy
                     foreach( var pattern in patterns )
                     {
-                        if( pattern.Key == PairPattern.FocusFire || pattern.Key == PairPattern.DoubleAttack )
+                        if( pattern.Key == PairPattern.FocusFire || pattern.Key == PairPattern.DoubleAttack || pattern.Key == PairPattern.CoveredAttack )
                         {
                             int leftValue = pattern.Value.UnitLeftMatch.IsPrimary ? 2 : 1;
                             int rightValue = pattern.Value.UnitRightMatch.IsPrimary ? 2 : 1;
@@ -421,7 +421,59 @@ public class BattleAI_PairIntent
                     stratLog.Add( $"Final Score: {finalScore}" );
 
                 break;
+
+                case PairStrategy.AfterYouAttack:
+                    
+                    //--Extract Intents
+                    tallies.TryGetValue( PairObservation.AfterYou, out var afterYouEvidence );
+                    poe = afterYouEvidence.Evidence;
+                    intents = GetStrategyIntent( poe, PairPattern.AfterYouAndAttack, patterns, true );
+
+                    //--Score Strategy
+                    foreach( var pattern in patterns )
+                    {
+                        if( pattern.Key == PairPattern.AfterYouAndAttack )
+                        {
+                            int leftValue = pattern.Value.UnitLeftMatch.IsPrimary ? 2 : 1;
+                            int rightValue = pattern.Value.UnitRightMatch.IsPrimary ? 2 : 1;
+
+                            patternScore += leftValue + rightValue;
+                            stratLog.Add( $"Found Relevant Pattern: {pattern.Key}. Value: {leftValue + rightValue}" );
+                        }
+                    }
+
+                    observationScore += tallies.ContainsKey( PairObservation.AfterYou ) ? tallies[PairObservation.AfterYou].Tally : 0;
+                    observationScore += tallies.ContainsKey( PairObservation.Attack ) ? tallies[PairObservation.Attack].Tally : 0;
+                    observationScore += tallies.ContainsKey( PairObservation.SpreadAttack ) ? tallies[PairObservation.SpreadAttack].Tally : 0;
+                    observationScore += tallies.ContainsKey( PairObservation.StatusMove ) ? tallies[PairObservation.StatusMove].Tally : 0;
+                    observationScore += tallies.ContainsKey( PairObservation.SpeedControl ) ? tallies[PairObservation.SpeedControl].Tally : 0;
+
+                    opportunityScore += ScoreInitiativeSwing( strat, evidence ) +
+                                        ScorePressure( strat, evidence ) +
+                                        ScoreMomentum( strat, evidence ) +
+                                        ScoreBoardControl( strat, evidence ) +
+                                        ScoreGuaranteedValue( strat, evidence ) +
+                                        ScoreImmediateRemoval( strat, evidence );
+
+                    commitmentScore += ScoreAfterYouAttackCommitment( evidence );
+
+                    finalScore += patternScore + observationScore + opportunityScore + commitmentScore;
+
+                    stratLog.Add( $"Pattern Score: {patternScore}" );
+                    stratLog.Add( $"Observation Score: {observationScore}" );
+                    stratLog.Add( $"Opportunity Score: {opportunityScore}" );
+                    stratLog.Add( $"Commitment Score: {commitmentScore}" );
+                    stratLog.Add( $"" );
+                    stratLog.Add( $"Final Score: {finalScore}" );
+
+                break;
             }
+
+            if( intents.leftIntent.ActionType == ActionType.None )
+                Debug.LogError( $"Left Intent for {strat} is ActionType.None!" );
+
+            if( intents.rightIntent.ActionType == ActionType.None )
+                Debug.LogError( $"Right Intent for {strat} is ActionType.None!" );
 
             PairStrategyIntent psi = new()
             {
@@ -443,109 +495,109 @@ public class BattleAI_PairIntent
         }
 
         //--Entropy stuff
-        float totalAllStrategyScores = 0;
-        float activeStrategies = strategyScores.Count( kvp => kvp.Value.FinalScore > 0 );
+        // float totalAllStrategyScores = 0;
+        // float activeStrategies = strategyScores.Count( kvp => kvp.Value.FinalScore > 0 );
 
-        float competitionEntropy = 0f;
-        float competitionConfidence = 0f;
+        // float competitionEntropy = 0f;
+        // float competitionConfidence = 0f;
 
-        foreach( var kvp in strategyScores )
-        {            
-            totalAllStrategyScores += kvp.Value.FinalScore;
-        }
+        // foreach( var kvp in strategyScores )
+        // {            
+        //     totalAllStrategyScores += kvp.Value.FinalScore;
+        // }
 
-        foreach( var kvp in strategyScores )
-        {
-            if( kvp.Value.FinalScore <= 0 )
-                continue;
+        // foreach( var kvp in strategyScores )
+        // {
+        //     if( kvp.Value.FinalScore <= 0 )
+        //         continue;
 
-            float v = kvp.Value.FinalScore;
-            float p = v / totalAllStrategyScores;
-            competitionEntropy -= p * Mathf.Log( p, 2f );
-        }
+        //     float v = kvp.Value.FinalScore;
+        //     float p = v / totalAllStrategyScores;
+        //     competitionEntropy -= p * Mathf.Log( p, 2f );
+        // }
 
-        if( activeStrategies <= 1 )
-        {
-            competitionConfidence = 1f;
-        }
-        else
-        {
-            competitionEntropy /= Mathf.Log( activeStrategies, 2f );
-            competitionConfidence = Mathf.Clamp01( 1f - competitionEntropy );
-        }
+        // if( activeStrategies <= 1 )
+        // {
+        //     competitionConfidence = 1f;
+        // }
+        // else
+        // {
+        //     competitionEntropy /= Mathf.Log( activeStrategies, 2f );
+        //     competitionConfidence = Mathf.Clamp01( 1f - competitionEntropy );
+        // }
 
-        foreach( var kvp in strategyScores )
-        {
-            var strat = kvp.Value;
-            float activeSignals = 0;
-            float totalPositiveSignals = 0;
-            float ic = 0f;
+        // foreach( var kvp in strategyScores )
+        // {
+        //     var strat = kvp.Value;
+        //     float activeSignals = 0;
+        //     float totalPositiveSignals = 0;
+        //     float ic = 0f;
 
-            if( strat.PatternScore > 0 )
-            {
-                activeSignals++;
-                totalPositiveSignals += strat.PatternScore;
-            }
+        //     if( strat.PatternScore > 0 )
+        //     {
+        //         activeSignals++;
+        //         totalPositiveSignals += strat.PatternScore;
+        //     }
 
-            if( strat.ObservationScore > 0 )
-            {
-                activeSignals++;
-                totalPositiveSignals += strat.ObservationScore;
-            }
+        //     if( strat.ObservationScore > 0 )
+        //     {
+        //         activeSignals++;
+        //         totalPositiveSignals += strat.ObservationScore;
+        //     }
 
-            if( strat.OpportunityScore > 0 )
-            {
-                activeSignals++;
-                totalPositiveSignals += strat.OpportunityScore;
-            }
+        //     if( strat.OpportunityScore > 0 )
+        //     {
+        //         activeSignals++;
+        //         totalPositiveSignals += strat.OpportunityScore;
+        //     }
 
-            if( strat.CommitmentScore > 0 )
-            {
-                activeSignals++;
-                totalPositiveSignals += strat.CommitmentScore;
-            }
+        //     if( strat.CommitmentScore > 0 )
+        //     {
+        //         activeSignals++;
+        //         totalPositiveSignals += strat.CommitmentScore;
+        //     }
 
-            if( strat.PatternScore > 0 )
-            {
-                float p = strat.PatternScore / totalPositiveSignals;
-                ic -= p * Mathf.Log( p, 2f );
-            }
+        //     if( strat.PatternScore > 0 )
+        //     {
+        //         float p = strat.PatternScore / totalPositiveSignals;
+        //         ic -= p * Mathf.Log( p, 2f );
+        //     }
 
-            if( strat.ObservationScore > 0 )
-            {
-                float p = strat.ObservationScore / totalPositiveSignals;
-                ic -= p * Mathf.Log( p, 2f );
-            }
+        //     if( strat.ObservationScore > 0 )
+        //     {
+        //         float p = strat.ObservationScore / totalPositiveSignals;
+        //         ic -= p * Mathf.Log( p, 2f );
+        //     }
 
-            if( strat.OpportunityScore > 0 )
-            {
-                float p = strat.OpportunityScore / totalPositiveSignals;
-                ic -= p * Mathf.Log( p, 2f );
-            }
+        //     if( strat.OpportunityScore > 0 )
+        //     {
+        //         float p = strat.OpportunityScore / totalPositiveSignals;
+        //         ic -= p * Mathf.Log( p, 2f );
+        //     }
 
-            if( strat.CommitmentScore > 0 )
-            {
-                float p = strat.CommitmentScore / totalPositiveSignals;
-                ic -= p * Mathf.Log( p, 2f );
-            }
+        //     if( strat.CommitmentScore > 0 )
+        //     {
+        //         float p = strat.CommitmentScore / totalPositiveSignals;
+        //         ic -= p * Mathf.Log( p, 2f );
+        //     }
 
-            if( activeSignals <= 1 )
-            {
-                strat.InternalConfidence = 1f;
-            }
-            else
-            {
-                ic /= Mathf.Log( activeSignals, 2f );
-                strat.InternalConfidence = Mathf.Clamp01( 1f - ic );
-            }
-        }
+        //     if( activeSignals <= 1 )
+        //     {
+        //         strat.InternalConfidence = 1f;
+        //     }
+        //     else
+        //     {
+        //         ic /= Mathf.Log( activeSignals, 2f );
+        //         strat.InternalConfidence = Mathf.Clamp01( 1f - ic );
+        //     }
+        // }
 
         pir.Strategies = strategyScores.OrderByDescending( kvp => kvp.Value.FinalScore ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
-        pir.PrimaryStrategy = strategyScores.Values.First();
+        pir.PrimaryStrategy = pir.Strategies.Values.First();
 
         if( pir.Strategies.Count > 1 )
-            pir.SecondaryStrategy = strategyScores.Values.Skip(1).First();
+            pir.SecondaryStrategy = pir.Strategies.Values.Skip(1).First();
 
         stratLog.Add( $"Primary Strategy:.....{pir.PrimaryStrategy.Strategy}, {pir.PrimaryStrategy.FinalScore}" );
 
@@ -559,13 +611,18 @@ public class BattleAI_PairIntent
             stratLog.Add( $"{kvp.Key}:.....{kvp.Value.FinalScore} ({kvp.Value.InternalConfidence})" );
         }
 
-        pir.CompetitionConfidence = competitionConfidence;
-        pir.PrimaryConfidence = pir.PrimaryStrategy.InternalConfidence * competitionConfidence;
-        pir.SecondaryConfidence = pir.SecondaryStrategy.InternalConfidence * competitionConfidence;
+        // pir.CompetitionConfidence = competitionConfidence;
+        // pir.PrimaryConfidence = pir.PrimaryStrategy.InternalConfidence * competitionConfidence;
 
-        stratLog.Add( $"Competition Confidence: {competitionConfidence}" );
-        stratLog.Add( $"Final Primary Confidence: {pir.PrimaryConfidence}" );
-        stratLog.Add( $"Final Secondary Confidence: {pir.SecondaryConfidence}" );
+        // if( pir.Strategies.Count > 1 )
+            // pir.SecondaryConfidence = pir.SecondaryStrategy.InternalConfidence * competitionConfidence;
+        // else
+            // pir.SecondaryConfidence = 0f;
+
+        stratLog.Add( $"Confidence no longer implemented 09/06/26" );
+        // stratLog.Add( $"Competition Confidence: {competitionConfidence}" );
+        // stratLog.Add( $"Final Primary Confidence: {pir.PrimaryConfidence}" );
+        // stratLog.Add( $"Final Secondary Confidence: {pir.SecondaryConfidence}" );
 
         string path = Application.persistentDataPath + "/Available Strategies_Log.txt";
         System.IO.File.AppendAllText( path, stratLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
@@ -660,6 +717,9 @@ public class BattleAI_PairIntent
         if( DetectPattern_WeatherChange( tim ) is var weatherChange && weatherChange.PackFound )
             patterns.Add( PairPattern.WeatherChange, weatherChange );
 
+        if( DetectPattern_AfterYouAndAttack( tim ) is var afterYouAttack && afterYouAttack.PackFound )
+            patterns.Add( PairPattern.AfterYouAndAttack, afterYouAttack );
+
         if( patterns.Count > 0 )
             LogPatterns( patterns );
 
@@ -741,17 +801,17 @@ public class BattleAI_PairIntent
             var rightEnemyTarget = rightIntentResult?.Top.Opponent;
 
             patternLog.Add( $"===[{pattern}]===" );
-            patternLog.Add( $"Matching pattern for Left had {leftEnemy?.Name} vs {leftEnemyTarget?.Name}, Intent: {leftIntent.IntentType}, Is Primary: {pip.UnitLeftMatch.IsPrimary}, Evidence: {pip.UnitLeftMatch.Evidence}, Relative Strength: {pip.UnitLeftMatch.RelativeStrength}" );
-            patternLog.Add( $"Matching pattern for Right had {rightEnemy?.Name} vs {rightEnemyTarget?.Name}, Intent: {rightIntent.IntentType}, Is Primary: {pip.UnitRightMatch.IsPrimary}, Evidence: {pip.UnitRightMatch.Evidence}, Relative Strength: {pip.UnitRightMatch.RelativeStrength}" );
+            patternLog.Add( $"Matching pattern for Left had {leftEnemy?.Name} vs {leftEnemyTarget?.Name}, Intent: {leftIntent.ActionType}, Is Primary: {pip.UnitLeftMatch.IsPrimary}, Evidence: {pip.UnitLeftMatch.Evidence}, Relative Strength: {pip.UnitLeftMatch.RelativeStrength}" );
+            patternLog.Add( $"Matching pattern for Right had {rightEnemy?.Name} vs {rightEnemyTarget?.Name}, Intent: {rightIntent.ActionType}, Is Primary: {pip.UnitRightMatch.IsPrimary}, Evidence: {pip.UnitRightMatch.Evidence}, Relative Strength: {pip.UnitRightMatch.RelativeStrength}" );
 
-            var leftType = leftIntent.IntentType;
-            if( leftType == IntentType.Attack || leftType == IntentType.Setup || leftType == IntentType.OffensiveStatus || leftType == IntentType.SupportiveStatus || leftType == IntentType.Protect )
+            var leftType = leftIntent.ActionType;
+            if( leftType == ActionType.Attack || leftType == ActionType.Setup || leftType == ActionType.OffensiveStatus || leftType == ActionType.SupportiveStatus || leftType == ActionType.Protect )
                 patternLog.Add( $"Enemy Unit {leftEnemy?.Name} is attacking {leftEnemyTarget?.Name} with {leftIntentResult?.Move.MoveSO.Name}" );
             else
                 patternLog.Add( $"Enemy Unit {leftEnemy?.Name} is switching into: {leftIntentResult?.Candidate?.Name} due to our {leftEnemyTarget?.Name}" );
 
-            var rightType = rightIntent.IntentType;
-            if( rightType == IntentType.Attack || rightType == IntentType.Setup || rightType == IntentType.OffensiveStatus || rightType == IntentType.SupportiveStatus || rightType == IntentType.Protect )
+            var rightType = rightIntent.ActionType;
+            if( rightType == ActionType.Attack || rightType == ActionType.Setup || rightType == ActionType.OffensiveStatus || rightType == ActionType.SupportiveStatus || rightType == ActionType.Protect )
                 patternLog.Add( $"Enemy Unit {rightEnemy?.Name} is attacking {rightEnemyTarget?.Name} with {rightIntentResult?.Move.MoveSO.Name}" );
             else
                 patternLog.Add( $"Enemy Unit {rightEnemy?.Name} is switching into: {rightIntentResult?.Candidate?.Name} due to our {rightEnemyTarget?.Name}" );
@@ -806,7 +866,7 @@ public class BattleAI_PairIntent
             }
         }
 
-        LogPairObservationEvidence( poe );
+        // LogPairObservationEvidence( poe );
 
         return poe;
     }
@@ -826,9 +886,9 @@ public class BattleAI_PairIntent
             poeLog.Add( $"Source Pattern: {ev.SourcePattern}" );
 
             if( ev.Weight == 2 )
-                poeLog.Add( $"Source Intent: {ev.SourceIntent.PrimaryIntent.IntentType}" );
+                poeLog.Add( $"Source Intent: {ev.SourceIntent.PrimaryIntent.ActionType}" );
             else
-                poeLog.Add( $"Source Intent: {ev.SourceIntent.SecondaryIntent.IntentType}" );
+                poeLog.Add( $"Source Intent: {ev.SourceIntent.SecondaryIntent.ActionType}" );
 
             poeLog.Add( $"Weight: {ev.Weight}" );
             poeLog.Add( $"" );
@@ -988,7 +1048,12 @@ public class BattleAI_PairIntent
         //--Establish Defensive Position
         if( patterns.ContainsKey( PairPattern.CoveredSwitch ) || observations.Contains( PairObservation.ScreensSupport ) || observations.Contains( PairObservation.Protect ) )
         {
-            
+            strategies.Add( PairStrategy.EstablishDefensivePosition );
+        }
+
+        if( patterns.ContainsKey( PairPattern.AfterYouAndAttack ) )
+        {
+            strategies.Add( PairStrategy.AfterYouAttack );
         }
         
 
@@ -1071,14 +1136,14 @@ public class BattleAI_PairIntent
             var leftSecondary = leftTIR.SecondaryIntent;
             MoveThreatResult leftMTR = null;
 
-            if( leftTIR.PrimaryIntent.IntentType == IntentType.Attack )
+            if( leftTIR.PrimaryIntent.ActionType == ActionType.Attack )
             {
                 leftMTR = (MoveThreatResult)leftTIR.PrimaryIntent.IntentResult;
                 leftIsPrimary = true;
                 leftMatches.Add( ( leftTIR, leftIsPrimary ) );
                 break;
             }
-            else if( leftTIR.CheckSecondaryIntent && leftTIR.SecondaryIntent.IntentType == IntentType.Attack )
+            else if( leftTIR.CheckSecondaryIntent && leftTIR.SecondaryIntent.ActionType == ActionType.Attack )
             {
                 leftMTR = (MoveThreatResult)leftTIR.SecondaryIntent.IntentResult;
                 leftIsPrimary = false;
@@ -1097,14 +1162,14 @@ public class BattleAI_PairIntent
             var rightSecondary = rightTIR.SecondaryIntent;
             MoveThreatResult rightMTR = null;
 
-            if( rightTIR.PrimaryIntent.IntentType == IntentType.Attack )
+            if( rightTIR.PrimaryIntent.ActionType == ActionType.Attack )
             {
                 rightMTR = (MoveThreatResult)rightTIR.PrimaryIntent.IntentResult;
                 rightIsPrimary = true;
                 rightMatches.Add( ( rightTIR, rightIsPrimary ) );
                 break;
             }
-            else if( rightTIR.CheckSecondaryIntent && rightTIR.SecondaryIntent.IntentType == IntentType.Attack )
+            else if( rightTIR.CheckSecondaryIntent && rightTIR.SecondaryIntent.ActionType == ActionType.Attack )
             {
                 rightMTR = (MoveThreatResult)rightTIR.SecondaryIntent.IntentResult;
                 rightIsPrimary = false;
@@ -1172,10 +1237,12 @@ public class BattleAI_PairIntent
         else if( unitLeft_SpeedControlIntent.Found && !unitRight_SpeedControlIntent.Found )
         {
             pip.UnitLeftMatch = unitLeft_SpeedControlIntent;
+            pip.UnitRightMatch = FindHighestIntent( tim.EnemyRight );
             pip.PackFound = true;
         }
         else if( !unitLeft_SpeedControlIntent.Found && unitRight_SpeedControlIntent.Found )
         {
+            pip.UnitLeftMatch = FindHighestIntent( tim.EnemyLeft );
             pip.UnitRightMatch = unitRight_SpeedControlIntent;
             pip.PackFound = true;
         }
@@ -1318,13 +1385,52 @@ public class BattleAI_PairIntent
         if( unitLeft_WeatherChangeIntent.Found )
         {
             pip.UnitLeftMatch = unitLeft_WeatherChangeIntent;
+            pip.UnitRightMatch = FindHighestIntent( tim.EnemyRight );
             pip.PackFound = true;
         }
 
         if( unitRight_WeatherChangeIntent.Found )
         {
+            pip.UnitLeftMatch = FindHighestIntent( tim.EnemyLeft );
             pip.UnitRightMatch = unitRight_WeatherChangeIntent;
             pip.PackFound = true;
+        }
+
+        return pip;
+    }
+
+    private PatternIntentPack DetectPattern_AfterYouAndAttack( ThreatInteractionMatrix tim )
+    {
+        PatternIntentPack pip = new()
+        {
+            UnitLeftMatch = default,
+            UnitRightMatch = default,
+            PackFound = false,
+        };
+
+        var unitLeft_AfterYouIntent = FindAfterYouIntent( tim.EnemyLeft );
+        var unitRight_AfterYouIntent = FindAfterYouIntent( tim.EnemyRight );
+
+        if( !unitLeft_AfterYouIntent.Found && !unitRight_AfterYouIntent.Found )
+            return pip;
+
+        var unitLeft_AttackIntent = FindAttackIntent( tim.EnemyLeft );
+        var unitRight_AttackIntent = FindAttackIntent( tim.EnemyRight );
+
+        if( unitLeft_AfterYouIntent.Found && unitRight_AttackIntent.Found )
+        {
+            pip.UnitLeftMatch = unitLeft_AfterYouIntent;
+            pip.UnitRightMatch = unitRight_AttackIntent;
+            pip.PackFound = true;
+            return pip;
+        }
+
+        if( unitRight_AfterYouIntent.Found && unitLeft_AttackIntent.Found )
+        {
+            pip.UnitLeftMatch = unitLeft_AttackIntent;
+            pip.UnitRightMatch = unitRight_AfterYouIntent;
+            pip.PackFound = true;
+            return pip;
         }
 
         return pip;
@@ -1336,6 +1442,87 @@ public class BattleAI_PairIntent
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private PatternIntentMatch FindHighestIntent( Dictionary<Pokemon, ThreatIntentResult> threatInteractions )
+    {
+        PatternIntentMatch pim = new();
+
+        ThreatIntentResult foundTIR = default;
+
+        int evidence = int.MinValue;
+        foreach( var interaction in threatInteractions )
+        {
+            var tir = interaction.Value;
+
+            if( tir.TotalEvidence > evidence )
+            {
+                evidence = tir.TotalEvidence;
+                foundTIR = tir;
+            }
+        }
+
+        switch( foundTIR.PrimaryIntent.ActionType )
+        {
+            case ActionType.Attack:
+
+                pim = FindAttackIntent( threatInteractions );
+
+            break;
+
+            case ActionType.DefensiveSwitch:
+
+                pim = FindSwitchIntent( threatInteractions );
+
+            break;
+
+            case ActionType.OffensiveSwitch:
+
+                pim = FindSwitchIntent( threatInteractions );
+
+            break;
+
+            case ActionType.Setup:
+            
+                pim = FindSetupIntent( threatInteractions );
+
+            break;
+
+            case ActionType.OffensiveStatus:
+
+                pim = FindCoverAllyIntent( threatInteractions );
+
+                if( !pim.Found )
+                    pim = FindSetupIntent( threatInteractions );
+
+                if( !pim.Found )
+                    pim = FindSpeedControlIntent( threatInteractions );
+
+            break;
+
+            case ActionType.SupportiveStatus:
+
+                pim = FindSetupIntent( threatInteractions );
+
+                if( !pim.Found )
+                    pim = FindCoverAllyIntent( threatInteractions );
+
+                if( !pim.Found )
+                    pim = FindSpeedControlIntent( threatInteractions );
+
+                if( !pim.Found )
+                    pim = FindAfterYouIntent( threatInteractions );
+
+                if( !pim.Found )
+                    pim = FindWeatherChangeIntent( threatInteractions );
+
+            break;
+
+            case ActionType.Protect:
+            break;
+        }
+
+        return pim;
+    }
 
     private PatternIntentMatch FindAttackIntent( Dictionary<Pokemon, ThreatIntentResult> threatInteractions )
     {
@@ -1356,9 +1543,9 @@ public class BattleAI_PairIntent
         {
             var tir = interaction.Value;
 
-            if( ( tir.PrimaryIntent.IntentType == IntentType.Attack ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Attack ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.Attack ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.Attack ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.Attack;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.Attack;
                 found = true;
                 isPrimary = primary;
                 foundTIR = interaction.Value;
@@ -1394,18 +1581,18 @@ public class BattleAI_PairIntent
         {
             tir = interaction.Value;
 
-            if( ( tir.PrimaryIntent.IntentType == IntentType.Setup ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Setup ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.Setup ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.Setup ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.Setup;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.Setup;
                 found = true;
                 isPrimary = primary;
                 observations.Add( PairObservation.StatBoost );
                 break;
             }
 
-            if( ( tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.SupportiveStatus ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.SupportiveStatus ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus;
                 StatusThreatResult suppStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
 
                 if( suppStatus.SupportiveStatusType == SupportiveStatusType.ForceMultiplier || suppStatus.SupportiveStatusType == SupportiveStatusType.BattlefieldControl )
@@ -1439,9 +1626,9 @@ public class BattleAI_PairIntent
                 }
             }
 
-            if( ( tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.OffensiveStatus ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.OffensiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.OffensiveStatus ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.OffensiveStatus;
                 StatusThreatResult offStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
 
                 if( offStatus.OffensiveStatusType == OffensiveStatusType.EntryHazard )
@@ -1483,9 +1670,9 @@ public class BattleAI_PairIntent
         {
             tir = interaction.Value;
         
-            if( tir.PrimaryIntent.IntentType == IntentType.Attack || tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Attack )
+            if( tir.PrimaryIntent.ActionType == ActionType.Attack || tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.Attack )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.Attack;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.Attack;
                 MoveThreatResult mtr = primary ? (MoveThreatResult)tir.PrimaryIntent.IntentResult : (MoveThreatResult)tir.SecondaryIntent.IntentResult;
                 var move = mtr.Move;
                 var name = move.MoveSO.Name;
@@ -1500,9 +1687,9 @@ public class BattleAI_PairIntent
                 }
             }
 
-            if( ( tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.SupportiveStatus ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.OffensiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.SupportiveStatus ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.OffensiveStatus;
                 var offStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
 
                 if( offStatus.OffensiveStatusType == OffensiveStatusType.Disruption )
@@ -1530,9 +1717,9 @@ public class BattleAI_PairIntent
                 }
             }
 
-            if( ( tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.SupportiveStatus ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.SupportiveStatus ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus;
                 StatusThreatResult suppStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
 
                 var move = suppStatus.Move;
@@ -1586,9 +1773,9 @@ public class BattleAI_PairIntent
             tir = interaction.Value;
 
             //--Field speed control
-            if( ( tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.SupportiveStatus ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.SupportiveStatus ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus;
                 var suppStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
                 var move = suppStatus.Move;
                 var effects = move.MoveSO.MoveEffects;
@@ -1650,9 +1837,9 @@ public class BattleAI_PairIntent
             }
 
             //--Direct speed debuff of the opponent
-            if( ( tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.OffensiveStatus ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.OffensiveStatus ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.OffensiveStatus ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.OffensiveStatus;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.OffensiveStatus;
                 var offStatus = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
                 var effects = offStatus.Move.MoveSO.MoveEffects;
 
@@ -1676,9 +1863,9 @@ public class BattleAI_PairIntent
             }
 
             //--Attack such as icy wind that lowers opponent speed guaranteed
-            if( ( tir.PrimaryIntent.IntentType == IntentType.Attack ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Attack ) )
+            if( ( tir.PrimaryIntent.ActionType == ActionType.Attack ) || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.Attack ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.Attack;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.Attack;
                 var mtr = primary ? (MoveThreatResult)tir.PrimaryIntent.IntentResult : (MoveThreatResult)tir.SecondaryIntent.IntentResult;
                 var effects = mtr.Move.MoveSO.MoveEffects;
 
@@ -1698,16 +1885,58 @@ public class BattleAI_PairIntent
                 }
             }
 
-            if( tir.PrimaryIntent.IntentType == IntentType.DefensiveSwitch || tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch || ( tir.CheckSecondaryIntent && ( tir.SecondaryIntent.IntentType == IntentType.DefensiveSwitch || tir.SecondaryIntent.IntentType == IntentType.OffensiveSwitch ) ) )
+            if( tir.PrimaryIntent.ActionType == ActionType.DefensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.DefensiveSwitch ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.DefensiveSwitch || tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.DefensiveSwitch;
                 var scr = primary ? (SwitchCandidateResult)tir.PrimaryIntent.IntentResult : (SwitchCandidateResult)tir.SecondaryIntent.IntentResult;
+                
                 bool switchChangesWeather = _ai.UnitSim.Switch_ChangesWeather( scr );
                 bool allySpeedFromWeather = false;
                 bool opponentSpeedFromWeather = false;
                 bool opponentAllySpeedFromWeather = false;
 
-                var ourWeather = _ai.UnitSim.GetWeatherFrom_Ability( scr.Top.Attacker.Pokemon );
+                var ourWeather = _ai.UnitSim.GetWeatherFrom_Ability( scr.Candidate.Pokemon );
+                var currentWeather = _ai.Blackboard.CurrentFieldSnapshot.Weather;
+
+                var ally = scr.Top.Attacker != null ? _ai.GetActiveAllyAs_Adapter( scr.Top.Attacker.Pokemon ) : null;
+                var opp = scr.Top.Opponent;
+                var oppAlly = opp != null ? _ai.GetActiveAllyAs_Adapter( opp.Pokemon ) : null;
+
+                if( ally != null && switchChangesWeather )
+                {
+                    allySpeedFromWeather = _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( ally.Pokemon, ourWeather );
+                }
+
+                if( opp != null )
+                {
+                    opponentSpeedFromWeather = _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opp.Pokemon, currentWeather );
+
+                    if( oppAlly != null )
+                    {
+                        opponentAllySpeedFromWeather = _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( oppAlly.Pokemon, currentWeather );
+                    }
+                }
+
+                if( allySpeedFromWeather || ( switchChangesWeather && ( opponentSpeedFromWeather || opponentAllySpeedFromWeather ) ) )
+                {
+                    found = true;
+                    isPrimary = primary;
+                    observations.Add( PairObservation.WeatherChange );
+                    break;
+                }
+            }
+
+            if( tir.PrimaryIntent.ActionType == ActionType.OffensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.OffensiveSwitch ) )
+            {
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.OffensiveSwitch;
+                var scr = primary ? (SwitchCandidateResult)tir.PrimaryIntent.IntentResult : (SwitchCandidateResult)tir.SecondaryIntent.IntentResult;
+
+                bool switchChangesWeather = _ai.UnitSim.Switch_ChangesWeather( scr );
+                bool allySpeedFromWeather = false;
+                bool opponentSpeedFromWeather = false;
+                bool opponentAllySpeedFromWeather = false;
+
+                var ourWeather = _ai.UnitSim.GetWeatherFrom_Ability( scr.Candidate.Pokemon );
                 var currentWeather = _ai.Blackboard.CurrentFieldSnapshot.Weather;
 
                 var ally = scr.Top.Attacker != null ? _ai.GetActiveAllyAs_Adapter( scr.Top.Attacker.Pokemon ) : null;
@@ -1768,17 +1997,17 @@ public class BattleAI_PairIntent
         {
             tir = interaction.Value;
 
-            if( tir.PrimaryIntent.IntentType == IntentType.DefensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.DefensiveSwitch ) )
+            if( tir.PrimaryIntent.ActionType == ActionType.DefensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.DefensiveSwitch ) )
             {
-                isPrimary = tir.PrimaryIntent.IntentType == IntentType.DefensiveSwitch;
+                isPrimary = tir.PrimaryIntent.ActionType == ActionType.DefensiveSwitch;
                 found = true;
                 observations.Add( PairObservation.Preservation );
                 break;
             }
 
-            if( tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.OffensiveSwitch ) )
+            if( tir.PrimaryIntent.ActionType == ActionType.OffensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.OffensiveSwitch ) )
             {
-                isPrimary = tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch;
+                isPrimary = tir.PrimaryIntent.ActionType == ActionType.OffensiveSwitch;
                 found = true;
                 observations.Add( PairObservation.PivotPressure );
 
@@ -1789,9 +2018,9 @@ public class BattleAI_PairIntent
                 break;
             }
 
-            if( tir.PrimaryIntent.IntentType == IntentType.Attack || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.Attack ) )
+            if( tir.PrimaryIntent.ActionType == ActionType.Attack || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.Attack ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.Attack;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.Attack;
                 var intentResult = primary ? tir.PrimaryIntent.IntentResult : tir.SecondaryIntent.IntentResult;
                 var move = intentResult.Move;
 
@@ -1819,7 +2048,7 @@ public class BattleAI_PairIntent
 
             if( ally != null && switchChangesWeather )
             {
-                var weather = _ai.UnitSim.GetWeatherFrom_Ability( scr.Top.Attacker.Pokemon );
+                var weather = _ai.UnitSim.GetWeatherFrom_Ability( scr.Candidate.Pokemon );
                 var allySpeedFromWeather = _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( ally.Pokemon, weather );
                 
                 if( allySpeedFromWeather )
@@ -1853,15 +2082,15 @@ public class BattleAI_PairIntent
         {
             tir = interaction.Value;
 
-            if( tir.PrimaryIntent.IntentType == IntentType.DefensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.DefensiveSwitch ) )
+            if( tir.PrimaryIntent.ActionType == ActionType.DefensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.DefensiveSwitch ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.DefensiveSwitch;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.DefensiveSwitch;
                 var scr = primary ? (SwitchCandidateResult)tir.PrimaryIntent.IntentResult : (SwitchCandidateResult)tir.SecondaryIntent.IntentResult;
                 bool switchChangesWeather = _ai.UnitSim.Switch_ChangesWeather( scr );
 
                 if( switchChangesWeather )
                 {
-                    isPrimary = tir.PrimaryIntent.IntentType == IntentType.DefensiveSwitch;
+                    isPrimary = tir.PrimaryIntent.ActionType == ActionType.DefensiveSwitch;
                     found = true;
 
                     observations.Add( PairObservation.Preservation );
@@ -1882,15 +2111,15 @@ public class BattleAI_PairIntent
                 break;
             }
 
-            if( tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.OffensiveSwitch ) )
+            if( tir.PrimaryIntent.ActionType == ActionType.OffensiveSwitch || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.OffensiveSwitch ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.OffensiveSwitch;
                 var scr = primary ? (SwitchCandidateResult)tir.PrimaryIntent.IntentResult : (SwitchCandidateResult)tir.SecondaryIntent.IntentResult;
                 bool switchChangesWeather = _ai.UnitSim.Switch_ChangesWeather( scr );
 
                 if( switchChangesWeather )
                 {
-                    isPrimary = tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch;
+                    isPrimary = tir.PrimaryIntent.ActionType == ActionType.OffensiveSwitch;
                     found = true;
 
                     observations.Add( PairObservation.PivotPressure );
@@ -1909,10 +2138,10 @@ public class BattleAI_PairIntent
                 }
             }
 
-            if( tir.PrimaryIntent.IntentType == IntentType.SupportiveStatus || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.IntentType == IntentType.SupportiveStatus ) )
+            if( tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.SupportiveStatus ) )
             {
-                bool primary = tir.PrimaryIntent.IntentType == IntentType.OffensiveSwitch;
-                var intentResult = primary ? (SwitchCandidateResult)tir.PrimaryIntent.IntentResult : (SwitchCandidateResult)tir.SecondaryIntent.IntentResult;
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus;
+                var intentResult = primary ? (StatusThreatResult)tir.PrimaryIntent.IntentResult : (StatusThreatResult)tir.SecondaryIntent.IntentResult;
                 bool moveChangesWeather = _ai.UnitSim.Move_ChangesWeather( intentResult.Move );
 
                 if( moveChangesWeather )
@@ -1937,6 +2166,69 @@ public class BattleAI_PairIntent
         {
             observations.Add( PairObservation.WeatherChange );
             pim = FinishFoundPIM( ref pim, tir, isPrimary, observations );
+        }
+
+        return pim;
+    }
+
+    private PatternIntentMatch FindAfterYouIntent( Dictionary<Pokemon, ThreatIntentResult> threatIntentInteractions )
+    {
+        PatternIntentMatch pim = new()
+        {
+            Found = false,
+            MatchingTIR = default,
+            Evidence = 0,
+            RelativeStrength = 0f,
+        };
+
+        ThreatIntentResult foundTIR = default;
+        bool found = false;
+        bool isPrimary = false;
+
+        HashSet<PairObservation> observations = new();
+
+        foreach( var interaction in threatIntentInteractions )
+        {
+            var tir = interaction.Value;
+
+            if( tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus || ( tir.CheckSecondaryIntent && tir.SecondaryIntent.ActionType == ActionType.SupportiveStatus ) )
+            {
+                bool primary = tir.PrimaryIntent.ActionType == ActionType.SupportiveStatus;
+                bool secondary = tir.SecondaryIntent.ActionType == ActionType.SupportiveStatus;
+
+                StatusThreatResult primarySTR = default;
+                StatusThreatResult secondarySTR = default;
+
+                if( primary )
+                    primarySTR = (StatusThreatResult)tir.PrimaryIntent.IntentResult;
+                
+                if( secondary )
+                    secondarySTR = (StatusThreatResult)tir.SecondaryIntent.IntentResult;
+
+                if( primary && primarySTR.Move?.MoveSO.Name == "After You" )
+                {
+                    isPrimary = true;
+                    found = true;
+                    foundTIR = tir;
+                    break;
+                }
+
+                if( secondary && secondarySTR.Move?.MoveSO.Name == "After You" )
+                {
+                    isPrimary = false;
+                    found = true;
+                    foundTIR = tir;
+                    break;
+                }
+            }
+        }
+
+        if( found )
+        {
+            observations.Add( PairObservation.AfterYou );
+            observations.Add( PairObservation.SpeedControl );
+            observations.Add( PairObservation.StatusMove );
+            pim = FinishFoundPIM( ref pim, foundTIR, isPrimary, observations );
         }
 
         return pim;
@@ -2228,10 +2520,10 @@ public class BattleAI_PairIntent
             if( us.EndHPR <= 0f || them.MTR.PTKO == PotentialToKO.OHKO )
             {
                 var revengeCandidate = _ai.GetSwitch_CurrentPressure( ourUnits );
-                var revengerComp_Them = _ai.Projection.MakeUnitComparison( revengeCandidate, them );
+                var revengerComp_Them = revengeCandidate != null ? _ai.Projection.MakeUnitComparison( revengeCandidate, them ) : default;
                 var revenger = revengerComp_Them.Attacker;
 
-                if( revenger.BestCurrentPTKO >= PotentialToKO.Dangerous && ( revenger.FasterSpeed || revengerComp_Them.Target.BestCurrentPTKO <= PotentialToKO.Risky ) )
+                if( revengeCandidate != null && revenger.BestCurrentPTKO >= PotentialToKO.Dangerous && ( revenger.FasterSpeed || revengerComp_Them.Target.BestCurrentPTKO <= PotentialToKO.Risky ) )
                     koBringsRevenger++;
             }
         }
@@ -2273,17 +2565,17 @@ public class BattleAI_PairIntent
         bool weCanPreventTailwind = false;
         bool weAlreadyHaveTailwind = false;
         bool theyAlreadyHaveTailwind = false;
-        bool weCanMatchTailwind = false;
+        // bool weCanMatchTailwind = false;
         bool theyCanMatchOurTailwind = false;
 
         bool theyCanForceWeatherChange = false;
         bool theyCanForceTerrainChange = false;
 
-        bool weCanSetWeather = false;
+        // bool weCanSetWeather = false;
         bool weCanInvalidateWeather = false;
         bool weBenefitFromWeatherChange = false;
 
-        bool weCanSetTerrain = false;
+        // bool weCanSetTerrain = false;
         bool weCanRemoveTerrain = false;
         bool weBenefitFromTerrainChange = false;
 
@@ -2345,8 +2637,8 @@ public class BattleAI_PairIntent
             if( us.Pokemon.CheckHasActiveMove( "Trick Room" ) || ourAlly != null && ourAlly.Pokemon.CheckHasActiveMove( "Trick Room" ) )
                 weCanReverseTrickRoom = true;
 
-            if( !weAlreadyHaveTailwind && ( us.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) || ( ourAlly != null && ourAlly.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) ) ) )
-                weCanMatchTailwind = true;
+            // if( !weAlreadyHaveTailwind && ( us.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) || ( ourAlly != null && ourAlly.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) ) ) )
+                // weCanMatchTailwind = true;
 
             if( !theyAlreadyHaveTailwind && weAlreadyHaveTailwind && them.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) || ( theirAlly != null && theirAlly.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) ) )
                 theyCanMatchOurTailwind = true;
@@ -2357,14 +2649,14 @@ public class BattleAI_PairIntent
             if( ( _ai.UnitSim.PokemonHasTerrainSetter_Ability( them.Pokemon ) && theirSP.ChangesCurrentTerrain ) || ( theirAlly != null && _ai.UnitSim.PokemonHasTerrainSetter_Ability( theirAlly.Pokemon ) && theirAllySP.ChangesCurrentTerrain ) )
                 theyCanForceTerrainChange = true;
 
-            if( ourSP.WeatherSetter || ourAlly != null && ourAllySP.WeatherSetter )
-                weCanSetWeather = true;
+            // if( ourSP.WeatherSetter || ourAlly != null && ourAllySP.WeatherSetter )
+                // weCanSetWeather = true;
 
             if( us.Ability == AbilityID.CloudNine || ourAlly != null && ourAlly.Ability == AbilityID.CloudNine )
                 weCanInvalidateWeather = true;
 
-            if( ourSP.TerrainSetter || ourAlly != null && ourAllySP.TerrainSetter )
-                weCanSetTerrain = true;
+            // if( ourSP.TerrainSetter || ourAlly != null && ourAllySP.TerrainSetter )
+                // weCanSetTerrain = true;
 
             // terrain removal check here. i don't believe i have things like ice spinner accounted for yet. will have to look into it in the future. --07/19/26
 
@@ -3265,9 +3557,9 @@ public class BattleAI_PairIntent
                 float weSwitchProbability = _ai.UnitSim.PredictSwitchProbability( pinSpreadAttack.Them.Pokemon, pinSpreadAttack.Top.AttackerPTKO, pinSpreadAttack.Top.OpponentPTKO, pinSpreadAttack.Top.AttackerMovedFirst, pinSpreadAttack.Top.Attacker.BeginningHPR, pinSpreadAttack.Top.Opponent.BeginningHPR, pinSpreadAttack.Top.Opponent.Expendability );
                 bool weSwitch = weSwitchProbability > 0.85f;
 
-                if( weSwitch )
+                var ourCandidate = _ai.GetSwitch_CurrentPressure( _ai.Blackboard.TheirActiveBattleAIUnits );
+                if( weSwitch && ourCandidate != null )
                 {
-                    var ourCandidate = _ai.GetSwitch_CurrentPressure( _ai.Blackboard.TheirActiveBattleAIUnits );
                     var themComp_OurCand = _ai.Projection.MakeUnitComparison( pinSpreadAttack.Them, ourCandidate );
                     UnitComparison theirAllyComp_OurCand = default;
 
@@ -3765,27 +4057,6 @@ public class BattleAI_PairIntent
             PairStrategy.EstablishDefensivePosition     => ScoreEstablishDefensivePositionCommitment( poe ),
             _ => 0,
         };
-    }
-
-    private int ScoreLineLock( PairStrategy strategy, List<PairObservationEvidence> poe )
-    {
-        int score = 0;
-
-        return score;
-    }
-
-    private int ScoreIrreversibility( PairStrategy strategy, List<PairObservationEvidence> poe )
-    {
-        int score = 0;
-
-        return score;
-    }
-
-    private int ScoreOpportunityCost( PairStrategy strategy, List<PairObservationEvidence> poe )
-    {
-        int score = 0;
-
-        return score;
     }
 
     private int ScoreEstablishTrickRoomCommitment( List<PairObservationEvidence> poe )
@@ -5200,7 +5471,7 @@ public class BattleAI_PairIntent
         if( theyBenefitWeather && returnUnitSP.WeatherSetter && currentField.Weather != WeatherConditionID.None && ( _ai.UnitSim.GetWeatherFrom_Ability( returnUnit.Pokemon ) == currentField.Weather || _ai.UnitSim.GetWeatherFrom_Moveset( returnUnit.Pokemon ) == currentField.Weather ) )
             returnUnitSetExistingFieldEffect = true;
 
-        if( theyBenefitTerrain && returnUnitSP.TerrainSetter && currentField.Terrain != TerrainID.None && _ai.UnitSim.GetTerrainFromAbility( returnUnit.Pokemon ) == currentField.Terrain )
+        if( theyBenefitTerrain && returnUnitSP.TerrainSetter && currentField.Terrain != TerrainID.None && _ai.UnitSim.GetTerrainFrom_Ability( returnUnit.Pokemon ) == currentField.Terrain )
             returnUnitSetExistingFieldEffect = true;
 
         if( theyBenefitTrickRoom && returnUnit.RoleProfile.Traits.Contains( RoleTrait.TrickRoomSetter ) )
@@ -5433,7 +5704,7 @@ public class BattleAI_PairIntent
             if( currentField.Weather != WeatherConditionID.None && _ai.UnitSim.GetWeatherFrom_Ability( unit.Pokemon ) == currentField.Weather )
                 weSetWeatherWithAbility = true;
 
-            if( currentField.Terrain != TerrainID.None && _ai.UnitSim.GetTerrainFromAbility( unit.Pokemon ) == currentField.Terrain )
+            if( currentField.Terrain != TerrainID.None && _ai.UnitSim.GetTerrainFrom_Ability( unit.Pokemon ) == currentField.Terrain )
                 weSetTerrainWithAbility = true;
 
             if( unit.Ability == AbilityID.Prankster )
@@ -6092,6 +6363,489 @@ public class BattleAI_PairIntent
 
         return score;
     }
+
+    private int ScoreAfterYouAttackCommitment( List<PairObservationEvidence> poe )
+    {
+        int score = 0;
+
+        //--Blackboard Information
+        var ourActiveUnits = _ai.Blackboard.OurActiveBattleAIUnits;
+        var theirActiveUnits = _ai.Blackboard.TheirActiveBattleAIUnits;
+
+        var ourRemainingUnits = _ai.GetRemainingPartyAs_IBattleAIUnits( ourActiveUnits[0].Pokemon ).Where( u => !ourActiveUnits.Any( active => active.Pokemon == u.Pokemon ) ).ToList();
+        var theirRemainingUnits = _ai.GetRemainingPartyAs_IBattleAIUnits( theirActiveUnits[0].Pokemon ).Where( u => !theirActiveUnits.Any( active => active.Pokemon == u.Pokemon ) ).ToList();
+
+        var currentField = _ai.Blackboard.CurrentFieldSnapshot;
+        var gp = _ai.Blackboard.GamePlan;
+
+        var ourLeft = ourActiveUnits[0];
+        var ourRight = ourActiveUnits.Count > 1 ? ourActiveUnits[1] : null;
+
+        var theirLeft = theirActiveUnits[0];
+        var theirRight = theirActiveUnits.Count > 1 ? theirActiveUnits[1] : null;
+
+        bool weHaveRight = ourRight != null;
+        bool theyHaveRight = theirRight != null;
+
+        var ourLeftRP = ourLeft.RoleProfile;
+        var ourLeftPR = ourLeftRP.PrimaryRole;
+        bool ourLeftIsOffensive = ourLeftPR == RoleClass.BulkyAttacker || ourLeftPR == RoleClass.RevengeKiller || ourLeftPR == RoleClass.WallBreaker || ourLeftPR == RoleClass.SetupSweeper || ourLeftPR == RoleClass.Sweeper || ourLeftPR == RoleClass.TrickRoomAbuser;
+
+        var ourRightRP = weHaveRight ? ourRight.RoleProfile : default;
+        var ourRightPR = weHaveRight ? ourRightRP.PrimaryRole : default;
+        bool ourRightIsOffensive = weHaveRight && ( ourRightPR == RoleClass.BulkyAttacker || ourRightPR == RoleClass.RevengeKiller || ourRightPR == RoleClass.WallBreaker || ourRightPR == RoleClass.SetupSweeper || ourRightPR == RoleClass.Sweeper || ourRightPR == RoleClass.TrickRoomAbuser );
+
+        var theirLeftRP = theirLeft.RoleProfile;
+        var theirLeftPR = theirLeftRP.PrimaryRole;
+
+        var theirRightRP = theyHaveRight ? theirRight.RoleProfile : default;
+        var theirRightPR = theyHaveRight ? theirRightRP.PrimaryRole : default;
+
+        var ourCourt = ourLeft.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+        var theirCourt = theirLeft.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+
+        bool theirLeftAfterYou = false;
+        bool theirRightAfterYou = false;
+        PairObservationProfile afterYou = default;
+        StatusThreatResult afterYouResult = default;
+        MoveThreatResult attackResult = null;
+
+        foreach( var e in poe )
+        {
+            if( TryGetObservationProfile( e, PairObservation.AfterYou, out afterYou ) )
+            {
+                if( afterYou.Top.Attacker.Pokemon == theirLeft.Pokemon )
+                    theirLeftAfterYou = true;
+                else if( afterYou.Top.Attacker.Pokemon == theirRight?.Pokemon )
+                    theirRightAfterYou = true;
+
+                
+                afterYouResult = (StatusThreatResult)afterYou.IntentResult;
+                break;
+            }
+        }
+
+        foreach( var e in poe )
+        {
+            if( TryGetObservationProfile( e, PairObservation.Attack, out var attackObservation ) )
+            {
+                attackResult = (MoveThreatResult)attackObservation.IntentResult;
+                break;
+            }
+        }
+
+        //--Gather Scenario Information
+        bool theyHaveAferYouUser = theirLeftAfterYou || theirRightAfterYou;
+
+        if( !theyHaveAferYouUser )
+            return -99;
+
+        IBattleAIUnit afterYouUser = theirLeftAfterYou ? theirLeft : theirRight;
+        IBattleAIUnit attacker = theirLeftAfterYou ? theirRight : theirLeft;
+
+        var afterYouUserSP = _ai.Projection.GetStrategicProfile( afterYouUser );
+        var attackerSP = _ai.Projection.GetStrategicProfile( attacker );
+
+        bool attackerTOPTarget_Left = attackResult.Top.Opponent.Pokemon == ourLeft.Pokemon;
+        bool attackerTOPTarget_Right = attackResult.Top.Opponent.Pokemon == ourRight.Pokemon;
+        var attackerVs_OurLeft = _ai.Projection.MakeUnitComparison( attacker, ourLeft );
+        var attackerVs_OurRight = theyHaveRight ? _ai.Projection.MakeUnitComparison( attacker, ourRight ) : default;
+        var ourLeftVs_AfterYouUser = _ai.Projection.MakeUnitComparison( ourLeft, afterYouUser );
+        var ourRightVs_AfterYouUser = weHaveRight ? _ai.Projection.MakeUnitComparison( ourRight, afterYouUser ) : default;
+
+        var attackerPTKO_Left = attackerVs_OurLeft.Attacker.BestCurrentPTKO;
+        var attackerPTKO_Right = theyHaveRight ? attackerVs_OurRight.Attacker.BestCurrentPTKO : PotentialToKO.Untouchable;
+        var ourLeftPTKO_Attacker = attackerVs_OurLeft.Target.BestCurrentPTKO;
+        var ourRightPTKO_Attacker = weHaveRight ? attackerVs_OurRight.Target.BestCurrentPTKO : PotentialToKO.Untouchable;
+
+        //--Initialize Checks
+        bool attackerHasStrongSpread = false;
+        bool attackerBestBothIsSpread = false;
+        bool attackerIsSlowest = false;
+        bool attackerBenefitsAfterYou = false;
+
+        var moveVs_Left = attackerVs_OurLeft.Attacker.CurrentPTKOs.Keys.First();
+        var moveVs_Right = attackerVs_OurRight.Attacker.CurrentPTKOs.Keys.First();
+
+        var leftMoveTarget = moveVs_Left.MoveSO.MoveTarget;
+        var rightMoveTarget = theyHaveRight ? moveVs_Right.MoveSO.MoveTarget : MoveTarget.Self;
+
+        if( ( leftMoveTarget == MoveTarget.OpposingSide || leftMoveTarget == MoveTarget.AllAdjacent ) && ( rightMoveTarget == MoveTarget.OpposingSide || rightMoveTarget == MoveTarget.AllAdjacent ) )
+        {
+            attackerHasStrongSpread = true;
+
+            if( moveVs_Left.MoveSO.Name == moveVs_Right.MoveSO.Name )
+                attackerBestBothIsSpread = true;
+        }
+
+        List<IBattleAIUnit> speedOrder = new()
+        {
+            ourLeft,
+            theirLeft,
+        };
+
+        if( theyHaveRight )
+            speedOrder.Add( theirRight );
+
+        if( weHaveRight )
+            speedOrder.Add( ourRight );
+
+        speedOrder = speedOrder.OrderByDescending( u => u.Speed ).ThenByDescending( u => u.Pokemon.PokeSO.Speed ).ThenByDescending( u => ( u.Pokemon == theirLeft.Pokemon || u.Pokemon == theirRight?.Pokemon ) ).ToList();
+
+        int order = 0;
+        foreach( var unit in speedOrder )
+        {
+            order++;
+
+            if( unit.Pokemon == attacker.Pokemon )
+                break;
+        }
+
+        if( order == speedOrder.Count )
+            attackerIsSlowest = true;
+        else if( order == speedOrder.Count - 1 )
+            attackerBenefitsAfterYou = true;
+
+        bool afterYouUserGoesFirst = speedOrder[0].Pokemon == afterYouUser.Pokemon;
+        bool afterYouUserGoesSecond = speedOrder[1].Pokemon == afterYouUser.Pokemon;
+
+        bool attackerUsesSpreadMove = attackResult?.Move.MoveSO.MoveTarget == MoveTarget.OpposingSide || attackResult?.Move.MoveSO.MoveTarget == MoveTarget.AllAdjacent;
+        bool attackerDoesGoodDamage = attackerPTKO_Left >= PotentialToKO.Dangerous || attackerPTKO_Right >= PotentialToKO.Dangerous;
+        bool attackerSpreadHitsHard = attackerHasStrongSpread && ( ( attackerPTKO_Left >= PotentialToKO.Dangerous && attackerPTKO_Right >= PotentialToKO.TwoHKO ) || ( attackerPTKO_Left >= PotentialToKO.TwoHKO && attackerPTKO_Right >= PotentialToKO.Dangerous ) || ( attackerPTKO_Left >= PotentialToKO.Risky && attackerPTKO_Right >= PotentialToKO.Risky ) );
+        bool attackerSpreadThreatensSevereDamage = attackerHasStrongSpread && attackerPTKO_Left >= PotentialToKO.Dangerous && attackerPTKO_Right >= PotentialToKO.Dangerous;
+        bool attackerIsNaturallySlow = attacker.RoleProfile.Biases.Contains( RoleBias.SlowSpeed ) || attacker.RoleProfile.Biases.Contains( RoleBias.TrickRoomSpeed );
+        bool attackerDependsOnAlly = attackerSP.DependsOnFastAlly;
+
+        bool afterYouUserIsFast = afterYouUser.RoleProfile.Biases.Contains( RoleBias.MiddlingSpeed ) || afterYouUser.RoleProfile.Biases.Contains( RoleBias.FastSpeed );
+        bool afterYouUsersSpeedIsCurrentlyBoosted = _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( afterYouUser.Pokemon, currentField.Weather ) || theirCourt.ContainsKey( CourtConditionID.Tailwind ) || afterYouUser.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.Unburden ) || afterYouUser.StatStages[Stat.Speed] > 0;
+
+        //--Investment
+        if( afterYouUserGoesFirst )
+            score += 2;
+        else if( afterYouUserGoesSecond )
+            score += 1;
+
+        if( attackerBenefitsAfterYou )
+            score += 1;
+
+        if( attackerDoesGoodDamage && speedOrder.Count - order <= 1 )
+            score += 1;
+
+        if( attackerIsNaturallySlow )
+            score += 1;
+
+        if( attackerBestBothIsSpread )
+            score += 2;
+        else if( attackerHasStrongSpread )
+            score += 1;
+        
+        if( attackerDependsOnAlly )
+            score += 1;
+
+        if( attackerUsesSpreadMove && afterYouUserGoesFirst )
+        {
+            //--Spread move reward
+            score += 1;
+
+            if( attackerPTKO_Left >= PotentialToKO.Dangerous )
+                score += 1;
+
+            if( attackerPTKO_Right >= PotentialToKO.Dangerous )
+                score += 1;
+        }
+        else if( afterYouUserGoesFirst )
+        {
+            if( attackerPTKO_Left >= PotentialToKO.Dangerous )
+                score += 1;
+
+            if( attackerPTKO_Right >= PotentialToKO.Dangerous )
+                score += 1;
+        }
+
+        if( afterYouUserIsFast )
+            score += 1;
+
+        if( afterYouUsersSpeedIsCurrentlyBoosted )
+            score += 2;
+
+        //--Line Lock
+        // both members are strongly dependent on each other
+        if( attackerDependsOnAlly && ( afterYouUser.RoleProfile.PrimaryArchetype != RoleClassArchetype.Offensive || afterYouUserSP.EnablesAlly ) )
+            score += 1;
+
+        // the attacker loses a huge amount of effectiveness without the After You user
+        if( attackerIsNaturallySlow )
+        {
+            if( ourLeftPTKO_Attacker >= PotentialToKO.Risky )
+                score += 1;
+
+            if( ourRightPTKO_Attacker >= PotentialToKO.Risky )
+                score += 1;
+
+            if( attackerIsSlowest )
+                score += 1;
+        }
+
+        // the After You user has little independent value
+        if( afterYouUser.RoleProfile.Signals.StatusMoveCount >= 2 )
+            score += 1;
+
+        // the partner is exceptionally dependent on being moved first
+        if( attackerIsSlowest && attackerDependsOnAlly && attacker.RoleProfile.PrimaryArchetype == RoleClassArchetype.Offensive )
+            score += 1;
+
+        // their remaining Pokemon don't reproduce the same offensive structure
+        int remainingAfterYouAbusers = 0;
+        int remainingAbusersWithBigSpread = 0;
+        foreach( var mon in theirRemainingUnits )
+        {
+            var primaryArch = mon.RoleProfile.PrimaryArchetype;
+            var biases = mon.RoleProfile.Biases;
+            if( ( biases.Contains( RoleBias.SlowSpeed ) || biases.Contains( RoleBias.TrickRoomSpeed ) ) && primaryArch == RoleClassArchetype.Offensive )
+            {
+                remainingAfterYouAbusers++;
+
+                foreach( var m in mon.ActiveMoves )
+                {
+                    if( m.MovePower >= 90 && ( m.MoveSO.MoveTarget == MoveTarget.AllAdjacent || m.MoveSO.MoveTarget == MoveTarget.OpposingSide ) )
+                        remainingAbusersWithBigSpread++;
+                }
+            }
+        }
+
+        if( remainingAfterYouAbusers <= 0 )
+            score += 2;
+        else if( remainingAfterYouAbusers == 1 && remainingAbusersWithBigSpread <= 0 )
+            score += 1;
+
+        // switching either member substantially reduces their immediate pressure
+        if( attackerDoesGoodDamage && attackerIsNaturallySlow && afterYouUserGoesFirst && attacker.RoleProfile.PrimaryArchetype == RoleClassArchetype.Offensive && afterYouUser.RoleProfile.Signals.StatusMoveCount >= 2 )
+            score += 1;
+
+        // the opponent has already positioned the pair in a way that makes the line difficult to replace
+        if( attackerIsSlowest && afterYouUserGoesFirst && afterYouUsersSpeedIsCurrentlyBoosted )
+            score += 1;
+
+        //--Irreversibility
+        // After You produces an immediate KO.
+        // After You produces a large amount of irreversible damage.
+        if( afterYouUserGoesFirst )
+        {
+            if( attackerPTKO_Left == PotentialToKO.OHKO || attackerPTKO_Right == PotentialToKO.OHKO )
+                score += 2;
+            else if( attackerPTKO_Left >= PotentialToKO.Risky && attackerPTKO_Right >= PotentialToKO.Risky )
+                score += 1;
+        }
+
+        // The attacker becomes difficult to stop once it gets the first action.
+        if( afterYouUserGoesFirst && attackerHasStrongSpread && attackerBestBothIsSpread )
+            score += 1;
+
+        // The After You user becomes vulnerable after spending its turn enabling the attack.
+        // The opposing Pokemon that could have disrupted the attacker is removed before it gets to act.
+        if( attackerUsesSpreadMove )
+        {
+            if( attackerPTKO_Left <= PotentialToKO.Dangerous )
+            {
+                if( ourLeftVs_AfterYouUser.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous )
+                {
+                    if( afterYouUser.BeginningHPR == 1f && afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                    else if( afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                }
+            }
+
+            if( attackerPTKO_Right <= PotentialToKO.Dangerous )
+            {
+                if( ourRightVs_AfterYouUser.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous )
+                {
+                    if( afterYouUser.BeginningHPR == 1f && afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                    else if( afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                }
+            }
+        }
+        else
+        {
+            if( attackerTOPTarget_Left && attackerPTKO_Left <= PotentialToKO.Dangerous )
+            {
+                if( ourLeftVs_AfterYouUser.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous )
+                {
+                    if( afterYouUser.BeginningHPR == 1f && afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                    else if( afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                }
+            }
+
+            if( attackerTOPTarget_Right && attackerPTKO_Right <= PotentialToKO.Dangerous )
+            {
+                if( ourRightVs_AfterYouUser.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous )
+                {
+                    if( afterYouUser.BeginningHPR == 1f && afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                    else if( afterYouUser.Item != ItemBattleEffectID.FocusSash )
+                        score += 1;
+                }
+            }
+        }
+
+        //--Opportunity Cost
+        // They lose the speed window
+
+        // If Torkoal is currently slower than both opposing Pokemon, but After You lets it move first, then waiting may mean:
+
+        // opponent attacks Torkoal
+        // opponent sets something up
+        // opponent removes Lilligant
+        // opponent changes the board
+        // opponent switches into something that handles Torkoal
+        // opponent establishes Trick Room/Tailwind
+        // opponent otherwise destroys the condition that made the After You line powerful
+        bool theyCanLoseSpeedWindow = false;
+        bool attackerTakesBigDamage = false;
+        bool attackerIsKOThreatened = false;
+
+        // The target can escape
+        bool oneOfOursIsImportant = false;
+        bool oneOfOursIsDangerous = false;
+        bool weHaveABench = ourRemainingUnits.Count > 0;
+
+        // If the intended target can switch safely now, then waiting may lose the opportunity to exploit After You against it.
+
+        // The attacker can be disabled
+        bool weHaveActiveDisable = false;
+        bool weHaveBenchedDisable = false;
+
+        // If the opponent has a faster Taunt, Encore, Fake Out, priority, etc., then the window may disappear.
+        bool ourLeftPranksterDisruption = ourLeft.Ability == AbilityID.Prankster && ourLeft.RoleProfile.Biases.Contains( RoleBias.Disruptive );
+        bool ourRightPranksterDisruption = weHaveRight && ourRight.Ability == AbilityID.Prankster && ourRight.RoleProfile.Biases.Contains( RoleBias.Disruptive );
+        bool weHavePriorityDisruption = ourLeftPranksterDisruption || ourRightPranksterDisruption;
+
+        bool ourLeftCanFakeoutAfterYou = _ai.CanUseFakeOut( ourLeft, afterYouUser );
+        bool ourLeftCanFakeoutAttacker = _ai.CanUseFakeOut( ourLeft, attacker );
+
+        bool ourRightCanFakeoutAfterYou = weHaveRight && _ai.CanUseFakeOut( ourRight, afterYouUser );
+        bool ourRightCanFakeoutAttacker = weHaveRight && _ai.CanUseFakeOut( ourRight, attacker );
+
+        if( afterYouUsersSpeedIsCurrentlyBoosted )
+        {
+            if( _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( afterYouUser.Pokemon, currentField.Weather ) )
+            {
+                if( ourLeft.Ability == AbilityID.Prankster || ourLeft.Speed > afterYouUser.Speed )
+                {
+                    if( _ai.UnitSim.PokemonHasWeatherSetter_Move( ourLeft.Pokemon ) )
+                        theyCanLoseSpeedWindow = true;
+
+                    if( weHaveRight && _ai.UnitSim.PokemonHasWeatherSetter_Move( ourRight.Pokemon ) )
+                        theyCanLoseSpeedWindow = true;
+                }
+            }
+
+            if( afterYouUser.StatStages[Stat.Speed] > 0 )
+            {
+                if( ourLeft.RoleProfile.Traits.Contains( RoleTrait.SpeedDebuffer ) )
+                    theyCanLoseSpeedWindow = true;
+
+                if( weHaveRight && ourRight.RoleProfile.Traits.Contains( RoleTrait.SpeedDebuffer ) )
+                    theyCanLoseSpeedWindow = true;
+            }
+        }
+
+        if( theirCourt.TryGetValue( CourtConditionID.Tailwind, out var theirTailwind ) )
+        {
+            if( theirTailwind <= 2 )
+                theyCanLoseSpeedWindow = true;
+
+            if( ourCourt.TryGetValue( CourtConditionID.Tailwind, out var ourTailwind ) )
+            {
+                if( ourTailwind > theirTailwind )
+                    theyCanLoseSpeedWindow = true;
+            }
+            else
+            {
+                if( ourLeft.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) )
+                    theyCanLoseSpeedWindow = true;
+
+                if( weHaveRight && ourRight.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) )
+                    theyCanLoseSpeedWindow =  true;
+            }
+        }
+
+        if( ourLeft.Speed > attacker.Speed && ourLeftPTKO_Attacker >= PotentialToKO.Risky )
+            attackerTakesBigDamage = true;
+
+        if( ourLeft.Speed > attacker.Speed && ourLeftPTKO_Attacker >= PotentialToKO.Dangerous )
+        {
+            attackerIsKOThreatened = true;
+            oneOfOursIsDangerous = true;
+        }
+
+        if( weHaveRight )
+        {
+            if( ourRight.Speed > attacker.Speed && ourRightPTKO_Attacker >= PotentialToKO.Risky )
+                attackerTakesBigDamage = true;
+
+            if( ourRight.Speed > attacker.Speed && ourRightPTKO_Attacker >= PotentialToKO.Dangerous )
+            {
+                attackerIsKOThreatened = true;
+                oneOfOursIsDangerous = true;
+            }
+        }
+
+        bool weHaveWinconOnField = gp.OurPrimaryWinCon == ourLeft.Pokemon || ourRight?.Pokemon == gp.OurPrimaryWinCon;
+        bool weHaveBlockerOnField = gp.OurBlockers.Contains( ourLeft.Pokemon ) || weHaveRight && gp.OurBlockers.Contains( ourRight.Pokemon );
+        bool weHaveEnablerOnField = gp.OurEnablers.Contains( ourLeft.Pokemon ) || weHaveRight && gp.OurEnablers.Contains( ourRight.Pokemon );
+        oneOfOursIsImportant = weHaveWinconOnField || weHaveBlockerOnField || weHaveEnablerOnField;
+
+        weHaveActiveDisable = ourLeft.Pokemon.CheckHasActiveMove( "Disable" ) || weHaveRight && ourRight.Pokemon.CheckHasActiveMove( "Disable" );
+        foreach( var mon in ourRemainingUnits )
+        {
+            if( mon.Pokemon.CheckHasActiveMove( "Disable" ) )
+                weHaveBenchedDisable = true;
+        }
+
+        if( theyCanLoseSpeedWindow )
+            score += 1;
+
+        if( attackerTakesBigDamage )
+        {
+            score += 1;
+
+            if( attackerIsKOThreatened )
+                score += 1;
+        }
+
+        if( oneOfOursIsImportant )
+            score += 1;
+
+        if( oneOfOursIsDangerous )
+            score += 1;
+
+        if( weHaveABench )
+        {
+            score += 1;
+        }
+
+        if( weHaveActiveDisable || weHaveBenchedDisable )
+            score += 1;
+
+        if( weHavePriorityDisruption )
+            score += 1;
+
+        if( ourLeftCanFakeoutAfterYou || ourRightCanFakeoutAfterYou )
+            score += 1;
+
+        if( ourLeftCanFakeoutAttacker || ourRightCanFakeoutAttacker )
+            score += 1;
+
+        if( oneOfOursIsImportant )
+            score += 1;
+
+        return score;
+    }
 }
 
 public struct ThreatInteractionMatrix
@@ -6124,12 +6878,12 @@ public struct PairIntentResult
     public PairStrategyIntent PrimaryStrategy;
     public PairStrategyIntent SecondaryStrategy;
 
-    public float CompetitionConfidence;
-    public float PrimaryConfidence;
-    public float SecondaryConfidence;
+    // public float CompetitionConfidence;
+    // public float PrimaryConfidence;
+    // public float SecondaryConfidence;
 
     public Dictionary<PairStrategy, PairStrategyIntent> Strategies;
-    public List<PairObservationEvidence> POE;
+    public List<PairObservationEvidence> Poe;
 }
 
 public class PairStrategyIntent
@@ -6150,8 +6904,10 @@ public class PairStrategyIntent
 
 public enum PairPattern
 {
+    CoveredAttack,
     CoveredSetup,
     AttackAndSetup,
+    AfterYouAndAttack, // <-- do this next before getting started on GetSupportiveStatusResponses()!
     SpeedControl,
     FocusFire,
     SpreadPressure,
@@ -6206,7 +6962,7 @@ public enum PairStrategy
 
     ApplyBoardPressure,
     //--Requires: Double Attack Pattern OR Focus Fire Pattern OR Attack Observation
-    //--Patterns: DoubleAttack, FocusFire
+    //--Patterns: DoubleAttack, FocusFire, CoveredAttack,
     //--Observations: Attack
     //--Opportunity: Pressure, Momentum, Board Control, Punish
     //--Commitment Signals: Investment
@@ -6231,6 +6987,14 @@ public enum PairStrategy
     //--Observations: Protect, Cover, ScreensSupport, GuardSupport
     //--Opportunity: Resource, Momentum, Guaranteed Value
     //--Commitment Signals: Investment, Line Lock (small), Opportunity Cost
+
+
+    AfterYouAttack,
+    //--Requires: AfterYouAndAttack pattern
+    //--Patterns: AfterYouAndAttack
+    //--Observations: AfterYou, StatusMove, SpeedControl, Attack, SpreadAttack
+    //--Opportunity: Initiative, Pressure, Momentum, BoardControl, GuaranteedValue, ImmediateRemoval
+    //--Commitment Signals: Investment, Line Lock, Irreversibility, Opportunity Cost
 }
 
 public enum PairObservation
@@ -6262,6 +7026,9 @@ public enum PairObservation
     ScreensSupport,
     Interruption,
     StatusDisruption,
+    AfterYou,
+    Quash,
+    SpreadAttack,
 
     //--Coordinated Observations. Some observations can only exist with the existence of two PIMs, such as Double Attack and Focus Fire.
     DoubleAttack,

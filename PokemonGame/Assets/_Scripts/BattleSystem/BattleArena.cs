@@ -291,17 +291,24 @@ public class BattleArena : MonoBehaviour
         //--Setup relevant Battle Units
         var playerUnit = _singlesUnit1.GetComponent<BattleUnit>();
         var enemyUnit = _battleSystem.EncounteredPokemon.gameObject.GetComponent<BattleUnit>();
-
+        List<BattleUnit> enemyUnitList = new(){ enemyUnit };
+        
         //--Assign relevant Battle Units
         _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
 
         playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
 
+        _1v1_AITrainerTop.gameObject.SetActive( true );
         _battleSystem.AddAITrainer( _1v1_AITrainerTop );
+        
+        var playerTrainer = _battleSystem.BottomTrainer1;
+        var aiTrainer = _battleSystem.TopTrainer1;
+
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        enemyUnit.Setup( _battleSystem.WildPokemon, null, _battleSystem.WildPokemonHUD, _battleSystem ); //--REMEMBER!!!!! _singlesUnit2 is not actually being assigned to, it's only here for its position!!
-        yield return null;
+        enemyUnit.Setup( _battleSystem.WildPokemon, aiTrainer, _battleSystem.WildPokemonHUD, _battleSystem ); //--REMEMBER!!!!! _singlesUnit2 is not actually being assigned to, it's only here for its position!!
+        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnitList, aiTrainer, playerTrainer );
         enemyUnit.SetAITrainer( _1v1_AITrainerTop );
+        yield return null;
 
         //--Make everyone face the arena center
         yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _singlesUnit2 ); //--Player Trainer
@@ -375,13 +382,19 @@ public class BattleArena : MonoBehaviour
         _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         
         playerUnit.Setup( _battleSystem.BottomTrainer1.GetHealthyPokemon(), _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
+
+        var playerTrainer = _battleSystem.BottomTrainer1;
+        var aiTrainer = _battleSystem.TopTrainer1;
         
+        _1v1_AITrainerTop.gameObject.SetActive( true );
         _battleSystem.AddAITrainer( _1v1_AITrainerTop );
+
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
-        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnitList, _battleSystem.TopTrainer1 );
+        enemyUnit.Setup( _battleSystem.TopTrainer1.GetHealthyPokemon(), aiTrainer, _battleSystem.EnemyHUDs[0], _battleSystem );
+        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnitList, aiTrainer, playerTrainer );
         enemyUnit.SetAITrainer( _1v1_AITrainerTop );
         // enemyUnit.UpdateUnit( enemyUnit.BattleAI.RequestLead() );
+        yield return null;
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit
@@ -406,7 +419,6 @@ public class BattleArena : MonoBehaviour
         StartCoroutine( AnimateCircle_In( _singlesCircle1, 0.75f ) );
 
         yield return null;
-
     }
 
     private IEnumerator TrainerDoubles_1v1(){
@@ -486,19 +498,24 @@ public class BattleArena : MonoBehaviour
         var playerMons = _battleSystem.BottomTrainer1.GetHealthyPokemon( DOUBLES_COUNT );
         var enemyMons = _battleSystem.TopTrainer1.GetHealthyPokemon( DOUBLES_COUNT );
 
+        var playerTrainer = _battleSystem.BottomTrainer1;
+        var aiTrainer = _battleSystem.TopTrainer1;
+
         //--Setup each unit, all indicies should be the same! unit 0 should have hud 0!
         for( int i = 0; i < playerMons.Count; i++ )
-            playerUnits[i].Setup( playerMons[i], _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[i], _battleSystem );
+            playerUnits[i].Setup( playerMons[i], playerTrainer, _battleSystem.PlayerHUDs[i], _battleSystem );
 
+        _1v1_AITrainerTop.gameObject.SetActive( true );
         _battleSystem.AddAITrainer( _1v1_AITrainerTop );
+
         for( int i = 0; i < enemyMons.Count; i++ )
         {
             enemyUnits[i].SetAI( true );
-            enemyUnits[i].Setup( enemyMons[i], _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[i], _battleSystem );
+            enemyUnits[i].Setup( enemyMons[i], aiTrainer, _battleSystem.EnemyHUDs[i], _battleSystem );
             enemyUnits[i].SetAITrainer( _1v1_AITrainerTop );
         }
 
-        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnits, _battleSystem.TopTrainer1 );
+        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnits, aiTrainer, playerTrainer );
 
         //--Make everyone face the arena center
         yield return LookAtArenaCenter( PlayerReferences.Instance.gameObject, _singlesTrainer2 );
@@ -591,23 +608,25 @@ public class BattleArena : MonoBehaviour
         //--Assign relevant Battle Units
         _battleSystem.AssignUnits_1v1( playerUnit, enemyUnit );
         
+        //--Set up Bottom Trainer
+        _1v1_AITrainerBottom.gameObject.SetActive( true );
+        _battleSystem.AddAITrainer( _1v1_AITrainerBottom );
         playerUnit.SetAI( true ); //--enable AI for this unit
-        // Debug.LogError( $"Player Unit (Bottom Trainer) Party Count: {_battleSystem.BottomTrainer1.Party.Count}" );
         var bottomLeadMon = _battleSystem.BottomTrainer1.GetHealthyPokemon();
-        // Debug.LogError( $"Player Unit (Bottom Trainer) Lead Pokemon: {bottomLeadMon.NickName}" );
         playerUnit.Setup( bottomLeadMon, _battleSystem.BottomTrainer1, _battleSystem.PlayerHUDs[0], _battleSystem );
         
+        //--Set up Top Trainer
+        _1v1_AITrainerTop.gameObject.SetActive( true );
+        _battleSystem.AddAITrainer( _1v1_AITrainerTop );
         enemyUnit.SetAI( true ); //--enable AI for this unit
-        // Debug.LogError( $"Enemy Unit (Top Trainer Trainer) Party Count: {_battleSystem.TopTrainer1.Party.Count}" );
         var topLeadMon = _battleSystem.TopTrainer1.GetHealthyPokemon();
-        // Debug.LogError( $"Enemy Unit (Top Trainer Trainer) Lead Pokemon: {topLeadMon.NickName}" );
         enemyUnit.Setup( topLeadMon, _battleSystem.TopTrainer1, _battleSystem.EnemyHUDs[0], _battleSystem );
+
+        _1v1_AITrainerBottom.InitializeAI( _battleSystem, playerUnitList, _battleSystem.BottomTrainer1, _battleSystem.TopTrainer1 );
+        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnitList, _battleSystem.TopTrainer1, _battleSystem.BottomTrainer1 );
 
         playerUnit.SetAITrainer( _1v1_AITrainerBottom );
         enemyUnit.SetAITrainer( _1v1_AITrainerTop );
-
-        _1v1_AITrainerBottom.InitializeAI( _battleSystem, playerUnitList, _battleSystem.BottomTrainer1 );
-        _1v1_AITrainerTop.InitializeAI( _battleSystem, enemyUnitList, _battleSystem.TopTrainer1 );
 
         _animatingEnemyPositionsIn = true;
         //--Handle Cameras by passing the initial single target camera's target unit

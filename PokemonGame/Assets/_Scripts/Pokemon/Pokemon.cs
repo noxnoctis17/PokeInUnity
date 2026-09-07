@@ -1458,12 +1458,12 @@ public enum DirectModifierCause
 {
     Unmodified,
     BRN, FBT, PAR,
-    WeatherDEF, WeatherSpDEF, WeatherSPD,
+    WeatherDEF, WeatherSpDEF, WeatherSPE,
     Tailwind, Reflect, LightScreen, AuroraVeil,
     ChoiceBand, ChoiceSpecs, ChoiceScarf,
-    LightBall, Guts, MarvelScale,
+    LightBall, Guts, MarvelScale, QuickFeet,
     SolarPower, SandVeil, Hustle, SnowCloak,
-    Eviolite, AssaultVest,
+    Eviolite, AssaultVest, Unburden,
 
 }
 

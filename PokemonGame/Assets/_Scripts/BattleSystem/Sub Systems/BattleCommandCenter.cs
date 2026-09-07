@@ -664,7 +664,7 @@ public class BattleCommandCenter : MonoBehaviour
         //--Start Weather Effects
         if( effects.Weather != WeatherConditionID.None )
         {
-            var activePokemon = BattleSystem.GetActivePokemon();
+            var activePokemon = BattleSystem.GetActiveUnits();
 
             //--First we call OnExitWeather while the previous weather was active, if there was one, so they can exit that weather (and lose their speed boosts, fuckers!)
             for( int i = 0; i < activePokemon.Count; i++ )
@@ -686,7 +686,7 @@ public class BattleCommandCenter : MonoBehaviour
         //--Start Terrain Effects
         if( effects.Terrain != TerrainID.None )
         {
-            var activePokemon = BattleSystem.GetActivePokemon();
+            var activePokemon = BattleSystem.GetActiveUnits();
 
             //--First we call OnExitWeather while the previous weather was active, if there was one, so they can exit that weather (and lose their speed boosts, fuckers!)
             foreach( var unit in activePokemon )
@@ -1130,7 +1130,7 @@ public class BattleCommandCenter : MonoBehaviour
         //--Check if the Pokemon has an entrace ability, then we need to show status changes for all pokemon on the field in case they are effected.
         pokemon.Ability?.OnAbilityEnter?.Invoke( pokemon, opposingUnits, BattleSystem.Field );
         
-        var activeUnits = BattleSystem.GetActivePokemon();
+        var activeUnits = BattleSystem.GetActiveUnits();
         foreach( var activeUnit in activeUnits )
         {
             BattleSystem.AddToEventQueue( () => BattleSystem.ShowStatusChanges( activeUnit ) );

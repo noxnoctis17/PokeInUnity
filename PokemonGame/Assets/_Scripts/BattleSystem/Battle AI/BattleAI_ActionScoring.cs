@@ -91,7 +91,7 @@ public class BattleAI_ActionScoring
         }
 
         _ai.CurrentLog.Add( $"===[Beginning Attack Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {ourPTKO.PTKO}, their PTKO on me: {theirPTKO.PTKO} ({usVS_Threat.OpponentMoveName})]===" );
-        _ai.CurrentLog.Add( $"IntentTOP Information. Opponent mismatch occurs if we read a switch from the opponent. Attacker: {intentTOP.Attacker.Name}, Opponent: {intentTOP.Opponent.Name}, Threat: {tir.Threat.Name}" );
+        _ai.CurrentLog.Add( $"IntentTOP Information. Opponent mismatch occurs if we read a switch from the opponent. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, Threat: {tir.Threat?.Name}" );
 
         //--KO Class Advantage
         score += _proj.Get_OffensivePTKOScore( ourPTKO.Score );
@@ -224,11 +224,11 @@ public class BattleAI_ActionScoring
             switchName = switchCandidate.Pokemon.NickName;
 
         _ai.CurrentLog.Add( $"===[Beginning Defensive Switch Scoring for {attackerName} vs {targetName}. Switch Candidate: {switchName}. Tempo: {tempo.TempoState}]===" );
-        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker.Name}, Opponent: {intentTOP.Opponent.Name}, Threat: {tir.Threat.Name}" );
+        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, Threat: {tir.Threat?.Name}" );
 
         if( intentTOP.OpponentPTKO == PotentialToKO.OHKO )
         {
-            _ai.CurrentLog.Add( $"Switch candidate {intentTOP.Opponent.Name}'s potential to be KO'd on switch in is OHKO! Tanking Score!" );
+            _ai.CurrentLog.Add( $"Switch candidate {intentTOP.Attacker.Name}'s potential to be KO'd on switch in is OHKO! Tanking Score!" );
             return -999;
         }
         else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
@@ -261,7 +261,7 @@ public class BattleAI_ActionScoring
         if( iDieBeforeActing )
             score += 40;
 
-        _ai.CurrentLog.Add( $"Die before Act: {iDieBeforeActing}, Score: {score}" );
+        _ai.CurrentLog.Add( $"Current unit dies before acting: {iDieBeforeActing}, Score: {score}" );
 
         bool losingExchange = usVS_Threat.OpponentThreatensKO && !usVS_Threat.AttackerThreatensKO;
 
@@ -400,7 +400,7 @@ public class BattleAI_ActionScoring
         switchName = switchCandidate.Pokemon.NickName;
 
         _ai.CurrentLog.Add( $"===[Beginning Offensive Switch Scoring for Candidate {switchName}]===" );
-        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker.Name}, Opponent: {intentTOP.Opponent.Name}, Threat: {tir.Threat.Name}" );
+        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, Threat: {tir.Threat?.Name}" );
 
         if( intentTOP.OpponentPTKO == PotentialToKO.OHKO )
         {
@@ -413,9 +413,9 @@ public class BattleAI_ActionScoring
         }
         else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
         {
-            if( tir.Confidence < 0.75f )
-                score -= 150;
-            else
+            // if( tir.Confidence < 0.75f )
+                // score -= 150;
+            // else
                 score -= 75;
         }
 
@@ -526,7 +526,7 @@ public class BattleAI_ActionScoring
         }
 
         _ai.CurrentLog.Add( $"===[Beginning Setup Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them after setup: {myPTKO_AfterSetup.PTKO}, their PTKO on me now: (eval){theirPTKO} (intent){theirIntentPTKO}]===" );
-        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker.Name}, Opponent: {intentTOP.Opponent.Name}, Threat: tir.Threat.Name //not implemented yet" );
+        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, Threat: tir.Threat.Name //not implemented yet" );
 
         //--These are much tighter/more risky because setting up can drastically change an outcome. defensive setup can swing ptko chances, while offensive setup can threaten KOs across entire teams, making your current hp potentially irrelevant
         if( theirIntentPTKO >= PotentialToKO.Dangerous && !usVS_Threat.AttackerMovesFirst )
@@ -890,14 +890,15 @@ public class BattleAI_ActionScoring
         }
 
         BattleAI_PokemonAdapter ally = _ai.GetActiveAllyAs_Adapter( _ai.CurrentUnitAdapter.Pokemon );
-        BattleAI_PokemonAdapter threatAlly = _ai.GetActiveAllyAs_Adapter( tir.Threat.Pokemon );
+        BattleAI_PokemonAdapter threatAlly = tir.Threat == null ? _ai.GetActiveAllyAs_Adapter( intentTOP.Opponent.Pokemon ) : _ai.GetActiveAllyAs_Adapter( tir.Threat.Pokemon );
         if( pack.IsDoubles )
         {
-            if( status.Targets[0].Pokemon == _ai.CurrentUnitAdapter.Pokemon )
+            if( status.Targets?.Count > 0 && status.Targets[0].Pokemon == _ai.CurrentUnitAdapter.Pokemon )
             {
                 if( ally != null )
                 {
-                    allyVS_Threat = _ai.Projection.EvaluateExchange( ally, tir.Threat );
+                    var threat = tir.Threat ?? intentTOP.Opponent;
+                    allyVS_Threat = _ai.Projection.EvaluateExchange( ally, threat );
 
                     if( threatAlly != null )
                     {
@@ -918,7 +919,7 @@ public class BattleAI_ActionScoring
                 baseScore += status.Reliability;
                 baseScore += status.Impact;
 
-                baseScore += status.Unique / 2;
+                baseScore += status.Unique / 4;
                 baseScore += status.StrategicReach / 4;
 
                 break;
@@ -928,7 +929,7 @@ public class BattleAI_ActionScoring
 
                 baseScore += status.StrategicReach;
                 baseScore += status.Impact;
-                baseScore += status.Reliability;
+                baseScore += status.Reliability / 2;
 
                 baseScore += status.Stability / 2;
 
@@ -936,9 +937,9 @@ public class BattleAI_ActionScoring
 
             case SupportiveStatusType.AllyProtection:
 
-                baseScore += status.Stability;
+                baseScore += status.Stability / 2;
                 baseScore += status.Impact;
-                baseScore += status.Unique;
+                baseScore += status.Unique / 2;
                 baseScore += status.Reliability;
 
                 break;
@@ -1004,17 +1005,17 @@ public class BattleAI_ActionScoring
                 }
             }
 
-            score += Mathf.RoundToInt( 10f * usVS_Threat.OpponentSwitchProbability );
-            _ai.CurrentLog.Add( $"Opponent switches because of us check. Score: {score}" );
+            // score += Mathf.RoundToInt( 10f * usVS_Threat.OpponentSwitchProbability );
+            // _ai.CurrentLog.Add( $"Opponent switches because of us check. Score: {score}" );
 
-            score += ally != null ? Mathf.RoundToInt( 10f * allyVS_Threat.OpponentSwitchProbability ) : 0;
-            _ai.CurrentLog.Add( $"Opponent switches because of our ally check. Score: {score}" );
+            // score += ally != null ? Mathf.RoundToInt( 10f * allyVS_Threat.OpponentSwitchProbability ) : 0;
+            // _ai.CurrentLog.Add( $"Opponent switches because of our ally check. Score: {score}" );
 
-            score += threatAlly != null ? Mathf.RoundToInt( 10f * usVS_ThreatAlly.OpponentSwitchProbability ) : 0;
-            _ai.CurrentLog.Add( $"Opponent's ally switches because of us check. Score: {score}" );
+            // score += threatAlly != null ? Mathf.RoundToInt( 10f * usVS_ThreatAlly.OpponentSwitchProbability ) : 0;
+            // _ai.CurrentLog.Add( $"Opponent's ally switches because of us check. Score: {score}" );
 
-            score += threatAlly != null && ally != null ? Mathf.RoundToInt( 10f * allyVS_ThreatAlly.OpponentSwitchProbability ) : 0;
-            _ai.CurrentLog.Add( $"Opponent's ally switches because of our ally check. Score: {score}" );
+            // score += threatAlly != null && ally != null ? Mathf.RoundToInt( 10f * allyVS_ThreatAlly.OpponentSwitchProbability ) : 0;
+            // _ai.CurrentLog.Add( $"Opponent's ally switches because of our ally check. Score: {score}" );
 
         }
 
@@ -1033,17 +1034,17 @@ public class BattleAI_ActionScoring
                 _ai.CurrentLog.Add( $"Threat's Ally exists and we're trying to improve the overall field for us and reduce it for them. Score: {score}" );
             }
 
-            score += Mathf.RoundToInt( 20f * usVS_Threat.OpponentSwitchProbability );
-            _ai.CurrentLog.Add( $"Opponent switches because of us check. Score: {score}" );
+            // score += Mathf.RoundToInt( 20f * usVS_Threat.OpponentSwitchProbability );
+            // _ai.CurrentLog.Add( $"Opponent switches because of us check. Score: {score}" );
 
-            score += ally != null ? Mathf.RoundToInt( 20f * allyVS_Threat.OpponentSwitchProbability ) : 0;
-            _ai.CurrentLog.Add( $"Opponent switches because of our ally check. Score: {score}" );
+            // score += ally != null ? Mathf.RoundToInt( 20f * allyVS_Threat.OpponentSwitchProbability ) : 0;
+            // _ai.CurrentLog.Add( $"Opponent switches because of our ally check. Score: {score}" );
 
-            score += threatAlly != null ? Mathf.RoundToInt( 20f * usVS_ThreatAlly.OpponentSwitchProbability ) : 0;
-            _ai.CurrentLog.Add( $"Opponent's ally switches because of us check. Score: {score}" );
+            // score += threatAlly != null ? Mathf.RoundToInt( 20f * usVS_ThreatAlly.OpponentSwitchProbability ) : 0;
+            // _ai.CurrentLog.Add( $"Opponent's ally switches because of us check. Score: {score}" );
 
-            score += threatAlly != null && ally != null ? Mathf.RoundToInt( 20f * allyVS_ThreatAlly.OpponentSwitchProbability ) : 0;
-            _ai.CurrentLog.Add( $"Opponent's ally switches because of our ally check. Score: {score}" );
+            // score += threatAlly != null && ally != null ? Mathf.RoundToInt( 20f * allyVS_ThreatAlly.OpponentSwitchProbability ) : 0;
+            // _ai.CurrentLog.Add( $"Opponent's ally switches because of our ally check. Score: {score}" );
         }
 
         if( status.SupportiveStatusType == SupportiveStatusType.AllyProtection )
@@ -1110,17 +1111,17 @@ public class BattleAI_ActionScoring
                     }
                 }
 
-                score -= Mathf.RoundToInt( 10f * usVS_Threat.OpponentSwitchProbability );
-                _ai.CurrentLog.Add( $"Opponent switches because of us check. Score: {score}" );
+                // score -= Mathf.RoundToInt( 10f * usVS_Threat.OpponentSwitchProbability );
+                // _ai.CurrentLog.Add( $"Opponent switches because of us check. Score: {score}" );
 
-                score -= ally != null ? Mathf.RoundToInt( 10f * allyVS_Threat.OpponentSwitchProbability ) : 0;
-                _ai.CurrentLog.Add( $"Opponent switches because of our ally check. Score: {score}" );
+                // score -= ally != null ? Mathf.RoundToInt( 10f * allyVS_Threat.OpponentSwitchProbability ) : 0;
+                // _ai.CurrentLog.Add( $"Opponent switches because of our ally check. Score: {score}" );
 
-                score -= threatAlly != null ? Mathf.RoundToInt( 10f * usVS_ThreatAlly.OpponentSwitchProbability ) : 0;
-                _ai.CurrentLog.Add( $"Opponent's ally switches because of us check. Score: {score}" );
+                // score -= threatAlly != null ? Mathf.RoundToInt( 10f * usVS_ThreatAlly.OpponentSwitchProbability ) : 0;
+                // _ai.CurrentLog.Add( $"Opponent's ally switches because of us check. Score: {score}" );
 
-                score -= threatAlly != null && ally != null ? Mathf.RoundToInt( 10f * allyVS_ThreatAlly.OpponentSwitchProbability ) : 0;
-                _ai.CurrentLog.Add( $"Opponent's ally switches because of our ally check. Score: {score}" );
+                // score -= threatAlly != null && ally != null ? Mathf.RoundToInt( 10f * allyVS_ThreatAlly.OpponentSwitchProbability ) : 0;
+                // _ai.CurrentLog.Add( $"Opponent's ally switches because of our ally check. Score: {score}" );
             }
         }
 
@@ -1130,8 +1131,8 @@ public class BattleAI_ActionScoring
             _ai.CurrentLog.Add( $"We're currently behind, a support move may give us the edge we need. Score: {score}" );
         }
 
-        score += _ai.Setup_TempoModifier( tempo );
-        _ai.CurrentLog.Add( $"Applied Tempo Modifier. Score: {score}" );
+        // score += _ai.Setup_TempoModifier( tempo );
+        // _ai.CurrentLog.Add( $"Applied Tempo Modifier. Score: {score}" );
 
         return score;
     }

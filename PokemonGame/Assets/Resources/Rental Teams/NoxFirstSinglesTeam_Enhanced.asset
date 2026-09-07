@@ -109,10 +109,10 @@ MonoBehaviour:
     _nature: 10
     _ability: 1
     _heldItem: {fileID: 11400000, guid: f7cdb5117198a254689e63af5f47d4b6, type: 2}
-    _hpEVs: 0
-    _attackEVs: 252
-    _defenseEVs: 4
-    _spattackEVs: 0
+    _hpEVs: 4
+    _attackEVs: 0
+    _defenseEVs: 0
+    _spattackEVs: 252
     _spdefenseEVs: 0
     _speedEVs: 252
     _ball: 1

@@ -60,22 +60,22 @@ public class WeatherListener : MonoBehaviour
                     _currentWeatherVFX = null;
             break;
 
-            case WeatherConditionID.SUNNY:
+            case WeatherConditionID.Sun:
                 if( _harshSunlight_VFX != null )
                     _currentWeatherVFX = _harshSunlight_VFX;
             break;
 
-            case WeatherConditionID.RAIN:
+            case WeatherConditionID.Rain:
                 if( _rainfall_VFX != null )
                     _currentWeatherVFX = _rainfall_VFX;
             break;
 
-            case WeatherConditionID.SANDSTORM:
+            case WeatherConditionID.Sand:
                 if( _sandstorm_VFX != null )
                     _currentWeatherVFX = _sandstorm_VFX;
             break;
 
-            case WeatherConditionID.SNOW:
+            case WeatherConditionID.Snow:
                 if( _snowfall_VFX != null )
                     _currentWeatherVFX = _snowfall_VFX;
             break;

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Pokemon/New Move")]
@@ -279,7 +278,6 @@ public class SecondaryMoveEffects : MoveEffects
 {
     [SerializeField] private int _chance;
     public int Chance => _chance;
-
 }
 
 [Serializable]

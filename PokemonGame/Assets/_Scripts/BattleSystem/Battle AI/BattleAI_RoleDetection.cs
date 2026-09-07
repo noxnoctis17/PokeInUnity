@@ -134,6 +134,20 @@ public class BattleAI_RoleDetection
             bool moveIsBattlefieldControl = _us.MoveIsBattlefieldControl( move );
             if( moveIsBattlefieldControl )
                 flags.Add( MoveRoleFlag.BattlefieldControl );
+
+            //--------------------------------------------------------------
+            //-------------------------Protection---------------------------
+            //--------------------------------------------------------------
+            // bool moveIsProtection = _us.MoveIsProtection( move );
+            // if( moveIsProtection )
+                // flags.Add( MoveRoleFlag.Protection );
+
+            //--------------------------------------------------------------
+            //---------------------Supportive Protection--------------------
+            //--------------------------------------------------------------
+            // bool moveIsSupportiveProtection = _us.MoveIsSupportiveProtection( move );
+            // if( moveIsSupportiveProtection )
+                // flags.Add( MoveRoleFlag.SupportiveProtection );
         }
 
         //--------------------------------------------------------------
@@ -927,6 +941,27 @@ public class BattleAI_RoleDetection
                 rp.SecondaryRoles.Add( role.Key );
             }
         }
+        
+        switch( rp.PrimaryRole )
+        {
+            case RoleClass.Sweeper:
+            case RoleClass.BulkyAttacker:
+            case RoleClass.RevengeKiller:
+            case RoleClass.WallBreaker:
+            case RoleClass.SetupSweeper:
+            case RoleClass.TrickRoomAbuser:
+                rp.PrimaryArchetype = RoleClassArchetype.Offensive;
+            break;
+
+            case RoleClass.Wall:
+            case RoleClass.DefensiveSetup:
+                rp.PrimaryArchetype = RoleClassArchetype.Defensive;
+            break;
+
+            default:
+                rp.PrimaryArchetype = RoleClassArchetype.Utility;
+            break;
+        }
 
         //------Role Biases------
         AssignRoleBiases( adapter, ref rs, ref rp );
@@ -1414,6 +1449,8 @@ public class BattleAI_RoleDetection
 
                     if( sc.Change < 0 && moveIsDebuff )
                     {
+                        rp.Traits.Add( RoleTrait.StatDebuffer );
+                        
                         if( sc.Stat == Stat.Attack )
                             rp.Traits.Add( RoleTrait.AttackDebuffer );
 
@@ -1489,8 +1526,20 @@ public class BattleAI_RoleDetection
         if( adapter.Pokemon.CheckHasActiveMove( "Wide Guard" ) || adapter.Pokemon.CheckHasActiveMove( "Quick Guard" ) )
             rp.Traits.Add( RoleTrait.DamageMitigation );
 
-        if( adapter.Ability == AbilityID.ArmorTail || adapter.Ability == AbilityID.Dazzling || adapter.Ability == AbilityID.QueenlyMajesty || adapter.Ability == AbilityID.PsychicSurge || adapter.Pokemon.CheckHasActiveMove( "Quick Guard" ) )
+        if( adapter.Ability == AbilityID.ArmorTail || adapter.Ability == AbilityID.Dazzling || adapter.Ability == AbilityID.QueenlyMajesty || adapter.Ability == AbilityID.PsychicSurge )
+            rp.Traits.Add( RoleTrait.PriorityBlockAbility );
+
+        if( rp.Traits.Contains( RoleTrait.PriorityBlockAbility ) || adapter.Pokemon.CheckHasActiveMove( "Quick Guard" ) )
             rp.Traits.Add( RoleTrait.PriorityBlocker );
+
+        bool weHaveSash = adapter.Item == ItemBattleEffectID.FocusSash && adapter.BeginningHPR == 1f;
+        bool weHaveSturdy = adapter.Ability == AbilityID.Sturdy && adapter.BeginningHPR == 1f;
+        bool weHaveMultiscale = adapter.Ability == AbilityID.Multiscale && adapter.BeginningHPR == 1f;
+        bool weHaveDisguise = adapter.Ability == AbilityID.Disguise && adapter.BeginningHPR == 1f;
+        bool weHaveFullHPSave = weHaveSash || weHaveSturdy || weHaveMultiscale || weHaveDisguise;
+
+        if( weHaveFullHPSave )
+            rp.Traits.Add( RoleTrait.FullHPSave );
 
         //--Offensive Utility
         if( _us.PokemonHasMove_Priority( adapter.Pokemon ) )
@@ -1500,7 +1549,7 @@ public class BattleAI_RoleDetection
             rp.Traits.Add( RoleTrait.SpeedControl );
 
         if( adapter.Ability == AbilityID.ShadowTag )
-            rp.Traits.Add( RoleTrait.ShadowTag );
+            rp.Traits.Add( RoleTrait.TrappingAbility );
 
         if( _us.PokemonHasMove_Trapping( adapter.Pokemon ) )
             rp.Traits.Add( RoleTrait.TrappingMove );
@@ -1513,6 +1562,9 @@ public class BattleAI_RoleDetection
 
         if( _us.PokemonHasMove_Spread( adapter.Pokemon ) )
             rp.Traits.Add( RoleTrait.SpreadAttack );
+
+        if( adapter.Pokemon.CheckHasActiveMove( "After You" ) )
+            rp.Traits.Add( RoleTrait.AfterYou );
 
         //--Misc
         //--Suicide Lead
@@ -1667,6 +1719,70 @@ public class BattleAI_RoleDetection
             rp.Traits.Add( RoleTrait.EncoreWeak );
             rp.Traits.Add( RoleTrait.FakeOutWeak );
         }
+
+        //--Board Effect Abuse
+        //--Sun
+        if( adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Fire ) )
+            rp.Traits.Add( RoleTrait.SunHelps );
+
+        if( _ai.UnitSim.PokemonAbilityMatchesWeather( adapter.Pokemon, WeatherConditionID.Sun ) || _ai.UnitSim.PokemonHasMove_AbusesWeather( adapter.Pokemon, WeatherConditionID.Sun ) )
+            rp.Traits.Add( RoleTrait.SunAbuser );
+
+        //--Rain
+        if( adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Water ) )
+            rp.Traits.Add( RoleTrait.RainHelps );
+
+        if( _ai.UnitSim.PokemonAbilityMatchesWeather( adapter.Pokemon, WeatherConditionID.Rain ) || _ai.UnitSim.PokemonHasMove_AbusesWeather( adapter.Pokemon, WeatherConditionID.Rain ) )
+            rp.Traits.Add( RoleTrait.RainAbuser );
+
+        //--Sand
+        if( adapter.Ability == AbilityID.SandForce && ( adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Rock ) || adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Ground ) || adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Steel ) ) )
+            rp.Traits.Add( RoleTrait.SandHelps );
+
+        if( _ai.UnitSim.PokemonAbilityMatchesWeather( adapter.Pokemon, WeatherConditionID.Sand ) || _ai.UnitSim.PokemonHasMove_AbusesWeather( adapter.Pokemon, WeatherConditionID.Sand ) )
+            rp.Traits.Add( RoleTrait.SandAbuser );
+
+        if( adapter.Pokemon.CheckTypes( PokemonType.Rock ) || adapter.Pokemon.CheckTypes( PokemonType.Ground ) || adapter.Pokemon.CheckTypes( PokemonType.Steel ) )
+            rp.Traits.Add( RoleTrait.SandAbuser );
+
+        //--Snow
+        if( adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Ice ) )
+            rp.Traits.Add( RoleTrait.SnowHelps );
+
+        if( _ai.UnitSim.PokemonAbilityMatchesWeather( adapter.Pokemon, WeatherConditionID.Snow ) || _ai.UnitSim.PokemonHasMove_AbusesWeather( adapter.Pokemon, WeatherConditionID.Snow ) )
+            rp.Traits.Add( RoleTrait.SnowAbuser );
+
+        if( adapter.Pokemon.CheckTypes( PokemonType.Ice ) )
+            rp.Traits.Add( RoleTrait.SnowAbuser );
+
+        // PsychicTerrainAbuser
+        if( adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Psychic ) )
+            rp.Traits.Add( RoleTrait.PsychicTerrainHelps );
+
+        if( adapter.Pokemon.CheckHasActiveMove( "Expanding Force" ) )
+            rp.Traits.Add( RoleTrait.PsychicTerrainAbuser );
+
+        // GrassyTerrainAbuser
+        if( adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Grass ) )
+            rp.Traits.Add( RoleTrait.GrassyTerrainHelps );
+
+        if( adapter.Pokemon.CheckHasActiveMove( "Grassy Glide" ) )
+            rp.Traits.Add( RoleTrait.GrassyTerrainAbuser );
+
+        // ElectricTerrainAbuser
+        // if( adapter.Pokemon.CheckHasAttackingMoveOfType( PokemonType.Psychic ) )
+        //     rp.Traits.Add( RoleTrait.PsychicTerrainHelps );
+
+        // if( adapter.Pokemon.CheckHasActiveMove( "Expanding Force" ) )
+        //     rp.Traits.Add( RoleTrait.PsychicTerrainAbuser );
+
+        // TailwindAbuser
+        if( ( rp.Biases.Contains( RoleBias.FastSpeed ) || rp.Biases.Contains( RoleBias.MiddlingSpeed ) ) && rp.PrimaryArchetype == RoleClassArchetype.Offensive )
+            rp.Traits.Add( RoleTrait.TailwindAbuser );
+
+        // ScreensAbuser
+        if( rp.PrimaryArchetype == RoleClassArchetype.Offensive || ( rp.PrimaryArchetype == RoleClassArchetype.Defensive && rp.Biases.Contains( RoleBias.AttritionFocused ) ) )
+            rp.Traits.Add( RoleTrait.ScreensAbuser );
     }
 
 }
@@ -1683,6 +1799,15 @@ public enum MoveRoleFlag
     Disruption,
     Recovery,
     BattlefieldControl,
+    Protection,
+    SupportiveProtection,
+}
+
+public enum RoleClassArchetype
+{
+    Offensive,
+    Defensive,
+    Utility,
 }
 
 public enum RoleClass
@@ -1804,15 +1929,18 @@ public enum RoleTrait
     RedirectionAbility,
     DamageMitigation,
     PriorityBlocker,
+    PriorityBlockAbility,
+    FullHPSave,
 
     //--Offensive Utility
     Priority,
     SpeedControl,
-    ShadowTag,
+    TrappingAbility,
     TrappingMove,
     PerishSong,
     FakeOut,
     SpreadAttack,
+    AfterYou,
 
     //--Misc
     SuicideLead,
@@ -1853,12 +1981,49 @@ public enum RoleTrait
     SpAttackDebuffer,
     SpDefenseDebuffer,
     SpeedDebuffer,
+
+    //--Stat Buffs
+    StatBooster,
+    AttackBooster,
+    DefenseBooster,
+    SpAttackBooster,
+    SpDefenseBooster,
+    SpeedBooster,
+
+    //--Board Effect Abuse
+    SunHelps,
+    SunAbuser,
+    RainHelps,
+    RainAbuser,
+    SandHelps,
+    SandAbuser,
+    SnowHelps,
+    SnowAbuser,
+
+    BlightedTerrainHelps,
+    BlightedTerrainAbuser,
+
+    ElectricTerrainHelps,
+    ElectricTerrainAbuser,
+
+    GrassyTerrainHelps,
+    GrassyTerrainAbuser,
+
+    MistyTerrainHelps,
+    MistyTerrainAbuser,
+
+    PsychicTerrainHelps,
+    PsychicTerrainAbuser,
+
+    TailwindAbuser,
+    ScreensAbuser,
 }
 
 public struct RoleProfile
 {
     //--Primary Role, Secondary Roles, Role Biases, Role Traits, all RoleClass Scores
     public RoleClass PrimaryRole;
+    public RoleClassArchetype PrimaryArchetype;
     public HashSet<RoleClass> SecondaryRoles;
     public HashSet<RoleBias> Biases;
     public HashSet<RoleTrait> Traits;

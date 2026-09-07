@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BattleAI_EvaluateThreatResponse : MonoBehaviour
+public class BattleAI_EvaluateThreatResponse
 {
     private readonly BattleAI _ai;
 
@@ -11,7 +11,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
         _ai = ai;
     }
 
-    public int EvaluateThreatResponse( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc, SurvivalClass sc )
+    public int EvaluateThreatResponse( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
     {
         int score = 0;
         float sackScalar = 0.7f;
@@ -39,11 +39,11 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
 
         score += threat.Type switch
         {
-            ThreatType.Immediate    => EvaluateImmediateThreat( action, threat, doomed, bc, sc ),
-            ThreatType.Escalating   => EvaluateEscalatingThreat( action, threat, doomed, bc, sc ),
-            ThreatType.Persistent   => EvaluatePersistentThreat( action, threat, doomed, bc, sc ),
-            ThreatType.Disruptive   => EvaluateDisruptiveThreat( action, threat, doomed, bc, sc ),
-            ThreatType.Constraining => EvaluateConstrainingThreat( action, threat, doomed, bc, sc ),
+            ThreatType.Immediate    => EvaluateImmediateThreat( action, threat, doomed, bc ),
+            ThreatType.Escalating   => EvaluateEscalatingThreat( action, threat, doomed, bc ),
+            ThreatType.Persistent   => EvaluatePersistentThreat( action, threat, doomed, bc ),
+            ThreatType.Disruptive   => EvaluateDisruptiveThreat( action, threat, doomed, bc ),
+            ThreatType.Constraining => EvaluateConstrainingThreat( action, threat, doomed, bc ),
             _ => 0,
         };
 
@@ -169,7 +169,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
         return score;
     }
 
-    private int EvaluateImmediateThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc, SurvivalClass sc )
+    private int EvaluateImmediateThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
     {
         int score = 0;
 
@@ -321,7 +321,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
                 _ai.CurrentLog.Add( $"Did chip damage to a frail or focus sash mon, rewarding. Score: {score}" );
             }
 
-            if( action.Top2.Attacker.Ability == AbilityID.Sandstream && action.Top1.Field.Weather != WeatherConditionID.SANDSTORM )
+            if( action.Top2.Attacker.Ability == AbilityID.Sandstream && action.Top1.Field.Weather != WeatherConditionID.Sand )
             {
                 score += 10;
                 _ai.CurrentLog.Add( $"This action sets sandstorm next turn, which will chip away at a frail/focus sash mon. Score: {score}" );
@@ -425,7 +425,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
         return score;
     }
 
-    private int EvaluateEscalatingThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc, SurvivalClass sc )
+    private int EvaluateEscalatingThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
     {
         int score = 0;
 
@@ -797,7 +797,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
         return score;
     }
 
-    private int EvaluatePersistentThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc, SurvivalClass sc )
+    private int EvaluatePersistentThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
     {
         int score = 0;
 
@@ -1211,7 +1211,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
         return score;
     }
 
-    private int EvaluateDisruptiveThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc, SurvivalClass sc )
+    private int EvaluateDisruptiveThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
     {
         int score = 0;
 
@@ -1731,7 +1731,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
         return score;
     }
 
-    private int EvaluateConstrainingThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc, SurvivalClass sc )
+    private int EvaluateConstrainingThreat( ActionEvaluation action, ThreatProfile threat, DoomedOutcome doomed, BoardContext bc )
     {
         int score = 0;
 
@@ -1802,7 +1802,7 @@ public class BattleAI_EvaluateThreatResponse : MonoBehaviour
             score += highConstraint ? 20 : 10;
             _ai.CurrentLog.Add( $"Attacker has a pivot move it can use to escape constraining pressure. Score: {score}" );
 
-            if( top1.Opponent.RoleProfile.Traits.Contains( RoleTrait.TrappingMove ) || top1.Opponent.RoleProfile.Traits.Contains( RoleTrait.ShadowTag ) )
+            if( top1.Opponent.RoleProfile.Traits.Contains( RoleTrait.TrappingMove ) || top1.Opponent.RoleProfile.Traits.Contains( RoleTrait.TrappingAbility ) )
             {
                 score += 10;
                 _ai.CurrentLog.Add( $"Threat can trap and we can escape via pivot move. Score: {score}" );

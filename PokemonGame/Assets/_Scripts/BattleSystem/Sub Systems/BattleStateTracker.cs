@@ -53,25 +53,25 @@ public class BattleStateTracker : MonoBehaviour
                 _trackWeather = false;
             break;
 
-            case WeatherConditionID.SUNNY:
+            case WeatherConditionID.Sun:
                 _currentWeatherIcon.sprite = _harshSunIcon;
                 // _weatherDurationText.text = $"{_field.WeatherDuration}/5";
                 _trackWeather = true;
             break;
 
-            case WeatherConditionID.RAIN:
+            case WeatherConditionID.Rain:
                 _currentWeatherIcon.sprite = _rainfallIcon;
                 // _weatherDurationText.text = $"{_field.WeatherDuration}/5";
                 _trackWeather = true;
             break;
 
-            case WeatherConditionID.SANDSTORM:
+            case WeatherConditionID.Sand:
                 _currentWeatherIcon.sprite = _sandstormIcon;
                 // _weatherDurationText.text = $"{_field.WeatherDuration}/5";
                 _trackWeather = true;
             break;
 
-            case WeatherConditionID.SNOW:
+            case WeatherConditionID.Snow:
                 _currentWeatherIcon.sprite = _snowfallIcon;
                 // _weatherDurationText.text = $"{_field.WeatherDuration}/5";
                 _trackWeather = true;

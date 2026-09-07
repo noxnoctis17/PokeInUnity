@@ -59,8 +59,8 @@ public class BattleAI_Blackboard
         OurActiveBattleAIUnits = new();
 
         //--TODO: this needs to be adjusted for wild battles!
-        OurTeamPokemon = new( _ai.Trainer.Party );
-        TheirTeamPokemon = new( _ai.BattleSystem.GetOpposingParty( OurTeamPokemon[0] ) );
+        OurTeamPokemon = new( _ai.OurTrainer.Party );
+        TheirTeamPokemon = new( _ai.TheirTrainer.Party );
 
         MyActiveUnits = new();
         for( int i = 0; i < battleUnits.Count; i++ )
@@ -81,12 +81,15 @@ public class BattleAI_Blackboard
         SetActiveBattleAIUnits();
         SetCurrentFieldSnapshot();
 
-        OurTeamComposition = CreateTeamComposition( OurTeamAdapters.Values.ToList() );
-        TheirTeamComposition = CreateTeamComposition( TheirTeamAdapters.Values.ToList() );
+        if( _ai.BattleSystem.BattleType != BattleType.WildBattle_1v1 )
+        {
+            OurTeamComposition = CreateTeamComposition( OurTeamAdapters.Values.ToList() );
+            TheirTeamComposition = CreateTeamComposition( TheirTeamAdapters.Values.ToList() );
 
-        GamePlan = CreateGamePlan( OurTeamComposition, TheirTeamComposition );
+            GamePlan = CreateGamePlan( OurTeamComposition, TheirTeamComposition );
 
-        UpdateTeamPieceValues();
+            UpdateTeamPieceValues();
+        }
     }
 
     public void SetupTeamAdapters()
@@ -200,19 +203,19 @@ public class BattleAI_Blackboard
 
     private TeamComposition CreateTeamComposition( List<BattleAI_PokemonAdapter> team )
     {
-        CustomLogSession tcLog = new();
+        // CustomLogSession tcLog = new();
 
-        tcLog.Add( $"=====================================" );
-        tcLog.Add( $"=====[Creating Team Composition]=====" );
-        tcLog.Add( $"=====================================" );
-        tcLog.Add( "" );
-        tcLog.Add( $"===[Team]===" );
+        // tcLog.Add( $"=====================================" );
+        // tcLog.Add( $"=====[Creating Team Composition]=====" );
+        // tcLog.Add( $"=====================================" );
+        // tcLog.Add( "" );
+        // tcLog.Add( $"===[Team]===" );
 
         int teamCount = 0;
         foreach( var mon in team )
         {
             teamCount++;
-            tcLog.Add( $"{teamCount}. {mon.Name}" );
+            // tcLog.Add( $"{teamCount}. {mon.Name}" );
         }
 
         TeamComposition tc = new()
@@ -409,10 +412,10 @@ public class BattleAI_Blackboard
                 }
             }
 
-            bool sunBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.SUNNY ) > 0;
-            bool rainBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.RAIN ) > 0;
-            bool sandBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.SANDSTORM ) > 0;
-            bool snowBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.SNOW ) > 0;
+            bool sunBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.Sun ) > 0;
+            bool rainBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.Rain ) > 0;
+            bool sandBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.Sand ) > 0;
+            bool snowBen = _ai.UnitSim.Get_WeatherContextScore( pokemon.Pokemon, WeatherConditionID.Snow ) > 0;
 
             if( sunBen )
             {
@@ -502,30 +505,30 @@ public class BattleAI_Blackboard
             }
         }
 
-        tcLog.Add( "" );
-        tcLog.Add( $"===[Strengths]===" );
-        tcLog.Add( $"Offense: {tc.Strengths.Offense}" );
-        tcLog.Add( $"Bulk: {tc.Strengths.Bulk}" );
-        tcLog.Add( $"Utility: {tc.Strengths.Utility}" );
-        tcLog.Add( $"Speed: {tc.Strengths.Speed}" );
-        tcLog.Add( $"Setup: {tc.Strengths.Setup}" );
-        tcLog.Add( $"Pressure: {tc.Strengths.Pressure}" );
+        // tcLog.Add( "" );
+        // tcLog.Add( $"===[Strengths]===" );
+        // tcLog.Add( $"Offense: {tc.Strengths.Offense}" );
+        // tcLog.Add( $"Bulk: {tc.Strengths.Bulk}" );
+        // tcLog.Add( $"Utility: {tc.Strengths.Utility}" );
+        // tcLog.Add( $"Speed: {tc.Strengths.Speed}" );
+        // tcLog.Add( $"Setup: {tc.Strengths.Setup}" );
+        // tcLog.Add( $"Pressure: {tc.Strengths.Pressure}" );
 
-        tcLog.Add( "" );
-        tcLog.Add( $"===[Strategy Scores]===" );
-        tcLog.Add( $"HazardPressure: {tc.StrategyScores[TeamStrategy.HazardPressure]}" );
-        tcLog.Add( $"PivotCycling: {tc.StrategyScores[TeamStrategy.PivotCycling]}" );
-        tcLog.Add( $"SetupSweeping: {tc.StrategyScores[TeamStrategy.SetupSweeping]}" );
-        tcLog.Add( $"SpeedControl: {tc.StrategyScores[TeamStrategy.SpeedControl]}" );
-        tcLog.Add( $"TrickRoom: {tc.StrategyScores[TeamStrategy.TrickRoom]}, Setters: {trickRoomSetter}, Abusers: {trickRoomAbuser}, Slow Attackers: {slowAttacker}" );
-        tcLog.Add( $"StatusAttrition: {tc.StrategyScores[TeamStrategy.StatusAttrition]}" );
-        tcLog.Add( $"ScreenSupport: {tc.StrategyScores[TeamStrategy.ScreenSupport]}" );
-        tcLog.Add( $"Phazing: {tc.StrategyScores[TeamStrategy.Phazing]}" );
-        tcLog.Add( $"Sun: {tc.StrategyScores[TeamStrategy.Sun]}, Setters: {sunSetter}, Users: {sunUser}" );
-        tcLog.Add( $"Rain: {tc.StrategyScores[TeamStrategy.Rain]}, Setters: {rainSetter}, Users: {rainUser}" );
-        tcLog.Add( $"Sand: {tc.StrategyScores[TeamStrategy.Sand]}, Setters: {sandSetter}, Users: {sandUser}" );
-        tcLog.Add( $"Snow: {tc.StrategyScores[TeamStrategy.Snow]}, Setters: {snowSetter}, Users: {snowUser}" );
-        tcLog.Add( $"WeatherAbuse: {tc.StrategyScores[TeamStrategy.WeatherAbuse]}" );
+        // tcLog.Add( "" );
+        // tcLog.Add( $"===[Strategy Scores]===" );
+        // tcLog.Add( $"HazardPressure: {tc.StrategyScores[TeamStrategy.HazardPressure]}" );
+        // tcLog.Add( $"PivotCycling: {tc.StrategyScores[TeamStrategy.PivotCycling]}" );
+        // tcLog.Add( $"SetupSweeping: {tc.StrategyScores[TeamStrategy.SetupSweeping]}" );
+        // tcLog.Add( $"SpeedControl: {tc.StrategyScores[TeamStrategy.SpeedControl]}" );
+        // tcLog.Add( $"TrickRoom: {tc.StrategyScores[TeamStrategy.TrickRoom]}, Setters: {trickRoomSetter}, Abusers: {trickRoomAbuser}, Slow Attackers: {slowAttacker}" );
+        // tcLog.Add( $"StatusAttrition: {tc.StrategyScores[TeamStrategy.StatusAttrition]}" );
+        // tcLog.Add( $"ScreenSupport: {tc.StrategyScores[TeamStrategy.ScreenSupport]}" );
+        // tcLog.Add( $"Phazing: {tc.StrategyScores[TeamStrategy.Phazing]}" );
+        // tcLog.Add( $"Sun: {tc.StrategyScores[TeamStrategy.Sun]}, Setters: {sunSetter}, Users: {sunUser}" );
+        // tcLog.Add( $"Rain: {tc.StrategyScores[TeamStrategy.Rain]}, Setters: {rainSetter}, Users: {rainUser}" );
+        // tcLog.Add( $"Sand: {tc.StrategyScores[TeamStrategy.Sand]}, Setters: {sandSetter}, Users: {sandUser}" );
+        // tcLog.Add( $"Snow: {tc.StrategyScores[TeamStrategy.Snow]}, Setters: {snowSetter}, Users: {snowUser}" );
+        // tcLog.Add( $"WeatherAbuse: {tc.StrategyScores[TeamStrategy.WeatherAbuse]}" );
 
         //----------------------------------------------------
         //--Assign Best-Scored Primary Units, if any----------
@@ -541,18 +544,18 @@ public class BattleAI_Blackboard
         tc.Primary_WeatherSetter = bestPrimary_WeatherSetter;
         tc.Primary_TrickRoomSetter = bestPrimary_TrickRoomSetter;
 
-        tcLog.Add( "" );
-        tcLog.Add( $"===[Primary Units]===" );
-        tcLog.Add( $"Primary_Sweeper: {tc.Primary_Sweeper?.Name}" );
-        tcLog.Add( $"Primary_SetupSweeper: {tc.Primary_SetupSweeper?.Name}" );
-        tcLog.Add( $"Primary_Pivot: {tc.Primary_Pivot?.Name}" );
-        tcLog.Add( $"Primary_Disruption: {tc.Primary_Disruption?.Name}" );
-        tcLog.Add( $"Primary_PhysicalWall: {tc.Primary_PhysicalWall?.Name}" );
-        tcLog.Add( $"Primary_SpecialWall: {tc.Primary_SpecialWall?.Name}" );
-        tcLog.Add( $"Primary_HazardSetter: {tc.Primary_HazardSetter?.Name}" );
-        tcLog.Add( $"Primary_SpeedControlProvider: {tc.Primary_SpeedControlProvider?.Name}" );
-        tcLog.Add( $"Primary_WeatherSetter: {tc.Primary_WeatherSetter?.Name}" );
-        tcLog.Add( $"Primary_TrickRoomSetter: {tc.Primary_TrickRoomSetter?.Name}" );
+        // tcLog.Add( "" );
+        // tcLog.Add( $"===[Primary Units]===" );
+        // tcLog.Add( $"Primary_Sweeper: {tc.Primary_Sweeper?.Name}" );
+        // tcLog.Add( $"Primary_SetupSweeper: {tc.Primary_SetupSweeper?.Name}" );
+        // tcLog.Add( $"Primary_Pivot: {tc.Primary_Pivot?.Name}" );
+        // tcLog.Add( $"Primary_Disruption: {tc.Primary_Disruption?.Name}" );
+        // tcLog.Add( $"Primary_PhysicalWall: {tc.Primary_PhysicalWall?.Name}" );
+        // tcLog.Add( $"Primary_SpecialWall: {tc.Primary_SpecialWall?.Name}" );
+        // tcLog.Add( $"Primary_HazardSetter: {tc.Primary_HazardSetter?.Name}" );
+        // tcLog.Add( $"Primary_SpeedControlProvider: {tc.Primary_SpeedControlProvider?.Name}" );
+        // tcLog.Add( $"Primary_WeatherSetter: {tc.Primary_WeatherSetter?.Name}" );
+        // tcLog.Add( $"Primary_TrickRoomSetter: {tc.Primary_TrickRoomSetter?.Name}" );
 
         //----------------------------------------------------
         //--Determine Available Team Strategies---------------
@@ -605,10 +608,10 @@ public class BattleAI_Blackboard
             tc.Strategies.Add( TeamStrategy.Snow );
         }
 
-        tcLog.Add( "" );
-        tcLog.Add( $"===[Available Strategies]===" );
+        // tcLog.Add( "" );
+        // tcLog.Add( $"===[Available Strategies]===" );
         foreach( var strat in tc.Strategies )
-            tcLog.Add( $"{strat}" );
+            // tcLog.Add( $"{strat}" );
 
         //----------------------------------------------------
         //--Determine Primary Archetype-----------------------
@@ -682,21 +685,21 @@ public class BattleAI_Blackboard
 
         var sortedArchetypes = tc.ArchetypeScores.OrderByDescending( scores => scores.Value );
 
-        tcLog.Add( "" );
-        tcLog.Add( $"===[Archetype Scores]===" );
+        // tcLog.Add( "" );
+        // tcLog.Add( $"===[Archetype Scores]===" );
         foreach( var kvp in sortedArchetypes )
-            tcLog.Add( $"{kvp.Key}: {kvp.Value}" );
+            // tcLog.Add( $"{kvp.Key}: {kvp.Value}" );
 
         tc.PrimaryArchetype = sortedArchetypes.First().Key;
         tc.SecondaryArchetype = sortedArchetypes.Skip( 1 ).First().Key;
 
-        tcLog.Add( "" );
-        tcLog.Add( $"===========================================" );
-        tcLog.Add( $"===========================================" );
-        tcLog.Add( "" );
+        // tcLog.Add( "" );
+        // tcLog.Add( $"===========================================" );
+        // tcLog.Add( $"===========================================" );
+        // tcLog.Add( "" );
 
-        Debug.Log( tcLog.ToString() );
-        tcLog.Clear();
+        // Debug.Log( tcLog.ToString() );
+        // tcLog.Clear();
 
         return tc;
     }
@@ -798,89 +801,89 @@ public class BattleAI_Blackboard
         gp.TheirEnablers = theirEnablers.Select( kvp => kvp.Key ).ToList();
 
         //--Log Game Plan
-        CustomLogSession gpLog = new();
+        // CustomLogSession gpLog = new();
         var ourWinConAdapter = _ai.GetPokemonAs_Adapter( gp.OurPrimaryWinCon );
         var theirWinConAdapter = _ai.GetPokemonAs_Adapter( gp.TheirPrimaryWinCon );
 
-        gpLog.Add( $"=====================" );
-        gpLog.Add( $"=====[Game Plan]=====" );
-        gpLog.Add( $"=====================" );
-        gpLog.Add( $"" );
+        // gpLog.Add( $"=====================" );
+        // gpLog.Add( $"=====[Game Plan]=====" );
+        // gpLog.Add( $"=====================" );
+        // gpLog.Add( $"" );
 
-        gpLog.Add( $"Our Primary Team Archetype: {ourComp.PrimaryArchetype}" );
-        gpLog.Add( $"Their Primary Team Archetype: {theirComp.PrimaryArchetype}" );
-        gpLog.Add( $"" );
+        // gpLog.Add( $"Our Primary Team Archetype: {ourComp.PrimaryArchetype}" );
+        // gpLog.Add( $"Their Primary Team Archetype: {theirComp.PrimaryArchetype}" );
+        // gpLog.Add( $"" );
 
-        gpLog.Add( $"===[Win Condition]===" );
-        gpLog.Add( $"Our Win Con: {gp.OurPrimaryWinCon.NickName} (Role: {ourWinConAdapter.RoleProfile.PrimaryRole})" );
-        gpLog.Add( $"Advantage: {ourTeamScores[gp.OurPrimaryWinCon].AdvantageScore}" );
-        gpLog.Add( $"Danger: {ourTeamScores[gp.OurPrimaryWinCon].DangerScore}" );
-        gpLog.Add( $"Winning Matchups: {ourTeamScores[gp.OurPrimaryWinCon].WinningMatchups}" );
-        gpLog.Add( $"Losing Matchups: {ourTeamScores[gp.OurPrimaryWinCon].LosingMatchups}" );
-        gpLog.Add( $"Final WinCon Score: {ourTeamScores[gp.OurPrimaryWinCon].WinConScore}" );
+        // gpLog.Add( $"===[Win Condition]===" );
+        // gpLog.Add( $"Our Win Con: {gp.OurPrimaryWinCon.NickName} (Role: {ourWinConAdapter.RoleProfile.PrimaryRole})" );
+        // gpLog.Add( $"Advantage: {ourTeamScores[gp.OurPrimaryWinCon].AdvantageScore}" );
+        // gpLog.Add( $"Danger: {ourTeamScores[gp.OurPrimaryWinCon].DangerScore}" );
+        // gpLog.Add( $"Winning Matchups: {ourTeamScores[gp.OurPrimaryWinCon].WinningMatchups}" );
+        // gpLog.Add( $"Losing Matchups: {ourTeamScores[gp.OurPrimaryWinCon].LosingMatchups}" );
+        // gpLog.Add( $"Final WinCon Score: {ourTeamScores[gp.OurPrimaryWinCon].WinConScore}" );
 
-        gpLog.Add( $"" );
-        gpLog.Add( $"Their Win Con: {gp.TheirPrimaryWinCon.NickName} (Role: {theirWinConAdapter.RoleProfile.PrimaryRole})" );
-        gpLog.Add( $"Advantage: {theirTeamScores[gp.TheirPrimaryWinCon].AdvantageScore}" );
-        gpLog.Add( $"Danger: {theirTeamScores[gp.TheirPrimaryWinCon].DangerScore}" );
-        gpLog.Add( $"Winning Matchups: {theirTeamScores[gp.TheirPrimaryWinCon].WinningMatchups}" );
-        gpLog.Add( $"Losing Matchups: {theirTeamScores[gp.TheirPrimaryWinCon].LosingMatchups}" );
-        gpLog.Add( $"Final WinCon Score: {theirTeamScores[gp.TheirPrimaryWinCon].WinConScore}" );
+        // gpLog.Add( $"" );
+        // gpLog.Add( $"Their Win Con: {gp.TheirPrimaryWinCon.NickName} (Role: {theirWinConAdapter.RoleProfile.PrimaryRole})" );
+        // gpLog.Add( $"Advantage: {theirTeamScores[gp.TheirPrimaryWinCon].AdvantageScore}" );
+        // gpLog.Add( $"Danger: {theirTeamScores[gp.TheirPrimaryWinCon].DangerScore}" );
+        // gpLog.Add( $"Winning Matchups: {theirTeamScores[gp.TheirPrimaryWinCon].WinningMatchups}" );
+        // gpLog.Add( $"Losing Matchups: {theirTeamScores[gp.TheirPrimaryWinCon].LosingMatchups}" );
+        // gpLog.Add( $"Final WinCon Score: {theirTeamScores[gp.TheirPrimaryWinCon].WinConScore}" );
 
-        gpLog.Add( $"" );
-        gpLog.Add( $"===[Units to Eliminate]===" );
-        gpLog.Add( $"=[Their Top Blockers]=" );
-        foreach( var kvp in theirBlockers )
-            gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.BlockScore})" );
+        // gpLog.Add( $"" );
+        // gpLog.Add( $"===[Units to Eliminate]===" );
+        // gpLog.Add( $"=[Their Top Blockers]=" );
+        // foreach( var kvp in theirBlockers )
+            // gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.BlockScore})" );
         
-        gpLog.Add( $"" );
-        gpLog.Add( $"=[Their Top Enablers]=" );
-        foreach( var kvp in theirEnablers )
-            gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.EnableScore})" );
+        // gpLog.Add( $"" );
+        // gpLog.Add( $"=[Their Top Enablers]=" );
+        // foreach( var kvp in theirEnablers )
+            // gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.EnableScore})" );
         
-        gpLog.Add( $"" );
-        gpLog.Add( $"===[Units to Preserve]===" );
-        gpLog.Add( $"=[Our Top Blockers]=" );
-        foreach( var kvp in ourBlockers )
-            gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.BlockScore})" );
+        // gpLog.Add( $"" );
+        // gpLog.Add( $"===[Units to Preserve]===" );
+        // gpLog.Add( $"=[Our Top Blockers]=" );
+        // foreach( var kvp in ourBlockers )
+            // gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.BlockScore})" );
 
-        gpLog.Add( $"" );
-        gpLog.Add( $"=[Our Top Enablers]=" );
-        foreach( var kvp in ourEnablers )
-            gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.EnableScore})" );
+        // gpLog.Add( $"" );
+        // gpLog.Add( $"=[Our Top Enablers]=" );
+        // foreach( var kvp in ourEnablers )
+            // gpLog.Add( $"{kvp.Key.NickName} ({kvp.Value.EnableScore})" );
 
-        gpLog.Add( $"" );
-        gpLog.Add( $"===[Our Team's Scores]===" );
-        foreach( var kvp in ourTeamScores )
-        {
-            gpLog.Add( $"[{kvp.Key.NickName}]" );
-            gpLog.Add( $"Advantage Score: {kvp.Value.AdvantageScore}" );
-            gpLog.Add( $"Danger Score: {kvp.Value.DangerScore}" );
-            gpLog.Add( $"Enable Score: {kvp.Value.EnableScore}" );
-            gpLog.Add( $"Block Score: {kvp.Value.BlockScore}" );
-            gpLog.Add( $"Winning Matchups: {kvp.Value.WinningMatchups}" );
-            gpLog.Add( $"Losing Matchups: {kvp.Value.LosingMatchups}" );
-            gpLog.Add( $"Final WinCon Score: {kvp.Value.WinConScore}" );
-            gpLog.Add( $"" );
-        }
+        // gpLog.Add( $"" );
+        // gpLog.Add( $"===[Our Team's Scores]===" );
+        // foreach( var kvp in ourTeamScores )
+        // {
+            // gpLog.Add( $"[{kvp.Key.NickName}]" );
+            // gpLog.Add( $"Advantage Score: {kvp.Value.AdvantageScore}" );
+            // gpLog.Add( $"Danger Score: {kvp.Value.DangerScore}" );
+            // gpLog.Add( $"Enable Score: {kvp.Value.EnableScore}" );
+            // gpLog.Add( $"Block Score: {kvp.Value.BlockScore}" );
+            // gpLog.Add( $"Winning Matchups: {kvp.Value.WinningMatchups}" );
+            // gpLog.Add( $"Losing Matchups: {kvp.Value.LosingMatchups}" );
+            // gpLog.Add( $"Final WinCon Score: {kvp.Value.WinConScore}" );
+            // gpLog.Add( $"" );
+        // }
 
-        gpLog.Add( $"" );
-        gpLog.Add( $"===[Their Team's Scores]===" );
-        foreach( var kvp in theirTeamScores )
-        {
-            gpLog.Add( $"[{kvp.Key.NickName}]" );
-            gpLog.Add( $"Advantage Score: {kvp.Value.AdvantageScore}" );
-            gpLog.Add( $"Danger Score: {kvp.Value.DangerScore}" );
-            gpLog.Add( $"Enable Score: {kvp.Value.EnableScore}" );
-            gpLog.Add( $"Block Score: {kvp.Value.BlockScore}" );
-            gpLog.Add( $"Winning Matchups: {kvp.Value.WinningMatchups}" );
-            gpLog.Add( $"Losing Matchups: {kvp.Value.LosingMatchups}" );
-            gpLog.Add( $"Final WinCon Score: {kvp.Value.WinConScore}" );
-            gpLog.Add( $"" );
-        }
+        // gpLog.Add( $"" );
+        // gpLog.Add( $"===[Their Team's Scores]===" );
+        // foreach( var kvp in theirTeamScores )
+        // {
+            // gpLog.Add( $"[{kvp.Key.NickName}]" );
+            // gpLog.Add( $"Advantage Score: {kvp.Value.AdvantageScore}" );
+            // gpLog.Add( $"Danger Score: {kvp.Value.DangerScore}" );
+            // gpLog.Add( $"Enable Score: {kvp.Value.EnableScore}" );
+            // gpLog.Add( $"Block Score: {kvp.Value.BlockScore}" );
+            // gpLog.Add( $"Winning Matchups: {kvp.Value.WinningMatchups}" );
+            // gpLog.Add( $"Losing Matchups: {kvp.Value.LosingMatchups}" );
+            // gpLog.Add( $"Final WinCon Score: {kvp.Value.WinConScore}" );
+            // gpLog.Add( $"" );
+        // }
 
-        Debug.Log( gpLog.ToString() );
-        gpLog.Clear();
+        // Debug.Log( gpLog.ToString() );
+        // gpLog.Clear();
 
         return gp;
     }

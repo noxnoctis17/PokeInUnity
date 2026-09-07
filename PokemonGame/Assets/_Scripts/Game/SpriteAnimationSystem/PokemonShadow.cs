@@ -15,7 +15,7 @@ public class PokemonShadow : MonoBehaviour
     private float _moveX;
     private float _moveY;
     private bool _wasWalking;
-    private bool _initialized;
+    // private bool _initialized;
 
     public enum FacingDirection {
         Up, Down,
@@ -44,11 +44,11 @@ public class PokemonShadow : MonoBehaviour
 
         AssignAnimations( _currentAnimSheet );
 
-        _initialized = true;
+        // _initialized = true;
     }
 
     private void ReInitialize(){
-        _initialized = false;
+        // _initialized = false;
         Initialize();
     }
 

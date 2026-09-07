@@ -13,7 +13,8 @@ public class BattleAI : MonoBehaviour
 {
     private int _round;
     public BattleSystem BattleSystem { get; private set; }
-    public BattleTrainer Trainer { get; private set; }
+    public BattleTrainer OurTrainer { get; private set; }
+    public BattleTrainer TheirTrainer { get; private set; }
     public bool IsDoubleBattle { get; private set; }
 
 //-----------------------------------------------------------------------------------------------------
@@ -32,7 +33,7 @@ public class BattleAI : MonoBehaviour
     public BattleAI_RoleDetection RoleDetection { get; private set; }
     public BattleAI_StatSpreads StatSpreads { get; private set; }
     public BattleAI_ThreatIntent ThreatIntent { get; private set; }
-    public BattleAI_ThreatIntentEvaluation ThreatIntentEvaluation { get; private set; }
+    // public BattleAI_ThreatIntentEvaluation ThreatIntentEvaluation { get; private set; }
     public BattleAI_PairIntent PairIntent { get; private set; }
     public BattleAI_CoordinationIntent CoordinationIntent { get; private set; }
     public BattleAI_Blackboard Blackboard { get; private set; }
@@ -63,10 +64,11 @@ public class BattleAI : MonoBehaviour
 //-----------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------
 
-    public void InitializeAI( BattleSystem battleSystem, List<BattleUnit> battleUnits, BattleTrainer trainer )
+    public void InitializeAI( BattleSystem battleSystem, List<BattleUnit> battleUnits, BattleTrainer ourTrainer, BattleTrainer theirTrainer )
     {
         BattleSystem = battleSystem;
-        Trainer = trainer;
+        OurTrainer = ourTrainer;
+        TheirTrainer = theirTrainer;
 
         if( battleSystem.BattleType != BattleType.WildBattle_1v1 )
             TrainerSkillModifier = 100f / 100f; //Mathf.Clamp01( battleSystem.TopTrainer1.TrainerSkillLevel / 100f ); //--Temporarily disabling this for now for testing. --07/02/2026
@@ -88,7 +90,7 @@ public class BattleAI : MonoBehaviour
         StatSpreads             = new( this );
         ThreatIntent            = new( this );
         ActionScoring           = new( this );
-        ThreatIntentEvaluation  = new( this );
+        // ThreatIntentEvaluation  = new( this );
         Blackboard              = new( this );
 
         if( IsDoubleBattle )
@@ -351,7 +353,6 @@ public class BattleAI : MonoBehaviour
             return theirAdapter;
         }
 
-        Debug.LogError( $"Pokemon not found in either team! You're fucked!" );
         return null;
     }
 
@@ -437,6 +438,9 @@ public class BattleAI : MonoBehaviour
         var opposingUnits = BattleSystem.GetOpposingUnits( CurrentUnitDeciding );
         int oppPokemon = 0;
 
+        Blackboard.UpdateTeamAdapters();
+        Blackboard.SetActiveBattleAIUnits();
+
         for( int i = 0; i < opposingUnits.Count; i++ )
         {
             var opp = opposingUnits[i];
@@ -455,7 +459,7 @@ public class BattleAI : MonoBehaviour
         {
             Debug.Log( $"[AI Scoring][Request Forced Switch] Chose to get a Revenge Switch!" );
             var opps = CreateBattleAIUnits_FromBattleUnits( opposingUnits );
-            return CandidateSelect.GetSwitch_Revenge( opps ).Pokemon;
+            return CandidateSelect.GetSwitch_Revenge( opps, true ).Pokemon;
         }
     }
 
@@ -489,15 +493,33 @@ public class BattleAI : MonoBehaviour
         Blackboard.SetCurrentFieldSnapshot();
         Blackboard.SetActiveBattleAIUnits();
 
-        if( IsDoubleBattle && Blackboard.TheirActiveBattleAIUnits.Count >= 2 )
+        CoordinationIntentResult cir = default;
+        if( IsDoubleBattle && Blackboard.TheirActiveBattleAIUnits.Count >= 2 && Blackboard.OurActiveBattleAIUnits.Count >= 2 )
         {
             var tim = PairIntent.BuildThreatInteractionMatrix();
+            yield return null;
+
             var pir = PairIntent.GetPairIntentResult( tim );
+            yield return null;
+            yield return null;
+
+            cir = CoordinationIntent.GetCoordinationIntentResult( pir );
+            yield return null;
+        }
+        else if( IsDoubleBattle && Blackboard.TheirActiveBattleAIUnits.Count == 1 && Blackboard.OurActiveBattleAIUnits.Count >= 2 )
+        {
+            //--We should still create a CIR and jobs even if there's one unit left.
+            //--We'll just skip the PIR analysis part and make sure the ai continues to coordinate
+            //--both of its units to win the game. it shouldn't resort to fully singles style thinking
+            //--just because there's only one opposing unit on the field. in fact, this scenario can even be
+            //--taken advantage of to create unique coordinations/jobs
+            cir = CoordinationIntent.GetCoordinationIntentResult( default, true );
+            yield return null;
         }
 
         foreach( var unit in Blackboard.MyActiveUnits.Keys )
         {
-            yield return ChooseCommand( unit );
+            yield return ChooseCommand( unit, cir );
             incrementCommands?.Invoke();
             yield return null;
         }
@@ -505,7 +527,7 @@ public class BattleAI : MonoBehaviour
         yield return null;
     }
 
-    public IEnumerator ChooseCommand( BattleUnit unit )
+    public IEnumerator ChooseCommand( BattleUnit unit, CoordinationIntentResult cir )
     {
         yield return null;
 
@@ -538,39 +560,12 @@ public class BattleAI : MonoBehaviour
         
         if( IsDoubleBattle && Blackboard.TheirActiveBattleAIUnits.Count >= 2 )
         {
-            var opp1 = Blackboard.TheirActiveBattleAIUnits[0];
-            var opp2 = Blackboard.TheirActiveBattleAIUnits[1];
-
-            var opp1TB = ThreatIntent.ReadThreatBrain( opp1, CurrentUnitAdapter );
-            yield return null;
-
-            var opp1TIC = ThreatIntent.GetThreatCandidates( opp1, CurrentUnitAdapter, opp1TB );
-            yield return null;
-
-            var opp1TIR = ThreatIntent.GetThreatIntentResult( opp1TIC, opp1TB );
-            yield return null;
-
-
-            var opp2TB = ThreatIntent.ReadThreatBrain( opp2, CurrentUnitAdapter );
-            yield return null;
-
-            var opp2TIC = ThreatIntent.GetThreatCandidates( opp2, CurrentUnitAdapter, opp2TB );
-            yield return null;
-
-            var opp2TIR = ThreatIntent.GetThreatIntentResult( opp2TIC, opp2TB );
-            yield return null;
-
-
-            if( opp1TIR.Confidence >= opp2TIR.Confidence )
-            {
-                target = opp1TIR.Threat;
-                tir = opp1TIR;
-            }
-            else
-            {
-                target = opp2TIR.Threat;
-                tir = opp2TIR;
-            }
+            //--Eventually we need to merge tir, cir, and sir into "UnitOrder", which gets passed down in place of any of these and contains all relevant info including the job -- 08/24/26
+            var job = cir.Jobs[unit.Pokemon];
+            tir.Threat = GetPokemonAs_IBattleAIUnit( job.Target );
+            tir.PrimaryIntent = new(){ ActionType = job.TargetsActionResult.ActionType, IntentResult = job.TargetsActionResult, Evidence = 0 };
+            tir.TotalEvidence = 0;
+            tir.Confidence = 1f;
         }
         else
         {
@@ -585,7 +580,7 @@ public class BattleAI : MonoBehaviour
             yield return null;
 
             CurrentLog.Add( $"" );
-            CurrentLog.Add( $"We think {target.Name} is going to: {tir.PrimaryIntent.IntentType}" );
+            CurrentLog.Add( $"We think {target.Name} is going to: {tir.PrimaryIntent.ActionType}" );
             if( tir.PrimaryIntent.IntentResult.Type == ActionResultType.Switch )
             {
                 var ir = (SwitchCandidateResult)tir.PrimaryIntent.IntentResult;
@@ -624,7 +619,9 @@ public class BattleAI : MonoBehaviour
             bestAction = gba;
         }
 
-        yield return GetBestAction( tir, getBestAction );
+        UnitOrder orders = new( this, tir, cir );
+
+        yield return GetBestAction( orders, getBestAction );
 
         if( bestAction == null )
         {
@@ -685,11 +682,12 @@ public class BattleAI : MonoBehaviour
         yield return null;
     }
 
-    private IEnumerator GetBestAction( ThreatIntentResult tir, Action<ActionEvaluation> getBestAction )
+    private IEnumerator GetBestAction( UnitOrder orders, Action<ActionEvaluation> getBestAction )
     {
         yield return null;
 
-        var target = tir.Threat;
+        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        var target = orders.Cir.Active ? GetPokemonAs_IBattleAIUnit( job.Target ) : orders.Tir.Threat;
         var spread = target.StatSpread.Spread;
         var realSpread = target.Pokemon.EffortValues;
 
@@ -709,22 +707,22 @@ public class BattleAI : MonoBehaviour
         yield return null;
 
         //--Action Candidates + TOP
-        var bestAttack              = CandidateSelect.GetMove_BestAttack( CurrentUnitAdapter, target, true, "Get Best Action" );
+        var bestAttack              = CandidateSelect.GetMove_BestAttack( CurrentUnitAdapter, target, job, true, "Get Best Action" );
         yield return null;
 
-        var defensiveSwitch         = CandidateSelect.GetSwitch_Defensive( CurrentUnitAdapter );
+        var defensiveSwitch         = CandidateSelect.GetSwitch_Defensive( CurrentUnitAdapter, job );
         yield return null;
 
-        var offensiveSwitch         = CandidateSelect.GetSwitch_Offensive( CurrentUnitAdapter );
+        var offensiveSwitch         = CandidateSelect.GetSwitch_Offensive( CurrentUnitAdapter, job );
         yield return null;
 
-        var bestSetup               = CandidateSelect.GetMove_Setup( CurrentUnitAdapter, target, true );
+        var bestSetup               = CandidateSelect.GetMove_Setup( CurrentUnitAdapter, target, job, true );
         yield return null;
 
-        var bestOffensiveStatus     = CandidateSelect.GetMove_OffensiveStatus( CurrentUnitAdapter, target, true );
+        var bestOffensiveStatus     = CandidateSelect.GetMove_OffensiveStatus( CurrentUnitAdapter, target, job, true );
         yield return null;
 
-        var bestSupportiveStatus    = CandidateSelect.GetMove_SupportiveStatus( CurrentUnitAdapter, target, true );
+        var bestSupportiveStatus    = CandidateSelect.GetMove_SupportiveStatus( CurrentUnitAdapter, target, job, true );
         yield return null;
 
 
@@ -734,7 +732,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation attackActionEval = default;
         if( bestAttack.Move != null )
         {
-            attackActionEval = Build_AttackAction( exchangePack, bestAttack, tir );
+            attackActionEval = Build_AttackAction( exchangePack, bestAttack, orders );
             actions.Add( attackActionEval );
         }
 
@@ -744,7 +742,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation defSwitchActionEval = default;
         if( defensiveSwitch.Pokemon != null )
         {
-            defSwitchActionEval = Build_DefensiveSwitchAction( exchangePack, defensiveSwitch, tir );
+            defSwitchActionEval = Build_DefensiveSwitchAction( exchangePack, defensiveSwitch, orders );
             actions.Add( defSwitchActionEval );
         }
 
@@ -754,7 +752,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation offSwitchActionEval = default;
         if( offensiveSwitch.Pokemon != null )
         {
-            offSwitchActionEval = Build_OffensiveSwitchAction( exchangePack, offensiveSwitch, tir );
+            offSwitchActionEval = Build_OffensiveSwitchAction( exchangePack, offensiveSwitch, orders );
             actions.Add( offSwitchActionEval );
         }
 
@@ -764,7 +762,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation setupActionEval = default;
         if( bestSetup.Move != null )
         {
-            setupActionEval = Build_SetupAction( exchangePack, bestSetup, tir );
+            setupActionEval = Build_SetupAction( exchangePack, bestSetup, orders );
             actions.Add( setupActionEval );
         }
 
@@ -774,7 +772,7 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation offensiveStatusActionEval = default;
         if( bestOffensiveStatus.Move != null )
         {
-            offensiveStatusActionEval = Build_OffensiveStatusAction( exchangePack, bestOffensiveStatus, tir );
+            offensiveStatusActionEval = Build_OffensiveStatusAction( exchangePack, bestOffensiveStatus, orders );
             actions.Add( offensiveStatusActionEval );
         }
 
@@ -784,14 +782,13 @@ public class BattleAI : MonoBehaviour
         ActionEvaluation supportiveStatusActionEval = default;
         if( bestSupportiveStatus.Move != null )
         {
-            supportiveStatusActionEval = Build_SupportiveStatusAction( exchangePack, bestSupportiveStatus, tir );
+            supportiveStatusActionEval = Build_SupportiveStatusAction( exchangePack, bestSupportiveStatus, orders );
             actions.Add( supportiveStatusActionEval );
         }
 
         yield return null;
 
         var doomedOutcome = CheckIfDoomedTurn( actions, exchangePack );
-        yield return null;
         yield return null;
 
         if( doomedOutcome.DoomedTurn )
@@ -816,44 +813,50 @@ public class BattleAI : MonoBehaviour
                 CurrentLog.Add( $"===========================================================================" );
                 CurrentLog.Add( $"" );
 
-                int actionScore = ActionScoring.ActionScore( actions[i], tempo, exchangePack, boardContext, actions[i].Top1, tir );
+                int actionScore = ActionScoring.ActionScore( actions[i], tempo, exchangePack, boardContext, actions[i].Top1, orders.Tir );
                 CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s Action Score ({actions[i].Type}): {actionScore}" );
                 CurrentLog.Add( $"" );
                 actions[i].Score += actionScore;
                 yield return null;
 
-                int vsIntentScore = ThreatIntentEvaluation.ActionVS_ThreatIntent( actions[i], tempo, exchangePack, boardContext, actions[i].Top1, tir );
-                CurrentLog.Add( $"{CurrentUnitDeciding.Pokemon.NickName}'s ActionVS_ThreatIntent Score ({actions[i].Type}): {vsIntentScore}" );
-                CurrentLog.Add( $"" );
-                actions[i].Score += vsIntentScore;
-                yield return null;
-
+                int beforeSimScore = actions[i].Score;
                 actions[i] = ActionEvaluation.EvaluateSimulation( actions[i] );
-                var survivalClass = Projection.ClassifySurvival( actions[i], doomedOutcome );
+                int evaluateSimScore = actions[i].Score - beforeSimScore;
+                CurrentLog.Add( $"Action: {actions[i].Type} Evaluate Simulation Score: {evaluateSimScore}" );
+                CurrentLog.Add( $"" );
                 yield return null;
 
-                actions[i].Score += ActionEvaluation.EvaluateBattlefieldState( actions[i], boardContext );
+                int battlefieldScore = ActionEvaluation.EvaluateBattlefieldState( actions[i], boardContext );
+                CurrentLog.Add( $"Action: {actions[i].Type} Battlefield Score: {battlefieldScore}" );
+                CurrentLog.Add( $"" );
+                actions[i].Score += battlefieldScore;
                 yield return null;
 
-                actions[i].Score += ThreatResponse.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext, survivalClass );
+                int threatResponse =ThreatResponse.EvaluateThreatResponse( actions[i], threatProfile, doomedOutcome, boardContext );
+                CurrentLog.Add( $"Action: {actions[i].Type} Threat Response Score: {threatResponse}" );
+                CurrentLog.Add( $"" );
+                actions[i].Score += threatResponse;
                 yield return null;
                 
                 //--PBS
-                var pbs = Projection.BuildPBS( actions[i], boardContext, survivalClass );
-                int futureScore = Projection.EvaluatePBS( pbs );
-                CurrentLog.Add( $"Action: {actions[i].Type}. Future Score from EvaluatePBS: {futureScore}" );
+                var pbs = Projection.BuildPBS( actions[i], boardContext );
+                int pbsScore = Projection.EvaluatePBS( pbs );
+                CurrentLog.Add( $"Action: {actions[i].Type}. PBS Score: {pbsScore}" );
+                CurrentLog.Add( $"" );
                 actions[i].PBS = pbs;
                 yield return null;
 
-                int currentPlanBias = Projection.GetCurrentPlanBias( actions[i], pbs, boardContext, CurrentPlan, survivalClass );
+                int currentPlanBias = Projection.GetCurrentPlanBias( actions[i], pbs, boardContext, CurrentPlan );
                 CurrentLog.Add( $"Action: {actions[i].Type}. Current Plan is: {CurrentPlan.Type}. Bias: {currentPlanBias}" );
                 CurrentLog.Add( $"" );
                 yield return null;
 
                 int gamePlanAlignment = GamePlanAlignment( actions[i], Blackboard.GamePlan );
+                CurrentLog.Add( $"Action: {actions[i].Type}. Game Plan Alignment Score: {gamePlanAlignment}" );
+                CurrentLog.Add( $"" );
                 yield return null;
 
-                actions[i].Score += futureScore + currentPlanBias + gamePlanAlignment;
+                actions[i].Score += pbsScore + currentPlanBias + gamePlanAlignment;
 
                 CurrentLog.Add( $"" );
                 CurrentLog.Add( $"{actions[i].ActionResult.ActionType}'s Total Score: {actions[i].Score}" );
@@ -867,27 +870,27 @@ public class BattleAI : MonoBehaviour
 
         //--Attack Action Text
         string attackActionText = bestAttack.Move != null ?
-        $"Attack ({bestAttack.Move?.MoveSO.Name}): {attackActionEval.Score} (Survival Class: {attackActionEval.SurvivalClass})" : $"Attack not found!";
+        $"Attack ({bestAttack.Move?.MoveSO.Name}): {attackActionEval.Score}" : $"Attack not found!";
 
         //--Defensive Switch Action Text
         string defensiveSwitchActionText = defensiveSwitch.Pokemon != null ?
-        $"Defensive Switch ({defensiveSwitch.Pokemon?.NickName}): {defSwitchActionEval.Score} (Survival Class: {defSwitchActionEval.SurvivalClass})" : $"Defensive Switch not found!";
+        $"Defensive Switch ({defensiveSwitch.Pokemon?.NickName}): {defSwitchActionEval.Score}" : $"Defensive Switch not found!";
 
         //--Offensive Switch Action Text
         string offensiveSwitchActionText = offensiveSwitch.Pokemon != null ?
-        $"Offensive Switch ({offensiveSwitch.Pokemon?.NickName}): {offSwitchActionEval.Score} (Survival Class: {offSwitchActionEval.SurvivalClass})" : $"Offensive Switch not found!";
+        $"Offensive Switch ({offensiveSwitch.Pokemon?.NickName}): {offSwitchActionEval.Score}" : $"Offensive Switch not found!";
 
         //--Setup Action Text
         string setupActionText = bestSetup.Move != null ?
-        $"Setup Move ({bestSetup.Move?.MoveSO.Name}): {setupActionEval.Score} (Survival Class: {setupActionEval.SurvivalClass})" : $"Setup move not found!";
+        $"Setup Move ({bestSetup.Move?.MoveSO.Name}): {setupActionEval.Score}" : $"Setup move not found!";
 
         //--Offensive Status Action Text
         string offensiveStatusActionText = bestOffensiveStatus.Move != null ?
-        $"Offensive Status Move ({bestOffensiveStatus.Move?.MoveSO.Name}): {offensiveStatusActionEval.Score} (Survival Class: {offensiveStatusActionEval.SurvivalClass})" : $"Offensive Status move not found!";
+        $"Offensive Status Move ({bestOffensiveStatus.Move?.MoveSO.Name}): {offensiveStatusActionEval.Score}" : $"Offensive Status move not found!";
 
         //--Supportive Status Action Text
         string supportiveStatusActionText = bestSupportiveStatus.Move != null ?
-        $"Supportive Status Move ({bestSupportiveStatus.Move?.MoveSO.Name}): {supportiveStatusActionEval.Score} (Survival Class: bestSupportiveStatus.SurvivalClass)" : $"Supportive Status move not found!";
+        $"Supportive Status Move ({bestSupportiveStatus.Move?.MoveSO.Name}): {supportiveStatusActionEval.Score}" : $"Supportive Status move not found!";
 
         CurrentLog.Add( $"" );
         CurrentLog.Add( $"===[Final Option Scores]===" );
@@ -915,9 +918,10 @@ public class BattleAI : MonoBehaviour
         getBestAction?.Invoke( bestAction );
     }
 
-    private ActionEvaluation Build_AttackAction( ExchangePack exchangePack, MoveThreatResult bestAttack, ThreatIntentResult tir )
+    private ActionEvaluation Build_AttackAction( ExchangePack exchangePack, MoveThreatResult bestAttack, UnitOrder orders )
     {
-        var intentTOP = BattleSim.BuildIntentTOP( ActionType.Attack, bestAttack, tir );
+        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        var intentTOP = orders.UseTir ? BattleSim.BuildIntentTOP( ActionType.Attack, bestAttack, orders.Tir, job ) : BattleSim.BuildPairIntentTOP( bestAttack, orders );
         var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
         var attackActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Attack, bestAttack, bestAttack.Targets, bestAttack.TargetBattleUnits, bestAttack.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
@@ -925,9 +929,10 @@ public class BattleAI : MonoBehaviour
         return attackActionEval;
     }
 
-    private ActionEvaluation Build_DefensiveSwitchAction( ExchangePack exchangePack, SwitchCandidateResult defensiveSwitch, ThreatIntentResult tir )
+    private ActionEvaluation Build_DefensiveSwitchAction( ExchangePack exchangePack, SwitchCandidateResult defensiveSwitch, UnitOrder orders )
     {
-        var intentTOP = BattleSim.BuildIntentTOP( ActionType.DefensiveSwitch, defensiveSwitch, tir );
+        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        var intentTOP = orders.UseTir ? BattleSim.BuildIntentTOP( ActionType.DefensiveSwitch, defensiveSwitch, orders.Tir, job ) : BattleSim.BuildPairIntentTOP( defensiveSwitch, orders );
         var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
         var defSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.DefensiveSwitch, defensiveSwitch, null, null, defensiveSwitch.Pokemon, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
@@ -935,9 +940,10 @@ public class BattleAI : MonoBehaviour
         return defSwitchActionEval;
     }
 
-    private ActionEvaluation Build_OffensiveSwitchAction( ExchangePack exchangePack, SwitchCandidateResult offensiveSwitch, ThreatIntentResult tir )
+    private ActionEvaluation Build_OffensiveSwitchAction( ExchangePack exchangePack, SwitchCandidateResult offensiveSwitch, UnitOrder orders )
     {
-        var intentTOP = BattleSim.BuildIntentTOP( ActionType.OffensiveSwitch, offensiveSwitch, tir );
+        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        var intentTOP = orders.UseTir ? BattleSim.BuildIntentTOP( ActionType.OffensiveSwitch, offensiveSwitch, orders.Tir, job ) : BattleSim.BuildPairIntentTOP( offensiveSwitch, orders );
         var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
         var offSwitchActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveSwitch, offensiveSwitch, null, null, offensiveSwitch.Pokemon, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
@@ -945,9 +951,10 @@ public class BattleAI : MonoBehaviour
         return offSwitchActionEval;
     }
 
-    private ActionEvaluation Build_SetupAction( ExchangePack exchangePack, SetupThreatResult bestSetup, ThreatIntentResult tir )
+    private ActionEvaluation Build_SetupAction( ExchangePack exchangePack, SetupThreatResult bestSetup, UnitOrder orders )
     {
-        var intentTOP = BattleSim.BuildIntentTOP( ActionType.Setup, bestSetup, tir );
+        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        var intentTOP = orders.UseTir ? BattleSim.BuildIntentTOP( ActionType.Setup, bestSetup, orders.Tir, job ) : BattleSim.BuildPairIntentTOP( bestSetup, orders );
         var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
         var setupActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.Setup, bestSetup, bestSetup.Targets, bestSetup.TargetBattleUnits, bestSetup.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
@@ -955,9 +962,10 @@ public class BattleAI : MonoBehaviour
         return setupActionEval;
     }
 
-    private ActionEvaluation Build_OffensiveStatusAction( ExchangePack exchangePack, StatusThreatResult bestOffensiveStatus, ThreatIntentResult tir )
+    private ActionEvaluation Build_OffensiveStatusAction( ExchangePack exchangePack, StatusThreatResult bestOffensiveStatus, UnitOrder orders )
     {
-        var intentTOP = BattleSim.BuildIntentTOP( ActionType.OffensiveStatus, bestOffensiveStatus, tir );
+        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        var intentTOP = orders.UseTir ? BattleSim.BuildIntentTOP( ActionType.OffensiveStatus, bestOffensiveStatus, orders.Tir, job ) : BattleSim.BuildPairIntentTOP( bestOffensiveStatus, orders );
         var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
         var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.OffensiveStatus, bestOffensiveStatus, bestOffensiveStatus.Targets, bestOffensiveStatus.TargetBattleUnits, bestOffensiveStatus.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
@@ -965,9 +973,10 @@ public class BattleAI : MonoBehaviour
         return statusActionEval;
     }
 
-    private ActionEvaluation Build_SupportiveStatusAction( ExchangePack exchangePack, StatusThreatResult bestSupportiveStatus, ThreatIntentResult tir )
+    private ActionEvaluation Build_SupportiveStatusAction( ExchangePack exchangePack, StatusThreatResult bestSupportiveStatus, UnitOrder orders )
     {
-        var intentTOP = BattleSim.BuildIntentTOP( ActionType.SupportiveStatus, bestSupportiveStatus, tir );
+        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        var intentTOP = orders.UseTir ? BattleSim.BuildIntentTOP( ActionType.SupportiveStatus, bestSupportiveStatus, orders.Tir, job ) : BattleSim.BuildPairIntentTOP( bestSupportiveStatus, orders );
         var lookaheadTOP = BattleSim.BuildLookAheadTOP( intentTOP );
         var statusActionEval = ActionEvaluation.BuildActionEvaluation( ActionType.SupportiveStatus, bestSupportiveStatus, bestSupportiveStatus.Targets, bestSupportiveStatus.TargetBattleUnits, bestSupportiveStatus.Move, intentTOP, lookaheadTOP, exchangePack );
         CurrentLog.Add( $"" );
@@ -1004,7 +1013,7 @@ public class BattleAI : MonoBehaviour
             if( action.Type == ActionType.OffensiveSwitch || action.Type == ActionType.DefensiveSwitch )
             {
                 switchActionCount++;
-                var switchLookAhead = CandidateSelect.GetMove_BestAttack( action.Top1.Attacker, action.Top1.Opponent ).Top;
+                var switchLookAhead = CandidateSelect.GetMove_BestAttack( action.Top1.Attacker, action.Top1.Opponent, default ).Top;
 
                 //--We use the look ahead PTKOs because those are the PTKOs that would be in effect for the following round. we use the "current" switch simulation HP Ratios because those would be the values we start the following round with.
                 bool forceSwitchNextRound = UnitSim.PredictSwitchProbability( action.Top1.Opponent.Pokemon, switchLookAhead.AttackerPTKO, switchLookAhead.OpponentPTKO, switchLookAhead.AttackerMovedFirst, switchLookAhead.Attacker.BeginningHPR, switchLookAhead.Opponent.BeginningHPR, switchLookAhead.Opponent.Expendability ) > 0.7f;
@@ -1308,7 +1317,7 @@ public class BattleAI : MonoBehaviour
         if( opponent.RoleProfile.Traits.Contains( RoleTrait.TrappingMove ) )
             constraintPressure += 2f;
 
-        if( opponent.RoleProfile.Traits.Contains( RoleTrait.ShadowTag ) )
+        if( opponent.RoleProfile.Traits.Contains( RoleTrait.TrappingAbility ) )
             constraintPressure += 3f;
 
         if( opponent.RoleProfile.Traits.Contains( RoleTrait.WideMoveCoverage ) )
@@ -2702,10 +2711,10 @@ public class BattleAI : MonoBehaviour
         bool weUseSand = ( gpd.Action.Type == ActionType.SupportiveStatus && gpd.Action.MovePayload.MoveSO.Name == "Sandstorm" ) || gpd.Attacker1.Ability == AbilityID.Sandstream || gpd.Attacker2.Ability == AbilityID.Sandstream;
         bool weUseSnow = ( gpd.Action.Type == ActionType.SupportiveStatus && gpd.Action.MovePayload.MoveSO.Name == "Snowscape" ) || gpd.Attacker1.Ability == AbilityID.SnowWarning || gpd.Attacker2.Ability == AbilityID.SnowWarning;
 
-        bool weSetSun = weUseSun && weather1 != WeatherConditionID.SUNNY && weather2 == WeatherConditionID.SUNNY;
-        bool weSetRain = weUseRain && weather1 != WeatherConditionID.RAIN && weather2 == WeatherConditionID.RAIN;
-        bool weSetSand = weUseSand && weather1 != WeatherConditionID.SANDSTORM && weather2 == WeatherConditionID.SANDSTORM;
-        bool weSetSnow = weUseSnow && weather1 != WeatherConditionID.SNOW && weather2 == WeatherConditionID.SNOW;
+        bool weSetSun = weUseSun && weather1 != WeatherConditionID.Sun && weather2 == WeatherConditionID.Sun;
+        bool weSetRain = weUseRain && weather1 != WeatherConditionID.Rain && weather2 == WeatherConditionID.Rain;
+        bool weSetSand = weUseSand && weather1 != WeatherConditionID.Sand && weather2 == WeatherConditionID.Sand;
+        bool weSetSnow = weUseSnow && weather1 != WeatherConditionID.Snow && weather2 == WeatherConditionID.Snow;
         bool weSetWeather = weSetSun || weSetRain || weSetSand || weSetSnow;
 
         //--Terrain
@@ -2802,10 +2811,10 @@ public class BattleAI : MonoBehaviour
 
             foreach( var mon in ourRemaining )
             {
-                int sunScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.SUNNY );
-                int rainScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.RAIN );
-                int sandScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.SANDSTORM );
-                int snowScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.SNOW );
+                int sunScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.Sun );
+                int rainScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.Rain );
+                int sandScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.Sand );
+                int snowScore = UnitSim.Get_WeatherContextScore( mon.Pokemon, WeatherConditionID.Snow );
 
                 teamBeforeWeatherScore += UnitSim.Get_WeatherContextScore( mon.Pokemon, weather1 );
                 teamAfterWeatherScore += UnitSim.Get_WeatherContextScore( mon.Pokemon, weather2 );
@@ -3047,17 +3056,17 @@ public class BattleAI : MonoBehaviour
             int theirTeamBeforeWeatherScore = 0;
             int theirTeamAfterWeatherScore = 0;
 
-            bool isSun = weather1 == WeatherConditionID.SUNNY;
-            bool isRain = weather1 == WeatherConditionID.RAIN;
-            bool isSand = weather1 == WeatherConditionID.SANDSTORM;
-            bool isSnow = weather1 == WeatherConditionID.SNOW;
+            bool isSun = weather1 == WeatherConditionID.Sun;
+            bool isRain = weather1 == WeatherConditionID.Rain;
+            bool isSand = weather1 == WeatherConditionID.Sand;
+            bool isSnow = weather1 == WeatherConditionID.Snow;
 
             foreach( var theirMon in theirRemaining )
             {
-                int sunScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.SUNNY );
-                int rainScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.RAIN );
-                int sandScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.SANDSTORM );
-                int snowScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.SNOW );
+                int sunScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.Sun );
+                int rainScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.Rain );
+                int sandScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.Sand );
+                int snowScore = UnitSim.Get_WeatherContextScore( theirMon.Pokemon, WeatherConditionID.Snow );
 
                 theirTeamBeforeWeatherScore += UnitSim.Get_WeatherContextScore( theirMon.Pokemon, weather1 );
                 theirTeamAfterWeatherScore += UnitSim.Get_WeatherContextScore( theirMon.Pokemon, weather2 );
@@ -3385,7 +3394,7 @@ public class BattleAI : MonoBehaviour
     public int GetUnitInferredStat( IBattleAIUnit pokemon, Stat stat )
     {
         // Debug.Log( $"[AI Scoring][Get Walling Score] Getting {pokemon.Name}'s inferred {stat}" );
-        float statValue = GetUnitStatValue( pokemon, stat );
+        float statValue = GetCalculatedStat( pokemon, stat );
 
         int stage = pokemon.StatStages[stat];
         var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
@@ -3416,16 +3425,16 @@ public class BattleAI : MonoBehaviour
 
         if( weather != null )
         {
-            if( weather.ID == WeatherConditionID.RAIN && pokemon.AbilityID == AbilityID.SwiftSwim && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Rain && pokemon.AbilityID == AbilityID.SwiftSwim && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
 
-            if( weather.ID == WeatherConditionID.SUNNY && pokemon.AbilityID == AbilityID.Chlorophyll && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Sun && pokemon.AbilityID == AbilityID.Chlorophyll && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
 
-            if( weather.ID == WeatherConditionID.SANDSTORM && pokemon.AbilityID == AbilityID.SandRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Sand && pokemon.AbilityID == AbilityID.SandRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
 
-            if( weather.ID == WeatherConditionID.SNOW && pokemon.AbilityID == AbilityID.SlushRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Snow && pokemon.AbilityID == AbilityID.SlushRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
         }
 
@@ -3450,16 +3459,16 @@ public class BattleAI : MonoBehaviour
 
         if( weather != null )
         {
-            if( weather.ID == WeatherConditionID.RAIN && pokemon.Ability == AbilityID.SwiftSwim && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Rain && pokemon.Ability == AbilityID.SwiftSwim && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
 
-            if( weather.ID == WeatherConditionID.SUNNY && pokemon.Ability == AbilityID.Chlorophyll && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Sun && pokemon.Ability == AbilityID.Chlorophyll && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
 
-            if( weather.ID == WeatherConditionID.SANDSTORM && pokemon.Ability == AbilityID.SandRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Sand && pokemon.Ability == AbilityID.SandRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
 
-            if( weather.ID == WeatherConditionID.SNOW && pokemon.Ability == AbilityID.SlushRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPD ) )
+            if( weather.ID == WeatherConditionID.Snow && pokemon.Ability == AbilityID.SlushRush && !pokemon.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.WeatherSPE ) )
                 speed *= 2;
         }
         
@@ -3940,6 +3949,36 @@ public class BattleAI : MonoBehaviour
         return true;
     }
 
+    public bool CanUseFakeOut( IBattleAIUnit attacker )
+    {
+        var opponents = GetActiveOpposingUnits_AsBattleAIUnits( attacker.Pokemon );
+
+        int fakeouts = 0;
+        foreach( var opp in opponents )
+            fakeouts += CanUseFakeOut( attacker, opp ) ? 1 : 0;
+
+        if( fakeouts > 0 )
+            return true;
+        else
+            return false;
+    }
+
+    public bool CanUseMatBlock( IBattleAIUnit unit )
+    {
+        var battleUnit = GetBattleUnit( unit.Pokemon );
+
+        if( battleUnit == null )
+            return false;
+
+        if( !unit.Pokemon.CheckHasActiveMove( "Mat Block" ) )
+            return false;
+
+        if( battleUnit.Flags[UnitFlags.TurnsTaken].Count > 0 )
+            return false;
+
+        return true;
+    }
+
     public bool CanUseProtect( Pokemon pokemon )
     {
         bool hasProtect = pokemon.CheckHasActiveMove( "Protect" );
@@ -4264,13 +4303,13 @@ public class BattleAI : MonoBehaviour
         Dictionary<Pokemon, SwitchCandidateResult> likelySwitches = new();
         List<SwitchCandidateResult> likelySRCs = new();
 
-        var scr = CandidateSelect.GetSwitch_Defensive( theirActiveMon, true );
+        var scr = CandidateSelect.GetSwitch_Defensive( theirActiveMon, default, true );
         Dictionary<Pokemon, SwitchCandidateResult> allCandidates = new();
 
-        CustomLogSession likelyLog = new();
+        // CustomLogSession likelyLog = new();
 
-        likelyLog.Add( $"" );
-        likelyLog.Add( $"=[Getting Likely Defensive Switches]=" );
+        // likelyLog.Add( $"" );
+        // likelyLog.Add( $"=[Getting Likely Defensive Switches]=" );
 
         if( scr.ReturnAllList == null || scr.ReturnAllList.Count <= 0 )
         {
@@ -4280,15 +4319,15 @@ public class BattleAI : MonoBehaviour
         else
             allCandidates = scr.ReturnAllList.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
-        likelyLog.Add( $"All Candidates Count: {allCandidates.Count}." );
+        // likelyLog.Add( $"All Candidates Count: {allCandidates.Count}." );
         foreach( var cand in allCandidates )
-            likelyLog.Add( $"{cand.Key.NickName}, {cand.Value.Score}" );
+            // likelyLog.Add( $"{cand.Key.NickName}, {cand.Value.Score}" );
             
         allCandidates = allCandidates.OrderByDescending( c => c.Value.Score ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
         var bestCandidateKVP = allCandidates.First();
         int bestCandidateScore = bestCandidateKVP.Value.Score;
-        likelyLog.Add( $"Best Candidate Score: {bestCandidateScore}." );
+        // likelyLog.Add( $"Best Candidate Score: {bestCandidateScore}." );
 
         int count = 0;
         foreach( var kvp in allCandidates )
@@ -4297,8 +4336,8 @@ public class BattleAI : MonoBehaviour
             var mon = kvp.Key;
             var s = kvp.Value.Score;
             int threshold = ignoreThreshold ? 0 : bestCandidateScore - thresholdValue;
-            likelyLog.Add( $"Threshold: {threshold}." );
-            likelyLog.Add( $"Checking Key {mon.NickName}, Value: {kvp.Value.Pokemon.NickName}, Score: {s}." );
+            // likelyLog.Add( $"Threshold: {threshold}." );
+            // likelyLog.Add( $"Checking Key {mon.NickName}, Value: {kvp.Value.Pokemon.NickName}, Score: {s}." );
 
             if( !ignoreThreshold )
             {
@@ -4312,11 +4351,11 @@ public class BattleAI : MonoBehaviour
                 likelySwitches.Add( kvp.Key, kvp.Value );
         }
 
-        likelyLog.Add( $"Likely Switches Count: {likelySwitches.Count}." );
-        likelyLog.Add( $"" );
+        // likelyLog.Add( $"Likely Switches Count: {likelySwitches.Count}." );
+        // likelyLog.Add( $"" );
 
-        Debug.Log( likelyLog.ToString() );
-        likelyLog.Clear();
+        // Debug.Log( likelyLog.ToString() );
+        // likelyLog.Clear();
 
         return likelySwitches;
     }
@@ -4326,13 +4365,13 @@ public class BattleAI : MonoBehaviour
         Dictionary<Pokemon, SwitchCandidateResult> likelySwitches = new();
         List<SwitchCandidateResult> likelySRCs = new();
 
-        var scr = CandidateSelect.GetSwitch_Offensive( theirActiveMon, true );
+        var scr = CandidateSelect.GetSwitch_Offensive( theirActiveMon, default, true );
         Dictionary<Pokemon, SwitchCandidateResult> allCandidates = new();
 
-        CustomLogSession likelyLog = new();
+        // CustomLogSession likelyLog = new();
 
-        likelyLog.Add( $"" );
-        likelyLog.Add( $"=[Getting Likely Offensive Switches]=" );
+        // likelyLog.Add( $"" );
+        // likelyLog.Add( $"=[Getting Likely Offensive Switches]=" );
 
         if( scr.ReturnAllList == null || scr.ReturnAllList.Count <= 0 )
         {
@@ -4342,15 +4381,15 @@ public class BattleAI : MonoBehaviour
         else
             allCandidates = scr.ReturnAllList.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
-        likelyLog.Add( $"All Candidates Count: {allCandidates.Count}." );
-        foreach( var cand in allCandidates )
-            likelyLog.Add( $"{cand.Key.NickName}, {cand.Value.Score}" );
+        // likelyLog.Add( $"All Candidates Count: {allCandidates.Count}." );
+        // foreach( var cand in allCandidates )
+            // likelyLog.Add( $"{cand.Key.NickName}, {cand.Value.Score}" );
         
         var sorted = allCandidates.OrderByDescending( c => c.Value.Score ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
         var bestCandidateKVP = sorted.First();
         int bestCandidateScore = bestCandidateKVP.Value.Score;
-        likelyLog.Add( $"Best Candidate Score: {bestCandidateScore}." );
+        // likelyLog.Add( $"Best Candidate Score: {bestCandidateScore}." );
 
         int count = 0;
         foreach( var kvp in sorted )
@@ -4359,8 +4398,8 @@ public class BattleAI : MonoBehaviour
             var mon = kvp.Key;
             var s = kvp.Value.Score;
             int threshold = ignoreThreshold ? 0 : bestCandidateScore - thresholdValue;
-            likelyLog.Add( $"Threshold: {threshold}." );
-            likelyLog.Add( $"Checking Key {mon.NickName}, Value: {kvp.Value.Pokemon.NickName}, Score: {s}." );
+            // likelyLog.Add( $"Threshold: {threshold}." );
+            // likelyLog.Add( $"Checking Key {mon.NickName}, Value: {kvp.Value.Pokemon.NickName}, Score: {s}." );
 
             if( !ignoreThreshold )
             {
@@ -4374,11 +4413,11 @@ public class BattleAI : MonoBehaviour
                 likelySwitches.Add( kvp.Key, kvp.Value );
         }
 
-        likelyLog.Add( $"Likely Switches Count: {likelySwitches.Count}." );
-        likelyLog.Add( $"" );
+        // likelyLog.Add( $"Likely Switches Count: {likelySwitches.Count}." );
+        // likelyLog.Add( $"" );
 
-        Debug.Log( likelyLog.ToString() );
-        likelyLog.Clear();
+        // Debug.Log( likelyLog.ToString() );
+        // likelyLog.Clear();
 
         return likelySwitches;
     }
@@ -4506,12 +4545,34 @@ public struct SwitchCandidateResult : IActionResult
 public struct EstimatedDamageResult
 {
     public int Score;
+
     public float DamageEstimate;
     public float LowRollEstimate;
-    public int AttackingStatStage;
-    public int DefendingStatStage;
-    public float AttackingDirectModifier;
-    public float DefendingDirectModifier;
+
+    public Stat AttackStat;
+    public Stat DefenseStat;
+
+    public float Attack;
+    public float Defense;
+
+    public float AttackStages;
+    public float DefenseStages;
+
+    public float AttackModifiers;
+    public float DefenseModifiers;
+
+    public float TargetMHP;
+
+    public float LevelFactor;
+    public float MovePower;
+    public float Modifier;
+    public float BrnOrFBT;
+    public float Targets;
+    public float Hits;
+
+    public float MidRollModifier;
+    public float LowRollModifier;
+
     public IBattleAIUnit Attacker;
     public IBattleAIUnit Target;
 }
@@ -4522,6 +4583,7 @@ public struct PotentialToKOResult
     public PotentialToKO PTKO { get; set; }
     public float Modifier { get; set; }
     public float EstimatedDamage { get; set; }
+    public EstimatedDamageResult EDR { get; set; }
 }
 
 public struct TempoStateResult
@@ -4880,4 +4942,238 @@ public class GamePlanAnalysis
     public int WinningMatchups;
     public int LosingMatchups;
     public int WinConScore;
+}
+
+public struct WinCondition
+{
+    
+}
+
+public class UnitOrder
+{
+    private readonly BattleAI _ai;
+    public ThreatIntentResult Tir;
+    public CoordinationIntentResult Cir;
+    public readonly bool UseTir;
+
+    public UnitOrder( BattleAI ai, ThreatIntentResult tir, CoordinationIntentResult cir )
+    {
+        _ai = ai;
+        Tir = tir;
+        Cir = cir;
+        UseTir = !cir.Active;
+    }
+
+    public bool TryGetJob( Pokemon pokemon, out CurrentJob job )
+    {
+        if( Cir.Jobs?.Count > 0 && Cir.Jobs.TryGetValue( pokemon, out var currentJob ) )
+        {
+            job = currentJob;
+            return true;
+        }
+
+        job = default;
+        return false;
+    }
+
+    public bool TryGetOpponent( ActionType actionType, Pokemon pokemon, out IBattleAIUnit opponent )
+    {
+        opponent = null;
+
+        if( UseTir )
+        {
+            opponent = Tir.Threat;
+            return true;
+        }
+        else
+        {
+            if( actionType != ActionType.DefensiveSwitch && actionType != ActionType.OffensiveSwitch )
+            {
+                if( TryGetJob( pokemon, out var job ) && job.Active )
+                {
+                    opponent = _ai.GetPokemonAs_IBattleAIUnit( job.Target );
+                    return true;
+                }
+                else
+                    return false;
+            }
+            else
+            {
+                if( TryGetJob( _ai.CurrentUnitDeciding.Pokemon, out var job ) && job.Active )
+                {
+                    opponent = _ai.GetPokemonAs_IBattleAIUnit( job.Target );
+                    return true;
+                }
+                else
+                    return false;
+            }
+        }
+    }
+
+    public IActionResult GetOpponentResult( Pokemon opponent )
+    {
+        IActionResult result = null;
+
+        if( UseTir )
+        {
+            result = Tir.PrimaryIntent.IntentResult;
+        }
+        else
+        {
+            var left = Cir.Pir.PrimaryStrategy?.LeftIntent.IntentResult?.CurrentActor;
+            var right = Cir.Pir.PrimaryStrategy?.RightIntent.IntentResult?.CurrentActor;
+
+            if( opponent == left?.Pokemon )
+                result = Cir.Pir.PrimaryStrategy.LeftIntent.IntentResult;
+            else if( opponent == right?.Pokemon )
+                result = Cir.Pir.PrimaryStrategy.RightIntent.IntentResult;
+        }
+
+        return result;
+    }
+
+    public bool TryGetAllyResult( IBattleAIUnit ally, out IActionResult result )
+    {
+        result = null;
+
+        if( Cir.Jobs.TryGetValue( ally.Pokemon, out var job ) )
+        {
+            switch( job.ActionType )
+            {
+                case ActionType.Attack:             result = _ai.CandidateSelect.GetMove_BestAttack( ally, _ai.GetPokemonAs_IBattleAIUnit( job.Target ), job: job, source: "UnitOrder.TryGetAllyResult()" ); break;
+                case ActionType.DefensiveSwitch:    result = _ai.CandidateSelect.GetSwitch_Defensive( ally, job: job ); break;
+                case ActionType.OffensiveSwitch:    result = _ai.CandidateSelect.GetSwitch_Offensive( ally, job: job ); break;
+                case ActionType.Setup:              result = _ai.CandidateSelect.GetMove_Setup( ally, _ai.GetPokemonAs_IBattleAIUnit( job.Target ), job: job ); break;
+                case ActionType.OffensiveStatus:    result = _ai.CandidateSelect.GetMove_OffensiveStatus( ally, _ai.GetPokemonAs_IBattleAIUnit( job.Target ), job: job ); break;
+                case ActionType.SupportiveStatus:   result = _ai.CandidateSelect.GetMove_SupportiveStatus( ally, _ai.GetPokemonAs_IBattleAIUnit( job.Target ), job: job ); break;
+            }
+
+            return result != null;
+        }
+
+        return false;
+    }
+
+    public MoveThreatResult BuildUnitMTR( IBattleAIUnit target, IBattleAIUnit targetAlly, IActionResult result )
+    {
+        MoveThreatResult mtr = new();
+
+        switch( result.ActionType )
+        {
+            case ActionType.Attack:
+
+                var attack = (MoveThreatResult)result;
+                mtr = attack;
+
+            break;
+
+            case ActionType.DefensiveSwitch:
+
+                var defSwitch = (SwitchCandidateResult)result;
+
+                mtr = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = new(),
+                    TargetBattleUnits = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
+
+                if( target != null )
+                    mtr.Targets.Add( target );
+
+                if( targetAlly != null )
+                    mtr.Targets.Add( targetAlly );
+
+            break;
+
+            case ActionType.OffensiveSwitch:
+
+                var offSwitch = (SwitchCandidateResult)result;
+
+                mtr = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = new(),
+                    TargetBattleUnits = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
+
+                if( target != null )
+                    mtr.Targets.Add( target );
+
+                if( targetAlly != null )
+                    mtr.Targets.Add( targetAlly );
+
+            break;
+
+            case ActionType.Setup:
+
+                var setup = (SetupThreatResult)result;
+
+                mtr = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = setup.Targets,
+                    TargetBattleUnits = setup.TargetBattleUnits,
+                    Move = setup.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+
+            case ActionType.OffensiveStatus:
+
+                var offStatus = (StatusThreatResult)result;
+
+                mtr = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = offStatus.Targets,
+                    TargetBattleUnits = offStatus.TargetBattleUnits,
+                    Move = offStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+
+            case ActionType.SupportiveStatus:
+
+                var suppStatus = (StatusThreatResult)result;
+
+                mtr = new()
+                {
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = suppStatus.Targets,
+                    TargetBattleUnits = suppStatus.TargetBattleUnits,
+                    Move = suppStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+        }
+
+        return mtr;
+    }
+
+    public SimModuleType GetModuleType( Pokemon pokemon, IActionResult result )
+    {
+        return result.ActionType switch
+        {
+            ActionType.Attack => SimModuleType.Attack,
+            ActionType.DefensiveSwitch => SimModuleType.Switch,
+            ActionType.OffensiveSwitch => SimModuleType.Switch,
+            ActionType.Setup => SimModuleType.Setup,
+            ActionType.OffensiveStatus => SimModuleType.OffensiveStatus,
+            ActionType.SupportiveStatus => SimModuleType.SupportiveStatus,
+            _ => SimModuleType.Attack,
+        };
+    }
 }

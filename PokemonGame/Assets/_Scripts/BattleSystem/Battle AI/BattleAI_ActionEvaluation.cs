@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum ActionType { Attack, OffensiveSwitch, DefensiveSwitch, Setup, OffensiveStatus, SupportiveStatus }
+public enum ActionType { None, Any, Attack, OffensiveSwitch, DefensiveSwitch, Setup, OffensiveStatus, SupportiveStatus, Protect }
 public class BattleAI_ActionEvaluation
 {
     private BattleAI _ai;
@@ -157,8 +157,8 @@ public class BattleAI_ActionEvaluation
         //--Look Ahead Section-------------------------
         bool weForceSwitch = UnityEngine.Random.value <= theySwitchProbability;
 
-        bool weKOThem = top2.Opponent_DiesBeforeActing || top2.Opponent_EndOfTurnHP <= 0f;
-        bool weDie = top2.Attacker_DiesBeforeActing || top2.Attacker_EndOfTurnHP <= 0f;
+        bool weKOThem = top2.Opponent.EndHPR <= 0f;
+        bool weDie = top2.Attacker.EndHPR <= 0f;
 
         if( weKOThem )
         {
@@ -258,21 +258,30 @@ public class BattleAI_ActionEvaluation
         _ai.CurrentLog.Add( $"==============================================" );
         _ai.CurrentLog.Add( $"Our PTKO {top.AttackerPTKO} with Move: {top.Attacker.MTR?.Move?.MoveSO.Name}" );
         _ai.CurrentLog.Add( $"Their PTKO {top.OpponentPTKO} with Move: {top.Opponent.MTR?.Move?.MoveSO.Name}" );
+        _ai.CurrentLog.Add( $"" );
+        // _ai.CurrentLog.Add( $"" );
+        // _ai.CurrentLog.Add( $"" );
+        // _ai.CurrentLog.Add( $"==[TOP 1 Sim Log]===" );
+        // _ai.CurrentLog.Add( top.SimulationLog );
+        // _ai.CurrentLog.Add( $"" );
+        // _ai.CurrentLog.Add( $"" );
+        // _ai.CurrentLog.Add( $"" );
+        // _ai.CurrentLog.Add( $"==[TOP 2 Sim Log]===" );
+        // _ai.CurrentLog.Add( top2.SimulationLog );
 
         //--Switched mon dies on entry
         if( top.Attacker_EndOfTurnHP <= 0f )
         {
             score = -999;
             // eval.Score = score;
-            _ai.CurrentLog.Add( $"Switch in (attacker) faints on switch in! Score: {score}" );
+            _ai.CurrentLog.Add( $"Switch in ({top.Attacker.Name}) faints on switch in (B:{top.Attacker.BeginningHPR}, E:{top.Attacker.EndHPR}, EoT:{top.Attacker_EndOfTurnHP})! Score: {score}" );
             // return eval;
         }
-
         //--Critically low after entry. Will have to be careful here, end game switching might be more heavily penalized, which is somewhat reasonable.
-        if( top.Attacker_EndOfTurnHP <= 0.2f )
+        else if( top.Attacker_EndOfTurnHP <= 0.2f )
         {
             score -= 30;
-            _ai.CurrentLog.Add( $"Switch in (attacker) takes big damage on entry, leaving it at {top.Attacker_EndOfTurnHP} HP on switch in! Score: {score}" );
+            _ai.CurrentLog.Add( $"Switch in ({top.Attacker.Name}) (B:{top.Attacker.BeginningHPR}, E:{top.Attacker.EndHPR}, EoT:{top.Attacker_EndOfTurnHP}) takes big damage on entry, leaving it at {top.Attacker_EndOfTurnHP} HP on switch in! Score: {score}" );
         }
 
         //--Risky survival push
@@ -338,11 +347,11 @@ public class BattleAI_ActionEvaluation
         if( oppHPLoss >= 0.3f )             score += 25;
         else if( oppHPLoss >= 0.15f )       score += 10;
 
-        if( weCantThreatenBack )
-        {
-            score -= Mathf.FloorToInt( 60f * weAreForcedOut);
-            _ai.CurrentLog.Add( $"Switch creates unstable position (forced out next turn)! Score: {score}" );
-        }
+        // if( weCantThreatenBack )
+        // {
+        //     score -= Mathf.FloorToInt( 60f * weAreForcedOut);
+        //     _ai.CurrentLog.Add( $"Switch creates unstable position (forced out next turn)! Score: {score}" );
+        // }
 
         bool reEnteringBadMatchup = false;
         if( _ai.LastSentInPokemon != null )
@@ -1517,22 +1526,22 @@ public class BattleAI_ActionEvaluation
         _ai.CurrentLog.Add( $"TOP1 Attacker: {top1.Attacker.Name}" );
         _ai.CurrentLog.Add( $"Switch Candidate: {switchCandidate.NickName}" );
 
-        if( bfs.Round <= 1 && top1.OpponentPTKO != PotentialToKO.OHKO && !top1.AttackerMovedFirst )
-        {
-            score -= 30;
-            _ai.CurrentLog.Add( $"It's first round and we're not immediately threatened with death. Can we do something else other than switch? Score: {score}" );
-        }
-        else if( bfs.IsEarlyGame && top1.OpponentPTKO < PotentialToKO.Dangerous )
-        {
-            score -= 15;
-            _ai.CurrentLog.Add( $"It's early game and we're not in immediate danger. Should we try something else? Score: {score}" );
-        }
+        // if( bfs.Round <= 1 && top1.OpponentPTKO != PotentialToKO.OHKO && !top1.AttackerMovedFirst )
+        // {
+        //     score -= 30;
+        //     _ai.CurrentLog.Add( $"It's first round and we're not immediately threatened with death. Can we do something else other than switch? Score: {score}" );
+        // }
+        // else if( bfs.IsEarlyGame && top1.OpponentPTKO < PotentialToKO.Dangerous )
+        // {
+        //     score -= 15;
+        //     _ai.CurrentLog.Add( $"It's early game and we're not in immediate danger. Should we try something else? Score: {score}" );
+        // }
 
         if( bfs.EntryHazardsOn_MySide > 0 )
         {
             if( bfs.IsEarlyGame || isMidGame )
             {
-                score -= 20;
+                score -= 10;
                 _ai.CurrentLog.Add( $"Entry hazards detected on our side. Let's make sure it's worth switching into them. Score: {score}" );
             }
             else if( isLateGame )
@@ -1561,10 +1570,10 @@ public class BattleAI_ActionEvaluation
         {
             switch( switchCandidate.AbilityID )
             {
-                case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
-                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
-                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
-                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+                case AbilityID.Drought: candidatesWeather = WeatherConditionID.Sun; break;
+                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.Rain; break;
+                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.Sand; break;
+                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.Snow; break;
             }
 
             if( candidatesWeather != WeatherConditionID.None && candidatesWeather != bfs.Weather )
@@ -1590,20 +1599,20 @@ public class BattleAI_ActionEvaluation
 
         if( bfs.WeHave_Tailwind && bfs.OurTailwindDuration >= 2 )
         {
-            score += 5;
+            score += 10;
             _ai.CurrentLog.Add( $"We may be able to take advantage of our tailwind. Score {score}" );
         }
 
         MoveCategory oppMoveCat = top1.Opponent.MTR?.Move != null ? top1.Opponent.MTR.Move.MoveSO.MoveCategory : MoveCategory.Other;
         if( bfs.WeHave_Reflect && bfs.OurReflectDuration >= 2 && ( oppMoveCat == MoveCategory.Physical || oppMoveCat == MoveCategory.Other ) )
         {
-            score += 5;
+            score += 10;
             _ai.CurrentLog.Add( $"We're protected on incoming by Reflect. Score {score}" );
         }
 
         if( bfs.WeHave_LightScreen && bfs.OurLightScreenDuration >= 2 && ( oppMoveCat == MoveCategory.Special || oppMoveCat == MoveCategory.Other ) )
         {
-            score += 5;
+            score += 10;
             _ai.CurrentLog.Add( $"We're protected on incoming by Light Screen. Score {score}" );
         }
 
@@ -1647,14 +1656,14 @@ public class BattleAI_ActionEvaluation
         
         if( bfs.IsEarlyGame )
         {
-            if( top2.AttackerPTKO < PotentialToKO.Dangerous)
+            /*if( top2.AttackerPTKO < PotentialToKO.Dangerous)
             {
                 score -= 15;
                 _ai.CurrentLog.Add( $"It's early game and we're not threatening powerful offense next turn. Should we try something else? Score: {score}" );
             }
-            else if( top2.AttackerPTKO >= PotentialToKO.Dangerous )
+            else */if( top2.AttackerPTKO >= PotentialToKO.Dangerous )
             {
-                score +=5;
+                score += 10;
                 _ai.CurrentLog.Add( $"It's early game and we threaten powerful offense next turn. Giving a small nudge for early-game tempo grab/battlefield control. Score: {score}" );
             }
         }
@@ -1665,11 +1674,11 @@ public class BattleAI_ActionEvaluation
             _ai.CurrentLog.Add( $"It's mid game and we threaten powerful offense next turn. Giving a slight boost for mid game phase tempo grab. Score: {score}" );
         }
 
-        if( bfs.IsLateGame && top2.AttackerPTKO != PotentialToKO.OHKO )
-        {
-            score -= 5;
-            _ai.CurrentLog.Add( $"It's late game and we don't threaten a KO next turn. Tiny tiny penalty. Score: {score}" );
-        }
+        // if( bfs.IsLateGame && top2.AttackerPTKO != PotentialToKO.OHKO )
+        // {
+        //     score -= 5;
+        //     _ai.CurrentLog.Add( $"It's late game and we don't threaten a KO next turn. Tiny tiny penalty. Score: {score}" );
+        // }
 
         if( bfs.EntryHazardsOn_MySide > 0 )
         {
@@ -1696,10 +1705,10 @@ public class BattleAI_ActionEvaluation
         {
             switch( switchCandidate.AbilityID )
             {
-                case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
-                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
-                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
-                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+                case AbilityID.Drought: candidatesWeather = WeatherConditionID.Sun; break;
+                case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.Rain; break;
+                case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.Sand; break;
+                case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.Snow; break;
             }
 
             if( candidatesWeather != WeatherConditionID.None && candidatesWeather != bfs.Weather )

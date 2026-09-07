@@ -56,7 +56,7 @@
     "workbench.editor.closeOnFileDelete": true,
     "workbench.editor.highlightModifiedTabs": true,
     "omnisharp.analyzeOpenDocumentsOnly": true,
-    "dotnet.defaultSolution": "PokemonGame.slnx",
+    "dotnet.defaultSolution": "PokemonGame.sln",
     "csharp.format.newLine.beforeOpenBrace": "none",
     "dotnet_style_braces": "k&r",
     "omnisharp.json": {

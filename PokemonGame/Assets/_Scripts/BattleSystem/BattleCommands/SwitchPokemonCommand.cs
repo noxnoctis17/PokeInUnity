@@ -6,13 +6,17 @@ public class SwitchPokemonCommand : IBattleCommand
     private int _attackPriority;
     private int _unitAgility;
     private bool _isAISwitch;
+    private bool _afterYou;
+    private bool _quash;
     private Pokemon _pokemon;
     private BattleSystem _battleSystem;
     private BattleUnit _battleUnit;
     public BattleUnit User => _battleUnit;
     public int CommandPriority => _commandPriority;
     public int AttackPriority => _attackPriority;
-    public int UnitAgility => _unitAgility;
+    public int UnitSpeed => _unitAgility;
+    public bool AfterYou => _afterYou;
+    public bool Quash => _quash;
 
     public SwitchPokemonCommand( Pokemon pokemon, BattleSystem battleSystem, BattleUnit battleUnit, bool aiSwitch )
     {

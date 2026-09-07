@@ -5,10 +5,14 @@ using UnityEngine;
 public class UseItemCommand : IBattleCommand
 {
     private int _commandPriority;
+    private bool _afterYou;
+    private bool _quash;
     public BattleUnit User => _user;
     public int CommandPriority => _commandPriority;
     public int AttackPriority => CommandPriority;
-    public int UnitAgility => CommandPriority;
+    public int UnitSpeed => CommandPriority;
+    public bool AfterYou => _afterYou;
+    public bool Quash => _quash;
     private BattleSystem _battleSystem;
     private BattleUnit _user;
     private Pokemon _pokemon;

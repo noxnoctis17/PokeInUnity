@@ -17,12 +17,16 @@ public class UseMoveCommand : IBattleCommand
     private int _commandPriority;
     private int _attackPriority;
     private int _unitAgility;
+    private bool _afterYou;
+    private bool _quash;
     public BattleUnit SingleTarget => _singleTarget;
     public List<BattleUnit> Targets => _targets;
     public BattleUnit User => _attacker;
     public int CommandPriority => _commandPriority;
     public int AttackPriority => _attackPriority;
-    public int UnitAgility => _unitAgility;
+    public int UnitSpeed => _unitAgility;
+    public bool AfterYou => _afterYou;
+    public bool Quash => _quash;
     public Move Move => _move;
 
     public UseMoveCommand( Move move, BattleUnit attacker, List<BattleUnit> targets, BattleSystem battleSystem )
@@ -42,13 +46,27 @@ public class UseMoveCommand : IBattleCommand
             _singleTarget = null;
     }
 
-    public IEnumerator ExecuteBattleCommand(){
+    public IEnumerator ExecuteBattleCommand()
+    {
         yield return _battleSystem.CommandCenter.PerformMoveCommand( _move, _attacker, _targets );
+    }
+
+    public void SetAfterYou()
+    {
+        _afterYou = true;
+    }
+
+    public void SetQuash()
+    {
+        _quash = true;
     }
 
     public void ChangeTarget( BattleUnit target )
     {
         _singleTarget = target;
+
+        _targets.Clear();
+        _targets.Add( target );
     }
 
     private int GetPriority( BattleUnit attacker, Move move )

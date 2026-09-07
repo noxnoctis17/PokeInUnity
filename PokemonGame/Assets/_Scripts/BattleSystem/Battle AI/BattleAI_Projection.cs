@@ -18,7 +18,7 @@ public class BattleAI_Projection
         InitializeUniqueStatCalls();
     }
 
-    public ProjectedBoardState BuildPBS( ActionEvaluation action, BoardContext bc, SurvivalClass sc )
+    public ProjectedBoardState BuildPBS( ActionEvaluation action, BoardContext bc )
     {
         var top1 = action.Top1;
         var top2 = action.Top2;
@@ -108,7 +108,7 @@ public class BattleAI_Projection
         if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.SLP || oppStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
             iCreatesDecisiveState = true;
 
-        if( attackerMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( attackerMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.Sand ) )
             iCreatesDecisiveState = true;
 
         if( oppStatus1 == SevereConditionID.None && ( oppStatus2 == SevereConditionID.BRN || oppStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Opponent.Pokemon ) )
@@ -117,7 +117,7 @@ public class BattleAI_Projection
         if( _unitSim.PokemonHasLoweredStats( top2.Opponent.Pokemon ) )
             iCreatesPressureState = true;
 
-        if( _unitSim.CheckHasPhazeMove( top1.Attacker.Pokemon ) && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( _unitSim.CheckHasPhazeMove( top1.Attacker.Pokemon ) && ( hazardsSetOnOpp || top1.Field.Weather == WeatherConditionID.Sand ) )
             iCreatesPressureState = true;
 
         //--Their Utility Flags
@@ -127,7 +127,7 @@ public class BattleAI_Projection
         if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.SLP || attStatus2 == SevereConditionID.PAR ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
             oppCreatesDecisiveState = true;
 
-        if( opponentMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( opponentMove1?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.Sand ) )
             oppCreatesDecisiveState = true;
 
         if( attStatus1 == SevereConditionID.None && ( attStatus2 == SevereConditionID.BRN || attStatus2 == SevereConditionID.FBT ) && !_unitSim.PokemonBenefitsFromSevereStatus( top2.Attacker.Pokemon ) )
@@ -136,7 +136,7 @@ public class BattleAI_Projection
         if( _unitSim.PokemonHasLoweredStats( top2.Attacker.Pokemon ) )
             oppCreatesPressureState = true;
 
-        if( _unitSim.CheckHasPhazeMove( top1.Opponent.Pokemon ) && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.SANDSTORM ) )
+        if( _unitSim.CheckHasPhazeMove( top1.Opponent.Pokemon ) && ( hazardsSetOnUs || top1.Field.Weather == WeatherConditionID.Sand ) )
             oppCreatesPressureState = true;
 
         //--Role Fulfillment
@@ -660,10 +660,10 @@ public class BattleAI_Projection
                 bool sandSetter = top1.Attacker.Ability == AbilityID.Sandstream || top2.Attacker.Ability == AbilityID.Sandstream || _ai.UnitSim.CheckHasMove( top1.Attacker, "Sandstorm" );
                 bool snowSetter = top1.Attacker.Ability == AbilityID.SnowWarning || top2.Attacker.Ability == AbilityID.SnowWarning || _ai.UnitSim.CheckHasMove( top1.Attacker, "Snowscape" );
 
-                bool sunSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.SUNNY && sunSetter;
-                bool rainSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.RAIN && rainSetter;
-                bool sandSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.SANDSTORM && sandSetter;
-                bool snowSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.SNOW && snowSetter;
+                bool sunSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.Sun && sunSetter;
+                bool rainSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.Rain && rainSetter;
+                bool sandSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.Sand && sandSetter;
+                bool snowSet = _ai.Blackboard.CurrentFieldSnapshot.Weather == WeatherConditionID.None && top2.Field.Weather == WeatherConditionID.Snow && snowSetter;
 
                 bool setTailwind = top1.Attacker.RoleProfile.Traits.Contains( RoleTrait.TailwindSetter ) && !attackerCourtConditions1.ContainsKey( CourtConditionID.Tailwind ) && attackerCourtConditions2.ContainsKey( CourtConditionID.Tailwind );
                 bool setTrickRoom = top1.Attacker.RoleProfile.Traits.Contains( RoleTrait.TrickRoomSetter ) && !fieldConditions1.ContainsKey( FieldConditionID.TrickRoom ) && fieldConditions2.ContainsKey( FieldConditionID.TrickRoom );
@@ -1252,14 +1252,14 @@ public class BattleAI_Projection
     {
         //--Potential to KO
         //--Attacker PTKO Target
-        var attackerMTR = _ai.CandidateSelect.GetMove_BestAttack( attacker, target, false, "Evaluate Exchange (attacker vs target)" );
+        var attackerMTR = _ai.CandidateSelect.GetMove_BestAttack( attacker, target, default, false, "Evaluate Exchange (attacker vs target)" );
         var targetWSR = Get_EstimatedDamageResult( attacker, target, attackerMTR );
         float targetHP = target.BeginningHPR;
 
         PotentialToKOResult attackerPTKOR = Get_PotentialToKOResult( targetWSR, attackerMTR, target );
 
         //--Target PTKO Attacker
-        var targetMTR = _ai.CandidateSelect.GetMove_BestAttack( target, attacker, false, "Evaluate Exchange (target vs attacker)" );
+        var targetMTR = _ai.CandidateSelect.GetMove_BestAttack( target, attacker, default, false, "Evaluate Exchange (target vs attacker)" );
         var attackerWSR = Get_EstimatedDamageResult( target, attacker, targetMTR );
         float attackerHP = attacker.BeginningHPR;
 
@@ -1508,7 +1508,7 @@ public class BattleAI_Projection
                 if( !mon.IsFainted && pivotHP > 0.35f )
                 {
                     BattleAI_PokemonAdapter pivot = _ai.GetPokemonAs_Adapter( mon );
-                    var opponentMTR = _ai.CandidateSelect.GetMove_BestAttack( opponent, pivot, false, "Get Safe Pivot" );
+                    var opponentMTR = _ai.CandidateSelect.GetMove_BestAttack( opponent, pivot, default, false, "Get Safe Pivot" );
                     var opponentEDR = Get_EstimatedDamageResult( opponent, pivot, opponentMTR );
                     var opponentPTKO = Get_PotentialToKOResult( opponentEDR, opponentMTR, opponent ).PTKO;
 
@@ -1598,6 +1598,7 @@ public class BattleAI_Projection
         float modifier = 1f;
         float brnOrfbt = 1f;
         float targets = mtr.TargetCount == 1 ? 1f : 0.75f;
+        float expectedHits = 1f;
 
         if( mtr != null && mtr.Move != null )
         {
@@ -1616,11 +1617,11 @@ public class BattleAI_Projection
                 // Score = score,
                 DamageEstimate = 0f,
                 LowRollEstimate = 0f,
-                AttackingStatStage = attacker.StatStages[attackingStat],
-                DefendingStatStage = target.StatStages[defendingStat],
+                AttackStages = attacker.StatStages[attackingStat],
+                DefenseStages = target.StatStages[defendingStat],
 
-                AttackingDirectModifier = attacker.DirectStatModifiers[attackingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
-                DefendingDirectModifier = target.DirectStatModifiers[defendingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+                AttackModifiers = attacker.DirectStatModifiers[attackingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+                DefenseModifiers = target.DirectStatModifiers[defendingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
 
                 Attacker = attacker,
                 Target = target,
@@ -1635,13 +1636,14 @@ public class BattleAI_Projection
             int minHits = moveSO.HitRange.x;
             int maxHits = moveSO.HitRange.y;
 
-            int expectedHits = Mathf.FloorToInt( ( minHits + maxHits ) * 0.5f );
+            expectedHits = Mathf.FloorToInt( ( minHits + maxHits ) * 0.5f );
 
             movePower *= expectedHits;
         }
         else if( moveSO.HitRange.x >= 2 && moveSO.HitRange.y == 0 )
         {
-            movePower *= moveSO.HitRange.x;
+            expectedHits = moveSO.HitRange.x;
+            movePower *= expectedHits;
         }
 
         //--Get Stats used
@@ -1720,24 +1722,136 @@ public class BattleAI_Projection
 
         mtr.EstimatedDamage = damagePercentage; //--store damage in MTR for sim use
 
-        // Debug.Log( $"[AI Scoring][Estimated Damage Result] Calculation Results: Target {target.Name}'s Assumed Defending Stat: {defendingStat}, {defense}, Assumed Max HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Assumed Attacking stat {attackingStat}, {attack}. Move: {moveThreat.Move.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}, BRN/FBT: {brnOrfbt}. Final Damage Estimate: {damage}, Percentage of target's assumed Max HP: {damagePercentage}" );
+        // Debug.Log( $"[AI Scoring][Estimated Damage Result] Calculation Results: Target {target.Name}'s Assumed Defending Stat: {defendingStat}, {defense}, Assumed Max HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Assumed Attacking stat {attackingStat}, {attack}. Move: {mtr.Move?.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}, BRN/FBT: {brnOrfbt}. Final Damage Estimate: {damage}, Percentage of target's assumed Max HP: {damagePercentage}" );
         
         EstimatedDamageResult edr = new()
         {
             // Score = score,
             DamageEstimate = damagePercentage,
             LowRollEstimate = lowRollPercentage,
-            AttackingStatStage = attacker.StatStages[attackingStat],
-            DefendingStatStage = target.StatStages[defendingStat],
 
-            AttackingDirectModifier = attacker.DirectStatModifiers[attackingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
-            DefendingDirectModifier = target.DirectStatModifiers[defendingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+            AttackStat = attackingStat,
+            DefenseStat = defendingStat,
+
+            Attack = attack,
+            Defense = defense,
+
+            AttackStages = attacker.StatStages[attackingStat],
+            DefenseStages = target.StatStages[defendingStat],
+
+            AttackModifiers = attacker.DirectStatModifiers[attackingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+            DefenseModifiers = target.DirectStatModifiers[defendingStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+
+            TargetMHP = targetMHP,
+
+            LevelFactor = levelFactor,
+            MovePower = movePower,
+            Modifier = modifier,
+            BrnOrFBT = brnOrfbt,
+            Targets = targets,
+            Hits = expectedHits,
 
             Attacker = attacker,
             Target = target,
         };
 
         return edr;
+    }
+
+    public PotentialToKO Get_InteractionModifiedPTKO( EstimatedDamageResult edr, IBattleAIUnit attacker, IBattleAIUnit target, Stat attackStat = Stat.HP, Stat defenseStat = Stat.HP, float changeBrnOrFbt = 0f, float removeModifier = 0f, float addModifier = 0f, Dictionary<Stat, int> attackerStatStageChanges = null, Dictionary<Stat, int> targetStatStageChanges = null, Dictionary<Stat, float> addStatModifierChanges = null, Dictionary<Stat, float> removeStatModifierChanges = null, float newHPR = 0f )
+    {
+        attackStat = attackStat == Stat.HP ? edr.AttackStat : attackStat;
+        defenseStat = defenseStat == Stat.HP ? edr.DefenseStat : defenseStat;
+        
+        float targetMHP = edr.TargetMHP;
+        float levelFactor = edr.LevelFactor;
+        float movePower = edr.MovePower;
+        float attack = RecalcStat( attacker, attackStat, edr.Attack, false );
+        float defense = RecalcStat( target, defenseStat, edr.Defense, true );
+        float modifier = edr.Modifier;
+        float brnOrfbt = changeBrnOrFbt > 0f ? changeBrnOrFbt : edr.BrnOrFBT;
+        float targets = edr.Targets;
+        float mid_Roll = edr.MidRollModifier;
+        float low_Roll = edr.LowRollModifier;
+
+        float RecalcStat( IBattleAIUnit unit, Stat stat, float statValue, bool isTarget )
+        {
+            var statStageChanges = isTarget ? targetStatStageChanges : attackerStatStageChanges;
+            int stage = statStageChanges != null ? unit.StatStages[stat] + statStageChanges[stat] : unit.StatStages[stat];
+
+            var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
+
+            float directModifier = unit.DirectStatModifiers[stat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm );
+            directModifier = addStatModifierChanges != null ? directModifier * addStatModifierChanges[stat] : directModifier;
+            directModifier = removeStatModifierChanges != null ? directModifier / removeStatModifierChanges[stat] : directModifier;
+
+            stage = Mathf.Clamp( stage, -6, 6 );
+
+            if( stage >= 0 )
+                statValue *= stageModifier[stage];
+            else
+                statValue /= stageModifier[-stage];
+
+            //--Apply Direct Stat Change (Burn, Paralysis, Ruin Ability, Weather stat change, etc.)
+            statValue *= directModifier;
+
+            return Mathf.FloorToInt( statValue );
+        }
+
+        float damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * targets * mid_Roll;
+        
+        if( removeModifier > 0 )
+            damage /= removeModifier;
+
+        if( addModifier > 0 )
+            damage *= addModifier;
+
+        float damagePercentage = Mathf.Floor( ( damage / targetMHP ) * 1000f ) / 1000f;
+        
+        float lowRoll = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * targets * low_Roll;
+        
+        if( removeModifier > 0 )
+            lowRoll *= removeModifier;
+
+        if( addModifier > 0 )
+            lowRoll *= addModifier;
+
+        float lowRollPercentage = Mathf.Floor( ( low_Roll / targetMHP ) * 1000f ) / 1000f;
+
+        IBattleAIUnit newTarget = null;
+        if( newHPR > 0f )
+        {
+            newTarget = _ai.UnitSim.CopySimUnit( target );
+            newTarget.BeginningHPR = newHPR;
+        }
+
+        EstimatedDamageResult adjusted = new()
+        {
+            DamageEstimate = damagePercentage,
+            LowRollEstimate = lowRollPercentage,
+
+            Attack = attack,
+            Defense = defense,
+
+            AttackStages = attacker.StatStages[attackStat],
+            DefenseStages = target.StatStages[defenseStat],
+
+            AttackModifiers = attacker.DirectStatModifiers[attackStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+            DefenseModifiers = target.DirectStatModifiers[defenseStat].Values.Aggregate( 1.0f, ( acc, dsm ) => acc * dsm ),
+
+            TargetMHP = targetMHP,
+
+            LevelFactor = levelFactor,
+            MovePower = movePower,
+            Modifier = modifier,
+            BrnOrFBT = brnOrfbt,
+            Targets = targets,
+
+            Attacker = attacker,
+            Target = newHPR > 0f ? newTarget : target,
+        };
+
+        return GetPTKO_FromDamageEstimate( adjusted, target );
     }
 
     public PotentialToKOResult Get_PotentialToKOResult( EstimatedDamageResult edr, MoveThreatResult mtr, IBattleAIUnit target )
@@ -1752,6 +1866,7 @@ public class BattleAI_Projection
             PTKO = ptko,
             Modifier = mtr != null ? mtr.Modifier : 0f,
             EstimatedDamage = edr.DamageEstimate,
+            EDR = edr,
         };
 
         return ptkor;
@@ -1815,11 +1930,9 @@ public class BattleAI_Projection
         float lowRoll = edr.LowRollEstimate / targetHPR;
         // Debug.Log( $"[AI Scoring][Get Walling Score] Damage Estimate: {damageEstimate}, Target HPR: {targetHPR}, Final Damage Done Ratio: {damage}" );
 
-        bool focusSash = target.Item == ItemBattleEffectID.FocusSash && target.BeginningHPR == 1f;
-        if( focusSash && ( damage >= 0.99f || lowRoll >= 0.99f ) )
-        {
+        bool fullHPSave = ( target.Item == ItemBattleEffectID.FocusSash || target.Ability == AbilityID.Sturdy ) && target.BeginningHPR == 1f;
+        if( fullHPSave && ( damage >= 0.99f || lowRoll >= 0.99f ) )
             return PotentialToKO.TwoHKO;
-        }
 
         if( lowRoll > 0.98f )           return PotentialToKO.OHKO;
 
@@ -2386,7 +2499,7 @@ public class BattleAI_Projection
         return next;
     }
 
-    public int GetCurrentPlanBias( ActionEvaluation action, ProjectedBoardState pbs, BoardContext bc, CurrentPlan plan, SurvivalClass sc )
+    public int GetCurrentPlanBias( ActionEvaluation action, ProjectedBoardState pbs, BoardContext bc, CurrentPlan plan )
     {
         int score = 0;
         var top1 = action.Top1;
@@ -3040,40 +3153,40 @@ public class BattleAI_Projection
         //----------------Survival Class Bias----------------
         //---------------------------------------------------
 
-        if( sc == SurvivalClass.Safe )
-        {
-            if( plan.Type == PlanType.Stabilize || plan.Type == PlanType.EnableSweep )
-                score += 10;
-        }
+        // if( sc == SurvivalClass.Safe )
+        // {
+        //     if( plan.Type == PlanType.Stabilize || plan.Type == PlanType.EnableSweep )
+        //         score += 10;
+        // }
 
-        if( sc == SurvivalClass.FragileCounterPressure )
-        {
-            if( plan.Type == PlanType.Aggress )
-                score += 15;
+        // if( sc == SurvivalClass.FragileCounterPressure )
+        // {
+        //     if( plan.Type == PlanType.Aggress )
+        //         score += 15;
 
-            if( plan.Type == PlanType.Stabilize )
-                score -= 10;
-        }
+        //     if( plan.Type == PlanType.Stabilize )
+        //         score -= 10;
+        // }
 
-        if( sc == SurvivalClass.UsefulSacrifice )
-        {
-            if( plan.Type == PlanType.Trade )
-                score += Mathf.RoundToInt( 15f * sackModifier );
+        // if( sc == SurvivalClass.UsefulSacrifice )
+        // {
+        //     if( plan.Type == PlanType.Trade )
+        //         score += Mathf.RoundToInt( 15f * sackModifier );
 
-            if( plan.Type == PlanType.PreventSweep )
-                score += 10;
+        //     if( plan.Type == PlanType.PreventSweep )
+        //         score += 10;
 
-            if( plan.Type == PlanType.Stabilize )
-                score -= 15;
-        }
+        //     if( plan.Type == PlanType.Stabilize )
+        //         score -= 15;
+        // }
 
-        if( sc == SurvivalClass.FailedSacrifice )
-        {
-            score -= Mathf.RoundToInt( 40f * sackModifier );
+        // if( sc == SurvivalClass.FailedSacrifice )
+        // {
+        //     score -= Mathf.RoundToInt( 40f * sackModifier );
 
-            if( plan.Type == PlanType.PreventSweep )
-                score -= 20;
-        }
+        //     if( plan.Type == PlanType.PreventSweep )
+        //         score -= 20;
+        // }
 
         return score;
     }
@@ -3241,10 +3354,10 @@ public class BattleAI_Projection
             {
                 switch( mon.AbilityID )
                 {
-                    case AbilityID.Drought: topsWeather = WeatherConditionID.SUNNY; break;
-                    case AbilityID.Drizzle: topsWeather = WeatherConditionID.RAIN; break;
-                    case AbilityID.Sandstream: topsWeather = WeatherConditionID.SANDSTORM; break;
-                    case AbilityID.SnowWarning: topsWeather = WeatherConditionID.SNOW; break;
+                    case AbilityID.Drought: topsWeather = WeatherConditionID.Sun; break;
+                    case AbilityID.Drizzle: topsWeather = WeatherConditionID.Rain; break;
+                    case AbilityID.Sandstream: topsWeather = WeatherConditionID.Sand; break;
+                    case AbilityID.SnowWarning: topsWeather = WeatherConditionID.Snow; break;
                 }
 
                 topWeatherSetter = true;
@@ -3258,10 +3371,10 @@ public class BattleAI_Projection
                     var move = mon.ActiveMoves[m];
                     switch( move.MoveSO.MoveEffects.Weather )
                     {
-                        case WeatherConditionID.SUNNY: topsWeather = WeatherConditionID.SUNNY; break;
-                        case WeatherConditionID.RAIN: topsWeather = WeatherConditionID.RAIN; break;
-                        case WeatherConditionID.SANDSTORM: topsWeather = WeatherConditionID.SANDSTORM; break;
-                        case WeatherConditionID.SNOW: topsWeather = WeatherConditionID.SNOW; break;
+                        case WeatherConditionID.Sun: topsWeather = WeatherConditionID.Sun; break;
+                        case WeatherConditionID.Rain: topsWeather = WeatherConditionID.Rain; break;
+                        case WeatherConditionID.Sand: topsWeather = WeatherConditionID.Sand; break;
+                        case WeatherConditionID.Snow: topsWeather = WeatherConditionID.Snow; break;
                     }
                 }
 
@@ -3278,10 +3391,10 @@ public class BattleAI_Projection
             {
                 switch( mon.AbilityID )
                 {
-                    case AbilityID.Drought: bottomsWeather = WeatherConditionID.SUNNY; break;
-                    case AbilityID.Drizzle: bottomsWeather = WeatherConditionID.RAIN; break;
-                    case AbilityID.Sandstream: bottomsWeather = WeatherConditionID.SANDSTORM; break;
-                    case AbilityID.SnowWarning: bottomsWeather = WeatherConditionID.SNOW; break;
+                    case AbilityID.Drought: bottomsWeather = WeatherConditionID.Sun; break;
+                    case AbilityID.Drizzle: bottomsWeather = WeatherConditionID.Rain; break;
+                    case AbilityID.Sandstream: bottomsWeather = WeatherConditionID.Sand; break;
+                    case AbilityID.SnowWarning: bottomsWeather = WeatherConditionID.Snow; break;
                 }
 
                 bottomWeatherSetter = true;
@@ -3295,10 +3408,10 @@ public class BattleAI_Projection
                     var move = mon.ActiveMoves[m];
                     switch( move.MoveSO.MoveEffects.Weather )
                     {
-                        case WeatherConditionID.SUNNY: bottomsWeather = WeatherConditionID.SUNNY; break;
-                        case WeatherConditionID.RAIN: bottomsWeather = WeatherConditionID.RAIN; break;
-                        case WeatherConditionID.SANDSTORM: bottomsWeather = WeatherConditionID.SANDSTORM; break;
-                        case WeatherConditionID.SNOW: bottomsWeather = WeatherConditionID.SNOW; break;
+                        case WeatherConditionID.Sun: bottomsWeather = WeatherConditionID.Sun; break;
+                        case WeatherConditionID.Rain: bottomsWeather = WeatherConditionID.Rain; break;
+                        case WeatherConditionID.Sand: bottomsWeather = WeatherConditionID.Sand; break;
+                        case WeatherConditionID.Snow: bottomsWeather = WeatherConditionID.Snow; break;
                     }
                 }
 
@@ -3761,6 +3874,7 @@ public class BattleAI_Projection
         var theirUnits = _ai.GetActiveOpposingUnits_AsBattleAIUnits( unit.Pokemon );
 
         var ourAlly = ourUnits.Count > 1 ? ourUnits.First( u => u.Pokemon != unit.Pokemon ) : null;
+        bool weHaveally = ourAlly != null;
 
         int ourWeatherScore = 0;
         int ourTerrainScore = 0;
@@ -3838,6 +3952,73 @@ public class BattleAI_Projection
         //--Helping Hand Support
         if( unit.Pokemon.CheckHasActiveMove( "Helping Hand" ) )
             sp.HelpingHandSupport = true;
+
+        //--Enables Ally
+        if( weHaveally )
+        {
+            var allyRP = ourAlly.RoleProfile;
+            var allyTraits = allyRP.Traits;
+            if( traits.Contains( RoleTrait.TailwindSetter ) && allyTraits.Contains( RoleTrait.TailwindAbuser ) )
+                sp.EnablesAlly = true;
+
+            if( traits.Contains( RoleTrait.WeatherSetter ) )
+            {
+                if( _unitSim.PokemonHasWeatherSetter_Ability( unit.Pokemon ) )
+                {
+                    bool sun = unit.Ability == AbilityID.Drought && allyTraits.Contains( RoleTrait.SunAbuser );
+                    bool rain = unit.Ability == AbilityID.Drizzle && allyTraits.Contains( RoleTrait.RainAbuser );
+                    bool sand = unit.Ability == AbilityID.Sandstream && allyTraits.Contains( RoleTrait.SandAbuser );
+                    bool snow = unit.Ability == AbilityID.SnowWarning && allyTraits.Contains( RoleTrait.SnowAbuser );
+
+                    if( sun || rain || sand || snow )
+                        sp.EnablesAlly = true;
+                }
+
+                if( _unitSim.PokemonHasWeatherSetter_Move( unit.Pokemon ) )
+                {
+                    var weatherMove = _unitSim.GetWeatherFrom_Moveset( unit.Pokemon );
+                    bool sun = weatherMove == WeatherConditionID.Sun && allyTraits.Contains( RoleTrait.SunAbuser );
+                    bool rain = weatherMove == WeatherConditionID.Rain && allyTraits.Contains( RoleTrait.RainAbuser );
+                    bool sand = weatherMove == WeatherConditionID.Sand && allyTraits.Contains( RoleTrait.SandAbuser );
+                    bool snow = weatherMove == WeatherConditionID.Snow && allyTraits.Contains( RoleTrait.SnowAbuser );
+                    
+                    if( sun || rain || sand || snow )
+                        sp.EnablesAlly = true;
+                }
+            }
+
+            if( traits.Contains( RoleTrait.TerrainSetter ) )
+            {
+                if( _unitSim.PokemonHasTerrainSetter_Ability( unit.Pokemon ) )
+                {
+                    var terrainAbility = _unitSim.GetTerrainFrom_Ability( unit.Pokemon );
+                    bool blight = terrainAbility == TerrainID.Blighted && allyTraits.Contains( RoleTrait.BlightedTerrainAbuser );
+                    bool electric = terrainAbility == TerrainID.Electric && allyTraits.Contains( RoleTrait.ElectricTerrainAbuser );
+                    bool grassy = terrainAbility == TerrainID.Grassy && allyTraits.Contains( RoleTrait.GrassyTerrainAbuser );
+                    bool misty = terrainAbility == TerrainID.Misty && allyTraits.Contains( RoleTrait.MistyTerrainAbuser );
+                    bool psychic = terrainAbility == TerrainID.Psychic && allyTraits.Contains( RoleTrait.PsychicTerrainAbuser );
+                    
+                    if( electric || grassy || misty || psychic )
+                        sp.EnablesAlly = true;
+                }
+
+                if( _unitSim.PokemonHasTerrainSetter_Move( unit.Pokemon ) )
+                {
+                    var terrainMove = _unitSim.GetTerrainFrom_Moveset( unit.Pokemon );
+                    bool blight = terrainMove == TerrainID.Blighted && allyTraits.Contains( RoleTrait.BlightedTerrainAbuser );
+                    bool electric = terrainMove == TerrainID.Electric && allyTraits.Contains( RoleTrait.ElectricTerrainAbuser );
+                    bool grassy = terrainMove == TerrainID.Grassy && allyTraits.Contains( RoleTrait.GrassyTerrainAbuser );
+                    bool misty = terrainMove == TerrainID.Misty && allyTraits.Contains( RoleTrait.MistyTerrainAbuser );
+                    bool psychic = terrainMove == TerrainID.Psychic && allyTraits.Contains( RoleTrait.PsychicTerrainAbuser );
+                    
+                    if( electric || grassy || misty || psychic )
+                        sp.EnablesAlly = true;
+                }
+            }
+
+            if( traits.Contains( RoleTrait.AfterYou ) && ( allyRP.Biases.Contains( RoleBias.SlowSpeed ) || allyRP.Biases.Contains( RoleBias.TrickRoomSpeed ) ) && allyRP.PrimaryArchetype == RoleClassArchetype.Offensive )
+                sp.EnablesAlly = true;
+        }
 
         //---------------------------
         //----Board Opportunities----
@@ -3940,10 +4121,10 @@ public class BattleAI_Projection
         //--Weather Dependencies
         bool hasWeatherSpeedAbility = _unitSim.PokemonHasAbility_WeatherSpeed( unit.Pokemon );
         bool pokemonAbilityMatchesWeather = _unitSim.PokemonAbilityMatchesWeather( unit.Pokemon, field.Weather );
-        bool eruption = unit.Pokemon.CheckHasActiveMove( "Eruption" ) && field.Weather == WeatherConditionID.SUNNY;
-        bool waterSpout = unit.Pokemon.CheckHasActiveMove( "Water Spout" ) && field.Weather == WeatherConditionID.RAIN;
-        bool blizzard = unit.Pokemon.CheckHasActiveMove( "Blizzard" ) && field.Weather == WeatherConditionID.SNOW;
-        bool thunder = unit.Pokemon.CheckHasActiveMove( "Thunder" ) && field.Weather == WeatherConditionID.RAIN;
+        bool eruption = unit.Pokemon.CheckHasActiveMove( "Eruption" ) && field.Weather == WeatherConditionID.Sun;
+        bool waterSpout = unit.Pokemon.CheckHasActiveMove( "Water Spout" ) && field.Weather == WeatherConditionID.Rain;
+        bool blizzard = unit.Pokemon.CheckHasActiveMove( "Blizzard" ) && field.Weather == WeatherConditionID.Snow;
+        bool thunder = unit.Pokemon.CheckHasActiveMove( "Thunder" ) && field.Weather == WeatherConditionID.Rain;
 
         bool partnerHasAfterYou = ourAlly != null && ourAlly.Pokemon.CheckHasActiveMove( "After You" );
         bool partnerHasWeatherSpeedAbility = ourAlly != null && _unitSim.PokemonHasAbility_WeatherSpeed( ourAlly.Pokemon );
@@ -3952,7 +4133,7 @@ public class BattleAI_Projection
         bool afterYouEruption = eruption && dependsOnAfterYou;
         bool afterYouWaterSpout = waterSpout && dependsOnAfterYou;
 
-        bool weatherDependency = hasWeatherSpeedAbility || pokemonAbilityMatchesWeather || dependsOnAfterYou || afterYouEruption || afterYouWaterSpout || blizzard || thunder;
+        bool weatherDependency = hasWeatherSpeedAbility || pokemonAbilityMatchesWeather || afterYouEruption || afterYouWaterSpout || blizzard || thunder;
 
         if( weatherDependency )
             sp.DependsOnCurrentWeather = true;
@@ -3974,6 +4155,16 @@ public class BattleAI_Projection
 
         if( trickRoomClass )
             sp.DependsOnTrickRoom = true;
+
+        var item = unit.Item;
+        if( item == ItemBattleEffectID.ChoiceBand || item == ItemBattleEffectID.ChoiceScarf || item == ItemBattleEffectID.ChoiceSpecs )
+            sp.DependsOnItem = true;
+
+        if( item == ItemBattleEffectID.SitrusBerry && rp.PrimaryArchetype != RoleClassArchetype.Offensive )
+            sp.DependsOnItem = true;
+
+        if( item == ItemBattleEffectID.FocusSash || item == ItemBattleEffectID.AssaultVest || item == ItemBattleEffectID.Eviolite )
+            sp.DependsOnItem = true;
 
         //------------------------
         //--Strategic Importance--
@@ -4040,6 +4231,17 @@ public class BattleAI_Projection
             Attacker = GetUnitComparison( attacker, target ),
             Target = GetUnitComparison( target, attacker ),
         };
+
+        bool bestInteractionOutSpeed;
+        var attackerBestPTKOPriority = uc.Attacker.CurrentPTKOs.First().Key.Priority;
+        var targetBestPTKOPriority = uc.Target.CurrentPTKOs.First().Key.Priority;
+
+        if( attackerBestPTKOPriority != targetBestPTKOPriority )
+            bestInteractionOutSpeed = attackerBestPTKOPriority > targetBestPTKOPriority;
+        else
+            bestInteractionOutSpeed = uc.Attacker.FasterSpeed;
+
+        uc.AttackerMovesFirst = bestInteractionOutSpeed;
 
         return uc;
     }
@@ -4147,9 +4349,9 @@ public class BattleAI_Projection
             }
         }
 
-        bool attackerFaster = false;
+        bool attackerFasterSpeed = false;
         if( attacker.Speed > target.Speed )
-            attackerFaster = true;
+            attackerFasterSpeed = true;
 
         bool attackerFasterPriority = false;
         if( attackersHighestPriority > targetsHighestPriority )
@@ -4163,7 +4365,9 @@ public class BattleAI_Projection
             FreshPTKOs = freshPTKOs.ToDictionary( kvp => kvp.Key, kvp => kvp.Value.PTKO ),
             CurrentPTKOs = currentPTKOs.ToDictionary( kvp => kvp.Key, kvp => kvp.Value.PTKO ),
 
-            FasterSpeed = attackerFaster,
+            BestEDR = currentPTKOs.Values.First().EDR,
+
+            FasterSpeed = attackerFasterSpeed,
             FasterPriority = attackerFasterPriority,
         };
     }
@@ -4473,6 +4677,7 @@ public struct StrategicProfile
     public bool PriorityAttacks;
     public bool PriorityStatus;
     public bool HelpingHandSupport;
+    public bool EnablesAlly;
 
     //--Board Opportunities
     public bool ChangesCurrentWeather;
@@ -4490,6 +4695,8 @@ public struct StrategicProfile
     public bool DependsOnCurrentTerrain;
     public bool DependsOnTrickRoom;
     public bool DependsOnFastAlly;
+
+    public bool DependsOnItem;
 
     //--Strategic Importance
     public bool ProvidesStrongOffense;
@@ -4509,8 +4716,13 @@ public struct UnitComparisonResult
 {
     public PotentialToKO BestFreshPTKO;
     public PotentialToKO BestCurrentPTKO;
+
     public Dictionary<Move, PotentialToKO> FreshPTKOs;
     public Dictionary<Move, PotentialToKO> CurrentPTKOs;
+
+
+    public EstimatedDamageResult BestEDR;
+
     public bool FasterSpeed;
     public bool FasterPriority;
 }
@@ -4519,6 +4731,7 @@ public struct UnitComparison
 {
     public UnitComparisonResult Attacker;
     public UnitComparisonResult Target;
+    public bool AttackerMovesFirst;
 }
 
 public enum LeadState

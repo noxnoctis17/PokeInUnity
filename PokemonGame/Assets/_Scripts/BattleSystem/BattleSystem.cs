@@ -121,6 +121,7 @@ public class BattleSystem : MonoBehaviour
     public static event Action OnBattleStarted;
     public static event Action OnBattleEnded;
     public static event Action OnCommandAdded;
+    public static event Action OnCommandRemoved;
     public static Action OnPlayerPokemonFainted;
     public static Action OnPlayerChoseNextPokemon;
     public static Action<List<Pokemon>> OnBattlePartyUpdated;
@@ -137,13 +138,14 @@ public class BattleSystem : MonoBehaviour
     //--private
     private BattleTrainer _topTrainer1, _topTrainer2, _bottomTrainer1, _bottomTrainer2;
     private Inventory _playerInventory;
-    public int _unitInSelectionState = 0;
+    public int _unitInSelectionIndex = 0;
     private Pokemon _wildPokemon;
     private WildPokemon _encounteredPokemon; //--wild pokemon object that you ran into
 
     //--public/getters/properties
     public Inventory PlayerInventory => _playerInventory;
-    public BattleUnit UnitInSelectionState => _playerUnits[_unitInSelectionState];
+    public int UnitInSelectionIndex => _unitInSelectionIndex;
+    public BattleUnit UnitInSelectionState => _playerUnits[_unitInSelectionIndex];
     public int ActivePlayerUnitsCount => _playerUnits.Count( u => u !=null && u.Pokemon != null && u.Pokemon.CurrentHP > 0 );
     public int ActiveSecondPlayerUnitsCount = 0;
     public int ActiveEnemyUnitsCount => _enemyUnits.Count( u => u !=null && u.Pokemon != null && u.Pokemon.CurrentHP > 0 );
@@ -264,7 +266,7 @@ public class BattleSystem : MonoBehaviour
 
     public void SetUnitInSelectionState( int i )
     {
-        _unitInSelectionState = i;
+        _unitInSelectionIndex = i;
     }
 
     public void IncrementRounds()
@@ -306,7 +308,7 @@ public class BattleSystem : MonoBehaviour
 
     private void ExitUnits()
     {
-        List<BattleUnit> activeUnits = GetActivePokemon();
+        List<BattleUnit> activeUnits = GetActiveUnits();
 
         foreach( var unit in activeUnits )
         {
@@ -505,8 +507,13 @@ public class BattleSystem : MonoBehaviour
     //--for HOW the Battle Stage will set itself up. From there, it will add all necessary unit positions to a list
     //--SOMEHOW, we will then assign all necessary Battle Unit objects from the Stage to their correct references here
     //--in the Battle System
-    public void InitializeWildBattle( BattleTrainer player, BattleType battleType ){
-        _battleType = battleType;
+    public void InitializeWildBattle( BattleTrainer player, BattleTrainer cpu )
+    {
+        _battleType = BattleType.WildBattle_1v1;
+
+        //--top Trainer
+        _topTrainer1 = cpu;
+        TrainerCenter_Top1 = _topTrainer1.TrainerCenter;
 
         //--Bottom Trainer (Player)
         _bottomTrainer1 = player;
@@ -607,7 +614,7 @@ public class BattleSystem : MonoBehaviour
 
     private IEnumerator BattleSetup( Action canvasCallback )
     {
-        _unitInSelectionState = 0;
+        _unitInSelectionIndex = 0;
         BattleUIActions.OnBattleSystemBusy?.Invoke();
         PushState( _busyState );
         yield return null;
@@ -654,10 +661,13 @@ public class BattleSystem : MonoBehaviour
     {
         Field.SetWeather( WeatherController.Instance.CurrentWeather );
         RoundLog.Add( $"===[Beginning Battle]===" );
-        RoundLog.Add( $"{BottomTrainer1.TrainerName} vs {TopTrainer1.TrainerName}" );
+        if( BattleType == BattleType.WildBattle_1v1 )
+            RoundLog.Add( $"{BottomTrainer1?.TrainerName} vs {_wildPokemon?.NickName}" );
+        else
+            RoundLog.Add( $"{BottomTrainer1?.TrainerName} vs {TopTrainer1?.TrainerName}" );
 
         List<BattleUnit> activePokemon = new();
-        activePokemon = GetActivePokemon();
+        activePokemon = GetActiveUnits();
 
         yield return new WaitUntil( () => !_battleArena.CMBrain.IsBlending );
 
@@ -749,7 +759,7 @@ public class BattleSystem : MonoBehaviour
         return false;
     }
 
-    public List<BattleUnit> GetActivePokemon()
+    public List<BattleUnit> GetActiveUnits()
     {
         List<BattleUnit> activePokemon = new();
 
@@ -769,7 +779,7 @@ public class BattleSystem : MonoBehaviour
 
     public BattleUnit GetPokemonBattleUnit( Pokemon pokemon )
     {
-        var activePokemon = GetActivePokemon();
+        var activePokemon = GetActiveUnits();
         BattleUnit unit = null;
 
         // Debug.Log( $"[Get BattleUnit] Looking for {pokemon.NickName}'s ({pokemon.PID}) BattleUnit" );
@@ -895,6 +905,24 @@ public class BattleSystem : MonoBehaviour
 
         Debug.LogError( $"Pokemon PID not found in either party! You're fucked!" );
         return null;
+    }
+
+    public bool TryGetOpposingTrainer( BattleTrainer trainer, out BattleTrainer opposingTrainer )
+    {
+        if( trainer == TopTrainer1 )
+        {
+            opposingTrainer = BottomTrainer1;
+            return true;
+        }
+
+        if( trainer == BottomTrainer1 )
+        {
+            opposingTrainer = TopTrainer1;
+            return true;
+        }
+
+        opposingTrainer = null;
+        return false;
     }
 
     //--Will call this where necessary in HandleFaintedPokemon()
@@ -1094,6 +1122,8 @@ public class BattleSystem : MonoBehaviour
             {
                 if( !aiCheck )
                     AddDialogue( $"But it's blocked by the opponent's ability!" );
+
+                return false;
             }
 
             //--Psychic Terrain
@@ -1674,6 +1704,11 @@ public class BattleSystem : MonoBehaviour
             _postBattleSummary.RunBattleSummary( exp, ep );
         }
 
+        foreach( var aiTrainer in _activeAITrainers )
+        {
+            aiTrainer.gameObject.SetActive( false );
+        }
+
         _activeAITrainers.Clear();
 
         Debug.Log( RoundLog.ToString() );
@@ -1694,11 +1729,11 @@ public class BattleSystem : MonoBehaviour
         if( ActivePlayerUnitsCount == _playerUnits.Count )
         {
             var prevUnit = UnitInSelectionState;
-            _unitInSelectionState++;
+            _unitInSelectionIndex++;
                 
-            if( _unitInSelectionState > ActivePlayerUnitsCount - 1 )
-                _unitInSelectionState = Mathf.Clamp( _unitInSelectionState, 0, ActivePlayerUnitsCount - 1 );
-            else if( !_playerUnits[_unitInSelectionState].Flags[UnitFlags.Charging].IsActive )
+            if( _unitInSelectionIndex > ActivePlayerUnitsCount - 1 )
+                _unitInSelectionIndex = Mathf.Clamp( _unitInSelectionIndex, 0, ActivePlayerUnitsCount - 1 );
+            else if( !_playerUnits[_unitInSelectionIndex].Flags[UnitFlags.Charging].IsActive )
                 PlayerBattleMenu.OnUnpauseState?.Invoke();
 
             var currentUnit = UnitInSelectionState;
@@ -1708,7 +1743,7 @@ public class BattleSystem : MonoBehaviour
             //--We need to check to see if the new mon has to have a two turn move handled. Also, should there ever be three mons on the field, this flow
             //--should theoretically just continue infinitely until all unit selection indices have their two turn moves resolved.
             if( currentUnit.Pokemon.PID != prevUnit.Pokemon.PID )
-                HandleTwoTurnMoves( _playerUnits[_unitInSelectionState] );
+                HandleTwoTurnMoves( _playerUnits[_unitInSelectionIndex] );
         }
 
         // Debug.Log( $"[Move Command] Next unit index in selection: {_unitInSelectionState}" );
@@ -1731,6 +1766,37 @@ public class BattleSystem : MonoBehaviour
             PopState();
 
         PushState( _runCommandQueueState );
+    }
+
+    public void ReturnToPreviousUnitInSelection()
+    {
+        // Debug.LogError( $"Returning to previous unit from {UnitInSelectionState.Pokemon.NickName}" );
+        SetUnitInSelectionState( UnitInSelectionIndex - 1 );
+        // Debug.LogError( $"{UnitInSelectionState.Pokemon.NickName} was previous unit. Removing their command...(Current Command Count: {CommandList.Count})" );
+        RemoveUnitCommandFromGatheringQueue( UnitInSelectionState );
+        // Debug.LogError( $"Attempted removing {UnitInSelectionState.Pokemon.NickName}'s previous command. (Current Command Count: {CommandList.Count})" );
+    }
+
+    public void RemoveUnitCommandFromGatheringQueue( BattleUnit unit )
+    {
+        int commandIndex = -1;
+        for( int i = 0; i < CommandList.Count; i++ )
+        {
+            var command = CommandList[i];
+
+            if( command.User.Pokemon == unit.Pokemon )
+            {
+                // Debug.LogError( $"Unit in selection: {UnitInSelectionState.Pokemon.NickName}, unit passed: {unit.Pokemon.NickName}, command's user: {command.User.Pokemon.NickName}, at command list index {i}. Breaking from loop...");
+                commandIndex = i;
+                break;
+            }
+        }
+
+        if( commandIndex >= 0 )
+        {
+            CommandList.RemoveAt( commandIndex );
+            OnCommandRemoved?.Invoke();
+        }
     }
 
     private void RemoveUnitCommandFromQueue( BattleUnit unit )
@@ -1765,6 +1831,21 @@ public class BattleSystem : MonoBehaviour
 
         for( int i = 0; i < newCommandList.Count; i++ )
             AddCommand( newCommandList[i] );
+    }
+
+    public bool TryGetPokemonCommand( Pokemon pokemon, out UseMoveCommand command )
+    {
+        foreach( var comm in CommandQueue )
+        {
+            if( comm is UseMoveCommand moveCommand && moveCommand.User.Pokemon == pokemon )
+            {
+                command = moveCommand;
+                return true;
+            }
+        }
+
+        command = null;
+        return false;
     }
 
     public void SetMoveCommand( BattleUnit attacker, List<BattleUnit> targets, Move move, bool aiCommand = false )

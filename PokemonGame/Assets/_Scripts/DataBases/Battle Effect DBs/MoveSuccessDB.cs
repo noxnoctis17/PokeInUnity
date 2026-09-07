@@ -75,7 +75,7 @@ public class MoveSuccessDB
                     FailureMessage = ( Pokemon user ) => ButItFailed(),
                     OnCheckSuccess = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
-                        if( bs.Field.Weather?.ID == WeatherConditionID.SUNNY )
+                        if( bs.Field.Weather?.ID == WeatherConditionID.Sun )
                         {
                             return false;
                         }
@@ -90,7 +90,7 @@ public class MoveSuccessDB
                     FailureMessage = ( Pokemon user ) => ButItFailed(),
                     OnCheckSuccess = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
-                        if( bs.Field.Weather?.ID == WeatherConditionID.RAIN )
+                        if( bs.Field.Weather?.ID == WeatherConditionID.Rain )
                         {
                             return false;
                         }
@@ -105,7 +105,7 @@ public class MoveSuccessDB
                     FailureMessage = ( Pokemon user ) => ButItFailed(),
                     OnCheckSuccess = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
-                        if( bs.Field.Weather?.ID == WeatherConditionID.SANDSTORM )
+                        if( bs.Field.Weather?.ID == WeatherConditionID.Sand )
                         {
                             return false;
                         }
@@ -120,7 +120,7 @@ public class MoveSuccessDB
                     FailureMessage = ( Pokemon user ) => ButItFailed(),
                     OnCheckSuccess = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
-                        if( bs.Field.Weather?.ID == WeatherConditionID.SNOW )
+                        if( bs.Field.Weather?.ID == WeatherConditionID.Snow )
                         {
                             return false;
                         }
@@ -328,7 +328,7 @@ public class MoveSuccessDB
 
                     OnCheckAccuracy = ( BattleUnit attacker, BattleUnit target, Move move, BattleSystem bs ) =>
                     {
-                        if( bs.Field.Weather?.ID == WeatherConditionID.SNOW )
+                        if( bs.Field.Weather?.ID == WeatherConditionID.Snow )
                         {
                             move.OverrideAccuracyType( AccuracyType.AlwaysHits );
                         }
@@ -347,7 +347,7 @@ public class MoveSuccessDB
 
                     OnCheckAccuracy = ( attacker, target, move, bs ) =>
                     {
-                        if( bs.Field.Weather?.ID == WeatherConditionID.RAIN || target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.SkyHigh ) )
+                        if( bs.Field.Weather?.ID == WeatherConditionID.Rain || target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.SkyHigh ) )
                         {
                             move.OverrideAccuracyType( AccuracyType.AlwaysHits );
                         }
@@ -366,7 +366,7 @@ public class MoveSuccessDB
 
                     OnCheckAccuracy = ( attacker, target, move, bs ) =>
                     {
-                        if( bs.Field.Weather?.ID == WeatherConditionID.RAIN || target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.SkyHigh ) )
+                        if( bs.Field.Weather?.ID == WeatherConditionID.Rain || target.Pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.SkyHigh ) )
                         {
                             move.OverrideAccuracyType( AccuracyType.AlwaysHits );
                         }
@@ -759,7 +759,7 @@ public class MoveSuccessDB
                     {
                         if( !attacker.Flags[UnitFlags.Charging].IsActive )
                         {
-                            if( bs.Field.Weather?.ID == WeatherConditionID.SUNNY )
+                            if( bs.Field.Weather?.ID == WeatherConditionID.Sun )
                             {
                                 bs.AddDialogue( $"The harsh sun fully charged {attacker.Pokemon.NickName}'s attack!" );
                                 return false;

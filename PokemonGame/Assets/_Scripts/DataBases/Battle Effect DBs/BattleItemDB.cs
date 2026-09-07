@@ -486,4 +486,6 @@ public enum ItemBattleEffectID
     Eviolite,
     MentalHerb,
     CovertCloak,
+    ThroatSpray,
+    TerrainExtender,
 }

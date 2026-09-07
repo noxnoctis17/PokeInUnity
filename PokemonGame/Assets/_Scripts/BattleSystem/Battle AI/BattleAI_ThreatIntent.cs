@@ -3,14 +3,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Runtime.InteropServices;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class BattleAI_ThreatIntent
 {
     private readonly BattleAI _ai;
     private CustomLogSession _tirLog;
-    private CustomLogSession _switchPredLog;
+    // private CustomLogSession _switchPredLog;
 
     public BattleAI_ThreatIntent( BattleAI ai )
     {
@@ -65,13 +65,13 @@ public class BattleAI_ThreatIntent
             OffensiveScores = new(),
         };
 
-        _switchPredLog = new();
+        // _switchPredLog = new();
 
-        _switchPredLog.Add( $"" );
-        _switchPredLog.Add( $"====================================================" );
-        _switchPredLog.Add( $"=====[Predicting Most Likely Switch Candidates]=====" );
-        _switchPredLog.Add( $"====================================================" );
-        _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"====================================================" );
+        // _switchPredLog.Add( $"=====[Predicting Most Likely Switch Candidates]=====" );
+        // _switchPredLog.Add( $"====================================================" );
+        // _switchPredLog.Add( $"" );
 
         if( defensiveSwitches )
         {
@@ -105,10 +105,10 @@ public class BattleAI_ThreatIntent
             }
         }
 
-        Debug.Log( _switchPredLog.ToString() );
-        string path = Application.persistentDataPath + "/SwitchPrediction_Log.txt";
-        System.IO.File.AppendAllText( path, _switchPredLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
-        _switchPredLog.Clear();
+        // Debug.Log( _switchPredLog.ToString() );
+        // string path = Application.persistentDataPath + "/SwitchPrediction_Log.txt";
+        // System.IO.File.AppendAllText( path, _switchPredLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
+        // _switchPredLog.Clear();
 
         ThreatIntentCandidates tic = new()
         {
@@ -127,11 +127,11 @@ public class BattleAI_ThreatIntent
 
     private SwitchPredictionResult SelectLikely_DefensiveSwitch( List<SwitchCandidateResult> candidates, ref SwitchPredictionResult spr, ThreatBrain tb, IBattleAIUnit threat )
     {
-        _switchPredLog.Add( $"" );
-        _switchPredLog.Add( $"=========================================" );
-        _switchPredLog.Add( $"===[Selecting Likely Defensive Switch]===" );
-        _switchPredLog.Add( $"=========================================" );
-        _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"=========================================" );
+        // _switchPredLog.Add( $"===[Selecting Likely Defensive Switch]===" );
+        // _switchPredLog.Add( $"=========================================" );
+        // _switchPredLog.Add( $"" );
 
         foreach( var cand in candidates )
         {
@@ -142,32 +142,32 @@ public class BattleAI_ThreatIntent
 
             var top = cand.Top;
             var candidateAdapter = _ai.GetPokemonAs_Adapter( cand.Pokemon );
-            _switchPredLog.Add( $"=[{cand.Pokemon.NickName}]=" );
+            // _switchPredLog.Add( $"=[{cand.Pokemon.NickName}]=" );
 
             //--Safety
             //--Candidate survives comfortably
             if( top.OpponentPTKO <= PotentialToKO.Safe )
             {
                 safety += 2;
-                _switchPredLog.Add( $"Candidate survives comfortably. Safety: {safety}" );
+                // _switchPredLog.Add( $"Candidate survives comfortably. Safety: {safety}" );
             }
             //--Candidate survives but isn't amazing
             else if( top.OpponentPTKO < PotentialToKO.Risky )
             {
                 safety += 1;
-                _switchPredLog.Add( $"Candidate survives somewhat. Safety: {safety}" );
+                // _switchPredLog.Add( $"Candidate survives somewhat. Safety: {safety}" );
             }
             //--Candidate still gets blown up
             else if( top.OpponentPTKO == PotentialToKO.Dangerous )
             {
                 safety -= 2;
-                _switchPredLog.Add( $"Candidate takes huge damage. Safety: {safety}" );
+                // _switchPredLog.Add( $"Candidate takes huge damage. Safety: {safety}" );
             }
             //--OHKO
             else if( top.OpponentPTKO == PotentialToKO.OHKO )
             {
                 safety -= 3;
-                _switchPredLog.Add( $"Candidate dies. Safety: {safety}" );
+                // _switchPredLog.Add( $"Candidate dies. Safety: {safety}" );
             }
 
             //--Pressure
@@ -175,19 +175,19 @@ public class BattleAI_ThreatIntent
             if( top.AttackerPTKO <= PotentialToKO.Safe )
             {
                 pressure -= 1;
-                _switchPredLog.Add( $"Candidate does not threaten us. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Candidate does not threaten us. Pressure: {pressure}" );
             }
             //--Threatens immediate KO
             else if( top.AttackerPTKO >= PotentialToKO.Dangerous )
             {
                 pressure += 2;
-                _switchPredLog.Add( $"Candidate really threatens us. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Candidate really threatens us. Pressure: {pressure}" );
             }
             //--Can enter safely but does nothing
             else if( top.AttackerPTKO >= PotentialToKO.TwoHKO )
             {
                 pressure += 1;
-                _switchPredLog.Add( $"Candidate kinda threatens us. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Candidate kinda threatens us. Pressure: {pressure}" );
             }
 
             //--Resource
@@ -195,7 +195,7 @@ public class BattleAI_ThreatIntent
             if( threat.Expendability <= 0.3f && candidateAdapter.Expendability >= 0.3f )
             {
                 resource += 1;
-                _switchPredLog.Add( $"Their current unit is not very expendible, and their tank is more expendible. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their current unit is not very expendible, and their tank is more expendible. Resource: {resource}" );
             }
 
             //--Hazard removal
@@ -206,7 +206,7 @@ public class BattleAI_ThreatIntent
             if( candidateAdapter.RoleProfile.Traits.Contains( RoleTrait.HazardRemover ) && ( hazardsExist || weAreHazardSetter ) )
             {
                 resource += 1;
-                _switchPredLog.Add( $"Their candidate is a hazard remover and we have either set hazards on their side or we are a hazard setter. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their candidate is a hazard remover and we have either set hazards on their side or we are a hazard setter. Resource: {resource}" );
             }
 
             //--Weather setter
@@ -218,10 +218,10 @@ public class BattleAI_ThreatIntent
             {
                 switch( cand.Pokemon.AbilityID )
                 {
-                    case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
-                    case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
-                    case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
-                    case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+                    case AbilityID.Drought: candidatesWeather = WeatherConditionID.Sun; break;
+                    case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.Rain; break;
+                    case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.Sand; break;
+                    case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.Snow; break;
                 }
 
                 if( candidatesWeather != WeatherConditionID.None && candidatesWeather != _ai.Blackboard.CurrentFieldSnapshot.Weather )
@@ -231,7 +231,7 @@ public class BattleAI_ThreatIntent
             if( switchChangesWeather )
             {
                 resource += 1;
-                _switchPredLog.Add( $"Their candidate changes the weather likely in their favor. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their candidate changes the weather likely in their favor. Resource: {resource}" );
             }
 
             //--Future FocusMon support
@@ -239,7 +239,7 @@ public class BattleAI_ThreatIntent
             if( cand.Pokemon == cp.FocusMon )
             {
                 resource += 2;
-                _switchPredLog.Add( $"Their candidate is their current plan's FocusMon. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their candidate is their current plan's FocusMon. Resource: {resource}" );
             }
 
             //--Plan
@@ -249,12 +249,12 @@ public class BattleAI_ThreatIntent
             if( candidateAdapter.RoleProfile.PrimaryRole == RoleClass.Wall && weAreOffensive )
             {
                 plan += 1;
-                _switchPredLog.Add( $"Their candidate is a wall and we are an offensive unit. Plan: {plan}" );
+                // _switchPredLog.Add( $"Their candidate is a wall and we are an offensive unit. Plan: {plan}" );
 
                 if( ourPR == RoleClass.WallBreaker )
                 {
                     plan -= 1;
-                    _switchPredLog.Add( $"However, we are a wallbreaker. Nullifying previous reward. Plan: {plan}" );
+                    // _switchPredLog.Add( $"However, we are a wallbreaker. Nullifying previous reward. Plan: {plan}" );
                 }
             }
 
@@ -262,7 +262,7 @@ public class BattleAI_ThreatIntent
             if( candidateAdapter.RoleProfile.PrimaryRole == RoleClass.Pivot )
             {
                 plan += 1;
-                _switchPredLog.Add( $"Their candidate is a pivot. Plan: {plan}" );
+                // _switchPredLog.Add( $"Their candidate is a pivot. Plan: {plan}" );
             }
 
             //--Weather Abuser
@@ -270,22 +270,22 @@ public class BattleAI_ThreatIntent
             if( benefitsCurrentWeather )
             {
                 plan += 1;
-                _switchPredLog.Add( $"Their candidate benefits from the current weather. Plan: {plan}" );
+                // _switchPredLog.Add( $"Their candidate benefits from the current weather. Plan: {plan}" );
 
                 WeatherConditionID threatsWeather = WeatherConditionID.None;
 
                 switch( threat.Ability )
                 {
-                    case AbilityID.Drought: threatsWeather = WeatherConditionID.SUNNY; break;
-                    case AbilityID.Drizzle: threatsWeather = WeatherConditionID.RAIN; break;
-                    case AbilityID.Sandstream: threatsWeather = WeatherConditionID.SANDSTORM; break;
-                    case AbilityID.SnowWarning: threatsWeather = WeatherConditionID.SNOW; break;
+                    case AbilityID.Drought: threatsWeather = WeatherConditionID.Sun; break;
+                    case AbilityID.Drizzle: threatsWeather = WeatherConditionID.Rain; break;
+                    case AbilityID.Sandstream: threatsWeather = WeatherConditionID.Sand; break;
+                    case AbilityID.SnowWarning: threatsWeather = WeatherConditionID.Snow; break;
                 }
 
                 if( threatsWeather != WeatherConditionID.None && threatsWeather == _ai.Blackboard.CurrentFieldSnapshot.Weather )
                 {
                     plan += 1;
-                    _switchPredLog.Add( $"Their current pokemon likely set the weather their candidate benefits from. Plan: {plan}" );
+                    // _switchPredLog.Add( $"Their current pokemon likely set the weather their candidate benefits from. Plan: {plan}" );
                 }
             }
 
@@ -294,13 +294,13 @@ public class BattleAI_ThreatIntent
             float final = safety + pressure + resource + plan;
             final += tieBreaker;
 
-            _switchPredLog.Add( $"" );
-            _switchPredLog.Add( $"Safety: {safety}" );
-            _switchPredLog.Add( $"Pressure: {pressure}" );
-            _switchPredLog.Add( $"Resource: {resource}" );
-            _switchPredLog.Add( $"Plan: {plan}" );
-            _switchPredLog.Add( $"Tie Breaker Value: {tieBreaker}. Final Score: {final}" );
-            _switchPredLog.Add( $"" );
+            // _switchPredLog.Add( $"" );
+            // _switchPredLog.Add( $"Safety: {safety}" );
+            // _switchPredLog.Add( $"Pressure: {pressure}" );
+            // _switchPredLog.Add( $"Resource: {resource}" );
+            // _switchPredLog.Add( $"Plan: {plan}" );
+            // _switchPredLog.Add( $"Tie Breaker Value: {tieBreaker}. Final Score: {final}" );
+            // _switchPredLog.Add( $"" );
 
             SwitchPredictionScore sps = new()
             {
@@ -331,21 +331,21 @@ public class BattleAI_ThreatIntent
 
         spr.DefensiveConfidence = Mathf.Clamp01( (float)Mathf.Max( 1, best ) / ( best + second ) );
 
-        _switchPredLog.Add( $"Primary Defensive Candidate: {spr.PrimaryDefensive.Candidate.NickName}" );
-        _switchPredLog.Add( $"Secondary Defensive Candidate: {spr.SecondaryDefensive.Candidate.NickName}" );
-        _switchPredLog.Add( $"Confidence: {spr.DefensiveConfidence}" );
-        _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"Primary Defensive Candidate: {spr.PrimaryDefensive.Candidate.NickName}" );
+        // _switchPredLog.Add( $"Secondary Defensive Candidate: {spr.SecondaryDefensive.Candidate.NickName}" );
+        // _switchPredLog.Add( $"Confidence: {spr.DefensiveConfidence}" );
+        // _switchPredLog.Add( $"" );
 
         return spr;
     }
 
     private SwitchPredictionResult SelectLikely_OffensiveSwitch( List<SwitchCandidateResult> candidates, ref SwitchPredictionResult spr, ThreatBrain tb, IBattleAIUnit threat )
     {
-        _switchPredLog.Add( $"" );
-        _switchPredLog.Add( $"=========================================" );
-        _switchPredLog.Add( $"===[Selecting Likely Offensive Switch]===" );
-        _switchPredLog.Add( $"=========================================" );
-        _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"=========================================" );
+        // _switchPredLog.Add( $"===[Selecting Likely Offensive Switch]===" );
+        // _switchPredLog.Add( $"=========================================" );
+        // _switchPredLog.Add( $"" );
 
         foreach( var cand in candidates )
         {
@@ -357,32 +357,32 @@ public class BattleAI_ThreatIntent
             var top = cand.Top;
             var candidateAdapter = _ai.GetPokemonAs_Adapter( cand.Pokemon );
 
-            _switchPredLog.Add( $"=[{cand.Pokemon.NickName}]=" );
+            // _switchPredLog.Add( $"=[{cand.Pokemon.NickName}]=" );
 
             //--Safety
             //--Candidate survives comfortably
             if( top.OpponentPTKO <= PotentialToKO.Safe )
             {
                 safety += 2;
-                _switchPredLog.Add( $"Their candidate survives comfortably. Safety: {safety}" );
+                // _switchPredLog.Add( $"Their candidate survives comfortably. Safety: {safety}" );
             }
             //--Candidate survives but isn't amazing
             else if( top.OpponentPTKO < PotentialToKO.Risky )
             {
                 safety += 1;
-                _switchPredLog.Add( $"Their candidate barely survives. Safety: {safety}" );
+                // _switchPredLog.Add( $"Their candidate barely survives. Safety: {safety}" );
             }
             //--Candidate still gets blown up
             else if( top.OpponentPTKO == PotentialToKO.Dangerous )
             {
                 safety -= 2;
-                _switchPredLog.Add( $"Their candidate takes huge damage. Safety: {safety}" );
+                // _switchPredLog.Add( $"Their candidate takes huge damage. Safety: {safety}" );
             }
             //--OHKO
             else if( top.OpponentPTKO == PotentialToKO.OHKO )
             {
                 safety -= 3;
-                _switchPredLog.Add( $"Their candidate dies. Safety: {safety}" );
+                // _switchPredLog.Add( $"Their candidate dies. Safety: {safety}" );
             }
 
             //--Pressure
@@ -390,42 +390,42 @@ public class BattleAI_ThreatIntent
             if( top.AttackerPTKO >= PotentialToKO.Dangerous)
             {
                 pressure += 2;
-                _switchPredLog.Add( $"Their candidate threatens an immediate KO on us. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Their candidate threatens an immediate KO on us. Pressure: {pressure}" );
             }
             else if( top.AttackerPTKO >= PotentialToKO.TwoHKO )
             {
                 pressure += 1;
-                _switchPredLog.Add( $"Their candidate threatens reasonable damage on us. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Their candidate threatens reasonable damage on us. Pressure: {pressure}" );
             }
 
             if( top.Attacker.Speed > top.Opponent.Speed )
             {
                 pressure += 1;
-                _switchPredLog.Add( $"Their candidate outspeeds our current pokemon. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Their candidate outspeeds our current pokemon. Pressure: {pressure}" );
             }
 
             if( candidateAdapter.RoleProfile.PrimaryRole == RoleClass.RevengeKiller || candidateAdapter.RoleProfile.PrimaryRole == RoleClass.Pivot || candidateAdapter.RoleProfile.PrimaryRole == RoleClass.WallBreaker )
             {
                 pressure += 1;
-                _switchPredLog.Add( $"Their candidate is a tempo-based offensive unit. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Their candidate is a tempo-based offensive unit. Pressure: {pressure}" );
             }
 
             if( top.AttackerPTKO >= PotentialToKO.Risky && top.OpponentPTKO <= PotentialToKO.Safe )
             {
                 pressure += 2;
-                _switchPredLog.Add( $"Their candidate has offensive and defensive control over the board. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Their candidate has offensive and defensive control over the board. Pressure: {pressure}" );
             }
             else if( top.AttackerPTKO > top.OpponentPTKO )
             {
                 pressure += 2;
-                _switchPredLog.Add( $"Their candidate has an offensive advantage over us. Pressure: {pressure}" );
+                // _switchPredLog.Add( $"Their candidate has an offensive advantage over us. Pressure: {pressure}" );
             }
 
             //--Resource
             if( cand.Pokemon == tb.TheirCP.FocusMon )
             {
                 resource += 2;
-                _switchPredLog.Add( $"Their candidate is their current plan's FocusMon. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their candidate is their current plan's FocusMon. Resource: {resource}" );
             }
 
             float switchThreatCount = _ai.Blackboard.TheirTeamPieceValues.TryGetValue( top.Attacker.Pokemon, out var pieceValue ) ? pieceValue.ThreatCount : 0;
@@ -433,18 +433,18 @@ public class BattleAI_ThreatIntent
             if( threatPercentage >= 0.5f )
             {
                 resource += 2;
-                _switchPredLog.Add( $"Their candidate threatens at least half of our team. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their candidate threatens at least half of our team. Resource: {resource}" );
             }
             else if( threatPercentage >= 0.25f )
             {
                 resource += 1;
-                _switchPredLog.Add( $"Their candidate threantes at least a quarter of our team. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their candidate threantes at least a quarter of our team. Resource: {resource}" );
             }
 
             if( candidateAdapter.Expendability >= 0.6f )
             {
                 resource += 1;
-                _switchPredLog.Add( $"Their candidate is pretty expendible. Resource: {resource}" );
+                // _switchPredLog.Add( $"Their candidate is pretty expendible. Resource: {resource}" );
             }
 
             //--Plan
@@ -453,7 +453,7 @@ public class BattleAI_ThreatIntent
                 if( cand.Pokemon == tb.TheirCP.FocusMon )
                 {
                     plan += 1;
-                    _switchPredLog.Add( $"They are looking to enable a sweep and their candidate is their current plan's FocusMon. Plan: {plan}" );
+                    // _switchPredLog.Add( $"They are looking to enable a sweep and their candidate is their current plan's FocusMon. Plan: {plan}" );
                 }
             }
 
@@ -461,7 +461,7 @@ public class BattleAI_ThreatIntent
             if( gainsControl )
             {
                 plan += 1;
-                _switchPredLog.Add( $"Their candidate gains the speed advantage over us. Plan: {plan}" );
+                // _switchPredLog.Add( $"Their candidate gains the speed advantage over us. Plan: {plan}" );
             }
             
             //--Weather Abuser
@@ -469,22 +469,22 @@ public class BattleAI_ThreatIntent
             if( benefitsCurrentWeather )
             {
                 plan += 2;
-                _switchPredLog.Add( $"Their candidate benefits from the current weather. Plan: {plan}" );
+                // _switchPredLog.Add( $"Their candidate benefits from the current weather. Plan: {plan}" );
 
                 WeatherConditionID threatsWeather = WeatherConditionID.None;
 
                 switch( threat.Ability )
                 {
-                    case AbilityID.Drought: threatsWeather = WeatherConditionID.SUNNY; break;
-                    case AbilityID.Drizzle: threatsWeather = WeatherConditionID.RAIN; break;
-                    case AbilityID.Sandstream: threatsWeather = WeatherConditionID.SANDSTORM; break;
-                    case AbilityID.SnowWarning: threatsWeather = WeatherConditionID.SNOW; break;
+                    case AbilityID.Drought: threatsWeather = WeatherConditionID.Sun; break;
+                    case AbilityID.Drizzle: threatsWeather = WeatherConditionID.Rain; break;
+                    case AbilityID.Sandstream: threatsWeather = WeatherConditionID.Sand; break;
+                    case AbilityID.SnowWarning: threatsWeather = WeatherConditionID.Snow; break;
                 }
 
                 if( threatsWeather != WeatherConditionID.None && threatsWeather == _ai.Blackboard.CurrentFieldSnapshot.Weather )
                 {
                     plan += 1;
-                    _switchPredLog.Add( $"Their current pokemon likely set the weather the candidate benefits from. Plan: {plan}" );
+                    // _switchPredLog.Add( $"Their current pokemon likely set the weather the candidate benefits from. Plan: {plan}" );
                 }
             }
 
@@ -493,13 +493,13 @@ public class BattleAI_ThreatIntent
             float final = safety + pressure + resource + plan;
             final += tieBreaker;
 
-            _switchPredLog.Add( $"" );
-            _switchPredLog.Add( $"Safety: {safety}" );
-            _switchPredLog.Add( $"Pressure: {pressure}" );
-            _switchPredLog.Add( $"Resource: {resource}" );
-            _switchPredLog.Add( $"Plan: {plan}" );
-            _switchPredLog.Add( $"Tie Breaker Value: {tieBreaker}. Final Score: {final}" );
-            _switchPredLog.Add( $"" );
+            // _switchPredLog.Add( $"" );
+            // _switchPredLog.Add( $"Safety: {safety}" );
+            // _switchPredLog.Add( $"Pressure: {pressure}" );
+            // _switchPredLog.Add( $"Resource: {resource}" );
+            // _switchPredLog.Add( $"Plan: {plan}" );
+            // _switchPredLog.Add( $"Tie Breaker Value: {tieBreaker}. Final Score: {final}" );
+            // _switchPredLog.Add( $"" );
 
             SwitchPredictionScore sps = new()
             {
@@ -529,10 +529,10 @@ public class BattleAI_ThreatIntent
         spr.OffensiveConfidence = Mathf.Clamp01( ( best - second + 5f ) / 10f );
         spr.OffensiveConfidence = Mathf.Clamp01( (float)Mathf.Max( 1, best ) / ( best + second ) );
 
-        _switchPredLog.Add( $"Primary Offensive Candidate: {spr.PrimaryOffensive.Candidate?.NickName}" );
-        _switchPredLog.Add( $"Secondary Offensive Candidate: {spr.SecondaryOffensive.Candidate?.NickName}" );
-        _switchPredLog.Add( $"Confidence: {spr.OffensiveConfidence}" );
-        _switchPredLog.Add( $"" );
+        // _switchPredLog.Add( $"Primary Offensive Candidate: {spr.PrimaryOffensive.Candidate?.NickName}" );
+        // _switchPredLog.Add( $"Secondary Offensive Candidate: {spr.SecondaryOffensive.Candidate?.NickName}" );
+        // _switchPredLog.Add( $"Confidence: {spr.OffensiveConfidence}" );
+        // _switchPredLog.Add( $"" );
 
         return spr;
     }
@@ -577,25 +577,25 @@ public class BattleAI_ThreatIntent
         offStatus_Evidence = OffensiveStatusEvidence( tic, theirEE, theirBFS, theirTP, ourTP, theirCP );
         suppStatus_Evidence = SupportiveStatusEvidence( tic, theirEE, theirBFS, theirTP, ourTP, theirCP );
 
-        Dictionary<IntentType, int> evidenceGathered = new()
+        Dictionary<ActionType, int> evidenceGathered = new()
         {
-            { IntentType.Attack, attack_evidence }, //--There's always an attack. Eventually this will include struggle.
+            { ActionType.Attack, attack_evidence }, //--There's always an attack. Eventually this will include struggle.
         };
 
         if( defSwitch_evidence != -99 )
-            evidenceGathered.Add( IntentType.DefensiveSwitch, defSwitch_evidence );
+            evidenceGathered.Add( ActionType.DefensiveSwitch, defSwitch_evidence );
 
         if( offSwitch_evidence != -99 )
-            evidenceGathered.Add( IntentType.OffensiveSwitch, offSwitch_evidence );
+            evidenceGathered.Add( ActionType.OffensiveSwitch, offSwitch_evidence );
 
         if( setup_Evidence != -99 )
-            evidenceGathered.Add( IntentType.Setup, setup_Evidence );
+            evidenceGathered.Add( ActionType.Setup, setup_Evidence );
 
         if( offStatus_Evidence != -99 )
-            evidenceGathered.Add( IntentType.OffensiveStatus, offStatus_Evidence );
+            evidenceGathered.Add( ActionType.OffensiveStatus, offStatus_Evidence );
 
         if( suppStatus_Evidence != -99 )
-            evidenceGathered.Add( IntentType.SupportiveStatus, suppStatus_Evidence );
+            evidenceGathered.Add( ActionType.SupportiveStatus, suppStatus_Evidence );
 
         // evidenceGathered = evidenceGathered.OrderByDescending( kvp => kvp.Value ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
         var sorted = evidenceGathered.OrderByDescending( kvp => kvp.Value ).ToList();
@@ -637,7 +637,7 @@ public class BattleAI_ThreatIntent
         var primaryIntent = sorted[0].Key;
         var primaryEvidence = sorted[0].Value;
 
-        IntentType secondaryIntent = IntentType.Any;
+        ActionType secondaryIntent = ActionType.Any;
         int secondaryEvidence = -99;
 
         if( sorted.Count > 1 )
@@ -646,8 +646,8 @@ public class BattleAI_ThreatIntent
             secondaryEvidence = sorted[1].Value;
         }
 
-        tir.PrimaryIntent = new(){ IntentType = primaryIntent, Evidence = primaryEvidence };
-        tir.SecondaryIntent = new(){ IntentType = secondaryIntent, Evidence = secondaryEvidence };
+        tir.PrimaryIntent = new(){ ActionType = primaryIntent, Evidence = primaryEvidence };
+        tir.SecondaryIntent = new(){ ActionType = secondaryIntent, Evidence = secondaryEvidence };
 
         AssignIntentResult( ref tir.PrimaryIntent );
         AssignIntentResult( ref tir.SecondaryIntent );
@@ -671,39 +671,39 @@ public class BattleAI_ThreatIntent
 
         void AssignIntentResult( ref Intent intent )
         {
-            switch( intent.IntentType )
+            switch( intent.ActionType )
             {
-                case IntentType.Attack:
+                case ActionType.Attack:
                     intent.IntentResult = tic.MoveThreatResult;
                     var attackCand = (MoveThreatResult)intent.IntentResult;
                     _tirLog.Add( $"With move: {attackCand.Move.MoveSO.Name} (Attacker: {attackCand.Top.Attacker?.Name}, Opponent: {attackCand.Top.Opponent?.Name}, Attacker Ally: {attackCand.Top.AttackerAlly?.Name}, Opponent Ally: {attackCand.Top.OpponentAlly?.Name})" );
                 break;
 
-                case IntentType.DefensiveSwitch:
+                case ActionType.DefensiveSwitch:
                     intent.IntentResult = tic.DefensiveSwitchCandidateResult;
                     var defCand = (SwitchCandidateResult)intent.IntentResult;
                     _tirLog.Add( $"With defensive switch candidate: {defCand.Pokemon.NickName} (Attacker: {defCand.Top.Attacker?.Name}, Opponent: {defCand.Top.Opponent?.Name}, Attacker Ally: {defCand.Top.AttackerAlly?.Name}, Opponent Ally: {defCand.Top.OpponentAlly?.Name})" );
                 break;
 
-                case IntentType.OffensiveSwitch:
+                case ActionType.OffensiveSwitch:
                     intent.IntentResult = tic.OffensiveSwitchCandidateResult;
                     var offCand = (SwitchCandidateResult)intent.IntentResult;
                     _tirLog.Add( $"With offensive switch candidate: {offCand.Pokemon.NickName} (Attacker: {offCand.Top.Attacker?.Name}, Opponent: {offCand.Top.Opponent?.Name}, Attacker Ally: {offCand.Top.AttackerAlly?.Name}, Opponent Ally: {offCand.Top.OpponentAlly?.Name})" );
                 break;
 
-                case IntentType.Setup:
+                case ActionType.Setup:
                     intent.IntentResult = tic.SetupThreatResult;
                     var setupCand = (SetupThreatResult)intent.IntentResult;
                     _tirLog.Add( $"With move: {setupCand.Move.MoveSO.Name} (Attacker: {setupCand.Top.Attacker?.Name}, Opponent: {setupCand.Top.Opponent?.Name}, Attacker Ally: {setupCand.Top.AttackerAlly?.Name}, Opponent Ally: {setupCand.Top.OpponentAlly?.Name})" );
                 break;
 
-                case IntentType.OffensiveStatus:
+                case ActionType.OffensiveStatus:
                     intent.IntentResult = tic.OffensiveStatusThreatResult;
                     var offStatusCand = (StatusThreatResult)intent.IntentResult;
                     _tirLog.Add( $"With move: {offStatusCand.Move.MoveSO.Name} (Attacker: {offStatusCand.Top.Attacker?.Name}, Opponent: {offStatusCand.Top.Opponent?.Name}, Attacker Ally: {offStatusCand.Top.AttackerAlly?.Name}, Opponent Ally: {offStatusCand.Top.OpponentAlly?.Name})" );
                 break;
 
-                case IntentType.SupportiveStatus:
+                case ActionType.SupportiveStatus:
                     intent.IntentResult = tic.SupportiveStatusThreatResult;
                     var suppStatusCand = (StatusThreatResult)intent.IntentResult;
                     _tirLog.Add( $"With move: {suppStatusCand.Move.MoveSO.Name} (Attacker: {suppStatusCand.Top.Attacker?.Name}, Opponent: {suppStatusCand.Top.Opponent?.Name}, Attacker Ally: {suppStatusCand.Top.AttackerAlly?.Name}, Opponent Ally: {suppStatusCand.Top.OpponentAlly?.Name})" );
@@ -1650,11 +1650,11 @@ public class BattleAI_ThreatIntent
                 List<SimulatedUnit> allyTargets = allySimUnit != null ? _ai.BattleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, allyMTR ) : new();
                 List<SimulatedUnit> opponentAllyTargets = targetAllySimUnit != null ? _ai.BattleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, targetAllyMTR ) : new();
 
-                SimulationPackage attackerPack      = _ai.BattleSim.BuildSimPackage( attackerSimUnit, attackerTargets, SimModuleType.Attack );
-                SimulationPackage targetPack        = _ai.BattleSim.BuildSimPackage( targetSimUnit, opponentTargets, SimModuleType.Attack );
+                SimulationPackage attackerPack      = _ai.BattleSim.BuildSimPackage( attackerSimUnit, null, attackerTargets, SimModuleType.Attack );
+                SimulationPackage targetPack        = _ai.BattleSim.BuildSimPackage( targetSimUnit, null, opponentTargets, SimModuleType.Attack );
 
-                SimulationPackage attackerAllyPack  = allySimUnit != null ? _ai.BattleSim.BuildSimPackage( allySimUnit, allyTargets, SimModuleType.Attack ) : default;
-                SimulationPackage targetAllyPack    = targetAllySimUnit != null ? _ai.BattleSim.BuildSimPackage( targetAllySimUnit, opponentAllyTargets, SimModuleType.Attack ) : default;
+                SimulationPackage attackerAllyPack  = allySimUnit != null ? _ai.BattleSim.BuildSimPackage( allySimUnit, null, allyTargets, SimModuleType.Attack ) : default;
+                SimulationPackage targetAllyPack    = targetAllySimUnit != null ? _ai.BattleSim.BuildSimPackage( targetAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : default;
 
                 var roundPack = _ai.BattleSim.BuildRoundPackage( attackerPack, attackerAllyPack, targetPack, targetAllyPack );
                 var bse = _ai.BattleSim.BuildBattleSimEvent( roundPack, _ai.Blackboard.CurrentFieldSnapshot );
@@ -1805,10 +1805,10 @@ public class BattleAI_ThreatIntent
             {
                 switch( switchCandidate.AbilityID )
                 {
-                    case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
-                    case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
-                    case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
-                    case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+                    case AbilityID.Drought: candidatesWeather = WeatherConditionID.Sun; break;
+                    case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.Rain; break;
+                    case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.Sand; break;
+                    case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.Snow; break;
                 }
 
                 if( candidatesWeather != WeatherConditionID.None && candidatesWeather != bfs.Weather )
@@ -1844,7 +1844,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"They believe they force us to switch, so they are unlikely to switch as a result. Defensive Switch Evidence: {evidence}" );
             }
 
-            if( theirTP.Type == ThreatType.Constraining && ( theirCurrentRP.Traits.Contains( RoleTrait.ShadowTag ) || attackTOP.Opponent.Bindings.Count > 0 ) )
+            if( theirTP.Type == ThreatType.Constraining && ( theirCurrentRP.Traits.Contains( RoleTrait.TrappingAbility ) || attackTOP.Opponent.Bindings.Count > 0 ) )
             {
                 evidence -= 3;
                 _tirLog.Add( $"They're constraining us with trapping pressure, switching removes the trap. Defensive Switch Evidence: {evidence}" );
@@ -2233,10 +2233,10 @@ public class BattleAI_ThreatIntent
             {
                 switch( switchCandidate.AbilityID )
                 {
-                    case AbilityID.Drought: candidatesWeather = WeatherConditionID.SUNNY; break;
-                    case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.RAIN; break;
-                    case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.SANDSTORM; break;
-                    case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.SNOW; break;
+                    case AbilityID.Drought: candidatesWeather = WeatherConditionID.Sun; break;
+                    case AbilityID.Drizzle: candidatesWeather = WeatherConditionID.Rain; break;
+                    case AbilityID.Sandstream: candidatesWeather = WeatherConditionID.Sand; break;
+                    case AbilityID.SnowWarning: candidatesWeather = WeatherConditionID.Snow; break;
                 }
 
                 if( candidatesWeather != WeatherConditionID.None && candidatesWeather != bfs.Weather )
@@ -2272,7 +2272,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"They believe they force us to switch, so they are unlikely to switch as a result. Offensive Switch Evidence: {evidence}" );
             }
 
-            if( theirTP.Type == ThreatType.Constraining && ( theirCurrentRP.Traits.Contains( RoleTrait.ShadowTag ) || attackTOP.Opponent.Bindings.Count > 0 ) )
+            if( theirTP.Type == ThreatType.Constraining && ( theirCurrentRP.Traits.Contains( RoleTrait.TrappingAbility ) || attackTOP.Opponent.Bindings.Count > 0 ) )
             {
                 evidence -= 3;
                 _tirLog.Add( $"They're constraining us with trapping pressure, switching removes the trap. Offensive Switch Evidence: {evidence}" );
@@ -3653,22 +3653,22 @@ public class BattleAI_ThreatIntent
                 threatAllyVS_UsAfter = _ai.Projection.EvaluateExchange( allyAfter, threatAllyVS_Us.Opponent );
             }
 
-            var threat = ee.Attacker;
             var us = ee.Opponent;
-            var threatTeam = _ai.GetRemainingAllyPokemon( threat.Pokemon );
+            var threat = ee.Attacker;
             var ourTeam = _ai.GetRemainingOpposingPokemon( threat.Pokemon );
+            var threatTeam = _ai.GetRemainingAllyPokemon( threat.Pokemon );
             var teamAnalBefore = _ai.Projection.Get_TeamVSTeamAnalysis( threatTeam, ourTeam );
 
-            var threatRemaining = _ai.GetRemainingPartyAs_IBattleAIUnits( threat.Pokemon );
             var ourRemaining = _ai.GetRemainingPartyAs_IBattleAIUnits( us.Pokemon );
-            float threatRemainingPercentage = threatRemaining.Count / (float)_ai.Blackboard.OurTeamPokemon.Count;
-            float ourRemainingPercentage = ourRemaining.Count / (float)_ai.Blackboard.TheirTeamPokemon.Count;
+            var threatRemaining = _ai.GetRemainingPartyAs_IBattleAIUnits( threat.Pokemon );
+            float ourRemainingPercentage = ourRemaining.Count / (float)_ai.Blackboard.OurTeamPokemon.Count;
+            float threatRemainingPercentage = threatRemaining.Count / (float)_ai.Blackboard.TheirTeamPokemon.Count;
 
             var status = tic.SupportiveStatusThreatResult;
             var statusType = status.SupportiveStatusType;
 
             //--Material Opportunity Values
-            if( statusType != SupportiveStatusType.Recovery )
+            if( statusType == SupportiveStatusType.BattlefieldControl )
             {
                 if( threatRemainingPercentage > 0.5f )
                 {
@@ -3759,6 +3759,7 @@ public class BattleAI_ThreatIntent
             if( statusType == SupportiveStatusType.ForceMultiplier || statusType == SupportiveStatusType.BattlefieldControl )
             {
                 bool isAllySetup = _ai.UnitSim.MoveIsSetup( move ) && effects.Target == EffectTarget.AllySide;
+                bool isAfterYou = move.MoveSO.Name == "After You";
                 bool isHelpingHand = effects.VolatileStatus == VolatileConditionID.HelpingHand;
                 bool isTailwind = effects.CourtCondition == CourtConditionID.Tailwind;
                 bool isReflect = effects.CourtCondition == CourtConditionID.Reflect;
@@ -3827,47 +3828,47 @@ public class BattleAI_ThreatIntent
                 if( teamAnalAfter.Our_AveragePTKO > teamAnalBefore.Our_AveragePTKO )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Their average PTKO improves from support. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Their team's average PTKO improves from support. Supportive Status Evidence: {evidence}" );
                 }
 
                 if( teamAnalAfter.Our_BestPTKO > teamAnalBefore.Our_BestPTKO )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Their best PTKO improves from support. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Their team's best PTKO improves from support. Supportive Status Evidence: {evidence}" );
                 }
 
                 if( teamAnalAfter.Their_AveragePTKO < teamAnalBefore.Their_AveragePTKO )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Our average PTKO worsens from support. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Our team's average PTKO worsens from support. Supportive Status Evidence: {evidence}" );
                 }
 
                 if( teamAnalAfter.Their_BestPTKO < teamAnalBefore.Their_BestPTKO )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Our best PTKO worsens from support. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Our team's best PTKO worsens from support. Supportive Status Evidence: {evidence}" );
                 }
 
                 if( teamAnalAfter.Our_Outspeeds > teamAnalBefore.Our_Outspeeds )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Their total out-speeds improve from support. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Their team's total out-speeds improve from support. Supportive Status Evidence: {evidence}" );
                 }
                 else if( teamAnalAfter.Our_Outspeeds <= teamAnalBefore.Our_Outspeeds && isTrickRoom )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Their total out-speeds improve due to trick room. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Their team's total out-speeds improve due to trick room. Supportive Status Evidence: {evidence}" );
                 }
 
                 if( teamAnalBefore.Our_Outspeeds <= teamAnalBefore.Their_Outspeeds && teamAnalAfter.Our_Outspeeds > teamAnalBefore.Their_Outspeeds )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Their total out-speeds are higher after support. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Their team's total out-speeds are higher after support. Supportive Status Evidence: {evidence}" );
                 }
                 else if( teamAnalBefore.Our_Outspeeds <= teamAnalBefore.Their_Outspeeds && isTrickRoom )
                 {
                     evidence += 1;
-                    _tirLog.Add( $"Their total out-speeds are higher after trick room. Supportive Status Evidence: {evidence}" );
+                    _tirLog.Add( $"Their team's total out-speeds are higher after trick room. Supportive Status Evidence: {evidence}" );
                 }
 
                 //--Check value of setting up ally
@@ -4039,6 +4040,238 @@ public class BattleAI_ThreatIntent
                 {
                     evidence -= 1;
                     _tirLog.Add( $"Their team does not benefit from the battlefield context changes. Supportive Status Evidence: {evidence}" );
+                }
+
+                if( isHelpingHand && theirAlly != null )
+                {
+                    const float helpinghand = 1.5f;
+                    //--Both of these need their own unique evidence contributions! todo immediately!
+                    _tirLog.Add( $"They may want to use Helping Hand." );
+                    var theirAllyEDR_Us = threatAllyVS_Us.AttackerMTR.EDR;
+                    var theirAllyPTKO_Us = threatAllyVS_Us.AttackerPTKO;
+
+                    var theirAllyMove_Us = threatAllyVS_Us.AttackerMTR.Move;
+                    bool theirAllyMoveVsUsIsSpread = theirAllyMove_Us.MoveSO.MoveTarget == MoveTarget.AllAdjacent || theirAllyMove_Us.MoveSO.MoveTarget == MoveTarget.OpposingSide;
+
+                    var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirAllyEDR_Us, theirAlly, us, addModifier: helpinghand );
+
+                    if( adjustedPTKO_Us > theirAllyPTKO_Us )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally's PTKO is improved by helping hand. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( adjustedPTKO_Us - theirAllyPTKO_Us > 2 )
+                    {
+                        evidence += 2;
+                        _tirLog.Add( $"Their ally's PTKO is improved by 2 levels by helping hand. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( theirAllyPTKO_Us != PotentialToKO.OHKO && adjustedPTKO_Us >= PotentialToKO.OHKO )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their PTKO is OHKO with helping hand and it isn't OHKO without it. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( theirAllyMoveVsUsIsSpread )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally's move with the best PTKO is a spread move. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( theirAlly.Speed > us.Speed || theirAllyMove_Us.Priority > MovePriority.Zero )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally outspeeds us. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( ourAlly != null )
+                    {
+                        var theirAllyEDR_OurAlly = threatAllyVS_OurAlly.AttackerMTR.EDR;
+                        var theirAllyPTKO_OurAlly = threatAllyVS_OurAlly.AttackerPTKO;
+
+                        var theirAllyMove_OurAlly = threatAllyVS_OurAlly.AttackerMTR.Move;
+                        bool theirAllyMoveVsOurAllyIsSpread = theirAllyMove_OurAlly.MoveSO.MoveTarget == MoveTarget.AllAdjacent || theirAllyMove_OurAlly.MoveSO.MoveTarget == MoveTarget.OpposingSide;
+
+                        var adjustedPTKO_OurAlly = _ai.Projection.Get_InteractionModifiedPTKO( theirAllyEDR_OurAlly, theirAlly, ourAlly, addModifier: helpinghand );
+
+                        if( adjustedPTKO_OurAlly > theirAllyPTKO_OurAlly )
+                        {
+                            evidence += 1;
+                            _tirLog.Add( $"Their ally's PTKO against our ally improves with helping hand. Supportive Status Evidence: {evidence}" );
+                        }
+
+                        if( adjustedPTKO_OurAlly - theirAllyPTKO_OurAlly > 2 )
+                        {
+                            evidence += 2;
+                            _tirLog.Add( $"Their ally's PTKO against our ally improves by 2 levels by helping hand. Supportive Status Evidence: {evidence}" );
+                        }
+
+                        if( theirAllyPTKO_OurAlly != PotentialToKO.OHKO && adjustedPTKO_OurAlly >= PotentialToKO.OHKO )
+                        {
+                            evidence += 1;
+                            _tirLog.Add( $"Their ally PTKO on our ally is not OHKO, but it is with helping hand. Supportive Status Evidence: {evidence}" );
+                        }
+
+                        if( theirAllyMoveVsOurAllyIsSpread )
+                        {
+                            evidence += 1;
+                            _tirLog.Add( $"Their ally's move is a spread move. Supportive Status Evidence: {evidence}" );
+                        }
+
+                        if( theirAlly.Speed > ourAlly.Speed || theirAllyMove_OurAlly.Priority > MovePriority.Zero )
+                        {
+                            evidence += 1;
+                            _tirLog.Add( $"Their ally outspeeds our ally. Supportive Status Evidence: {evidence}" );
+                        }
+
+                        if( theirAllyMoveVsUsIsSpread && theirAllyMoveVsOurAllyIsSpread )
+                        {
+                            if( theirAllyPTKO_Us >= PotentialToKO.Risky && theirAllyPTKO_OurAlly >= PotentialToKO.Risky )
+                            {
+                                evidence += 1;
+                                _tirLog.Add( $"Their ally's spread move PTKOs without helping hand are Risky or more. Supportive Status Evidence: {evidence}" );
+                            }
+                        }
+                    }
+                }
+
+                if( isAfterYou && theirAlly != null )
+                {
+                    _tirLog.Add( $"They may want to use After You on their ally." );
+                    //--Both of these need their own unique evidence contributions! todo immediately!
+                    List<IBattleAIUnit> speedOrder = new()
+                    {
+                        us,
+                        threat,
+                    };
+
+                    if( theirAlly != null )
+                        speedOrder.Add( theirAlly );
+
+                    if( ourAlly != null )
+                        speedOrder.Add( ourAlly );
+
+                    var afterYouUser = threat;
+                    var attacker = theirAlly;
+
+                    var afterYouUserSP = _ai.Projection.GetStrategicProfile( afterYouUser );
+                    var attackerSP = _ai.Projection.GetStrategicProfile( attacker );
+
+                    var attackerPTKO_Us = threatAllyVS_Us.AttackerPTKO;
+                    var attackerPTKO_OurAlly = ourAlly != null ? threatAllyVS_OurAlly.AttackerPTKO : PotentialToKO.Untouchable;
+
+                    speedOrder = speedOrder.OrderByDescending( u => u.Speed ).ThenByDescending( u => u.Pokemon.PokeSO.Speed ).ThenByDescending( u => u.Pokemon == afterYouUser.Pokemon || u.Pokemon == attacker.Pokemon ).ToList();
+
+                    int order = 0;
+                    foreach( var unit in speedOrder )
+                    {
+                        order++;
+
+                        if( unit.Pokemon == attacker.Pokemon )
+                            break;
+                    }
+
+                    bool theirAttackerIsSlowest = false;
+                    bool theirAllyBenefitsAfterYou = false;
+
+                    if( order == speedOrder.Count )
+                        theirAttackerIsSlowest = true;
+                    else if( order == speedOrder.Count - 1 )
+                        theirAllyBenefitsAfterYou = true;
+
+                    bool afterYouUserGoesFirst = speedOrder[0].Pokemon == afterYouUser.Pokemon;
+                    bool afterYouUserGoesSecond = speedOrder[1].Pokemon == afterYouUser.Pokemon;
+
+                    bool attackerDoesGoodDamage = attackerPTKO_Us >= PotentialToKO.Dangerous || attackerPTKO_OurAlly >= PotentialToKO.Dangerous;
+
+                    bool attackerUsesSpreadMove_Us = threatAllyVS_Us.AttackerMTR.Move.MoveSO.MoveTarget == MoveTarget.AllAdjacent || threatAllyVS_Us.AttackerMTR.Move.MoveSO.MoveTarget == MoveTarget.OpposingSide;
+                    bool attackerUsesSpreadMove_OurAlly = threatAllyVS_Us.AttackerMTR.Move.MoveSO.MoveTarget == MoveTarget.AllAdjacent || threatAllyVS_Us.AttackerMTR.Move.MoveSO.MoveTarget == MoveTarget.OpposingSide;
+                    bool attackerUsesSpread = attackerUsesSpreadMove_Us || attackerUsesSpreadMove_OurAlly;
+                    bool attackerUsesSpreadBoth = attackerUsesSpreadMove_Us && attackerUsesSpreadMove_OurAlly;
+                    
+                    bool attackerSpreadHitsHard = attackerUsesSpread && ( ( attackerPTKO_Us >= PotentialToKO.Dangerous && attackerPTKO_OurAlly >= PotentialToKO.TwoHKO ) || ( attackerPTKO_Us >= PotentialToKO.TwoHKO && attackerPTKO_OurAlly >= PotentialToKO.Dangerous ) || ( attackerPTKO_Us >= PotentialToKO.Risky && attackerPTKO_OurAlly >= PotentialToKO.Risky ) );
+                    bool attackerSpreadThreatensSevereDamage = attackerUsesSpreadBoth && attackerPTKO_Us >= PotentialToKO.Dangerous && attackerPTKO_OurAlly >= PotentialToKO.Dangerous;
+                    
+                    bool attackerIsNaturallySlow = attacker.RoleProfile.Biases.Contains( RoleBias.SlowSpeed ) || attacker.RoleProfile.Biases.Contains( RoleBias.TrickRoomSpeed );
+                    bool attackerDependsOnAlly = attackerSP.DependsOnFastAlly;
+
+                    bool afterYouUserIsFast = afterYouUser.RoleProfile.Biases.Contains( RoleBias.MiddlingSpeed ) || afterYouUser.RoleProfile.Biases.Contains( RoleBias.FastSpeed );
+                    bool afterYouUsersSpeedIsCurrentlyBoosted = _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( afterYouUser.Pokemon, currentField.Weather ) || theirCourt.ContainsKey( CourtConditionID.Tailwind ) || afterYouUser.DirectStatModifiers[Stat.Speed].ContainsKey( DirectModifierCause.Unburden ) || afterYouUser.StatStages[Stat.Speed] > 0;
+
+                    if( theirAttackerIsSlowest )
+                    {
+                        evidence += 3;
+                        _tirLog.Add( $"Their ally is the slowest unit on the field. Supportive Status Evidence: {evidence}" );
+                    }
+                    else if( theirAllyBenefitsAfterYou )
+                    {
+                        evidence += 2;
+                        _tirLog.Add( $"Their ally directly benefits from After You. Supportive Status Evidence: {evidence}" );
+                    }
+                    else
+                    {
+                        evidence -= 5;
+                        _tirLog.Add( $"Their ally doesn't benefit from After You at all. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( attackerIsNaturallySlow )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally is a naturally slow speed tier. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( attackerDependsOnAlly )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally depends on them being fast and/or using After You. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( afterYouUserIsFast )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their after you is fast. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( afterYouUsersSpeedIsCurrentlyBoosted )
+                    {
+                        evidence += 2;
+                        _tirLog.Add( $"Their after you user's speed is currently boosted (by one of tailwind, weather, or stat boost). Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( afterYouUserGoesFirst )
+                    {
+                        evidence += 2;
+                        _tirLog.Add( $"Their after you user goes first. Supportive Status Evidence: {evidence}" );
+                    }
+                    else if( afterYouUserGoesSecond )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their after you user goes second. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( attackerDoesGoodDamage )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally does good damage. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( attackerUsesSpread )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally uses a spread move. Supportive Status Evidence: {evidence}" );
+                    }
+
+                    if( attackerSpreadThreatensSevereDamage )
+                    {
+                        evidence += 2;
+                        _tirLog.Add( $"Their ally's spread move threatens severe damage. Supportive Status Evidence: {evidence}" );
+                    }
+                    else if( attackerSpreadHitsHard )
+                    {
+                        evidence += 1;
+                        _tirLog.Add( $"Their ally's spread move does good damage. Supportive Status Evidence: {evidence}" );
+                    }
                 }
             }
 
@@ -4314,7 +4547,6 @@ public class BattleAI_ThreatIntent
 
 }
 
-public enum IntentType{ Any, Attack, DefensiveSwitch, OffensiveSwitch, Setup, OffensiveStatus, SupportiveStatus, Protect }
 public struct ThreatIntentResult
 {
     public IBattleAIUnit Threat;
@@ -4325,12 +4557,12 @@ public struct ThreatIntentResult
 
     public bool CheckSecondaryIntent;
 
-    public Dictionary<IntentType, int> IntentEvidence;
+    public Dictionary<ActionType, int> IntentEvidence;
 }
 
 public struct Intent
 {
-    public IntentType IntentType;
+    public ActionType ActionType;
     public IActionResult IntentResult;
     public int Evidence;
 }

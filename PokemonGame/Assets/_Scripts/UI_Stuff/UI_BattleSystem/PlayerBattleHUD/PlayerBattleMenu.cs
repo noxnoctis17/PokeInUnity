@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using NoxNoctisDev.StateMachine;
 using System;
 
+[RequireComponent(typeof(BattleUIActions))]
 public class PlayerBattleMenu : MonoBehaviour
 {
     //================================================================================

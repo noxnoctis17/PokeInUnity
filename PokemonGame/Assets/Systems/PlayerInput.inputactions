@@ -551,8 +551,41 @@
         {
             "name": "UIBattle",
             "id": "e96f18df-53c2-4649-af6c-eb4bc8ae3919",
-            "actions": [],
-            "bindings": []
+            "actions": [
+                {
+                    "name": "ReturnToPreviousUnit",
+                    "type": "Button",
+                    "id": "dc08ccd6-6954-4ed3-ae58-e4a0ffdab5ff",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "bfeee18e-8b68-419b-b932-0bea08cea087",
+                    "path": "<Gamepad>/buttonSouth",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "ReturnToPreviousUnit",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "0cfa6001-b4c1-4411-a1c5-7305a6b9d94a",
+                    "path": "<Keyboard>/x",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "ReturnToPreviousUnit",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
         },
         {
             "name": "UIBattle_Backup",

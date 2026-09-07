@@ -425,13 +425,13 @@ public class AbilityDB
                 Name = "Drought",
                 Description = "On switch-in, this Pokemon summons harsh sunlight.",
 
-                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield field ) =>
                 {
-                    if( battleField.Weather?.ID != WeatherConditionID.SUNNY )
+                    if( field.Weather?.ID != WeatherConditionID.Sun )
                     {
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
                         Debug.Log( "Setting weather: Harsh Sunlight" );
-                        battleField.SetWeather( WeatherConditionID.SUNNY );
+                        field.SetWeather( WeatherConditionID.Sun );
                     }
                 }
             }
@@ -442,13 +442,13 @@ public class AbilityDB
                 Name = "Drizzle",
                 Description = "On switch-in, this Pokemon summons rainfall.",
 
-                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield field ) =>
                 {
-                    if( battleField.Weather?.ID != WeatherConditionID.RAIN )
+                    if( field.Weather?.ID != WeatherConditionID.Rain )
                     {
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
                         Debug.Log( "Setting weather: Rainfall" );
-                        battleField.SetWeather( WeatherConditionID.RAIN );
+                        field.SetWeather( WeatherConditionID.Rain );
                     }
                 }
             }
@@ -459,13 +459,13 @@ public class AbilityDB
                 Name = "Sand Stream",
                 Description = "On switch-in, this Pokemon summons a raging sandstorm.",
 
-                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield field ) =>
                 {
-                    if( battleField.Weather?.ID != WeatherConditionID.SANDSTORM )
+                    if( field.Weather?.ID != WeatherConditionID.Sand )
                     {
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
                         Debug.Log( "Setting weather: Raging Sandstorm" );
-                        battleField.SetWeather( WeatherConditionID.SANDSTORM );
+                        field.SetWeather( WeatherConditionID.Sand );
                     }
                 }
             }
@@ -476,13 +476,13 @@ public class AbilityDB
                 Name = "Snow Warning",
                 Description = "On switch-in, this Pokemon summons snowfall.",
 
-                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield field ) =>
                 {
-                    if( battleField.Weather?.ID != WeatherConditionID.SNOW )
+                    if( field.Weather?.ID != WeatherConditionID.Snow )
                     {
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
                         Debug.Log( "Setting weather: Snowfall" );
-                        battleField.SetWeather( WeatherConditionID.SNOW );
+                        field.SetWeather( WeatherConditionID.Snow );
                     }
                 }
             }
@@ -503,11 +503,11 @@ public class AbilityDB
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
                 {
-                    if( field.Weather?.ID == WeatherConditionID.SUNNY )
+                    if( field.Weather?.ID == WeatherConditionID.Sun )
                     {
                         Debug.Log( $"{pokemon.NickName}'s Chlorophyll is active!" );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE, 2f );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                     }
                 },
@@ -516,7 +516,7 @@ public class AbilityDB
                 {
                     Debug.Log( $"{pokemon.NickName}'s Chlorophyll is no longer active!" );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                 },
             }
@@ -537,11 +537,11 @@ public class AbilityDB
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
                 {
-                    if( field.Weather?.ID == WeatherConditionID.RAIN )
+                    if( field.Weather?.ID == WeatherConditionID.Rain )
                     {
                         Debug.Log( $"{pokemon.NickName}'s Swift Swim is active!" );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE, 2f );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                     }
                 },
@@ -550,7 +550,7 @@ public class AbilityDB
                 {
                     Debug.Log( $"{pokemon.NickName}'s Swift Swim is no longer active!" );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                 },
             }
@@ -571,11 +571,11 @@ public class AbilityDB
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
                 {
-                    if( field.Weather?.ID == WeatherConditionID.SANDSTORM )
+                    if( field.Weather?.ID == WeatherConditionID.Sand )
                     {
                         Debug.Log( $"{pokemon.NickName}'s Sand Rush is active!" );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE, 2f );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                     }
                 },
@@ -584,7 +584,7 @@ public class AbilityDB
                 {
                     Debug.Log( $"{pokemon.NickName}'s Sand Rush is no longer active!" );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                 },
             }
@@ -605,11 +605,11 @@ public class AbilityDB
 
                 OnAbilityEnter = ( Pokemon pokemon, List<BattleUnit> units, Battlefield field ) =>
                 {
-                    if( field.Weather?.ID == WeatherConditionID.SNOW )
+                    if( field.Weather?.ID == WeatherConditionID.Snow )
                     {
                         Debug.Log( $"{pokemon.NickName}'s Slush Rush is active!" );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD, 2f );
+                        pokemon.ApplyDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE, 2f );
                         Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                     }
                 },
@@ -618,7 +618,7 @@ public class AbilityDB
                 {
                     Debug.Log( $"{pokemon.NickName}'s Slush Rush is no longer active!" );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat before is: {pokemon.Speed}" );
-                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPD );
+                    pokemon.RemoveDirectStatModifier( Stat.Speed, DirectModifierCause.WeatherSPE );
                     Debug.Log( $"{pokemon.NickName}'s SPD Stat after is: {pokemon.Speed}" );
                 },
             }
@@ -1046,7 +1046,7 @@ public class AbilityDB
 
                 OnAbilityAfterTurn = ( attacker, field ) =>
                 {
-                    if( field.Weather?.ID == WeatherConditionID.SUNNY && field.WeatherDuration > 1 )
+                    if( field.Weather?.ID == WeatherConditionID.Sun && field.WeatherDuration > 1 )
                     {
                         int damage = Mathf.FloorToInt( attacker.Pokemon.MaxHP / 8 );
                         attacker.Pokemon.DecreaseHP( damage );
@@ -1115,6 +1115,24 @@ public class AbilityDB
             }
         },
         {
+            AbilityID.ElectricSurge, new()
+            {
+                Name = "Electric Surge",
+                ID = AbilityID.ElectricSurge,
+                Description = "Turns the ground into Electric Terrain when the Pokemon enters a battle.",
+                
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                {
+                    if( battleField.Terrain?.ID != TerrainID.Electric )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
+                        Debug.Log( "Setting Terrain: Grassy Terrain" );
+                        battleField.SetTerrain( TerrainID.Electric );
+                    }
+                }
+            }
+        },
+        {
             AbilityID.GrassySurge, new()
             {
                 Name = "Grassy Surge",
@@ -1128,6 +1146,24 @@ public class AbilityDB
                         BattleSystem.Instance.TriggerAbilityCutIn( attacker );
                         Debug.Log( "Setting Terrain: Grassy Terrain" );
                         battleField.SetTerrain( TerrainID.Grassy );
+                    }
+                }
+            }
+        },
+        {
+            AbilityID.MistySurge, new()
+            {
+                Name = "Misty Surge",
+                ID = AbilityID.MistySurge,
+                Description = "Turns the ground into Misty Terrain when the Pokemon enters a battle.",
+                
+                OnAbilityEnter = ( Pokemon attacker, List<BattleUnit> targets, Battlefield battleField ) =>
+                {
+                    if( battleField.Terrain?.ID != TerrainID.Misty )
+                    {
+                        BattleSystem.Instance.TriggerAbilityCutIn( attacker );
+                        Debug.Log( "Setting Terrain: Psychic Terrain" );
+                        battleField.SetTerrain( TerrainID.Misty );
                     }
                 }
             }
@@ -1358,7 +1394,7 @@ public class AbilityDB
 
                 OnTrySetSevereStatus = ( SevereConditionID status, Pokemon pokemon, StatusEffectSource source ) =>
                 {
-                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.SUNNY )
+                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.Sun )
                         return false;
                     else
                         return true;
@@ -1366,7 +1402,7 @@ public class AbilityDB
 
                 OnTrySetVolatileStatus = ( VolatileConditionID status, Pokemon pokemon, StatusEffectSource source ) =>
                 {
-                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.SUNNY && source.Pokemon != pokemon )
+                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.Sun && source.Pokemon != pokemon )
                         return false;
                     else
                         return true;
@@ -1374,7 +1410,7 @@ public class AbilityDB
 
                 OnTrySetTransientStatus = ( TransientConditionID status, Pokemon pokemon, StatusEffectSource source ) =>
                 {
-                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.SUNNY && source.Pokemon != pokemon )
+                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.Sun && source.Pokemon != pokemon )
                         return false;
                     else
                         return true;
@@ -1382,7 +1418,7 @@ public class AbilityDB
 
                 OnTrySetBindingStatus = ( BindingConditionID status, Pokemon pokemon, StatusEffectSource source ) =>
                 {
-                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.SUNNY )
+                    if( BattleSystem.Instance.Field.Weather?.ID == WeatherConditionID.Sun )
                         return false;
                     else
                         return true;
@@ -1571,7 +1607,7 @@ public class AbilityDB
                     var field = bs.Field;
                     bool boosts = move.MoveType == PokemonType.Rock || move.MoveType == PokemonType.Ground || move.MoveType == PokemonType.Steel;
 
-                    if( boosts && field.Weather?.ID == WeatherConditionID.SANDSTORM )
+                    if( boosts && field.Weather?.ID == WeatherConditionID.Sand )
                         return move.MovePower * 1.3f;
                     else
                         return move.MovePower;
@@ -1967,6 +2003,13 @@ public class AbilityDB
                 Description = "A hard shell protects the Pokemon from all critical hits.",
                 //--Ability is handled during incoming crit roll check
             }
+        },
+        {
+            AbilityID.Hospitality, new()
+            {
+                Name = "Hospitality",
+                Description = "When the Pokemon enters a battle, it showers its ally with hospitality, restoring 1/4th of the ally's HP."
+            }
         }
     };
 }
@@ -2109,4 +2152,8 @@ public enum AbilityID
     Rattled,
     Moxie,
     ShellArmor,
+    Hospitality,
+    StanceChange,
+    ElectricSurge,
+    MistySurge,
 }

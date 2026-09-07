@@ -187,7 +187,7 @@ public class DialogueUI : MonoBehaviour
 
     private IEnumerator StepThroughTrainerDialogue( string dialogue, BattleTrainer trainer )
     {
-        Debug.Log( $"[Battle System][Dialogue UI] The battle trainer is: {trainer} and their name is: {trainer.TrainerName}" );
+        // Debug.Log( $"[Battle System][Dialogue UI] The battle trainer is: {trainer} and their name is: {trainer.TrainerName}" );
         PlayerReferences.Instance.PlayerController.DisableUI();
         SetDialogueBox( trainer );
 

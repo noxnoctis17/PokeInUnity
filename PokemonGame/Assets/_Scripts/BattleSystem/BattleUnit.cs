@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
 
 // [Serializable]
@@ -129,7 +128,7 @@ public class BattleUnit : MonoBehaviour
 
     public void SetFlagActive( UnitFlags flag, bool active )
     {
-        Debug.Log( $"Setting flag {flag} to: {active}" );
+        // Debug.Log( $"Setting flag {flag} to: {active}" );
         Flags[flag].IsActive = active;
     }
 
@@ -138,15 +137,15 @@ public class BattleUnit : MonoBehaviour
         int turnsTaken = Flags[UnitFlags.TurnsTaken].Count;
         turnsTaken++;
         SetFlagCount( UnitFlags.TurnsTaken, turnsTaken );
-        Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
+        // Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
     }
 
     public void ResetTurnsTakenInBattle()
     {
         int turnsTaken = -1;
-        Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
+        // Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
         SetFlagCount( UnitFlags.TurnsTaken, turnsTaken );
-        Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
+        // Debug.Log( $"{Pokemon.NickName}'s Turn Count: {Flags[UnitFlags.TurnsTaken].Count}" );
     }
 
     public void SetLastUsedMove( Move move )

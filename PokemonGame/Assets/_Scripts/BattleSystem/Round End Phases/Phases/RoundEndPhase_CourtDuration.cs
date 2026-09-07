@@ -84,7 +84,7 @@ public class RoundEndPhase_CourtDuration : IRoundEndPhaseHandler
                         battleSystem.AddDialogue( message );
                     }
 
-                    foreach( var unit in battleSystem.GetActivePokemon() )
+                    foreach( var unit in battleSystem.GetActiveUnits() )
                     {
                         condition?.OnExitField?.Invoke( unit.Pokemon ); //--probably won't use this ever --07/03/26
                     }

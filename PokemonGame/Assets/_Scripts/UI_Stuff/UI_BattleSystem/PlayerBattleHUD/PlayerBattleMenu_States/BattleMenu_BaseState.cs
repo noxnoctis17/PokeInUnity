@@ -21,6 +21,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
         //--Reference Assignments
         _battleUIActions = _battleMenu.BUIActions;
+        _battleMenu.PlayerInput.UIBattle.ReturnToPreviousUnit.performed += OnReturnToPreviousUnit;
 
         //--Select Initial Button
         _selectInitialButton = StartCoroutine( SelectInitialButton() );
@@ -33,11 +34,13 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
         //--Disable Menu Buttons
         _battleMenu.DisableMenuButtons();
+        _battleMenu.PlayerInput.UIBattle.ReturnToPreviousUnit.performed -= OnReturnToPreviousUnit;
     }
 
     public override void ReturnToState(){
         //--Enable Menu Buttons
         _battleMenu.EnableMenuButtons();
+        _battleMenu.PlayerInput.UIBattle.ReturnToPreviousUnit.performed += OnReturnToPreviousUnit;
 
         // Debug.Log( "BattleMenu_BaseState -- ReturnToState()" );
         //--Select Memorize Button
@@ -51,6 +54,7 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
 
         //--Disable Menu Buttons
         _battleMenu.DisableMenuButtons();
+        _battleMenu.PlayerInput.UIBattle.ReturnToPreviousUnit.performed -= OnReturnToPreviousUnit;
     }
 
     private IEnumerator SelectInitialButton(){
@@ -86,6 +90,19 @@ public class BattleMenu_BaseState : State<PlayerBattleMenu>
     private void ClearSelectedButton(){
         StopCoroutine( _selectInitialButton );
         _battleMenu.BattleSystem.EventSystem.SetSelectedGameObject( null );
+    }
+
+    private void OnReturnToPreviousUnit( InputAction.CallbackContext context )
+    {
+        var bs = _battleMenu.BattleSystem;
+        if( bs.BattleType != BattleType.PvP_Doubles && bs.BattleType != BattleType.TrainerDoubles )
+            return;
+
+        if( bs.UnitInSelectionIndex <= 0 )
+            return;
+
+        bs.ReturnToPreviousUnitInSelection();
+        AudioController.Instance.PlaySFX( SoundEffect.ButtonSelect );
     }
 
     // private void OnNavigate( InputAction.CallbackContext context ){
