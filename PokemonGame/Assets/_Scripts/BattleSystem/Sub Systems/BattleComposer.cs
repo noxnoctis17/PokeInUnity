@@ -1,15 +1,15 @@
 using System.Collections;
 using System.Collections.Generic;
-using Cinemachine;
+using Unity.Cinemachine;
 using DG.Tweening;
 using UnityEngine;
 
 public class BattleComposer : MonoBehaviour
 {
-    [SerializeField] private CinemachineVirtualCamera _lookAtOpponent;
-    [SerializeField] private CinemachineVirtualCamera _lookAtPlayer;
-    [SerializeField] private CinemachineVirtualCamera _followAttacker;
-    [SerializeField] private CinemachineVirtualCamera _followAttacker_LookAt;
+    [SerializeField] private CinemachineCamera _lookAtOpponent;
+    [SerializeField] private CinemachineCamera _lookAtPlayer;
+    [SerializeField] private CinemachineCamera _followAttacker;
+    [SerializeField] private CinemachineCamera _followAttacker_LookAt;
     [SerializeField] private BattleSystem _battleSystem;
     private CinemachineBrain _cmBrain;
     public CinemachineBrain CMBrain => _cmBrain;
@@ -46,14 +46,7 @@ public class BattleComposer : MonoBehaviour
         yield return new WaitUntil( () => !_cmBrain.IsBlending );
     }
 
-    private void ClearCamera( CinemachineVirtualCamera camera )
-    {
-        camera.gameObject.SetActive( false );
-        camera.LookAt = null;
-        camera.Follow = null;
-    }
-
-    private void ClearCamera( CinemachineFreeLook camera )
+    private void ClearCamera( CinemachineCamera camera )
     {
         camera.gameObject.SetActive( false );
         camera.LookAt = null;

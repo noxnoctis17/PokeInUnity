@@ -18,7 +18,7 @@ public class DialogueState : State<GameStateController>
 
         //--Set Controls
         PlayerReferences.Instance.PlayerController.EnableUI();
-        _gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.DialogueState );
+        _gameStateController.ChangeGameStateEnum( GameStateEnum.DialogueState );
         _gameStateController.OnDialogueStateEntered?.Invoke();
     }
 

@@ -6,35 +6,42 @@ public class BattleState : State<GameStateController>
 	public static BattleState Instance { get; private set; }
     private GameStateController gameStateController;
 
-    private void Awake(){
+    private void Awake()
+    {
         Instance = this;
     }
 
-    public override void EnterState( GameStateController owner ){
+    public override void EnterState( GameStateController owner )
+    {
         gameStateController = owner;
 
         //--Set Controls
         //--Controls get activated right before selecting a playerbattlemenu button in BattleMenu_BaseState
 
         //--Activate BattleSystem Container
-        gameStateController.BattleSystemContainer.SetActive( true );
+        // gameStateController.BattleSystemContainer.SetActive( true );
+        BattleSystem_Opener.Instance.OpenBattleSystem();
 
         //--Set Gamestate Enum for quick ref
-        gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.BattleState );
+        gameStateController.ChangeGameStateEnum( GameStateEnum.BattleState );
         Debug.Log( "BattleState Enter()" );
     }
 
-    public override void PauseState(){
+    public override void PauseState()
+    {
         PlayerReferences.Instance.PlayerController.DisableBattleControls();
     }
 
-    public override void ReturnToState(){
-        gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.BattleState );
+    public override void ReturnToState()
+    {
+        gameStateController.ChangeGameStateEnum( GameStateEnum.BattleState );
         PlayerReferences.Instance.PlayerController.EnableBattleControls();
     }
 
-    public override void ExitState(){
-        gameStateController.BattleSystemContainer.SetActive( false );
+    public override void ExitState()
+    {
+        // gameStateController.BattleSystemContainer.SetActive( false );
+        BattleSystem_Opener.Instance.CloseBattleSystem();
         PlayerReferences.Instance.PlayerController.DisableBattleControls();
         Debug.Log( "BattleState Exit()" );
     }

@@ -60,7 +60,7 @@ public class BattleAI_ActionScoring
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 
-    public int AttackScore( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult move, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    public int AttackScore( TempoStateResult tempo, ExchangePack pack, BoardContext context, MoveThreatResult mtr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"===========================" );
         _ai.CurrentLog.Add( $"===[Attack Action Score]===" );
@@ -69,86 +69,138 @@ public class BattleAI_ActionScoring
 
         int score = 0;
 
-        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
-        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
-        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
-        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+        // ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        // ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        // ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        // ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
-        var attackerName = usVS_Threat.AttackerName;
-        var targetName = usVS_Threat.OpponentName;
+        string attackerName = intentTOP.Attacker?.Name;
+        string targetName = intentTOP.Opponent?.Name;
 
-        var ourPTKO = usVS_Threat.AttackerPTKOR;
-        var theirPTKO = usVS_Threat.OpponentPTKOR;
+        PotentialToKO ourPTKO = intentTOP.AttackerPTKO;
+        PotentialToKO theirPTKO = intentTOP.OpponentPTKO;
+
+        int ourPTKOScore = _proj.Get_PotentialToKOScoreFromEnum( ourPTKO );
+        int theirPTKOScore = _proj.Get_PotentialToKOScoreFromEnum( theirPTKO );
 
         string moveName = "NONE";
 
-        if( move.Move != null )
-            moveName = move.Move.MoveSO.Name;
+        if( mtr.Move != null )
+            moveName = mtr.Move.MoveSO.Name;
         else
         {
             _ai.CurrentLog.Add( $"({attackerName}) Had no viable attacking move! Tanking Score!" );
             return -999;
         }
 
-        _ai.CurrentLog.Add( $"===[Beginning Attack Scoring for {attackerName} ({moveName}) vs {targetName}. Tempo: {tempo.TempoState}, My PTKO Them: {ourPTKO.PTKO}, their PTKO on me: {theirPTKO.PTKO} ({usVS_Threat.OpponentMoveName})]===" );
+        _ai.CurrentLog.Add( $"===[Beginning Attack Scoring for {attackerName} vs {targetName}. Tempo: {tempo.TempoState}, Our ({moveName}) PTKO: {ourPTKO}, Their ({intentTOP.Opponent?.MTR?.Move?.MoveSO.Name}) PTKO: {theirPTKO}]===" );
         _ai.CurrentLog.Add( $"IntentTOP Information. Opponent mismatch occurs if we read a switch from the opponent. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, Threat: {tir.Threat?.Name}" );
 
         //--KO Class Advantage
-        score += _proj.Get_OffensivePTKOScore( ourPTKO.Score );
-        _ai.CurrentLog.Add( $"My ({attackerName}) PTKO Score {ourPTKO.Score}. Score: {score}" );
+        score += _proj.Get_OffensivePTKOScore( ourPTKOScore );
+        _ai.CurrentLog.Add( $"My ({attackerName}) PTKO Score {ourPTKOScore}. Score: {score}" );
 
-        score += theirPTKO.Score;
-        _ai.CurrentLog.Add( $"Their ({targetName}) PTKO Score {theirPTKO.Score}. Score: {score}" );
+        score += theirPTKOScore;
+        _ai.CurrentLog.Add( $"Their ({targetName}) PTKO Score {theirPTKOScore}. Score: {score}" );
 
-        bool iAmFaster = usVS_Threat.AttackerMovesFirst;
-        bool iThreatenKO = usVS_Threat.AttackerThreatensKO;
-        bool theyThreatenKO = usVS_Threat.OpponentThreatensKO;
+        bool iMoveFirst = intentTOP.TurnOrderHistory[intentTOP.Attacker] < intentTOP.TurnOrderHistory[intentTOP.Opponent];
+        bool iThreatenKO = ourPTKO >= PotentialToKO.Dangerous;
+        bool theyThreatenKO = theirPTKO >= PotentialToKO.Dangerous;
+
+        bool theyCantAct = !intentTOP.Opponent.CouldAct;
+        bool weUsedFakeOut = mtr?.Move.MoveSO.Name == "Fake Out";
+
+        _ai.CurrentLog.Add( $"I Threaten a KO: {iThreatenKO}." );
+        _ai.CurrentLog.Add( $"They Threaten a KO: {theyThreatenKO}." );
+        _ai.CurrentLog.Add( $"I am faster: {iMoveFirst}." );
 
         if( iThreatenKO )
         {
-            if( iAmFaster )
+            if( iMoveFirst )
                 score += 135; //--Commit hard
             else
                 score += 75; //--Probably commit
         }
 
-        _ai.CurrentLog.Add( $"I Threaten a KO: {iThreatenKO}. I am faster: {iAmFaster}. Score: {score}" );
+        _ai.CurrentLog.Add( $"Score: {score}." );
 
-        float hp = usVS_Threat.AttackerHPR;
-        if( theyThreatenKO )
+        if( theyCantAct )
         {
+            score += 75;
+            _ai.CurrentLog.Add( $"Opponent cannot act on their turn! Score: {score}" );
+        }
+
+        if( weUsedFakeOut )
+        {
+            score += 75;
+
+            _ai.CurrentLog.Add( $"We used Fake Out! Score: {score}" );
+
+            if( iThreatenKO )
+            {
+                score += 25;
+                _ai.CurrentLog.Add( $"And it might chip them to a KO. Score: {score}" );
+            }
+
+            if( theyCantAct )
+            {
+                if( theirPTKO >= PotentialToKO.Dangerous )
+                {
+                    score += 50;
+                    _ai.CurrentLog.Add( $"We prevent them from doing dangerous damage! Score: {score}" );
+                }
+                else if( theirPTKO >= PotentialToKO.TwoHKO )
+                {
+                    score += 25;
+                    _ai.CurrentLog.Add( $"We prevent them from doing good damage! Score: {score}" );
+                }
+
+                if( intentTOP.Opponent?.Speed > intentTOP.Attacker?.Speed )
+                {
+                    score += 25;
+                    _ai.CurrentLog.Add( $"They're naturally faster than us, preventing them from acting first is good. Score: {score}" );
+                }
+                
+                if( intentTOP.OpponentAlly?.Speed > intentTOP.Attacker?.Speed )
+                {
+                    score += 25;
+                    _ai.CurrentLog.Add( $"They're naturally faster than our ally, preventing them from acting first is good. Score: {score}" );
+                }
+            }
+        }
+
+        float myHPR = intentTOP.Attacker.BeginningHPR;
+        if( theyThreatenKO && ( !iThreatenKO || !iMoveFirst || !theyCantAct ) )
+        {
+            _ai.CurrentLog.Add( $"They Threaten a KO and we probably can't prevent it." );
+
             int deathPenalty;
 
-            if( hp > 0.6f )
+            if( myHPR > 0.6f )
                 deathPenalty = 120;
-            else if( hp > 0.3f )
+            else if( myHPR > 0.3f )
                 deathPenalty = 80;
             else
                 deathPenalty = 40;
 
-            if( !iAmFaster )
-                score -= deathPenalty;
-            else
-                score -= deathPenalty / 2;
+            score -= deathPenalty;
+
+            _ai.CurrentLog.Add( $"Death Penalty: {deathPenalty}. Score: {score}" );
         }
         else
         {
-            if( hp > 0.8f && iAmFaster )
+            if( myHPR > 0.8f && iMoveFirst )
                 score += 20;
         }
 
-        _ai.CurrentLog.Add( $"They Threaten a KO: {theyThreatenKO}, I am faster: {iAmFaster}. Score: {score}" );
-
-        float myHPRatio = usVS_Threat.AttackerHPR;
-
-        if( myHPRatio < 0.2f )
+        if( myHPR < 0.2f )
             score -= 20;
-        else if( myHPRatio < 0.4f )
+        else if( myHPR < 0.4f )
             score -= 10;
-        else if( myHPRatio >= 0.8f && !theyThreatenKO )
+        else if( myHPR >= 0.8f && !theyThreatenKO )
             score += 15;
 
-        _ai.CurrentLog.Add( $"HP Ratio Check {myHPRatio}. Score: {score}" );
+        _ai.CurrentLog.Add( $"HP Ratio Check {myHPR}. Score: {score}" );
 
         score += _ai.Attack_TempoModifier( tempo );
 
@@ -157,35 +209,41 @@ public class BattleAI_ActionScoring
         if( context.IsBehind )
             score += 20;
 
-        _ai.CurrentLog.Add( $"===[Is Behind: {context.IsBehind}. Final Attack Score: {score}]===" );
+        _ai.CurrentLog.Add( $"Is Behind: {context.IsBehind}. Score: {score}" );
 
         //--Attacking Based on Switch Pressure
-        score += Mathf.FloorToInt( 10f * usVS_Threat.OpponentSwitchProbability );
-        _ai.CurrentLog.Add( $"Opponent likey forced to switch. Score: {score}" );
-        
-        if( usVS_Threat.ExchangeState == ExchangeState.Pressure )
+        if( intentTOP.OpponentSwitched )
         {
-            score += 10;
-            _ai.CurrentLog.Add( $"The pressure is on! Score: {score}" );
+            score += 25;
+            _ai.CurrentLog.Add( $"Opponent modeling thinks the opponent will switch. Score: {score}" );
         }
 
         if( context.IsForcedTrade )
         {
-            if( usVS_Threat.AttackerThreatensKO )
+            if( iThreatenKO )
                 score += 25;
-            else if( usVS_Threat.AttackerPTKOR.PTKO > PotentialToKO.Safe )
+            else
                 score += 15;
+
+            _ai.CurrentLog.Add( $"Forced Trade: {context.IsForcedTrade}. Score: {score}" );
         }
 
-        _ai.CurrentLog.Add( $"Forced Trade: {context.IsForcedTrade}. Score: {score}" );
+        //--Flat KO flag checks
+        //--Guaranteed TwoHKO
+        if( ourPTKO >= PotentialToKO.TwoHKO && ourPTKO <= PotentialToKO.OHKO && iMoveFirst && theirPTKO <= PotentialToKO.TwoHKO )
+        {
+            score += 45;
+            _ai.CurrentLog.Add( $"We have a very likely guaranteed 2HKO on this opponent. Score: {score}" );
+        }
 
-        //--Flat KO flag check
-        if( usVS_Threat.AttackerPTKO == PotentialToKO.Dangerous && ( !theyThreatenKO || iAmFaster ) )
-            score += 10;
-        else if( usVS_Threat.AttackerPTKO == PotentialToKO.OHKO && ( !theyThreatenKO || iAmFaster ) )
-            score += 20;
+        //--Likely KO
+        if( ourPTKO == PotentialToKO.Dangerous && ( !theyThreatenKO || iMoveFirst ) )
+            score += 40;
+        else if( ourPTKO == PotentialToKO.OHKO && ( !theyThreatenKO || iMoveFirst ) )
+            score += 50;
 
-        score += 10; //--default attack incentive
+        _ai.CurrentLog.Add( $"" );
+        _ai.CurrentLog.Add( $"Final Attack Score: {score}" );
 
         return score;
     }
@@ -196,20 +254,22 @@ public class BattleAI_ActionScoring
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 
-    public int DefensiveSwitchScore( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    public int DefensiveSwitchScore( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult scr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"=====================================" );
         _ai.CurrentLog.Add( $"===[Defensive Switch Action Score]===" );
         _ai.CurrentLog.Add( $"=====================================" );
         _ai.CurrentLog.Add( $"" );
 
-        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
-        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
-        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
-        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+        // ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
+        // ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        // ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        // ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+
+        var returnVs_Threat = _proj.MakeUnitComparison( scr.CurrentActor, tir.Threat );
 
         //--Tank score if unable to switch
-        if( switchCandidate.Pokemon == null || _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon( _ai.CurrentUnitAdapter.Pokemon ) )
+        if( scr.Pokemon == null || _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon( _ai.CurrentUnitAdapter.Pokemon ) )
         {
             _ai.CurrentLog.Add( $"No switch available (null, wild battle, or last pokemon). Tanking Score!" );
             return -999;
@@ -217,74 +277,79 @@ public class BattleAI_ActionScoring
 
         int score = 0;
 
-        var attackerName = usVS_Threat.AttackerName;
-        var targetName = usVS_Threat.OpponentName;
+        string attackerName = intentTOP.Attacker?.Name;
+        string targetName = intentTOP.Opponent?.Name;
+
         var switchName = "no switch available!";
-        if( switchCandidate.Pokemon != null )
-            switchName = switchCandidate.Pokemon.NickName;
+        if( scr.Pokemon != null )
+            switchName = scr.Pokemon.NickName;
 
         _ai.CurrentLog.Add( $"===[Beginning Defensive Switch Scoring for {attackerName} vs {targetName}. Switch Candidate: {switchName}. Tempo: {tempo.TempoState}]===" );
-        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, Threat: {tir.Threat?.Name}" );
+        _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, TIR Threat: {tir.Threat?.Name}" );
 
         if( intentTOP.OpponentPTKO == PotentialToKO.OHKO )
         {
-            _ai.CurrentLog.Add( $"Switch candidate {intentTOP.Attacker.Name}'s potential to be KO'd on switch in is OHKO! Tanking Score!" );
+            _ai.CurrentLog.Add( $"Switch candidate {intentTOP.Attacker.Name}'s potential to be KO'd on switch in is OHKO in the intent simulation! Tanking Score!" );
             return -999;
         }
-        else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
-        {
-            score -= 70;
-        }
+        // else if( str.SwitchDefensePTKO == PotentialToKO.OHKO )
+        // {
+        //     score -= 70;
+        // }
         
-        var currentPTKO = usVS_Threat.OpponentPTKOR.PTKO;
-        var currentScore = usVS_Threat.OpponentPTKOR.Score;
-        var switchPTKOR = switchCandidate.SwitchDefensePTKOR;
+        var opponentPTKO_ReturnMon = scr.OriginalPTKO;
+        var opponentPTKO_ReturnMonScore = _proj.Get_PotentialToKOScoreFromEnum( scr.OriginalPTKO );
 
-        _ai.CurrentLog.Add( $"{targetName}'s Current PTKO me ({attackerName}): {currentPTKO}. {targetName}'s PTKO on Switch Candidate ({switchName}): {switchCandidate.SwitchDefensePTKOR.PTKO}. {switchName}'s PTKO {targetName}: {switchCandidate.SwitchOffensePTKOR.PTKO}" );
+        var opponentPTKO_Switch = scr.SwitchDefensePTKO;
+        var opponentPTKO_SwitchScore = _ai.Projection.Get_PotentialToKOScoreFromEnum( scr.SwitchDefensePTKO );
 
-        if( context.IsTerminal && context.IsForcedTrade && !switchCandidate.IsLegitimate )
+        _ai.CurrentLog.Add( $"{targetName}'s Current PTKO me ({attackerName}): {opponentPTKO_ReturnMon}. {targetName}'s PTKO on Switch Candidate ({switchName}): {scr.SwitchDefensePTKO}. {switchName}'s PTKO {targetName}: {scr.SwitchOffensePTKO}" );
+
+        if( context.IsTerminal && context.IsForcedTrade && !scr.IsLegitimate )
         {
             _ai.CurrentLog.Add( $"Terminal board and no KO class improvement/Switch is illegitimate. Tanking Score!" );
             return -999;
         }
 
-        if( !context.IsTerminal && currentPTKO >= PotentialToKO.Dangerous && switchPTKOR.PTKO >= PotentialToKO.Dangerous )
+        if( !context.IsTerminal && opponentPTKO_ReturnMon >= PotentialToKO.Dangerous && opponentPTKO_Switch >= PotentialToKO.Dangerous )
             score -= 45;
 
-        int improvement = Mathf.Clamp( switchPTKOR.Score - currentScore, -60, 60 );
+        int improvement = Mathf.Clamp( opponentPTKO_SwitchScore - opponentPTKO_ReturnMonScore, -60, 60 );
         score += improvement;
 
         _ai.CurrentLog.Add( $"Improvement: {improvement}, Score: {score}" );
 
-        bool iDieBeforeActing = !usVS_Threat.AttackerMovesFirst && usVS_Threat.OpponentThreatensKO;
+        bool returnMonUnlikelyToAct = !returnVs_Threat.AttackerMovesFirst && opponentPTKO_ReturnMon >= PotentialToKO.Dangerous;
 
-        if( iDieBeforeActing )
+        if( returnMonUnlikelyToAct )
             score += 40;
 
-        _ai.CurrentLog.Add( $"Current unit dies before acting: {iDieBeforeActing}, Score: {score}" );
+        _ai.CurrentLog.Add( $"Returning Pokemon unlikely to act due to being KOd: {returnMonUnlikelyToAct}, Score: {score}" );
 
-        bool losingExchange = usVS_Threat.OpponentThreatensKO && !usVS_Threat.AttackerThreatensKO;
+        bool losingExchange = returnVs_Threat.Target.BestCurrentPTKO >= PotentialToKO.Dangerous && returnVs_Threat.Attacker.BestCurrentPTKO <= PotentialToKO.Risky && !returnVs_Threat.AttackerMovesFirst;
 
         if( losingExchange )
             score += 30;
 
         _ai.CurrentLog.Add( $"Losing Exchange: {losingExchange}, Score: {score}" );
 
-        if( !switchCandidate.IsLegitimate )
+        if( !scr.IsLegitimate )
             score -= 70;
 
-        _ai.CurrentLog.Add( $"Legit Switch: {switchCandidate.IsLegitimate}, Score: {score}" );
+        _ai.CurrentLog.Add( $"Legit Switch: {scr.IsLegitimate}, Score: {score}" );
 
-        bool switchIsThreatenedByKO = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.Dangerous;
-        bool switchTakesBigDamage = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.TwoHKO;
+        bool switchIsThreatenedByKO = scr.SwitchDefensePTKO >= PotentialToKO.Dangerous;
+        bool switchTakesBigDamage = scr.SwitchDefensePTKO >= PotentialToKO.TwoHKO;
 
-        if( switchIsThreatenedByKO || switchTakesBigDamage )
+        if( switchIsThreatenedByKO )
+            score -= 50;
+        else if( switchTakesBigDamage )
             score -= 35;
 
         _ai.CurrentLog.Add( $"Switch is threatened: {switchIsThreatenedByKO}, Switch takes big damage: {switchTakesBigDamage}, Score: {score}" );
 
         //--Piece Value Modifier
-        if( losingExchange && iDieBeforeActing )
+        if( losingExchange && returnMonUnlikelyToAct )
         {
             _ai.CurrentLog.Add( $"Trying to get Piece Value for {_ai.CurrentUnitDeciding.Pokemon.NickName}." );
 
@@ -298,13 +363,12 @@ public class BattleAI_ActionScoring
                 _ai.CurrentLog.Add( $"Piece Value Preservation Bias: {preservationBias}, Score: {score}" );
             }
 
-            if( usVS_Threat.AttackerHPR <= 0.1f && pieceValue.SpeedScore == 0 )
+            if( scr.CurrentActor.BeginningHPR <= 0.25f && pieceValue.SpeedScore == 0 )
                 score -= 15;
         }
 
-        score += _ai.Get_ConsecutiveSwitchPenalty();
-
-        _ai.CurrentLog.Add( $"Consecutive switch penalty: Score: {score}" );
+        // score += _ai.Get_ConsecutiveSwitchPenalty();
+        // _ai.CurrentLog.Add( $"Consecutive switch penalty: Score: {score}" );
 
         score += _ai.DefensiveSwitch_TempoModifier( tempo );
 
@@ -321,7 +385,7 @@ public class BattleAI_ActionScoring
         //--Penalty for likely undoing a pivot
         if( _ai.LastSentInPokemon != null )
         {
-            if( switchCandidate.Pokemon == _ai.LastSentInPokemon )
+            if( scr.Pokemon == _ai.LastSentInPokemon )
             {
                 score -= 50;
             
@@ -345,25 +409,31 @@ public class BattleAI_ActionScoring
         }
 
         //--Opponent Switches Predictions
-        float opponentSwitchProb = usVS_Threat.OpponentSwitchProbability;
-        score -= Mathf.FloorToInt( 75f * opponentSwitchProb );
+        // float opponentSwitchProb = usVS_Threat.OpponentSwitchProbability;
+        // score -= Mathf.FloorToInt( 75f * opponentSwitchProb );
+
+        if( intentTOP.OpponentSwitched )
+        {
+            score -= 75;
+            _ai.CurrentLog.Add( $"Opponent modeling thinks the opponent switches. Score: {score}" );
+        }
 
         //--HP Check
-        if( usVS_Threat.OpponentHPR <= 0.25f )
+        if( intentTOP.Opponent.BeginningHPR <= 0.25f )
         {
             score -= 35; // don't switch if opponent is about to die
         }
-        else if( usVS_Threat.OpponentHPR <= 0.45f && usVS_Threat.AttackerPTKOR.PTKO > PotentialToKO.TwoHKO )
+        else if( intentTOP.Opponent.BeginningHPR <= 0.45f && returnVs_Threat.Attacker.BestCurrentPTKO > PotentialToKO.TwoHKO )
             score -= 15;
 
         //--Attacking is better penalty
-        if( usVS_Threat.AttackerPTKOR.PTKO == PotentialToKO.OHKO && usVS_Threat.AttackerMovesFirst )
+        if( returnVs_Threat.Attacker.BestCurrentPTKO == PotentialToKO.OHKO && returnVs_Threat.AttackerMovesFirst )
             score -= 50;
-        else if( usVS_Threat.AttackerPTKOR.PTKO == PotentialToKO.Dangerous && usVS_Threat.AttackerMovesFirst )
+        else if( returnVs_Threat.Attacker.BestCurrentPTKO == PotentialToKO.Dangerous && returnVs_Threat.AttackerMovesFirst )
             score -= 35;
 
         //--Switch tax
-        score -= 25;
+        score -= 10;
 
         _ai.CurrentLog.Add( $"===[Final Switch Score after Tax: {score}]===" );
         return score;
@@ -375,7 +445,7 @@ public class BattleAI_ActionScoring
 //==================================================================================================================================================================================================================
 //==================================================================================================================================================================================================================
 
-    public int OffensiveSwitchScore( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult switchCandidate, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
+    public int OffensiveSwitchScore( TempoStateResult tempo, ExchangePack pack, BoardContext context, SwitchCandidateResult scr, TurnOutcomeProjection intentTOP, ThreatIntentResult tir )
     {
         _ai.CurrentLog.Add( $"=====================================" );
         _ai.CurrentLog.Add( $"===[Offensive Switch Action Score]===" );
@@ -385,19 +455,19 @@ public class BattleAI_ActionScoring
         int score = 0;
         string switchName = "none";
 
-        ExchangeEvaluation usVS_Threat = pack.UsVS_Threat;
-        ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
-        ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
-        ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
+        var usVS_Threat = _proj.MakeUnitComparison( scr.CurrentActor, tir.Threat );
+        // ExchangeEvaluation usVS_ThreatAlly = pack.UsVS_ThreatAlly;
+        // ExchangeEvaluation allyVS_Threat = pack.AllyVS_Threat;
+        // ExchangeEvaluation allyVS_ThreatAlly = pack.AllyVS_ThreatAlly;
 
         //--Tank score if unable to switch
-        if( switchCandidate.Pokemon == null || _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon( _ai.CurrentUnitAdapter.Pokemon ) )
+        if( scr.Pokemon == null || _ai.BattleSystem.BattleType == BattleType.WildBattle_1v1 || _ai.Check_IsLastPokemon( _ai.CurrentUnitAdapter.Pokemon ) )
         {
             _ai.CurrentLog.Add( $"No switch available (null, wild battle, or last pokemon). Tanking Score!" );
             return -999;
         }
 
-        switchName = switchCandidate.Pokemon.NickName;
+        switchName = scr.Pokemon.NickName;
 
         _ai.CurrentLog.Add( $"===[Beginning Offensive Switch Scoring for Candidate {switchName}]===" );
         _ai.CurrentLog.Add( $"IntentTOP Information. Attacker: {intentTOP.Attacker?.Name}, Opponent: {intentTOP.Opponent?.Name}, Threat: {tir.Threat?.Name}" );
@@ -409,23 +479,23 @@ public class BattleAI_ActionScoring
         }
         else if( intentTOP.OpponentPTKO >= PotentialToKO.Dangerous )
         {
-            score -= 150;
+            score -= 250;
         }
-        else if( switchCandidate.SwitchDefensePTKOR.PTKO == PotentialToKO.OHKO )
-        {
-            // if( tir.Confidence < 0.75f )
-                // score -= 150;
-            // else
-                score -= 75;
-        }
+        // else if( scr.SwitchDefensePTKO == PotentialToKO.OHKO )
+        // {
+        //     // if( tir.Confidence < 0.75f )
+        //         // score -= 150;
+        //     // else
+        //         score -= 75;
+        // }
 
-        int offensiveDelta = switchCandidate.SwitchOffensePTKOR.Score - switchCandidate.SwitchDefensePTKOR.Score; //--should be offensive ptko score minus defensive ptko score.
+        int offensiveDelta = _proj.Get_PotentialToKOScoreFromEnum( scr.SwitchOffensePTKO ) - _proj.Get_PotentialToKOScoreFromEnum( scr.SwitchDefensePTKO ); //--should be offensive ptko score minus defensive ptko score.
         score += Mathf.Clamp( Mathf.FloorToInt( offensiveDelta * 0.5f ), 0, 40 );
 
-        _ai.CurrentLog.Add( $"Offensive PTKOR Score: {switchCandidate.SwitchOffensePTKOR.Score}, Defensive PTKOR Score: {switchCandidate.SwitchDefensePTKOR.Score}, Delta: {offensiveDelta}." );
+        _ai.CurrentLog.Add( $"Offensive PTKOR Score: {_proj.Get_PotentialToKOScoreFromEnum( scr.SwitchOffensePTKO )}, Defensive PTKOR Score: {_proj.Get_PotentialToKOScoreFromEnum( scr.SwitchDefensePTKO )}, Delta: {offensiveDelta}." );
 
-        BattleAI_PokemonAdapter candidateAdapter = _ai.GetPokemonAs_Adapter( switchCandidate.Pokemon );
-        if( switchCandidate.Pokemon != null && _ai.Blackboard.OurTeamPieceValues.TryGetValue( candidateAdapter.Pokemon, out var pieceValue ) )
+        BattleAI_PokemonAdapter candidateAdapter = _ai.GetPokemonAs_Adapter( scr.Pokemon );
+        if( scr.Pokemon != null && _ai.Blackboard.OurTeamPieceValues.TryGetValue( candidateAdapter.Pokemon, out var pieceValue ) )
         {
             int switchThreatCount = pieceValue.ThreatCount;
 
@@ -437,11 +507,11 @@ public class BattleAI_ActionScoring
             _ai.CurrentLog.Add( $"Threat Count: {switchThreatCount}. Score: {score}" );
         }
 
-        bool switchThreatensKO          = switchCandidate.SwitchOffensePTKOR.PTKO >= PotentialToKO.Dangerous;
-        bool switchIsThreatenedByKO     = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.Dangerous;
-        bool switchDoesBigDamage        = switchCandidate.SwitchOffensePTKOR.PTKO >= PotentialToKO.TwoHKO;
-        bool switchTakesBigDamage       = switchCandidate.SwitchDefensePTKOR.PTKO >= PotentialToKO.TwoHKO;
-        bool switchMovesFirst           = switchCandidate.MovesFirst;
+        bool switchThreatensKO          = scr.SwitchOffensePTKO >= PotentialToKO.Dangerous;
+        bool switchIsThreatenedByKO     = scr.SwitchDefensePTKO >= PotentialToKO.Dangerous;
+        bool switchDoesBigDamage        = scr.SwitchOffensePTKO >= PotentialToKO.TwoHKO;
+        bool switchTakesBigDamage       = scr.SwitchDefensePTKO >= PotentialToKO.TwoHKO;
+        bool switchMovesFirst           = scr.MovesFirst;
 
         if( !switchMovesFirst )
             score -= 10;
@@ -456,7 +526,7 @@ public class BattleAI_ActionScoring
 
         _ai.CurrentLog.Add( $"SwitchThreatensKO {switchThreatensKO}, SwitchMovesFirst {switchMovesFirst}, !switchIsThreatenedByKO {!switchIsThreatenedByKO}. Score: {score}" );
 
-        var defensePTKO = switchCandidate.SwitchDefensePTKOR.PTKO;
+        var defensePTKO = scr.SwitchDefensePTKO;
         float incomingDamage = _proj.Get_PTKODamagePercent( defensePTKO );
 
         if( incomingDamage >= 0.75f )
@@ -470,20 +540,23 @@ public class BattleAI_ActionScoring
 
         //--Tempo
         score += _ai.OffensiveSwitch_TempoModifier( tempo );
+        _ai.CurrentLog.Add( $"Applied tempo modifier. Score: {score}" );
 
         //--Attacking is better penalty
-        if( usVS_Threat.AttackerPTKOR.PTKO == PotentialToKO.OHKO && usVS_Threat.AttackerMovesFirst )
+        if( usVS_Threat.Attacker.BestCurrentPTKO == PotentialToKO.OHKO && usVS_Threat.AttackerMovesFirst )
             score -= 150;
-        else if( usVS_Threat.AttackerPTKOR.PTKO == PotentialToKO.Dangerous && usVS_Threat.AttackerMovesFirst )
+        else if( usVS_Threat.Attacker.BestCurrentPTKO == PotentialToKO.Dangerous && usVS_Threat.AttackerMovesFirst )
             score -= 125;
-        else if( usVS_Threat.AttackerPTKOR.PTKO >= PotentialToKO.Dangerous && usVS_Threat.AttackerSurvives )
+        else if( usVS_Threat.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous && usVS_Threat.Target.BestCurrentPTKO <= PotentialToKO.TwoHKO )
             score -= 100;
+
+        _ai.CurrentLog.Add( $"Applied attacking is better penalty. Score: {score}" );
 
         //--Switch Tax
         score += _ai.Get_ConsecutiveSwitchPenalty();
         score -= 15;
 
-        _ai.CurrentLog.Add( $"Final Offensive Switch Score after tempo modifier, consecutive switch pentalty, and switch tax: {score}" );
+        _ai.CurrentLog.Add( $"Applied consecutive switch pentalty and switch tax. Final Score: {score}" );
 
         return score;
     }
@@ -716,10 +789,10 @@ public class BattleAI_ActionScoring
             _ai.CurrentLog.Add( $"Status Effect or Status Debuff detected! Impact: {status.Impact}, Coverage (50%) {Mathf.FloorToInt( status.Coverage * 0.5f )}, Reliability (50%): {Mathf.FloorToInt( status.Reliability * 0.5f )}. Base Score: {score}" );
 
             //--Disruption bonus
-            if( !status.Top.OpponentCanAct )
+            if( !status.Top.Opponent_ExpectedToAct )
                 score += 60;
 
-            _ai.CurrentLog.Add( $"Opponent Can Act: {status.Top.OpponentCanAct}. Score: {score}" );
+            _ai.CurrentLog.Add( $"Opponent Can Act: {status.Top.Opponent_ExpectedToAct}. Score: {score}" );
 
             int attackEquivalent = usVS_Threat.AttackerPTKOR.Score - usVS_Threat.OpponentPTKOR.Score;
             if( status.Impact < attackEquivalent )
@@ -740,7 +813,7 @@ public class BattleAI_ActionScoring
 
             _ai.CurrentLog.Add( $"Disruption detected! Impact: {status.Impact}, Reliability (60%): {Mathf.FloorToInt( status.Reliability * 0.6f )}, Ambiguity (50%): {Mathf.FloorToInt( status.Ambiguity * 0.5f )}, Coverage (25%): {Mathf.FloorToInt( status.Coverage * 0.25f )}. Score: {score}" );
 
-            if( !status.Top.OpponentCanAct )
+            if( !status.Top.Opponent_ExpectedToAct )
                 score += 60;
 
             int attackEquivalent = usVS_Threat.AttackerPTKOR.Score - usVS_Threat.OpponentPTKOR.Score;
@@ -763,7 +836,7 @@ public class BattleAI_ActionScoring
             if( usVS_Threat.OpponentSwitchProbability < 0.4f )
                 score += 20;
 
-            if( status.Top.OpponentCanAct )
+            if( status.Top.Opponent_ExpectedToAct )
                 score -= 15;
         }
 
@@ -804,13 +877,13 @@ public class BattleAI_ActionScoring
         {
             if( usVS_Threat.AttackerMovesFirst && ( status.OffensiveStatusType == OffensiveStatusType.StatusEffect || status.OffensiveStatusType == OffensiveStatusType.Disruption || status.OffensiveStatusType == OffensiveStatusType.Phaze ) )
                 score += 25;
-            else if( status.Top.OpponentCanAct )
+            else if( status.Top.Opponent_ExpectedToAct )
                 score -= 150;
         }
         else if( usVS_Threat.OpponentPTKOR.PTKO >= PotentialToKO.Risky )
             score -= 75;
 
-        _ai.CurrentLog.Add( $"Checked Survival. Opponent Threatens KO: {usVS_Threat.OpponentThreatensKO}. Opponent acts in simulation: {status.Top.OpponentCanAct} Score: {score}" );
+        _ai.CurrentLog.Add( $"Checked Survival. Opponent Threatens KO: {usVS_Threat.OpponentThreatensKO}. Opponent acts in simulation: {status.Top.Opponent_ExpectedToAct} Score: {score}" );
 
         //--HP context
         float hp = usVS_Threat.AttackerHPR;

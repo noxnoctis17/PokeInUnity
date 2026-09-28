@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Drawing.Design;
 using System.Linq;
 using UnityEngine;
 
@@ -14,10 +13,12 @@ public class BattleAI_BattleSim
     private List<Action<SimulatedUnit, List<SimulatedUnit>, SimulatedField, bool /*phase tick*/, CustomLogSession>> _roundEndPhases;
     private int _rounds;
     private const float HP_EPSILON = 0.0009f;
+
     public Dictionary<string, Func<IBattleAIUnit, IBattleAIUnit, Move, bool>> MoveSuccess { get; private set; }
 
     private Action _onEnterField;
     private Action<WeatherConditionID, WeatherConditionID> _onWeatherChange;
+    private Action<SimulatedUnit, SimulatedUnit> _onSwitchSimUnits;
 
     public BattleAI_BattleSim( BattleAI ai )
     {
@@ -80,13 +81,6 @@ public class BattleAI_BattleSim
     public BattleSimEvent BuildBattleSimEvent( RoundPackage roundPack, SimulatedField field, int depth = 1 )
     {
         const int priority_offset = (int)MovePriority.Zero;
-        
-        //--We need to establish all participating units and their relationships. it may be best to simply include fields for attackerAllyPack and opponentAllyPack, or restructure SimulationPackage to contain
-        //--everything necessary. Or, rather, yet another struct called RoundPackage, that simply has 4 SimulationPackages in it. We build RoundPackage and feed it into BBSE, and use a some bools
-        //--to make sure targeting is correct. bool targetIsOpponent, bool targetIsAlly, bool attackerSpreadMove, bool opponentSpreadMove, bool allySpreadMove, bool opponentAllySpreadMove
-        //--i don't know if i want intentTOP to simulate a full exchange between all 4 pokemon, or simply the results of the current pokemon vs its chosen target + any side effects, such as the results of
-        //--being hit when using a support move on its side or on its ally, or the results of it or its target using spread moves. i don't think it's necessary to produce a full round and get intended actions
-        //--from all 4 pokemon, we can use ExchangePack to check both side's ally PTKOs and get estimated damage from that where and when necessary.
 
         SimulationPackage attackerPack = roundPack.AttackerPack;
         SimulationPackage opponentPack = roundPack.OpponentPack;
@@ -101,7 +95,6 @@ public class BattleAI_BattleSim
         SimulatedUnit opponentAlly = null;
 
         CustomLogSession bseLog = null;
-        // CustomLogSession bseLog = new();
 
         bseLog?.Add( $"========================================" );
         bseLog?.Add( $"===[Building Battle Simulation Event]===" );
@@ -191,7 +184,25 @@ public class BattleAI_BattleSim
         foreach( var mod in modules )
         {
             order++;
-            expectedTurnOrder.Add( mod.Actor, order );
+
+            if( mod.SwitchCandidate != null )
+            {
+                if( !expectedTurnOrder.ContainsKey( mod.SwitchCandidate ) )
+                    expectedTurnOrder.Add( mod.SwitchCandidate, order );
+
+                //--This duplicate stuff is happening due to RevengeSwitch using the incoming switch as both the actor and the switch candidate! --09/09/26
+                // if( mod.Actor == mod.SwitchCandidate )
+                    // Debug.LogError( $"Actor same as switch candidate, how did this happen?" );
+            }
+
+            if( !expectedTurnOrder.ContainsKey( mod.Actor ) )
+                expectedTurnOrder.Add( mod.Actor, order );
+            else
+            {
+                // Debug.LogError( $"Actor already in turn order somehow? Listing current units in expected turn order..." );
+                // foreach( var eto in expectedTurnOrder )
+                    // Debug.LogError( $"{eto.Key.Name}, {eto.Value}" );
+            }
         }
 
         // _unitSim.TurnSimLog.Add( $"Attacker ({attacker.Name}) Speed: {attacker.Speed}. Opponent ({opponent.Name}) Speed: {opponent.Speed}." );
@@ -200,43 +211,51 @@ public class BattleAI_BattleSim
         // _unitSim.TurnSimLog.Add( $"" );
 
         //--Build BSE
-        BattleSimEvent bse = new()
-        {
-            Depth = depth,
+        BattleSimEvent bse = new();
+        // {
+            bse.Depth = depth;
 
-            Attacker = attacker,
-            Opponent = opponent,
-            AttackerAlly = attackerAlly,
-            OpponentAlly = opponentAlly,
+            bse.Attacker = attacker;
+            bse.Opponent = opponent;
+            bse.AttackerAlly = attackerAlly;
+            bse.OpponentAlly = opponentAlly;
 
-            ActiveUnits = units,
-            SimModules = modules,
+            bse.Attacker_ExpectedPTKO = attackerPack.ModuleType == SimModuleType.Attack ? attacker.MTR.PTKO : default;
+            bse.AttackerAlly_ExpectedPTKO = allyPack.Exists && allyPack.ModuleType == SimModuleType.Attack ? attackerAlly.MTR.PTKO : default;
 
-            Field = field,
+            bse.Opponent_ExpectedPTKO = opponentPack.ModuleType == SimModuleType.Attack ? opponent.MTR.PTKO : default;
+            bse.OpponentAlly_ExpectedPTKO = opponentAllyPack.Exists && opponentAllyPack.ModuleType == SimModuleType.Attack ? opponentAlly.MTR.PTKO : default;
 
-            ExpectedTurnOrder = expectedTurnOrder.ToDictionary( kvp => kvp.Key, kvp => kvp.Value ),
-            TurnOrderHistory = new(),
+            bse.ActiveUnits = units;
+            bse.SimModules = modules;
+
+            bse.Field = field;
+
+            bse.ExpectedTurnOrder = expectedTurnOrder.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+            bse.TurnOrderHistory = new();
+            bse.SwitchedPokemon = new();
+            bse.ModuleHistory = new();
 
             //--Moves first bools will eventually be phased out, and all scoring locations that use "top.movedfirst"
             //--will simply reference the TurnOrderHistory dictionary values to determine turn order value
-            AttackerMovesFirst = modules[0].Attacker?.Pokemon == attacker?.Pokemon,
-            OpponentMovedFirst = modules[0].Attacker?.Pokemon == opponent?.Pokemon,
-            AttackerAllyMovedFirst = attackerAlly != null && modules[0].Attacker?.Pokemon == attackerAlly?.Pokemon,
-            OpponentAllyMovedFirst = opponentAlly != null && modules[0].Attacker?.Pokemon == opponentAlly?.Pokemon,
+            bse.AttackerMovesFirst = modules[0].Attacker?.Pokemon == attacker?.Pokemon;
+            bse.OpponentMovedFirst = modules[0].Attacker?.Pokemon == opponent?.Pokemon;
+            bse.AttackerAllyMovedFirst = attackerAlly != null && modules[0].Attacker?.Pokemon == attackerAlly?.Pokemon;
+            bse.OpponentAllyMovedFirst = opponentAlly != null && modules[0].Attacker?.Pokemon == opponentAlly?.Pokemon;
 
-            Attacker_CanAct = _unitSim.CanActOnTurn( attacker ),
-            Opponent_CanAct = _unitSim.CanActOnTurn( opponent ),
-            AttackerAlly_CanAct = attackerAlly != null && _unitSim.CanActOnTurn( attackerAlly ),
-            OpponentAlly_CanAct = opponentAlly != null && _unitSim.CanActOnTurn( opponentAlly ),
-        };
+            bse.Attacker_ExpectedToAct = attacker != null && _unitSim.CanActOnTurn( attacker );
+            bse.Opponent_ExpectedToAct = opponent != null && _unitSim.CanActOnTurn( opponent );
+            bse.AttackerAlly_ExpectedToAct = attackerAlly != null && _unitSim.CanActOnTurn( attackerAlly );
+            bse.OpponentAlly_ExpectedToAct = opponentAlly != null && _unitSim.CanActOnTurn( opponentAlly );
+        // };
 
         bseLog?.Add( $"" );
-        bseLog?.Add( $"Attacker {bse.Attacker.Name} (HPR: {bse.Attacker.BeginningHPR})" );
-        bseLog?.Add( $"Opponent {bse.Opponent.Name} (HPR: {bse.Opponent.BeginningHPR})" );
+        bseLog?.Add( $"Attacker {bse.Attacker?.Name} (HPR: {bse.Attacker?.BeginningHPR})" );
+        bseLog?.Add( $"Opponent {bse.Opponent?.Name} (HPR: {bse.Opponent?.BeginningHPR})" );
         bseLog?.Add( $"Attacker Ally {bse.AttackerAlly?.Name} (HPR: {bse.AttackerAlly?.BeginningHPR}) ({attackerAlly?.Name}, {attackerAlly?.BeginningHPR})" );
         bseLog?.Add( $"Opponent Ally {bse.OpponentAlly?.Name} (HPR: {bse.OpponentAlly?.BeginningHPR}) ({opponentAlly?.Name}, {opponentAlly?.BeginningHPR})" );
         bseLog?.Add( $"" );
-        bseLog?.Add( $"Total Units: {bse.ActiveUnits.Count} ({units.Count}), Total Modules: {bse.SimModules.Count} ({modules.Count})" );
+        bseLog?.Add( $"Total Units: {bse.ActiveUnits?.Count} ({units?.Count}), Total Modules: {bse.SimModules?.Count} ({modules?.Count})" );
         bseLog?.Add( $"" );
 
         if( bseLog != null )
@@ -298,10 +317,17 @@ public class BattleAI_BattleSim
             AttackerAlly = bse.AttackerAlly,
             OpponentAlly = bse.OpponentAlly,
 
+            Attacker_ExpectedPTKO = bse.Attacker_ExpectedPTKO,
+            AttackerAlly_ExpectedPTKO = bse.AttackerAlly_ExpectedPTKO,
+
+            Opponent_ExpectedPTKO = bse.Opponent_ExpectedPTKO,
+            OpponentAlly_ExpectedPTKO = bse.OpponentAlly_ExpectedPTKO,
+
             AttackerPTKO = bse.Attacker.MTR != null ? bse.Attacker.MTR.PTKO : default,
+            AttackerAllyPTKO = bse.AttackerAlly != null && bse.AttackerAlly.MTR != null ? bse.AttackerAlly.MTR.PTKO : default,
+            
             OpponentPTKO = bse.Opponent.MTR != null ? bse.Opponent.MTR.PTKO : default,
-            AttackerAllyPTKO = bse.AttackerAlly != null ? bse.Attacker.MTR.PTKO : default,
-            OpponentAllyPTKO = bse.OpponentAlly != null ? bse.Opponent.MTR.PTKO : default,
+            OpponentAllyPTKO = bse.OpponentAlly != null && bse.OpponentAlly.MTR != null ? bse.OpponentAlly.MTR.PTKO : default,
 
             Attacker_EndOfTurnHP = bse.Attacker.EndHPR,
             Opponent_EndOfTurnHP = bse.Opponent.EndHPR,
@@ -309,13 +335,22 @@ public class BattleAI_BattleSim
             Attacker_DiesBeforeActing = bse.Attacker_DiesBeforeActing,
             Opponent_DiesBeforeActing = bse.Opponent_DiesBeforeActing,
 
-            AttackerCanAct = bse.Attacker_CanAct,
-            OpponentCanAct = bse.Opponent_CanAct,
+            Attacker_ExpectedToAct = bse.Attacker_ExpectedToAct,
+            Opponent_ExpectedToAct = bse.Opponent_ExpectedToAct,
+            AttackerAlly_ExpectedToAct = bse.AttackerAlly_ExpectedToAct,
+            OpponentAlly_ExpectedToAct = bse.OpponentAlly_ExpectedToAct,
+
+            AttackerSwitched = bse.AttackerSwitched,
+            AttackerAllySwitched = bse.AttackerAllySwitched,
+            OpponentSwitched = bse.OpponentSwitched,
+            OpponentAllySwitched = bse.OpponentAllySwitched,
 
             MutualKO = bse.Attacker.EndHPR <= 0f && bse.Opponent.EndHPR <= 0f,
 
             ExpectedTurnOrder = bse.ExpectedTurnOrder.ToDictionary( kvp => kvp.Key, kvp => kvp.Value ),
             TurnOrderHistory = bse.TurnOrderHistory.ToDictionary( kvp => kvp.Key, kvp => kvp.Value ),
+            SwitchedPokemon = bse.SwitchedPokemon.ToDictionary( kvp => kvp.Key, kvp => kvp.Value ),
+            ModuleHistory = bse.ModuleHistory.ToList(),
 
             AttackerMovedFirst = bse.AttackerMovesFirst,
             OpponentMovedFirst = bse.OpponentMovedFirst,
@@ -344,10 +379,10 @@ public class BattleAI_BattleSim
         MoveThreatResult ourMTR = null;
         MoveThreatResult theirMTR = null;
 
-        IActionResult theirResult = job.Active ? job.TargetsActionResult : tir.PrimaryIntent.IntentResult;
+        IActionResult theirResult = job.Exists ? job.TargetsActionResult : tir.PrimaryIntent.IntentResult;
 
         IBattleAIUnit attacker = _ai.GetPokemonAs_IBattleAIUnit( ourResult.Top.Attacker.Pokemon );
-        IBattleAIUnit opponent = job.Active ? _ai.GetPokemonAs_IBattleAIUnit( job.Target ) : _ai.GetPokemonAs_IBattleAIUnit( theirResult.Top.Attacker.Pokemon );
+        IBattleAIUnit opponent = job.Exists ? _ai.GetPokemonAs_IBattleAIUnit( job.Target ) : _ai.GetPokemonAs_IBattleAIUnit( theirResult.Top.Attacker.Pokemon );
 
         SimModuleType attackerModule = SimModuleType.Attack;
         SimModuleType opponentModule = SimModuleType.Attack;
@@ -684,11 +719,11 @@ public class BattleAI_BattleSim
         float ourHPR                        = attacker.BeginningHPR;
         float theirHPR                      = opponent.BeginningHPR;
         
-        var ourEDR                          = _proj.Get_EstimatedDamageResult( attacker, opponent, ourMTR );
-        var theirEDR                        = _proj.Get_EstimatedDamageResult( opponent, attacker, theirMTR );
+        // var ourEDR                          = _proj.Get_EstimatedDamageResult( attacker, opponent, ourMTR );
+        // var theirEDR                        = _proj.Get_EstimatedDamageResult( opponent, attacker, theirMTR );
 
-        PotentialToKO ourPTKO               = _proj.Get_PotentialToKOResult( ourEDR, ourMTR, opponent ).PTKO;
-        PotentialToKO theirPTKO             = _proj.Get_PotentialToKOResult( theirEDR, theirMTR, attacker ).PTKO;
+        // PotentialToKO ourPTKO               = _proj.Get_PotentialToKOResult( ourEDR, ourMTR, opponent ).PTKO;
+        // PotentialToKO theirPTKO             = _proj.Get_PotentialToKOResult( theirEDR, theirMTR, attacker ).PTKO;
 
         var fieldSim                        = _ai.UnitSim.CopySimField( top1.Field );
 
@@ -792,26 +827,27 @@ public class BattleAI_BattleSim
 
     public TurnOutcomeProjection BuildPairIntentTOP( IActionResult ourResult, UnitOrder orders )
     {
-        IBattleAIUnit attacker = _ai.GetPokemonAs_IBattleAIUnit( ourResult.Top.Attacker.Pokemon );
+        IBattleAIUnit attacker = _ai.GetPokemonAs_IBattleAIUnit( ourResult.CurrentActor.Pokemon );
         IBattleAIUnit attackerAlly = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
 
         IBattleAIUnit opponent = orders.TryGetOpponent( ourResult.ActionType, attacker.Pokemon, out var opp ) ? opp : null;
         IBattleAIUnit opponentAlly = _ai.GetActiveAllyAs_Adapter( opponent.Pokemon );
 
-        MoveThreatResult attackerMTR = orders.BuildUnitMTR( opponent, opponentAlly, ourResult );
-        MoveThreatResult attackerAllyMTR = attackerAlly != null && orders.TryGetAllyResult( attackerAlly, out var allyResult ) ? orders.BuildUnitMTR( opponentAlly, opponent, allyResult ) : null;
+        MoveThreatResult attackerMTR = BuildUnitMTR( attacker, opponent, opponentAlly, ourResult );
+        MoveThreatResult attackerAllyMTR = attackerAlly != null && orders.TryGetAllyResult( attackerAlly, out var allyResult ) ? BuildUnitMTR( attackerAlly, opponentAlly, opponent, allyResult ) : null;
 
         IActionResult opponentResult = orders.GetOpponentResult( opponent.Pokemon );
         IActionResult opponentAllyResult = opponentAlly != null ? orders.GetOpponentResult( opponentAlly.Pokemon ) : null;
 
-        MoveThreatResult opponentMTR = orders.BuildUnitMTR( attacker, attackerAlly, opponentResult );
-        MoveThreatResult opponentAllyMTR = opponentAlly != null && opponentAllyResult != null ? orders.BuildUnitMTR( attackerAlly, attacker, opponentAllyResult ) : null;
+        //--should i be figuring out proper targets here??? --09/07/26
+        MoveThreatResult opponentMTR = BuildUnitMTR( opponent, attacker, attackerAlly, opponentResult );
+        MoveThreatResult opponentAllyMTR = opponentAlly != null && opponentAllyResult != null ? BuildUnitMTR( opponentAlly, attackerAlly, attacker, opponentAllyResult ) : null;
         
-        SimModuleType attackerModule = orders.GetModuleType( attacker.Pokemon, ourResult );
-        SimModuleType attackerAllyModule = attackerAlly != null && orders.TryGetAllyResult( attackerAlly, out allyResult ) ? orders.GetModuleType( attackerAlly.Pokemon, allyResult ) : SimModuleType.None;
+        SimModuleType attackerModule = GetModuleType( ourResult );
+        SimModuleType attackerAllyModule = attackerAlly != null && orders.TryGetAllyResult( attackerAlly, out allyResult ) ? GetModuleType( allyResult ) : SimModuleType.None;
 
-        SimModuleType opponentModule = orders.GetModuleType( opponent.Pokemon, opponentResult );
-        SimModuleType opponentAllyModule = opponentAlly != null ? orders.GetModuleType( opponentAlly.Pokemon, opponentAllyResult ) : SimModuleType.None;
+        SimModuleType opponentModule = GetModuleType( opponentResult );
+        SimModuleType opponentAllyModule = opponentAlly != null ? GetModuleType( opponentAllyResult ) : SimModuleType.None;
 
         SimulatedField field = _ai.UnitSim.BuildSimField();
 
@@ -848,6 +884,134 @@ public class BattleAI_BattleSim
         return RunSimulation( bse, true );
     }
 
+    public MoveThreatResult BuildUnitMTR( IBattleAIUnit currentActor, IBattleAIUnit opponent1, IBattleAIUnit opponent2, IActionResult result )
+    {
+        MoveThreatResult mtr = new();
+
+        switch( result.ActionType )
+        {
+            case ActionType.Attack:
+
+                var attack = (MoveThreatResult)result;
+                mtr = attack;
+
+            break;
+
+            case ActionType.DefensiveSwitch:
+
+                var defSwitch = (SwitchCandidateResult)result;
+
+                mtr = new()
+                {
+                    CurrentActor = currentActor,
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = new(),
+                    TargetBattleUnits = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
+
+                if( opponent1 != null )
+                    mtr.Targets.Add( opponent1 );
+
+                if( opponent2 != null )
+                    mtr.Targets.Add( opponent2 );
+
+            break;
+
+            case ActionType.OffensiveSwitch:
+
+                var offSwitch = (SwitchCandidateResult)result;
+
+                mtr = new()
+                {
+                    CurrentActor = currentActor,
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = new(),
+                    TargetBattleUnits = null,
+                    Move = null,
+                    EstimatedDamage = 0,
+                };
+
+                if( opponent1 != null )
+                    mtr.Targets.Add( opponent1 );
+
+                if( opponent2 != null )
+                    mtr.Targets.Add( opponent2 );
+
+            break;
+
+            case ActionType.Setup:
+
+                var setup = (SetupThreatResult)result;
+
+                mtr = new()
+                {
+                    CurrentActor = currentActor,
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = setup.Targets.ToList(),
+                    TargetBattleUnits = setup.TargetBattleUnits,
+                    Move = setup.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+
+            case ActionType.OffensiveStatus:
+
+                var offStatus = (StatusThreatResult)result;
+
+                mtr = new()
+                {
+                    CurrentActor = currentActor,
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = offStatus.Targets.ToList(),
+                    TargetBattleUnits = offStatus.TargetBattleUnits,
+                    Move = offStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+
+            case ActionType.SupportiveStatus:
+
+                var suppStatus = (StatusThreatResult)result;
+
+                mtr = new()
+                {
+                    CurrentActor = currentActor,
+                    Score = 0,
+                    Modifier = 0,
+                    Targets = suppStatus.Targets.ToList(),
+                    TargetBattleUnits = suppStatus.TargetBattleUnits,
+                    Move = suppStatus.Move,
+                    EstimatedDamage = 0f,
+                };
+
+            break;
+        }
+
+        return mtr;
+    }
+
+    public SimModuleType GetModuleType( IActionResult result )
+    {
+        return result.ActionType switch
+        {
+            ActionType.Attack => SimModuleType.Attack,
+            ActionType.DefensiveSwitch => SimModuleType.Switch,
+            ActionType.OffensiveSwitch => SimModuleType.Switch,
+            ActionType.Setup => SimModuleType.Setup,
+            ActionType.OffensiveStatus => SimModuleType.OffensiveStatus,
+            ActionType.SupportiveStatus => SimModuleType.SupportiveStatus,
+            _ => SimModuleType.Attack,
+        };
+    }
+
     private IActionResult ExtractEnemyActionResultFromCIR( IBattleAIUnit unit, CoordinationIntentResult cir )
     {
         IActionResult theirLeftResult = cir.Pir.PrimaryStrategy?.LeftIntent.IntentResult;
@@ -866,13 +1030,15 @@ public class BattleAI_BattleSim
         return null;
     }
 
-    public TurnOutcomeProjection RunSimulation( BattleSimEvent bse, bool log = false )
+    public TurnOutcomeProjection RunSimulation( BattleSimEvent bse, bool log = false, string source = "No Source" )
     {
         CustomLogSession moduleLog = log ? new() : null;
 
         if( log ) moduleLog?.Add( $"======================================" );
         if( log ) moduleLog?.Add( $"=====[Running a Round Simulation]=====" );
         if( log ) moduleLog?.Add( $"======================================" );
+        if( log ) moduleLog?.Add( $"" );
+        if( log ) moduleLog?.Add( $"Source: {source}" );
         if( log ) moduleLog?.Add( $"" );
         if( log ) moduleLog?.Add( $"Rounds: {_rounds}" );
         if( log ) moduleLog?.Add( $"" );
@@ -894,15 +1060,50 @@ public class BattleAI_BattleSim
             var module = bse.SimModules[0];
             bse.SimModules.RemoveAt(0);
 
-            if( log ) moduleLog?.Add( $"{module.Type} Module has {module.Targets.Count} target(s)!" );
+            if( log ) moduleLog?.Add( $"{module.Type} Module (Move: {module.Actor?.MTR?.Move?.MoveSO.Name}, Switch: {module.SwitchCandidate?.Name}) has {module.Targets?.Count} target(s)!" );
 
             turnOrder++;
             bse.TurnOrderHistory.Add( module.Actor, turnOrder );
+            bse.ModuleHistory.Add( module );
+
+            if( module.Type == SimModuleType.Switch && module.SwitchCandidate != null && !bse.TurnOrderHistory.ContainsKey( module.SwitchCandidate ) )
+                bse.TurnOrderHistory.Add( module.SwitchCandidate, turnOrder );
 
             _onWeatherChange = ( prevWeather, newWeather ) =>
             {
                 moduleLog?.Add( $"Applying Weather changes to active units!" );
                 Apply_WeatherChanges( bse.ActiveUnits, prevWeather, newWeather, moduleLog );
+            };
+
+            _onSwitchSimUnits = ( returnPokemon, switchCandidate ) =>
+            {
+                if( bse.Attacker?.Pokemon == returnPokemon.Pokemon )
+                {
+                    bse.Attacker = switchCandidate;
+                    bse.AttackerSwitched = true;
+                }
+
+                if( bse.AttackerAlly?.Pokemon == returnPokemon.Pokemon )
+                {
+                    bse.AttackerAlly = switchCandidate;
+                    bse.AttackerAllySwitched = true;
+                }
+
+                if( bse.Opponent?.Pokemon == returnPokemon.Pokemon )
+                {
+                    bse.Opponent = switchCandidate;
+                    bse.OpponentSwitched = true;
+                }
+
+                if( bse.OpponentAlly?.Pokemon == returnPokemon.Pokemon )
+                {
+                    bse.OpponentAlly = switchCandidate;
+                    bse.OpponentAllySwitched = true;
+                }
+
+                UpdateActiveUnits( bse );
+
+                bse.SwitchedPokemon.Add( switchCandidate, returnPokemon );
             };
 
             foreach( var target in module.Targets )
@@ -966,6 +1167,7 @@ public class BattleAI_BattleSim
                 UpdateActiveUnits( bse );
 
                 if( log ) moduleLog?.Add( $"" );
+                if( log ) moduleLog?.Add( $"" );
             }
 
             if( module.Type == SimModuleType.Switch )
@@ -991,7 +1193,10 @@ public class BattleAI_BattleSim
                 }
 
                 Apply_EnterFieldEffectChanges( bse.ActiveUnits, bse.Field );
+                if( log ) moduleLog?.Add( $"" );
             }
+
+            module.Attacker.CompletedTurn = true;
 
             if( bse.SimModules.Count > 0 )
                 ReorderModules( ref bse.SimModules, bse.Field );
@@ -1028,6 +1233,11 @@ public class BattleAI_BattleSim
         return isAIOpponent ? 1 : 0;
     }
 
+    private void RefreshModuleUnits( SimulatedUnit unit, SimulationModule module )
+    {
+        
+    }
+
     private void UpdateActiveUnits( BattleSimEvent bse )
     {
         bse.ActiveUnits.Clear();
@@ -1043,6 +1253,11 @@ public class BattleAI_BattleSim
 
         if( bse.OpponentAlly != null && bse.OpponentAlly.EndHPR > 0f )
             bse.ActiveUnits.Add( bse.OpponentAlly );
+    }
+
+    private void SwitchSimulationUnits( BattleSimEvent bse, SimulatedUnit returnPokemon, SimulatedUnit switchCandidate )
+    {
+        
     }
 
     private void MarkTargetKOBeforeActing( BattleSimEvent bse, SimulatedUnit unit )
@@ -1072,9 +1287,9 @@ public class BattleAI_BattleSim
         }
     }
 
-    private void ResolvePostMoveEffects( SimulatedUnit attacker, SimulatedUnit target, float damageDone,CustomLogSession moduleLog = null )
+    private void Resolve_PostAttackEffects( SimulatedUnit attacker, SimulatedUnit target, float damageDone, Move move, CustomLogSession moduleLog = null )
     {
-        moduleLog?.Add( $"(Round: {_rounds}) Resolving Post Move Effects for {attacker.Name} (HP {attacker.EndHPR}) attacking {target.Name} (HP {target.EndHPR})!" );
+        moduleLog?.Add( $"(Round: {_rounds}) Resolving Post Move Effects for {attacker?.Name} (Move: {move?.MoveSO.Name}) (HP {attacker?.EndHPR}) attacking {target?.Name} (HP {target?.EndHPR})!" );
 
         bool attackerMakesContact = attacker.MTR.Move.MoveSO.Flags.Contains( MoveFlags.Contact );
         float attackDrainPercent = attacker.MTR.Move.MoveSO.DrainPercentage;
@@ -1100,6 +1315,17 @@ public class BattleAI_BattleSim
                 return;
 
             moduleLog?.Add( $"(Round: {_rounds}) {attacker.Name} Made contact. HP: {attacker.EndHPR}" );
+        }
+
+        //--Fake Out
+        // moduleLog?.Add( $"(Round: {_rounds}) Target: {target?.Name}'s Current Transient Status: {target.TransientStatus}" );
+        // moduleLog?.Add( $"(Round: {_rounds}) Fake Out?: {move?.MoveSO.MoveEffects.TransientStatus}" );
+        if( move.MoveSO.MoveEffects.TransientStatus == TransientConditionID.Flinch && !target.CompletedTurn && target.TransientStatus == TransientConditionID.None )
+        {
+            // target.CouldAct = false;
+            target.TransientStatus = TransientConditionID.Flinch;
+            moduleLog?.Add( $"{attacker.Name}'s {move.MoveSO.Name} applied Flinch to {target.Name}! They can act: {target.CouldAct}" );
+            // Debug.LogError( $"Flinch applied to {target?.Name} by {attacker?.Name}" );
         }
 
         //--Sitrus Berry
@@ -1214,12 +1440,18 @@ public class BattleAI_BattleSim
         float previousHPR = target.EndHPR;
         bool focusSash = target.BeginningHPR == 1f && target.Item == ItemBattleEffectID.FocusSash;
 
+        if( mtr.Move == null )
+            moduleLog?.Add( $"Apply_Attack(): {attacker?.Name}'s move is empty!" );
+
+        if( mtr.Move?.MoveSO.MoveCategory == MoveCategory.Status )
+            moduleLog?.Add( $"Apply_Attack(): {attacker?.Name}'s move is a status move!" );
+
         //--Estimated Damage
         var edr = _proj.Get_EstimatedDamageResult( attacker, target, mtr, field );
         float damage = edr.DamageEstimate / Mathf.Max( edr.Hits, 1f );
 
         //--Get and assign PTKO for post-top analysis
-        var attackerPTKO = _proj.Get_PotentialToKOResult( edr, mtr, target ).PTKO;
+        var attackerPTKO = _proj.GetPTKO_FromDamageEstimate( edr, target );
         attacker.MTR.PTKO = attackerPTKO;
 
         //--Apply damage
@@ -1548,7 +1780,10 @@ public class BattleAI_BattleSim
         bool isField = effects.FieldCondition != FieldConditionID.None;
 
         bool isTailwind = effects.CourtCondition == CourtConditionID.Tailwind;
-        bool isScreens = effects.CourtCondition == CourtConditionID.Reflect || effects.CourtCondition == CourtConditionID.LightScreen || effects.CourtCondition == CourtConditionID.AuroraVeil;
+        bool isReflect = effects.CourtCondition == CourtConditionID.Reflect;
+        bool isLightScreen = effects.CourtCondition == CourtConditionID.LightScreen;
+        bool isAuroraVeil = effects.CourtCondition == CourtConditionID.AuroraVeil;
+        bool isScreens = isReflect || isLightScreen || isAuroraVeil;
         bool isSafeguard = effects.CourtCondition == CourtConditionID.SafeGuard;
 
         bool isAllyHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.Ally;
@@ -1597,7 +1832,14 @@ public class BattleAI_BattleSim
             if( !court.ContainsKey( effects.CourtCondition ) )
                 court.Add( effects.CourtCondition, duration );
 
-            moduleLog?.Add( $"Set {effects.CourtCondition}" );
+            moduleLog?.Add( $"Set {effects.CourtCondition} in {target?.Name}'s {target.CourtLocation}" );
+
+            if( isTailwind )
+            {
+                moduleLog?.Add( $"Trying to add Tailwind speed modifier to {target?.Name}, current speed: {target?.Speed}" );
+                _unitSim.ApplyDirectStatModifier( target, Stat.Speed, DirectModifierCause.Tailwind, 2f );
+                moduleLog?.Add( $"Tried to add Tailwind speed modifier to {target?.Name}, current speed: {target?.Speed}" );
+            }
         }
 
         if( isAllyHeal || isSideHeal )
@@ -1860,6 +2102,12 @@ public class BattleAI_BattleSim
             if( unit.SevereStatusTime <= 0 )
                 unit.SevereStatus = SevereConditionID.None;
         }
+
+        //--To clear things like flinch, center of attention, and protect
+        if( unit.TransientStatus != TransientConditionID.None )
+        {
+            unit.TransientStatus = TransientConditionID.None;
+        }
     }
 
     private void Apply_Curse( SimulatedUnit unit, List<SimulatedUnit> activeUnits, SimulatedField field, bool phaseTick, CustomLogSession moduleLog = null )
@@ -1923,6 +2171,26 @@ public class BattleAI_BattleSim
                     if( duration == 0 )
                     {
                         field.TopCourtConditions.Remove( kvp.Key );
+                        foreach( var u in activeUnits )
+                        {
+                            if( u.CourtLocation == CourtLocation.TopCourt )
+                            {
+                                if( kvp.Key == CourtConditionID.Tailwind )
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.Speed, DirectModifierCause.Tailwind );
+
+                                if( kvp.Key == CourtConditionID.Reflect )
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.Defense, DirectModifierCause.Reflect );
+
+                                if( kvp.Key == CourtConditionID.LightScreen )
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.SpDefense, DirectModifierCause.LightScreen );
+
+                                if( kvp.Key == CourtConditionID.AuroraVeil )
+                                {
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.Defense, DirectModifierCause.AuroraVeil );
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.SpDefense, DirectModifierCause.AuroraVeil );
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -1946,6 +2214,26 @@ public class BattleAI_BattleSim
                     if( duration == 0 )
                     {
                         field.BottomCourtConditions.Remove( kvp.Key );
+                        foreach( var u in activeUnits )
+                        {
+                            if( u.CourtLocation == CourtLocation.BottomCourt )
+                            {
+                                if( kvp.Key == CourtConditionID.Tailwind )
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.Speed, DirectModifierCause.Tailwind );
+
+                                if( kvp.Key == CourtConditionID.Reflect )
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.Defense, DirectModifierCause.Reflect );
+
+                                if( kvp.Key == CourtConditionID.LightScreen )
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.SpDefense, DirectModifierCause.LightScreen );
+
+                                if( kvp.Key == CourtConditionID.AuroraVeil )
+                                {
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.Defense, DirectModifierCause.AuroraVeil );
+                                    _unitSim.RemoveDirectStatModifier( u, Stat.SpDefense, DirectModifierCause.AuroraVeil );
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -2215,24 +2503,29 @@ public class BattleAI_BattleSim
 
         float damageDone = 0f;
 
-        moduleLog?.Add( $"(Round: {_rounds}) Running an Attack Module! Attacker {attacker?.Name} (HPR: {attacker.BeginningHPR}), Move: {attMove?.MoveSO.Name} (Hits: {attackerHitCount}), Target: {target?.Name} (HPR: {target.BeginningHPR}" );
+        moduleLog?.Add( $"(Round: {_rounds}) Running an Attack Module! Attacker {attacker?.Name} (HPR: {attacker.BeginningHPR}), Move: {attMove?.MoveSO.Name} (Hits: {attackerHitCount}), Target: {target?.Name} (HPR: {target.BeginningHPR})" );
 
         for( int i = 0; i < attackerHitCount; i++ )
         {
-            if( !_unitSim.CanActOnTurn( attacker ) )
+            if( _unitSim.CanActOnTurn( attacker ) )
+            {
+                attacker.CouldAct = true;
+
+                damageDone = Apply_Attack( attacker, target, attacker.MTR, field, moduleLog );
+                
+                moduleLog?.Add( $"(Round: {_rounds}) Attacker {attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}, PTKO:{attacker.MTR.PTKO}" );
+                
+                Resolve_PostAttackEffects( attacker, target, damageDone, attMove, moduleLog );
+
+                if( target.EndHPR <= 0f )
+                    break;
+            }
+            else
             {
                 moduleLog?.Add( $"(Round: {_rounds}) Attacker {attacker.Name} cannot act!" );
+                attacker.CouldAct = false;
                 break;
             }
-
-            damageDone = Apply_Attack( attacker, target, attacker.MTR, field );
-            
-            moduleLog?.Add( $"(Round: {_rounds}) Attacker {attacker.Name} Attacks! Move used: {attMove.MoveSO.Name}, Expected Hits: {attackerHitCount}, Hit: {i+1}. Damage Done: {damageDone}" );
-            
-            ResolvePostMoveEffects( attacker, target, damageDone );
-
-            if( target.EndHPR <= 0f )
-                break;
         }
     }
 
@@ -2240,18 +2533,22 @@ public class BattleAI_BattleSim
     {   
         if( !sourceModule.SwitchCompleted )
         {
-            moduleLog?.Add( $"(Round: {_rounds}) Running a Switch Module! {switchCandidate.Name} is switching in for {attacker.Name}, Opponent: {target.Name}!" );
+            moduleLog?.Add( $"(Round: {_rounds}) Running a Switch Module! {switchCandidate?.Name} is switching in for {attacker?.Name}, Opponent: {target?.Name}!" );
 
             moduleLog?.Add( $"Applying switch action for incoming switch module!" );
-            moduleLog?.Add( $"Current Attacker: {sourceModule.Attacker.Name}" );
+            moduleLog?.Add( $"Module's Current Attacker: {sourceModule.Attacker?.Name}, SimulatedUnit attacker: {attacker?.Name}" );
 
             sourceModule.ApplySwitchAction();
+            
+            _onSwitchSimUnits?.Invoke( attacker, switchCandidate );
+            switchCandidate.CouldAct = true;
+            attacker.CouldAct = true;
 
             moduleLog?.Add( $"Switch action applied!" );
-            moduleLog?.Add( $"Current Attacker: {sourceModule.Attacker.Name}" );
+            moduleLog?.Add( $"Module's Current Attacker: {sourceModule.Attacker?.Name}, SimulatedUnit attacker: {attacker?.Name}" );
         }
         else
-            moduleLog?.Add( $"(Round: {_rounds}) Running a Switch Module! {attacker.Name} has already switched in! Opponent: {target.Name}!" );
+            moduleLog?.Add( $"(Round: {_rounds}) Running a Switch Module! {attacker?.Name} has already switched in! Opponent: {target?.Name}!" );
 
         Apply_SwitchInAbility( sourceModule.Attacker, target, field );
     }
@@ -2264,9 +2561,12 @@ public class BattleAI_BattleSim
 
         if( _unitSim.CanActOnTurn( attacker ) )
         {
+            attacker.CouldAct = true;
             //--Attacker sets up
             Apply_SetupMove( attacker, attMove );
         }
+        else
+            attacker.CouldAct = false;
     }
 
     public void RunOffensiveStatusModule( SimulatedUnit attacker, SimulatedUnit target, SimulatedUnit switchCandidate,SimulatedField field, SimulationModule sourceModule, CustomLogSession moduleLog = null )
@@ -2277,9 +2577,12 @@ public class BattleAI_BattleSim
 
         if( _unitSim.CanActOnTurn( attacker ) )
         {
+            attacker.CouldAct = true;
             //--Attacker uses offensive status move
             Apply_OffensiveStatus( target, attMove, field ); //--Target, move used by attacking pokemon, field
         }
+        else
+            attacker.CouldAct = false;
     }
 
     public void RunSupportiveStatusModule( SimulatedUnit attacker, SimulatedUnit target, SimulatedUnit switchCandidate, SimulatedField field, SimulationModule sourceModule, CustomLogSession moduleLog = null )
@@ -2290,6 +2593,7 @@ public class BattleAI_BattleSim
 
         if( _unitSim.CanActOnTurn( attacker ) && attMove != null )
         {
+            attacker.CouldAct = true;
             //--Attacker uses supportive status move
             var moveTarget = attMove.MoveSO.MoveTarget;
 
@@ -2298,6 +2602,8 @@ public class BattleAI_BattleSim
             else
                 Apply_SupportiveStatus( target, attMove, field ); //--Target (should be all targets of a multi-target move. "ally side" should target self + ally, for example), move used by attacking pokemon, field
         }
+        else
+            attacker.CouldAct = false;
     }
 
 }
@@ -2317,10 +2623,20 @@ public struct TurnOutcomeProjection
 
     public Dictionary<SimulatedUnit, int> ExpectedTurnOrder;
     public Dictionary<SimulatedUnit, int> TurnOrderHistory;
+    public Dictionary<SimulatedUnit, SimulatedUnit> SwitchedPokemon;
+
+    public List<SimulationModule> ModuleHistory;
+
+    public PotentialToKO Attacker_ExpectedPTKO;
+    public PotentialToKO AttackerAlly_ExpectedPTKO;
+
+    public PotentialToKO Opponent_ExpectedPTKO;
+    public PotentialToKO OpponentAlly_ExpectedPTKO;
 
     public PotentialToKO AttackerPTKO;
-    public PotentialToKO OpponentPTKO;
     public PotentialToKO AttackerAllyPTKO;
+
+    public PotentialToKO OpponentPTKO;
     public PotentialToKO OpponentAllyPTKO;
 
     public float Attacker_EndOfTurnHP;
@@ -2333,10 +2649,15 @@ public struct TurnOutcomeProjection
     public bool AttackerAlly_DiesBeforeActing;
     public bool OpponentAlly_DiesBeforeActing;
 
-    public bool AttackerCanAct;
-    public bool OpponentCanAct;
-    public bool AttackerAlly_CanAct;
-    public bool OpponentAlly_CanAct;
+    public bool Attacker_ExpectedToAct;
+    public bool Opponent_ExpectedToAct;
+    public bool AttackerAlly_ExpectedToAct;
+    public bool OpponentAlly_ExpectedToAct;
+
+    public bool AttackerSwitched;
+    public bool AttackerAllySwitched;
+    public bool OpponentSwitched;
+    public bool OpponentAllySwitched;
 
     public bool MutualKO;
     public bool AttackerMovedFirst;
@@ -2347,6 +2668,29 @@ public struct TurnOutcomeProjection
     public bool AttackerHasSweepHorizon;
 
     public string SimulationLog;
+
+    public readonly bool TryGetReturnPokemon( SimulatedUnit switchCandidate, out SimulatedUnit returnMon )
+    {
+        if( SwitchedPokemon.TryGetValue( switchCandidate, out returnMon ) )
+            return true;
+        else
+            return false;
+    }
+
+    public readonly bool TryGetModule( SimulatedUnit unit, out SimulationModule module )
+    {
+        foreach( var mod in ModuleHistory )
+        {
+            if( mod.Attacker == unit )
+            {
+                module = mod;
+                return true;
+            }
+        }
+
+        module = null;
+        return false;
+    }
 }
 
 public class BattleSimEvent
@@ -2363,23 +2707,32 @@ public class BattleSimEvent
 
     public SimulatedField Field;
 
-    public PotentialToKO AttackerPTKO;
-    public PotentialToKO OpponentPTKO;
-    public PotentialToKO AttackerAllyPTKO;
-    public PotentialToKO OpponentAllyPTKO;
+    public PotentialToKO Attacker_ExpectedPTKO;
+    public PotentialToKO AttackerAlly_ExpectedPTKO;
+
+    public PotentialToKO Opponent_ExpectedPTKO;
+    public PotentialToKO OpponentAlly_ExpectedPTKO;
 
     public Dictionary<SimulatedUnit, int> ExpectedTurnOrder;
     public Dictionary<SimulatedUnit, int> TurnOrderHistory;
+    public Dictionary<SimulatedUnit, SimulatedUnit> SwitchedPokemon;
+
+    public List<SimulationModule> ModuleHistory;
 
     public bool AttackerMovesFirst;
     public bool OpponentMovedFirst;
     public bool AttackerAllyMovedFirst;
     public bool OpponentAllyMovedFirst;
 
-    public bool Attacker_CanAct;
-    public bool Opponent_CanAct;
-    public bool AttackerAlly_CanAct;
-    public bool OpponentAlly_CanAct;
+    public bool Attacker_ExpectedToAct;
+    public bool Opponent_ExpectedToAct;
+    public bool AttackerAlly_ExpectedToAct;
+    public bool OpponentAlly_ExpectedToAct;
+
+    public bool AttackerSwitched;
+    public bool AttackerAllySwitched;
+    public bool OpponentSwitched;
+    public bool OpponentAllySwitched;
 
     public bool Attacker_DiesBeforeActing;
     public bool Opponent_DiesBeforeActing;

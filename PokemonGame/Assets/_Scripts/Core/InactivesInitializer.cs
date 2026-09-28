@@ -3,7 +3,8 @@ using UnityEngine;
 
 public class InactivesInitializer : MonoBehaviour
 {
-    private IEnumerator Start(){
+    private IEnumerator Start()
+    {
         yield return new WaitForEndOfFrame();
         var partyDisplays = FindObjectsOfType<PartyDisplay>( true );
         var bagDisplays = FindObjectsOfType<BagDisplay>( true );

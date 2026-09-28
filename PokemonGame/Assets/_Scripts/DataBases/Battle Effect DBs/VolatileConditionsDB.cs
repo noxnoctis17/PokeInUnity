@@ -49,9 +49,8 @@ public class VolatileConditionsDB : MonoBehaviour
                         
                         if( confusion.Duration == 0 )
                         {
-                            pokemon.CureVolatileStatus( VolatileConditionID.Confusion );
+                            // pokemon.CureVolatileStatus( VolatileConditionID.Confusion );
                             pokemon.AddStatusEvent( $"{pokemon.NickName} snapped out of confusion!" );
-
                             return true;
                         }
                         
@@ -108,6 +107,7 @@ public class VolatileConditionsDB : MonoBehaviour
                             return;
 
                         target.SetInfatuationTarget( attacker.Pokemon );
+                        target.Pokemon.SetVolatileStatusTime( VolatileConditionID.Infatuation, 1 );
                     },
 
                     OnStart = ( Pokemon pokemon ) =>
@@ -135,7 +135,12 @@ public class VolatileConditionsDB : MonoBehaviour
 
                         if( target == null )
                         {
-                            pokemon.CureVolatileStatus( VolatileConditionID.Infatuation );
+                            if( pokemon.VolatileStatuses.TryGetValue( VolatileConditionID.Infatuation, out var infatuation ) )
+                            {
+                                infatuation.Duration = 0;
+                                pokemon.VolatileStatuses[VolatileConditionID.Infatuation] = infatuation;
+                            }
+
                             pokemon.AddStatusEvent( StatusEventType.Text, $"{pokemon.NickName} is no longer in love!" );
                             return true;
                         }
@@ -250,9 +255,6 @@ public class VolatileConditionsDB : MonoBehaviour
 
                             taunt.Duration--;
                             pokemon.VolatileStatuses[VolatileConditionID.Taunt] = taunt;
-
-                            if( pokemon.VolatileStatuses[VolatileConditionID.Taunt].Duration == 0 )
-                                pokemon.CureVolatileStatus( VolatileConditionID.Taunt );
                         }
                     }
                 }
@@ -265,7 +267,7 @@ public class VolatileConditionsDB : MonoBehaviour
 
                     OnStart = ( pokemon ) =>
                     {
-                        pokemon.SetVolatileStatusTime( VolatileConditionID.Yawn, 0 );
+                        pokemon.SetVolatileStatusTime( VolatileConditionID.Yawn, 1 );
                     },
 
                     OnAfterTurn = ( pokemon ) =>
@@ -273,9 +275,9 @@ public class VolatileConditionsDB : MonoBehaviour
                         if( pokemon.VolatileStatuses.ContainsKey( VolatileConditionID.Yawn ) )
                         {
                             var yawn = pokemon.VolatileStatuses[VolatileConditionID.Yawn];
-                            if( yawn.Duration == 0 )
+                            if( yawn.Duration == 1 )
                             {
-                                yawn.Duration++;
+                                yawn.Duration--;
                                 return;
                             }
                             else
@@ -286,7 +288,6 @@ public class VolatileConditionsDB : MonoBehaviour
                                     Source = EffectSource.Drowsy,
                                 };
 
-                                pokemon.CureVolatileStatus( VolatileConditionID.Yawn );
                                 pokemon.SetSevereStatus( SevereConditionID.SLP, source );
                             }
                         }
@@ -322,8 +323,6 @@ public class VolatileConditionsDB : MonoBehaviour
                                 encore.Duration--;
                                 pokemon.VolatileStatuses[VolatileConditionID.Encore] = encore;
                             }
-                            else
-                                pokemon.CureVolatileStatus( VolatileConditionID.Encore );
                         }
                     }
                 }
@@ -356,10 +355,7 @@ public class VolatileConditionsDB : MonoBehaviour
                             {
                                 uproar.Duration--;
                                 pokemon.VolatileStatuses[VolatileConditionID.Uproar] = uproar;
-                            }
-                            else
-                                pokemon.CureVolatileStatus( VolatileConditionID.Uproar );
-                                
+                            }                                
                         }
                     }
                 }
@@ -393,7 +389,6 @@ public class VolatileConditionsDB : MonoBehaviour
                         
                         if( perish.Duration == 0 )
                         {
-                            pokemon.CureVolatileStatus( VolatileConditionID.Perish );
                             pokemon.AddStatusEvent( StatusEventType.Damage, $"{pokemon.NickName} has perished!" );
 
                             //--Died
@@ -569,4 +564,6 @@ public enum VolatileConditionID
     Boroughed,
     Submerged,
     Stockpile,
+    Torment,
+    Ingrained,
 }

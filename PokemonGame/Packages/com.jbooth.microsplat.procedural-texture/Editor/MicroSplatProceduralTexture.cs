@@ -280,7 +280,7 @@ namespace JBooth.MicroSplat
             // then this will compile.
 #if __MICROSPLAT_PROCTEX__
             // go through all MSO's and see if they grab this object and then sync them
-            var msos = GameObject.FindObjectsOfType<MicroSplatObject> ();
+            var msos = GameObject.FindObjectsOfType<MicroSplatObject>();
             bool sync = false;
             foreach (var mso in msos)
             {

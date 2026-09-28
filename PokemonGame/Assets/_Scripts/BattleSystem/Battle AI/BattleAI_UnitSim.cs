@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing.Design;
 using System.Linq;
 using UnityEngine;
 
@@ -109,6 +110,46 @@ public class BattleAI_UnitSim
         simLog?.Add( $"Simulation's Turn Order History:" );
         foreach( var kvp in top.TurnOrderHistory )
             simLog?.Add( $"{kvp.Value}. {kvp.Key.Name} (Speed: {kvp.Key.Speed})" );
+
+        simLog?.Add( $"" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"PTKO Comparisons" );
+        simLog?.Add( $"{top.Attacker?.Name}: {top.Attacker_ExpectedPTKO} / {top.AttackerPTKO}" );
+        simLog?.Add( $"{top.AttackerAlly?.Name}: {top.AttackerAlly_ExpectedPTKO} / {top.AttackerAllyPTKO}" );
+        simLog?.Add( $"{top.Opponent?.Name}: {top.Opponent_ExpectedPTKO} / {top.OpponentPTKO}" );
+        simLog?.Add( $"{top.OpponentAlly?.Name}: {top.OpponentAlly_ExpectedPTKO} / {top.OpponentAllyPTKO}" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"Final Units on field:" );
+        simLog?.Add( $"Attacker: {top.Attacker?.Name}" );
+        simLog?.Add( $"Expected/Could Act: {top.Attacker_ExpectedToAct}/{top.Attacker?.CouldAct}, Completed Turn: {top.Attacker?.CompletedTurn}" );
+        simLog?.Add( $"Severe Status: {top.Attacker?.SevereStatus} ({top.Attacker?.SevereStatusTime})" );
+        simLog?.Add( $"Volatile Status Count: {top.Attacker?.VolatileStatuses?.Count}" );
+        simLog?.Add( $"Bindings Count: {top.Attacker?.Bindings?.Count}" );
+        simLog?.Add( $"Transient Status: {top.Attacker?.TransientStatus}" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"Attacker Ally: {top.AttackerAlly?.Name}" );
+        simLog?.Add( $"Expected/Could Act: {top.AttackerAlly_ExpectedToAct}/{top.AttackerAlly?.CouldAct}, Completed Turn: {top.AttackerAlly?.CompletedTurn}" );
+        simLog?.Add( $"Severe Status: {top.AttackerAlly?.SevereStatus} ({top.AttackerAlly?.SevereStatusTime})" );
+        simLog?.Add( $"Volatile Status Count: {top.AttackerAlly?.VolatileStatuses?.Count}" );
+        simLog?.Add( $"Bindings Count: {top.AttackerAlly?.Bindings?.Count}" );
+        simLog?.Add( $"Transient Status: {top.AttackerAlly?.TransientStatus}" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"Opponent: {top.Opponent?.Name}" );
+        simLog?.Add( $"Expected/Could Act: {top.Opponent}/{top.Opponent?.CouldAct}, Completed Turn: {top.Opponent?.CompletedTurn}" );
+        simLog?.Add( $"Severe Status: {top.Opponent?.SevereStatus} ({top.Opponent?.SevereStatusTime})" );
+        simLog?.Add( $"Volatile Status Count: {top.Opponent?.VolatileStatuses?.Count}" );
+        simLog?.Add( $"Bindings Count: {top.Opponent?.Bindings?.Count}" );
+        simLog?.Add( $"Transient Status: {top.Opponent?.TransientStatus}" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"Opponent Ally: {top.OpponentAlly?.Name}" );
+        simLog?.Add( $"Expected/Could Act: {top.OpponentAlly}/{top.OpponentAlly?.CouldAct}, Completed Turn: {top.OpponentAlly?.CompletedTurn}" );
+        simLog?.Add( $"Severe Status: {top.OpponentAlly?.SevereStatus} ({top.OpponentAlly?.SevereStatusTime})" );
+        simLog?.Add( $"Volatile Status Count: {top.OpponentAlly?.VolatileStatuses?.Count}" );
+        simLog?.Add( $"Bindings Count: {top.OpponentAlly?.Bindings?.Count}" );
+        simLog?.Add( $"Transient Status: {top.OpponentAlly?.TransientStatus}" );
+        simLog?.Add( $"" );
+        simLog?.Add( $"" );
     }
 
     //--Create Simple Sim Unit directly from Pokemon
@@ -204,6 +245,7 @@ public class BattleAI_UnitSim
             SevereStatusTime = toxic,
             VolatileStatuses = vol,
             Bindings = binds,
+            TransientStatus = pokemon.Pokemon.TransientStatus != null ? pokemon.Pokemon.TransientStatus.ID : TransientConditionID.None,
 
             CourtLocation = courtLocation,
 
@@ -427,6 +469,13 @@ public class BattleAI_UnitSim
         unit.BeginningHPR = unit.EndHPR;
     }
 
+    public SimulatedUnit GetUpdatedUnitForLookAhead( SimulatedUnit unit )
+    {
+        var copy = CopySimUnit( unit );
+        copy.BeginningHPR = unit.EndHPR;
+        return copy;
+    }
+
     public SimulatedField BuildSimField()
     {
         WeatherConditionID weather = _field.Weather != null ? _field.Weather.ID : WeatherConditionID.None;
@@ -557,12 +606,18 @@ public class BattleAI_UnitSim
             return false;
     }
 
-    public bool CanActOnTurn( IBattleAIUnit pokemon )
+    public bool CanActOnTurn( IBattleAIUnit pokemon, Move move = null )
     {
         if( pokemon.SevereStatus == SevereConditionID.PAR && pokemon.SevereStatusTime > 0 )
             return false;
 
         if( pokemon.SevereStatus == SevereConditionID.SLP && pokemon.SevereStatusTime > 0 )
+            return false;
+
+        if( pokemon.TransientStatus == TransientConditionID.Flinch )
+            return false;
+
+        if( pokemon.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && move?.MoveSO.MoveCategory == MoveCategory.Status )
             return false;
 
         return true;
@@ -839,6 +894,18 @@ public class BattleAI_UnitSim
         return false;
     }
 
+    public bool PokemonHasMove_AbusesTerrain( Pokemon pokemon, TerrainID terrain )
+    {
+        var moves = pokemon.ActiveMoves;
+        foreach( var move in moves )
+        {
+            if( Move_AbusesTerrain( move, terrain ) )
+                return true;
+        }
+
+        return false;
+    }
+
     public bool Move_AbusesTerrain( Move move, TerrainID terrain )
     {
         var name = move.MoveSO.Name;
@@ -909,6 +976,69 @@ public class BattleAI_UnitSim
             if( change < 0 )
                 return true;
         }
+
+        return false;
+    }
+
+    public bool PokemonBenefits_Weather( IBattleAIUnit unit, WeatherConditionID weather )
+    {
+        if( PokemonAbilityMatchesWeather( unit.Pokemon, weather ) )
+            return true;
+
+        if( PokemonHasMove_AbusesWeather( unit.Pokemon, weather ) )
+            return true;
+
+        if( weather == WeatherConditionID.Sun && ( unit.RoleProfile.Traits.Contains( RoleTrait.SunHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.SunAbuser ) ) )
+            return true;
+
+        if( weather == WeatherConditionID.Rain && ( unit.RoleProfile.Traits.Contains( RoleTrait.RainHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.RainAbuser ) ) )
+            return true;
+
+        if( weather == WeatherConditionID.Sand && ( unit.RoleProfile.Traits.Contains( RoleTrait.SandHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.SandAbuser ) ) )
+            return true;
+
+        if( weather == WeatherConditionID.Snow && ( unit.RoleProfile.Traits.Contains( RoleTrait.SnowHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.SnowAbuser ) ) )
+            return true;
+
+        return false;
+    }
+
+    public bool PokemonIsHarmedBy_Weather( IBattleAIUnit unit, WeatherConditionID weather )
+    {
+        if( weather == WeatherConditionID.Sun && ( unit.RoleProfile.Traits.Contains( RoleTrait.RainHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.RainAbuser ) ) )
+            return true;
+
+        if( weather == WeatherConditionID.Rain && ( unit.RoleProfile.Traits.Contains( RoleTrait.SunHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.SunAbuser ) ) )
+            return true;
+
+        return false;
+    }
+
+    public bool PokemonBenefits_Terrain( IBattleAIUnit unit, TerrainID terrain )
+    {
+        if( PokemonHasMove_AbusesTerrain( unit.Pokemon, terrain ) )
+            return true;
+
+        foreach( var move in unit.ActiveMoves )
+        {
+            if( Move_TypeMatchesTerrainDamage( move, terrain ) )
+                return true;
+        }
+
+        if( terrain == TerrainID.Blighted && ( unit.RoleProfile.Traits.Contains( RoleTrait.BlightedTerrainHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.BlightedTerrainAbuser ) ) )
+            return true;
+
+        if( terrain == TerrainID.Electric && ( unit.RoleProfile.Traits.Contains( RoleTrait.ElectricTerrainHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.ElectricTerrainAbuser ) ) )
+            return true;
+
+        if( terrain == TerrainID.Grassy && ( unit.RoleProfile.Traits.Contains( RoleTrait.GrassyTerrainHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.GrassyTerrainAbuser ) ) )
+            return true;
+
+        if( terrain == TerrainID.Misty && ( unit.RoleProfile.Traits.Contains( RoleTrait.MistyTerrainHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.MistyTerrainAbuser ) ) )
+            return true;
+
+        if( terrain == TerrainID.Psychic && ( unit.RoleProfile.Traits.Contains( RoleTrait.PsychicTerrainHelps ) || unit.RoleProfile.Traits.Contains( RoleTrait.PsychicTerrainAbuser ) ) )
+            return true;
 
         return false;
     }
@@ -1754,6 +1884,9 @@ public class BattleAI_UnitSim
             return true;
 
         if( vs == VolatileConditionID.Confusion || vs == VolatileConditionID.Cursed || vs == VolatileConditionID.Infatuation || vs == VolatileConditionID.Yawn )
+            return true;
+
+        if( vs == VolatileConditionID.Taunt || vs == VolatileConditionID.Encore || vs == VolatileConditionID.Disabled || vs == VolatileConditionID.HealBlocked || vs == VolatileConditionID.Perish )
             return true;
 
         if( effects.TransientStatus == TransientConditionID.Flinch )
@@ -3081,6 +3214,8 @@ public class SimulatedUnit : IBattleAIUnit
     public float Expendability { get; set; }
 
     public bool Phazed { get; set; }
+    public bool CouldAct { get; set; }
+    public bool CompletedTurn { get; set; }
 
     public AbilityID Ability { get; set; }
     public ItemBattleEffectID Item { get; set; }
@@ -3089,6 +3224,7 @@ public class SimulatedUnit : IBattleAIUnit
     public int SevereStatusTime { get; set; }
     public List<VolatileConditionID> VolatileStatuses { get; set; }
     public List<BindingConditionID> Bindings { get; set; }
+    public TransientConditionID TransientStatus { get; set; }
 
     public CourtLocation CourtLocation { get; set; }
     

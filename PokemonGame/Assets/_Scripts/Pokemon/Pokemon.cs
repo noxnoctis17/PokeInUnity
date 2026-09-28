@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using UnityEditor;
 using System.Runtime.InteropServices;
+using UnityEngine.InputSystem;
 
 [Serializable]
 public class Pokemon
@@ -1340,11 +1341,13 @@ public class Pokemon
     public bool OnBeforeTurn_Volatile( Move move )
     {
         //--Volatile Status
-        if( VolatileStatuses != null && VolatileStatuses.Count > 0 )
+        if( VolatileStatuses?.Count > 0 )
         {
-            foreach( var kvp in VolatileStatuses )
+            var copy = VolatileStatuses.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+            foreach( var kvp in copy )
             {
-                bool success = kvp.Value.Condition?.OnBeforeTurn?.Invoke( this, move ) ?? true;
+                bool success = VolatileStatuses[kvp.Key].Condition?.OnBeforeTurn?.Invoke( this, move ) ?? true;
+                
                 if( !success )
                     return false;
                 else

@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 
+[RequireComponent(typeof(UI_PauseMenuButton_Events))]
 public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
 {
     public UI_PauseMenuStateMachine StateMachine { get; private set; }
@@ -14,12 +15,14 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
     private Vector3 _defaultScale;
     public Button LastButton { get; private set; }
 
-    private void Awake(){
+    private void Awake()
+    {
         _defaultScale = transform.localScale;
         ScaleOut();
     }
 
-    public override void EnterState( UI_PauseMenuStateMachine owner ){
+    public override void EnterState( UI_PauseMenuStateMachine owner )
+    {
         GameStateController.OnGamePaused?.Invoke();
         StateMachine = owner;
 
@@ -47,7 +50,8 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         StartCoroutine( SetInitialButton() );
     }
 
-    public override void ReturnToState(){
+    public override void ReturnToState()
+    {
         //--Events
         ButtonEvents.OnButtonSubmitted += SetMemoryButton;
         
@@ -62,7 +66,8 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         SelectMemoryButton();
     }
 
-    public override void PauseState(){
+    public override void PauseState()
+    {
         //--Events
         ButtonEvents.OnButtonSubmitted -= SetMemoryButton;
 
@@ -74,7 +79,8 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         ScaleOut();
     }
 
-    public override void ExitState(){
+    public override void ExitState()
+    {
         //--Set Controls
         PlayerReferences.Instance.PlayerController.DisableUI();
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
@@ -86,21 +92,25 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         GameStateController.OnGameUNPaused?.Invoke();
     }
 
-    private void ScaleIn(){
+    private void ScaleIn()
+    {
         transform.DOScale( _defaultScale, 0.25f );
     }
 
-    private void ScaleOut(){
+    private void ScaleOut()
+    {
         transform.DOScale( 0, 0.25f );
     }
 
-    private void SetupButtons(){
+    private void SetupButtons()
+    {
         foreach( Button button in _buttons ){
             button.GetComponent<UI_PauseMenuButton>().Setup( this );
         }
     }
 
-    private IEnumerator SetInitialButton(){
+    private IEnumerator SetInitialButton()
+    {
         yield return new WaitForSeconds( 0.15f );
         if( LastButton != null )
             SelectMemoryButton();
@@ -109,25 +119,29 @@ public class UI_PauseMenu : State<UI_PauseMenuStateMachine>
         }
     }
 
-    public void SetMemoryButton( Button lastButton ){
+    public void SetMemoryButton( Button lastButton )
+    {
         LastButton = lastButton;
         SelectMemoryButton();
     }
 
-    private void SelectMemoryButton(){
+    private void SelectMemoryButton()
+    {
         LastButton.Select();
     }
 
-    public void ClearMemoryButton(){
+    public void ClearMemoryButton()
+    {
         LastButton = null;
         _initialButton.Select();
     }
 
-    public void CloseMenu(){
+    public void CloseMenu()
+    {
         ScaleOut();
         gameObject.SetActive( false );
         
-        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.PauseScreenState )
+        if( GameStateController.Instance.CurrentStateEnum == GameStateEnum.PauseScreenState )
             GameStateController.Instance.GameStateMachine.Pop();
     }
 

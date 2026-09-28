@@ -33,6 +33,7 @@ public interface IBattleAIUnit
     public int SevereStatusTime { get; set; }
     public List<VolatileConditionID> VolatileStatuses { get; set; }
     public List<BindingConditionID> Bindings { get; set; }
+    public TransientConditionID TransientStatus { get; set; }
 
     public CourtLocation CourtLocation { get; set; }
 

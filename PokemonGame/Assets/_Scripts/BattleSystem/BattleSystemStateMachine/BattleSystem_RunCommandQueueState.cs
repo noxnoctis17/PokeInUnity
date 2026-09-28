@@ -402,7 +402,10 @@ public class BattleSystem_RunCommandQueueState : State<BattleSystem>
         yield return null;
         
         yield return null;
-        _battleSystem.SetUnitInSelectionState( 0 );
+        if( ( _battleSystem.BattleType == BattleType.TrainerDoubles || _battleSystem.BattleType == BattleType.PvP_Doubles ) && _battleSystem.PlayerUnits[0].Pokemon?.CurrentHP <= 0 && _battleSystem.PlayerUnits[1].Pokemon?.CurrentHP > 0 )
+            _battleSystem.SetUnitInSelectionState( 1 );
+        else
+            _battleSystem.SetUnitInSelectionState( 0 );
 
         yield return _battleSystem.WaitForUIQueue();
         yield return new WaitForSeconds( 0.1f );

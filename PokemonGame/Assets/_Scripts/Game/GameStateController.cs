@@ -4,28 +4,36 @@ using System;
 using System.Collections.Generic;
 using NoxNoctisDev.StateMachine;
 
+public enum GameStateEnum { FreeRoamState, DialogueState, BattleState, PauseScreenState, TitleScreenState }
+
 public class GameStateController : MonoBehaviour
 {
 //=========================[INSTANCE & STATE MACHINE]====================================
     public static GameStateController Instance { get; private set; }
     public StateStackMachine<GameStateController> GameStateMachine { get; private set; }
-
-    //--State Machine Enums for quick reference for current state
-    public enum GameStateEnum{
-        FreeRoamState, DialogueState, BattleState, PauseScreenState,
-    }
-
     public GameStateEnum CurrentStateEnum { get; private set; }
 
+    [SerializeField] private TitleScreenState _titleScreenState;
+    [SerializeField] private BattleState _battleState;
+    [SerializeField] private FreeRoamState _freeRoamState;
+    [SerializeField] private DialogueState _dialogueState;
+    [SerializeField] private PauseScreenState _pauseScreenState;
+
+    public TitleScreenState TitleScreenState => _titleScreenState;
+    public BattleState BattleState => _battleState;
+    public FreeRoamState FreeRoamState => _freeRoamState;
+    public DialogueState DialogueState => _dialogueState;
+    public PauseScreenState PauseScreenState => _pauseScreenState;
+
 //=============================[PRIVATE VARIABLES]=======================================
-    [SerializeField] private BattleSystem _battleSystem;
-    [SerializeField] private GameObject _battleSystemContainer;
-    [SerializeField] private EventSystem _eventSystem;
+    // [SerializeField] private BattleSystem _battleSystem;
+    // [SerializeField] private GameObject _battleSystemContainer;
+    // [SerializeField] private EventSystem _eventSystem;
 
 //=============================[PROPERTIES & PUBLIC GETTERS]=============================
-    public BattleSystem BattleSystem => _battleSystem;
-    public GameObject BattleSystemContainer => _battleSystemContainer;
-    public EventSystem EventSystem => _eventSystem;
+    // public BattleSystem BattleSystem => _battleSystem;
+    // public GameObject BattleSystemContainer => _battleSystemContainer;
+    // public EventSystem EventSystem => _eventSystem;
     public Stack<StateMachine<WildPokemon>> WildmonStateDisplayTest { get; set; } //--EVENTUALLY REMOVE REMOVE REMOVE!!
 
 //======================================[ACTIONS]========================================
@@ -37,7 +45,8 @@ public class GameStateController : MonoBehaviour
 
 //=======================================================================================
 
-    private void OnEnable(){
+    private void OnEnable()
+    {
         Instance = this;
         WildmonStateDisplayTest = new();
     }
@@ -57,23 +66,37 @@ public class GameStateController : MonoBehaviour
         MoveDB.Init();
     }
 
-    private void Start(){
+    private void Start()
+    {
         //--State Machine
         GameStateMachine = new StateStackMachine<GameStateController>( this );
+        StartFreeRoam();
+    }
+
+    public void StartTitleScreen()
+    {
+        
+    }
+
+    public void StartFreeRoam()
+    {
         GameStateMachine.Push( FreeRoamState.Instance );
     }
 
-    public void PushGameState( State<GameStateController> newState ){
+    public void PushGameState( State<GameStateController> newState )
+    {
         GameStateMachine.Push( newState );
     }
 
-    public void ChangeGameStateEnum( GameStateEnum stateEnum ){
+    public void ChangeGameStateEnum( GameStateEnum stateEnum )
+    {
         CurrentStateEnum = stateEnum;
     }
 
     public static bool EnableStateStack;
 
-    private void OnGUI(){
+    private void OnGUI()
+    {
         if( !StateMachineDisplays.Show_GameStateStateStack )
             return;
 

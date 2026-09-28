@@ -16,7 +16,7 @@ public class PokeballItemSO : ItemSO
         //--Battle Use, to catch a wild pokemon
         if( BattleSystem.Instance != null )
         {
-            if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState )
+            if( GameStateController.Instance.CurrentStateEnum == GameStateEnum.BattleState )
                 if( BattleSystem.Instance.BattleType != BattleType.TrainerSingles || BattleSystem.Instance.BattleType != BattleType.TrainerDoubles )
                     return true;
                 else
@@ -38,7 +38,7 @@ public class PokeballItemSO : ItemSO
         //--Battle Use, to catch a wild pokemon
         if( BattleSystem.Instance != null )
         {
-            if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState )
+            if( GameStateController.Instance.CurrentStateEnum == GameStateEnum.BattleState )
             {
                 if( BattleSystem.Instance.BattleType != BattleType.TrainerSingles || BattleSystem.Instance.BattleType != BattleType.TrainerDoubles )
                     return true;

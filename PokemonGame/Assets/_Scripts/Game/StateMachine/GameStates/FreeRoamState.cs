@@ -18,7 +18,7 @@ public class FreeRoamState : State<GameStateController>
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
         PlayerReferences.Instance.PlayerController.DisableBattleControls();
         //--Set Enum for quick ref
-        gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.FreeRoamState );
+        gameStateController.ChangeGameStateEnum( GameStateEnum.FreeRoamState );
         Debug.Log( "exploration baaybeee" );
     }
 
@@ -26,7 +26,7 @@ public class FreeRoamState : State<GameStateController>
         //--Re-enable Controls
         PlayerReferences.Instance.PlayerController.EnableCharacterControls();
         //--Set Enum for quick ref
-        gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.FreeRoamState );
+        gameStateController.ChangeGameStateEnum( GameStateEnum.FreeRoamState );
         Debug.Log( "exploration AGAIN baaybeee" );
     }
 

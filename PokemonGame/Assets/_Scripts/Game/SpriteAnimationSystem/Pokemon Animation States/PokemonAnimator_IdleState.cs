@@ -17,27 +17,32 @@ public class PokemonAnimator_IdleState : State<PokemonAnimator>, IPokemonAnimato
     private List<Sprite> _idleDownLeftSprites;
     private List<Sprite> _idleDownRightSprites;
 
-    public override void EnterState( PokemonAnimator sm ){
+    public override void EnterState( PokemonAnimator sm )
+    {
         _stateMachine = sm;
         // _stateMachine.OnSpritePerspectiveChanged += ChangePerspective;
         // _stateMachine.SpriteAnimator.Start();
     }
 
-    public override void UpdateState(){
+    public override void UpdateState()
+    {
         ChangePerspective();
     }
 
-    public override void ReturnToState(){
+    public override void ReturnToState()
+    {
         // _stateMachine.OnSpritePerspectiveChanged += ChangePerspective;
         // _stateMachine.SpriteAnimator.Start();
         // ChangePerspective( _stateMachine.SpritePerspective );
     }
 
-    public override void PauseState(){
+    public override void PauseState()
+    {
         // _stateMachine.OnSpritePerspectiveChanged -= ChangePerspective;
     }
 
-    public override void ExitState(){
+    public override void ExitState()
+    {
         // _stateMachine.OnSpritePerspectiveChanged -= ChangePerspective;
     }
 
@@ -53,7 +58,8 @@ public class PokemonAnimator_IdleState : State<PokemonAnimator>, IPokemonAnimato
         _idleDownRightSprites = pokeSO.IdleDownRightSprites;
     }
 
-    private void ChangePerspective(){
+    private void ChangePerspective()
+    {
         _spritePerspective = _stateMachine.SpritePerspective;
 
          //--Assigns idle sprites based on facing direction/transform forward

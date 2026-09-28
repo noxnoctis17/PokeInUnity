@@ -18,12 +18,12 @@ public class PauseScreenState : State<GameStateController>
         Debug.Log( $"Entered State: {this}" );
         _gameStateController = owner;
 
-        _gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.PauseScreenState );
+        _gameStateController.ChangeGameStateEnum( GameStateEnum.PauseScreenState );
     }
 
     public override void ReturnToState(){
         Debug.Log( $"Return to State: {this}" );
-        _gameStateController.ChangeGameStateEnum( GameStateController.GameStateEnum.PauseScreenState );
+        _gameStateController.ChangeGameStateEnum( GameStateEnum.PauseScreenState );
         PlayerReferences.Instance.PlayerController.EnableUI();
     }
 

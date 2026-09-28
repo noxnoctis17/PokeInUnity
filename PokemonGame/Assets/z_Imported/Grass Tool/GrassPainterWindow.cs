@@ -580,7 +580,7 @@ public class GrassPainterWindow : EditorWindow
         grassData.Clear();
         grassCompute.SetGrassPaintedDataList = grassData;
         grassCompute.Reset();
-        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
     }
 
     public void GeneratePositions(GameObject selection)
@@ -1289,7 +1289,7 @@ public class GrassPainterWindow : EditorWindow
     {
         grassAmount = grassData.Count;
         grassCompute.Reset();
-        EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+        EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
 
     }
 

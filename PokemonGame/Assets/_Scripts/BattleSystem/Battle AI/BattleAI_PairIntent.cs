@@ -1237,13 +1237,13 @@ public class BattleAI_PairIntent
         else if( unitLeft_SpeedControlIntent.Found && !unitRight_SpeedControlIntent.Found )
         {
             pip.UnitLeftMatch = unitLeft_SpeedControlIntent;
-            pip.UnitRightMatch = FindHighestIntent( tim.EnemyRight );
+            pip.UnitRightMatch = FindHighestIntent( tim.EnemyRight, pip.UnitLeftMatch );
             pip.PackFound = true;
         }
         else if( !unitLeft_SpeedControlIntent.Found && unitRight_SpeedControlIntent.Found )
         {
-            pip.UnitLeftMatch = FindHighestIntent( tim.EnemyLeft );
             pip.UnitRightMatch = unitRight_SpeedControlIntent;
+            pip.UnitLeftMatch = FindHighestIntent( tim.EnemyLeft, pip.UnitRightMatch );
             pip.PackFound = true;
         }
         else if( unitLeft_SpeedControlIntent.Found && unitRight_SpeedControlIntent.Found )
@@ -1382,18 +1382,36 @@ public class BattleAI_PairIntent
         var unitLeft_WeatherChangeIntent = FindWeatherChangeIntent( tim.EnemyLeft );
         var unitRight_WeatherChangeIntent = FindWeatherChangeIntent( tim.EnemyRight );
 
-        if( unitLeft_WeatherChangeIntent.Found )
+        if( unitLeft_WeatherChangeIntent.Found && unitRight_WeatherChangeIntent.Found )
+        {
+            if( unitLeft_WeatherChangeIntent.Evidence > unitRight_WeatherChangeIntent.Evidence )
+            {
+                pip.UnitLeftMatch = unitLeft_WeatherChangeIntent;
+                pip.UnitRightMatch = FindHighestIntent( tim.EnemyRight, pip.UnitLeftMatch );
+                pip.PackFound = true;
+                return pip;
+            }
+            else
+            {
+                pip.UnitRightMatch = unitRight_WeatherChangeIntent;
+                pip.UnitLeftMatch = FindHighestIntent( tim.EnemyLeft, pip.UnitRightMatch );
+                pip.PackFound = true;
+                return pip;
+            }
+        }
+        else if( unitLeft_WeatherChangeIntent.Found )
         {
             pip.UnitLeftMatch = unitLeft_WeatherChangeIntent;
-            pip.UnitRightMatch = FindHighestIntent( tim.EnemyRight );
+            pip.UnitRightMatch = FindHighestIntent( tim.EnemyRight, pip.UnitLeftMatch );
             pip.PackFound = true;
+            return pip;
         }
-
-        if( unitRight_WeatherChangeIntent.Found )
+        else if( unitRight_WeatherChangeIntent.Found )
         {
-            pip.UnitLeftMatch = FindHighestIntent( tim.EnemyLeft );
             pip.UnitRightMatch = unitRight_WeatherChangeIntent;
+            pip.UnitLeftMatch = FindHighestIntent( tim.EnemyLeft, pip.UnitRightMatch );
             pip.PackFound = true;
+            return pip;
         }
 
         return pip;
@@ -1443,77 +1461,139 @@ public class BattleAI_PairIntent
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private PatternIntentMatch FindHighestIntent( Dictionary<Pokemon, ThreatIntentResult> threatInteractions )
+    private PatternIntentMatch FindHighestIntent( Dictionary<Pokemon, ThreatIntentResult> threatInteractions, PatternIntentMatch allyPIM )
     {
         PatternIntentMatch pim = new();
 
-        ThreatIntentResult foundTIR = default;
+        ThreatIntentResult primaryTIR = default;
 
-        int evidence = int.MinValue;
+        // int evidence = int.MinValue;
+        // foreach( var interaction in threatInteractions )
+        // {
+        //     var tir = interaction.Value;
+
+        //     if( tir.TotalEvidence > evidence )
+        //     {
+        //         evidence = tir.TotalEvidence;
+        //         primaryTIR = tir;
+        //     }
+        // }
+
+        Dictionary<Pokemon, Intent> tirs = new();
+        Dictionary<Pokemon, ThreatIntentResult> newThreatInteractions = new();
+
+        //--this seems to be returning not actually the highest of both
+        //--in the garchomp + lilligant vs ludicolo + pelipper test
+        //--garchomp has higher switch evidence than lilligant's switch, AND garchomp's switch is a primary
+        //--meanwhile lilligant's is a secondary. so this is picking the wrong set of intentions somehow...
+        //--I may need to do a better job of separating the intents per unit or something.
+        //--maybe we need to either abandon searching secondary TIRs in our FindXIntent helpers
+        //--or, searching in general needs to be adjusted so that, if it finds both pokemon with the same intent
+        //--it is always picking the one with the higher evidence, rather than whatever one was arbitrarily discovered first
+        //--which is almost certainly the case for this scenario i'd say. --09/09/26
+
         foreach( var interaction in threatInteractions )
         {
-            var tir = interaction.Value;
+            tirs.Add( interaction.Key, interaction.Value.PrimaryIntent );
 
-            if( tir.TotalEvidence > evidence )
-            {
-                evidence = tir.TotalEvidence;
-                foundTIR = tir;
-            }
+            if( interaction.Value.SecondaryIntent.IntentResult != null && !tirs.ContainsKey( interaction.Key ) )
+                tirs.Add( interaction.Key, interaction.Value.SecondaryIntent );
         }
 
-        switch( foundTIR.PrimaryIntent.ActionType )
+        tirs = tirs.OrderByDescending( kvp => kvp.Value.Evidence ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+        ActionType highestActionType = ActionType.Attack;
+
+        var allyIntent = allyPIM.MatchingIntent;
+        foreach( var kvp in tirs )
+        {
+            var intent = kvp.Value;
+            bool allySwitches = allyIntent.ActionType == ActionType.DefensiveSwitch || allyIntent.ActionType == ActionType.OffensiveSwitch;
+            bool weSwitch = intent.ActionType == ActionType.DefensiveSwitch || intent.ActionType == ActionType.OffensiveSwitch;
+
+            if( allySwitches && weSwitch )
+            {
+                if( intent.IntentResult.Candidate.Pokemon == allyIntent.IntentResult.Candidate.Pokemon )
+                    continue;
+            }
+            else
+            {
+                highestActionType = intent.ActionType;
+                primaryTIR = new()
+                {
+                    Threat = intent.IntentResult.Top.Opponent,
+                    PrimaryIntent = intent,
+                    SecondaryIntent = default,
+                    TotalEvidence = intent.Evidence,
+                    Confidence = 1f,
+
+                    CheckSecondaryIntent = false,
+
+                    IntentEvidence = new(),
+                };
+
+                newThreatInteractions.Add( kvp.Key, primaryTIR );
+            }
+
+        }
+
+        foreach( var kvp in newThreatInteractions )
+            kvp.Value.IntentEvidence.OrderByDescending( ie => ie.Value );
+
+        newThreatInteractions = newThreatInteractions.Take( 1 ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
+        switch( highestActionType )
         {
             case ActionType.Attack:
 
-                pim = FindAttackIntent( threatInteractions );
+                pim = FindAttackIntent( newThreatInteractions );
 
             break;
 
             case ActionType.DefensiveSwitch:
 
-                pim = FindSwitchIntent( threatInteractions );
+                pim = FindSwitchIntent( newThreatInteractions );
 
             break;
 
             case ActionType.OffensiveSwitch:
 
-                pim = FindSwitchIntent( threatInteractions );
+                pim = FindSwitchIntent( newThreatInteractions );
 
             break;
 
             case ActionType.Setup:
             
-                pim = FindSetupIntent( threatInteractions );
+                pim = FindSetupIntent( newThreatInteractions );
 
             break;
 
             case ActionType.OffensiveStatus:
 
-                pim = FindCoverAllyIntent( threatInteractions );
+                pim = FindCoverAllyIntent( newThreatInteractions );
 
                 if( !pim.Found )
-                    pim = FindSetupIntent( threatInteractions );
+                    pim = FindSetupIntent( newThreatInteractions );
 
                 if( !pim.Found )
-                    pim = FindSpeedControlIntent( threatInteractions );
+                    pim = FindSpeedControlIntent( newThreatInteractions );
 
             break;
 
             case ActionType.SupportiveStatus:
 
-                pim = FindSetupIntent( threatInteractions );
+                pim = FindSetupIntent( newThreatInteractions );
 
                 if( !pim.Found )
-                    pim = FindCoverAllyIntent( threatInteractions );
+                    pim = FindCoverAllyIntent( newThreatInteractions );
 
                 if( !pim.Found )
-                    pim = FindSpeedControlIntent( threatInteractions );
+                    pim = FindSpeedControlIntent( newThreatInteractions );
 
                 if( !pim.Found )
-                    pim = FindAfterYouIntent( threatInteractions );
+                    pim = FindAfterYouIntent( newThreatInteractions );
 
                 if( !pim.Found )
-                    pim = FindWeatherChangeIntent( threatInteractions );
+                    pim = FindWeatherChangeIntent( newThreatInteractions );
 
             break;
 
@@ -3157,7 +3237,7 @@ public class BattleAI_PairIntent
                         }
                     }
 
-                    if( them.BeginningHPR <= 0.1f && them.EndHPR <= 0f && ( !top.AttackerMovedFirst || !top.AttackerCanAct || top.Attacker_DiesBeforeActing ) )
+                    if( them.BeginningHPR <= 0.1f && them.EndHPR <= 0f && ( !top.AttackerMovedFirst || !top.Attacker_ExpectedToAct || top.Attacker_DiesBeforeActing ) )
                     {
                         positionGain++;
                     }
@@ -3630,7 +3710,7 @@ public class BattleAI_PairIntent
             var ourLastMove = ourBattleUnit.LastUsedMove;
             var usComp_Them = _ai.Projection.MakeUnitComparison( evidence.Us, evidence.Them );
 
-            if( !evidence.Top.OpponentCanAct )
+            if( !evidence.Top.Opponent_ExpectedToAct )
                 weAreLockedDown++;
 
             if( effects?.VolatileStatus == VolatileConditionID.Disabled && evidence.Us.VolatileStatuses.Contains( VolatileConditionID.ChoiceLocked ) )

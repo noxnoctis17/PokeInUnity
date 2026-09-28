@@ -7,11 +7,20 @@ public class RoundEndPhase_StatusDuration : IRoundEndPhaseHandler
 {
     public void OnUnitTick( BattleSystem battleSystem, BattleUnit unit )
     {
+        List<VolatileConditionID> forRemoval = new();
         //--Tick down Volatile Status durations
         foreach( var kvp in unit.Pokemon.VolatileStatuses )
         {
             var status = kvp.Value.Condition;
             status?.OnAfterTurn?.Invoke( unit.Pokemon );
+
+            if( status.Duration <= 0 )
+                forRemoval.Add( status.ID );
+        }
+
+        foreach( var vs in forRemoval )
+        {
+            unit.Pokemon.CureVolatileStatus( vs );
         }
 
         //--Tick down Severe Status durations of Sleep and Paralysis

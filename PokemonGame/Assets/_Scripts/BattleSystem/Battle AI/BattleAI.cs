@@ -686,7 +686,20 @@ public class BattleAI : MonoBehaviour
     {
         yield return null;
 
-        orders.TryGetJob( CurrentUnitDeciding.Pokemon, out var job );
+        CurrentJob job = default;
+        if( orders.TryGetJob( CurrentUnitDeciding.Pokemon, out job ) )
+        {
+            CurrentLog.Add( $"Job Information" );
+            CurrentLog.Add( $"Job Exists: {job.Exists}" );
+            CurrentLog.Add( $"Action Type: {job.ActionType}" );
+            CurrentLog.Add( $"Actor: {job.Actor.NickName}" );
+            CurrentLog.Add( $"Move: {job.Move?.MoveSO.Name}" );
+            CurrentLog.Add( $"Switch Candidate: {job.SwitchCandidate?.NickName}" );
+            CurrentLog.Add( $"Target: {job.Target?.NickName}" );
+            CurrentLog.Add( $"Source Capability: {job.SourceCapability}" );
+            CurrentLog.Add( $"" );
+        }
+
         var target = orders.Cir.Active ? GetPokemonAs_IBattleAIUnit( job.Target ) : orders.Tir.Threat;
         var spread = target.StatSpread.Spread;
         var realSpread = target.Pokemon.EffortValues;
@@ -788,10 +801,14 @@ public class BattleAI : MonoBehaviour
 
         yield return null;
 
+        bool ignoreDoom = true;
         var doomedOutcome = CheckIfDoomedTurn( actions, exchangePack );
         yield return null;
 
-        if( doomedOutcome.DoomedTurn )
+        if( ignoreDoom )
+            Debug.LogWarning( $"Ignoring doomed turn flag!" );
+
+        if( doomedOutcome.DoomedTurn && !ignoreDoom )
         {
             //--Sacrifice Evaluation of all actions
             Debug.Log( $"[Doomed!] TURN {_round} is doomed! It's all doomed! beginning Sacrifice Line Evaluations." );
@@ -844,22 +861,42 @@ public class BattleAI : MonoBehaviour
                 CurrentLog.Add( $"Action: {actions[i].Type}. PBS Score: {pbsScore}" );
                 CurrentLog.Add( $"" );
                 actions[i].PBS = pbs;
+                actions[i].Score += pbsScore;
                 yield return null;
 
                 int currentPlanBias = Projection.GetCurrentPlanBias( actions[i], pbs, boardContext, CurrentPlan );
                 CurrentLog.Add( $"Action: {actions[i].Type}. Current Plan is: {CurrentPlan.Type}. Bias: {currentPlanBias}" );
                 CurrentLog.Add( $"" );
+                actions[i].Score += currentPlanBias;
                 yield return null;
 
                 int gamePlanAlignment = GamePlanAlignment( actions[i], Blackboard.GamePlan );
                 CurrentLog.Add( $"Action: {actions[i].Type}. Game Plan Alignment Score: {gamePlanAlignment}" );
                 CurrentLog.Add( $"" );
+                actions[i].Score += gamePlanAlignment;
                 yield return null;
 
-                actions[i].Score += pbsScore + currentPlanBias + gamePlanAlignment;
+                int jobAlignment = 0;
+                if( job.Exists )
+                {
+                    jobAlignment = JobAlignment( actions[i], job );
+                    CurrentLog.Add( $"Action: {actions[i].Type}. Job Alignment Score: {jobAlignment}" );
+                    CurrentLog.Add( $"" );
+
+                    actions[i].Score += jobAlignment;
+                }
 
                 CurrentLog.Add( $"" );
-                CurrentLog.Add( $"{actions[i].ActionResult.ActionType}'s Total Score: {actions[i].Score}" );
+                CurrentLog.Add( $"Action Score: {actionScore}" );
+                CurrentLog.Add( $"Evaluate Sim Score: {evaluateSimScore}" );
+                CurrentLog.Add( $"Battlefield Score: {battlefieldScore}" );
+                CurrentLog.Add( $"Threat Response: {threatResponse}" );
+                CurrentLog.Add( $"PBS Score: {pbsScore}" );
+                CurrentLog.Add( $"Current Plan Bias: {currentPlanBias}" );
+                CurrentLog.Add( $"Game Plan Alignment: {gamePlanAlignment}" );
+                CurrentLog.Add( $"Job Alignment: {jobAlignment}" );
+                CurrentLog.Add( $"" );
+                CurrentLog.Add( $"{actions[i].ActionResult.ActionType}'s Final Score: {actions[i].Score}" );
                 CurrentLog.Add( $"" );
                 CurrentLog.Add( $"" );
                 CurrentLog.Add( $"" );
@@ -982,6 +1019,326 @@ public class BattleAI : MonoBehaviour
         CurrentLog.Add( $"" );
 
         return statusActionEval;
+    }
+
+    private int JobAlignment( ActionEvaluation action, CurrentJob job )
+    {
+        int score = 0;
+
+        var currentAction = action.ActionResult.ActionType;
+        var jobAction = job.ActionType;
+
+        CurrentLog.Add( $"=========================" );
+        CurrentLog.Add( $"=====[JOB ALIGNMENT]=====" );
+        CurrentLog.Add( $"=========================" );
+        CurrentLog.Add( $"" );
+        CurrentLog.Add( $"Current Action: {currentAction}" );
+        CurrentLog.Add( $"Job's Action: {jobAction}" );
+        CurrentLog.Add( $"" );
+
+        if( jobAction == ActionType.None || jobAction == ActionType.Any )
+            Debug.LogError( $"No job action type set! this is very incorrect!" );
+
+        switch( jobAction )
+        {
+            case ActionType.Attack:
+
+                if( currentAction == ActionType.Attack )
+                    score += 40;
+
+                if( action.Targets?.Count > 0 && action.Targets.Any( t => t.Pokemon == job.Target ) )
+                    score += 5;
+
+                if( action.ActionResult?.Move?.MoveSO.Name == job.Move?.MoveSO.Name )
+                    score += 5;
+
+                if( currentAction == ActionType.OffensiveStatus )
+                    score += 25;
+
+                if( currentAction == ActionType.OffensiveSwitch || currentAction == ActionType.Setup )
+                    score += 5;
+
+                if( currentAction == ActionType.DefensiveSwitch )
+                    score -= 75;
+            
+            break;
+
+            case ActionType.DefensiveSwitch:
+
+                if( currentAction == ActionType.DefensiveSwitch )
+                    score += 45;
+                
+                if( job.SwitchCandidate != null && action.ActionResult?.Candidate?.Pokemon == job.SwitchCandidate )
+                    score += 5;
+
+                if( currentAction == ActionType.Attack )
+                    score -= 75;
+
+                if( currentAction == ActionType.OffensiveSwitch )
+                    score += 30;
+
+                if( currentAction == ActionType.Setup && action.Actor?.Speed > job.Target?.Speed )
+                {
+                    var str = (SetupThreatResult)action.ActionResult;
+                    var statChanges = str.Move.MoveEffects.StatChangeList;
+
+                    if( statChanges?.Count > 0 )
+                    {
+                        foreach( var sc in statChanges )
+                        {
+                            if( sc.Stat == Stat.Defense && job.TargetsActionResult?.Move?.MoveSO.MoveCategory == MoveCategory.Physical )
+                            {
+                                score += 5;
+                                break;
+                            }
+                            else if( sc.Stat == Stat.SpDefense && job.TargetsActionResult?.Move?.MoveSO.MoveCategory == MoveCategory.Special )
+                            {
+                                score += 5;
+                                break;
+                            }
+                            else
+                                score -= 75;
+                        }
+                    }
+                }
+                else if( currentAction == ActionType.Setup )
+                    score -= 75;
+
+                if( currentAction == ActionType.OffensiveStatus )
+                {
+                    var os = (StatusThreatResult)action.ActionResult;
+
+                    if( os.OffensiveStatusType == OffensiveStatusType.StatusEffect )
+                    {
+                        if( action.Actor.Speed > job.Target.Speed || action.Actor.AbilityID == AbilityID.Prankster )
+                        {
+                            if( os.Move?.MoveSO.MoveEffects.SevereStatus == SevereConditionID.PAR )
+                                score += 10;
+                            else if( os.Move?.MoveSO.MoveEffects.SevereStatus == SevereConditionID.SLP )
+                            {
+                                if( os.Move?.MoveSO.Accuracy == 100 )
+                                    score += 20;
+                                else
+                                    score += 10;
+                            }
+                            else
+                                score -= 75;
+                        }
+                    }
+                }
+
+                if( currentAction == ActionType.SupportiveStatus )
+                {
+                    var ss = (StatusThreatResult)action.ActionResult;
+
+                    if( ss.SupportiveStatusType == SupportiveStatusType.Recovery )
+                        score += 20;
+
+                    if( ss.SupportiveStatusType == SupportiveStatusType.ForceMultiplier || ss.SupportiveStatusType == SupportiveStatusType.BattlefieldControl )
+                        score += 5;
+
+                    if( ss.SupportiveStatusType == SupportiveStatusType.AllyProtection )
+                        score -= 50;
+                }
+
+                if( currentAction == ActionType.Protect )
+                    score += 20;
+            
+            break;
+
+            case ActionType.OffensiveSwitch:
+
+                if( currentAction == ActionType.OffensiveSwitch )
+                    score += 45;
+                
+                if( job.SwitchCandidate != null && action.ActionResult?.Candidate?.Pokemon == job.SwitchCandidate )
+                    score += 5;
+
+                if( currentAction == ActionType.Attack )
+                    score += 15;
+
+                if( currentAction == ActionType.DefensiveSwitch )
+                    score += 10;
+                
+                if( currentAction == ActionType.Setup )
+                    score += 10;
+
+                if( currentAction == ActionType.OffensiveStatus )
+                    score += 15;
+
+                if( currentAction == ActionType.SupportiveStatus )
+                    score += 25;
+
+                if( currentAction == ActionType.Protect )
+                    score -= 50;
+            
+            break;
+
+            case ActionType.Setup:
+
+                if( currentAction == ActionType.Setup )
+                    score += 45;
+
+                if( action.ActionResult?.Move?.MoveSO.Name == job.Move?.MoveSO.Name )
+                    score += 5;
+
+                if( currentAction == ActionType.Attack )
+                    score += 15;
+
+                if( currentAction == ActionType.DefensiveSwitch )
+                    score -= 50;
+
+                if( currentAction == ActionType.OffensiveSwitch )
+                    score -= 35;
+
+                if( currentAction == ActionType.OffensiveStatus )
+                    score += 10;
+
+                if( currentAction == ActionType.SupportiveStatus )
+                    score += 25;
+
+                if( currentAction == ActionType.Protect )
+                    score += 5;
+            
+            break;
+
+            case ActionType.OffensiveStatus:
+
+                if( currentAction == ActionType.OffensiveStatus )
+                    score += 35;
+
+                if( action.Targets?.Count > 0 && action.Targets.Any( t => t.Pokemon == job.Target ) )
+                    score += 5;
+
+                if( action.ActionResult?.Move?.MoveSO.Name == job.Move?.MoveSO.Name )
+                    score += 5;
+                else
+                {
+                    var os = (StatusThreatResult)action.ActionResult;
+                    if( os.OffensiveStatusType == OffensiveStatusType.StatusEffect )
+                    {
+                        if( job.Move?.MoveSO.MoveEffects.SevereStatus != SevereConditionID.None )
+                            score += 5;
+                        else if( job.Move?.MoveSO.MoveEffects.VolatileStatus != VolatileConditionID.None )
+                            score += 5;
+                        else
+                            score -= 5;
+                    }
+                    else if( os.OffensiveStatusType == OffensiveStatusType.Disruption )
+                    {
+                        if( job.Move?.MoveSO.MoveEffects.VolatileStatus != VolatileConditionID.None )
+                            score += 5;
+                        else if( job.Move?.MoveSO.MoveEffects.SevereStatus != SevereConditionID.None )
+                            score += 5;
+                        else
+                            score -= 5;
+                    }
+                    else if( os.OffensiveStatusType == OffensiveStatusType.EntryHazard )
+                    {
+                        if( UnitSim.MoveIsEntryHazard( job.Move ) )
+                            score += 5;
+
+                        if( job.Move?.MoveSO.MoveEffects.SevereStatus != SevereConditionID.None )
+                            score += 5;
+                    }
+                    else if( os.OffensiveStatusType == OffensiveStatusType.StatDebuff )
+                    {
+                        if( UnitSim.MoveIsDebuff( job.Move ) )
+                            score += 5;
+                        else
+                            score -= 5;
+                    }
+                    else if( os.OffensiveStatusType == OffensiveStatusType.Binding )
+                    {
+                        if( job.Move?.MoveSO.MoveEffects.BindingStatus != BindingConditionID.None )
+                            score += 5;
+                        else
+                            score -= 5;
+                    }
+                    else if( os.OffensiveStatusType == OffensiveStatusType.Phaze )
+                    {
+                        if( job.Move?.MoveSO.MoveEffects.SwitchType == SwitchEffectType.Phaze )
+                            score += 5;
+                        else if( job.Move?.MoveSO.MoveEffects.SevereStatus == SevereConditionID.PAR || job.Move?.MoveSO.MoveEffects.SevereStatus == SevereConditionID.SLP )
+                            score += 5;
+                        else
+                            score -= 5;
+                    }
+                    else
+                        score -= 5;
+                }
+
+                if( currentAction == ActionType.Attack )
+                    score += 20;
+
+                if( currentAction == ActionType.DefensiveSwitch )
+                    score -= 75;
+
+                if( currentAction == ActionType.OffensiveSwitch )
+                    score -= 35;
+
+                if( currentAction == ActionType.SupportiveStatus )
+                    score += 15;
+
+                if( currentAction == ActionType.Protect )
+                    score -= 25;
+            
+            break;
+
+            case ActionType.SupportiveStatus:
+
+                if( currentAction == ActionType.SupportiveStatus )
+                    score += 45;
+
+                if( action.ActionResult?.Move?.MoveSO.Name == job.Move?.MoveSO.Name )
+                    score += 5;
+
+                if( currentAction == ActionType.Attack )
+                    score -= 75;
+
+                if( currentAction == ActionType.DefensiveSwitch )
+                    score -= 50;
+
+                if( currentAction == ActionType.Setup )
+                    score += 15;
+
+                if( currentAction == ActionType.OffensiveStatus )
+                    score += 10;
+
+                if( currentAction == ActionType.Protect )
+                    score += 5;
+            
+            break;
+
+            case ActionType.Protect:
+
+                if( currentAction == ActionType.Protect )
+                    score += 50;
+
+                if( currentAction == ActionType.Attack )
+                    score -= 75;
+
+                if( currentAction == ActionType.DefensiveSwitch )
+                    score += 10;
+
+                if( currentAction == ActionType.OffensiveSwitch )
+                    score += 5;
+
+                if( currentAction == ActionType.Setup )
+                    score -= 75;
+
+                if( currentAction == ActionType.OffensiveStatus )
+                    score -= 75;
+
+                if( currentAction == ActionType.SupportiveStatus )
+                    score += 5;
+            
+            break;
+        }
+
+        CurrentLog.Add( $"Final Job Alignment Score: {score * 2}" );
+        CurrentLog.Add( $"" );
+        return score * 2;
     }
 
     private DoomedOutcome CheckIfDoomedTurn( List<ActionEvaluation> actions, ExchangePack exchangePack )
@@ -1215,7 +1572,7 @@ public class BattleAI : MonoBehaviour
         };
     }
 
-    public ThreatProfile GetThreatProfile( ExchangeEvaluation exchangeEval, BoardContext boardContext, IBattleAIUnit opponent, bool threatBrain = false )
+    public ThreatProfile GetThreatProfile( ExchangeEvaluation exchangeEval, BoardContext boardContext, IBattleAIUnit opponent, bool threatBrain = false, bool log = true )
     {
         ThreatProfile profile = new()
         {
@@ -1227,19 +1584,19 @@ public class BattleAI : MonoBehaviour
 
         if( !threatBrain )
         {
-            CurrentLog.Add( $"" );
-            CurrentLog.Add( $"===================================" );
-            CurrentLog.Add( $"=====[Building Threat Profile]=====" );
-            CurrentLog.Add( $"===================================" );
-            CurrentLog.Add( $"" );
+            if( log ) CurrentLog.Add( $"" );
+            if( log ) CurrentLog.Add( $"===================================" );
+            if( log ) CurrentLog.Add( $"=====[Building Threat Profile]=====" );
+            if( log ) CurrentLog.Add( $"===================================" );
+            if( log ) CurrentLog.Add( $"" );
         }
         else
         {
-            CurrentLog.Add( $"" );
-            CurrentLog.Add( $"====================================================" );
-            CurrentLog.Add( $"=====[Building Opponent's Threat Profile on Us]=====" );
-            CurrentLog.Add( $"====================================================" );
-            CurrentLog.Add( $"" );
+            if( log ) CurrentLog.Add( $"" );
+            if( log ) CurrentLog.Add( $"====================================================" );
+            if( log ) CurrentLog.Add( $"=====[Building Opponent's Threat Profile on Us]=====" );
+            if( log ) CurrentLog.Add( $"====================================================" );
+            if( log ) CurrentLog.Add( $"" );
         }
 
         //--Check opponent current sweep potential
@@ -1264,11 +1621,11 @@ public class BattleAI : MonoBehaviour
         profile.OutspeedsAlliesCount = faster;
 
         profile.SweepPotential = faster >= allies.Count - 1 && ( threatened >= allies.Count - 1 || threatened > 3 );
-        CurrentLog.Add( $"Threatened Allies: {threatened}. Outsped Allies: {faster}. Sweep Potential: {profile.SweepPotential}" );
+        if( log ) CurrentLog.Add( $"Threatened Allies: {threatened}. Outsped Allies: {faster}. Sweep Potential: {profile.SweepPotential}" );
 
         //--Are we forced to switch
         profile.ForcesSwitch = exchangeEval.AttackerSwitches;
-        CurrentLog.Add( $"Exchange Evaluation predicted the opponent might force us to switch this turn: {profile.ForcesSwitch}" );
+        if( log ) CurrentLog.Add( $"Exchange Evaluation predicted the opponent might force us to switch this turn: {profile.ForcesSwitch}" );
 
         //--Constraint Pressure. How many of our mons struggle against the opponent?
         float constraintPressure = 0f;
@@ -1442,22 +1799,22 @@ public class BattleAI : MonoBehaviour
         //--Urgency
         profile.Urgency = GetThreatUrgency( profile.PressureScore );
 
-        CurrentLog.Add( $"Constraining Pressure: {profile.ConstrainingPressure}" );
-        CurrentLog.Add( $"Immediate Pressure: {profile.ImmediatePressure}" );
-        CurrentLog.Add( $"Escalating Pressure: {profile.EscalatingPressure}" );
-        CurrentLog.Add( $"Persistent Pressure: {profile.PersistentPressure}" );
-        CurrentLog.Add( $"Disruptive Pressure: {profile.DisruptivePressure}" );
-        CurrentLog.Add( $"Base Pressure: {basePressure}, Decay Multiplier: {decayMultiplier}" );
-        CurrentLog.Add( $"" );
-        CurrentLog.Add( $"Final Results: Pressure Score: {profile.PressureScore}. Urgency: {profile.Urgency}. Threat Type: {profile.Type}" );
-        CurrentLog.Add( $"===================================" );
-        CurrentLog.Add( $"" );
+        if( log ) CurrentLog.Add( $"Constraining Pressure: {profile.ConstrainingPressure}" );
+        if( log ) CurrentLog.Add( $"Immediate Pressure: {profile.ImmediatePressure}" );
+        if( log ) CurrentLog.Add( $"Escalating Pressure: {profile.EscalatingPressure}" );
+        if( log ) CurrentLog.Add( $"Persistent Pressure: {profile.PersistentPressure}" );
+        if( log ) CurrentLog.Add( $"Disruptive Pressure: {profile.DisruptivePressure}" );
+        if( log ) CurrentLog.Add( $"Base Pressure: {basePressure}, Decay Multiplier: {decayMultiplier}" );
+        if( log ) CurrentLog.Add( $"" );
+        if( log ) CurrentLog.Add( $"Final Results: Pressure Score: {profile.PressureScore}. Urgency: {profile.Urgency}. Threat Type: {profile.Type}" );
+        if( log ) CurrentLog.Add( $"===================================" );
+        if( log ) CurrentLog.Add( $"" );
 
         if( threatBrain )
         {
-            CurrentLog.Add( $"" );
-            CurrentLog.Add( $"" );
-            CurrentLog.Add( $"" );
+            if( log ) CurrentLog.Add( $"" );
+            if( log ) CurrentLog.Add( $"" );
+            if( log ) CurrentLog.Add( $"" );
         }
 
         return profile;
@@ -3790,7 +4147,11 @@ public class BattleAI : MonoBehaviour
     public MoveThreatResult GetMove_StrongestAttack( IBattleAIUnit attacker, IBattleAIUnit target, SimulatedField field = null )
     {
         MoveThreatResult bestMTR = new();
+        EstimatedDamageResult bestEDR = new();
+        PotentialToKO bestPTKO = default;
+
         field ??= Blackboard.CurrentFieldSnapshot;
+
         float bestDamage = float.MinValue;
 
         foreach( var move in attacker.ActiveMoves )
@@ -3832,22 +4193,27 @@ public class BattleAI : MonoBehaviour
             }
 
             float modifier                  = effectiveness * UnitSim.Get_MoveModifier( attacker, target, move );
-            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, Targets = targets.ToList() };
+            MoveThreatResult mtr            = new(){ ActionType = ActionType.Attack, Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, Targets = targets.ToList(), CurrentActor = attacker, Type = ActionResultType.Move };
             var edr                         = Projection.Get_EstimatedDamageResult( attacker, target, mtr );
-            
-            mtr.EDR = edr;
+
             float damage = edr.DamageEstimate;
             if( damage > bestDamage )
             {
                 bestDamage = damage;
                 bestMTR = mtr;
+                bestEDR = edr;
+                bestPTKO = Projection.GetPTKO_FromDamageEstimate( edr, target );
             }
         }
 
+        bestMTR.EstimatedDamage = bestDamage;
+        bestMTR.EDR = bestEDR;
+        bestMTR.PTKO = bestPTKO;
+        
         return bestMTR;
     }
 
-    public IBattleAIUnit GetSwitch_CurrentPressure( List<IBattleAIUnit> opponents, SimulatedField field = null )
+    public IBattleAIUnit GetSwitch_CurrentPressure( List<IBattleAIUnit> opponents, List<IBattleAIUnit> bench = null, SimulatedField field = null )
     {
         IBattleAIUnit bestRevenge = null;
         field ??= Blackboard.CurrentFieldSnapshot;
@@ -3856,7 +4222,7 @@ public class BattleAI : MonoBehaviour
 
         var activeUnits = GetActiveOpposingUnits_AsBattleAIUnits( opponents[0].Pokemon );
         var ourUnits = GetOpposingTeamAs_IBattleAIUnit( opponents[0].Pokemon );
-        var bench = ourUnits.Where( p => !activeUnits.Any( u => u.Pokemon == p.Pokemon ) && p.Pokemon.CurrentHP > 0 ).ToList();
+        bench ??= ourUnits.Where( p => !activeUnits.Any( u => u.Pokemon == p.Pokemon ) && p.Pokemon.CurrentHP > 0 ).ToList();
 
         foreach( var mon in bench )
         {
@@ -4525,11 +4891,15 @@ public struct SwitchCandidateResult : IActionResult
 {
     public int Score { get; set; }
     public Pokemon Pokemon { get; set; }
-    public PotentialToKOResult SwitchOffensePTKOR { get; set; }
-    public PotentialToKOResult SwitchDefensePTKOR { get; set; }
+
+    public PotentialToKO OriginalPTKO { get; set; }
+    public PotentialToKO SwitchOffensePTKO { get; set; }
+    public PotentialToKO SwitchDefensePTKO { get; set; }
+
     public float HPRatio { get; set; }
     public bool IsLegitimate { get; set; }
     public bool MovesFirst { get; set; }
+    
     public TurnOutcomeProjection Top { get; set; }
 
     public ActionResultType Type { get; set; }
@@ -4567,6 +4937,8 @@ public struct EstimatedDamageResult
     public float MovePower;
     public float Modifier;
     public float BrnOrFBT;
+    public float Screens;
+    public float AuroraVeil;
     public float Targets;
     public float Hits;
 
@@ -4989,7 +5361,7 @@ public class UnitOrder
         {
             if( actionType != ActionType.DefensiveSwitch && actionType != ActionType.OffensiveSwitch )
             {
-                if( TryGetJob( pokemon, out var job ) && job.Active )
+                if( TryGetJob( pokemon, out var job ) && job.Exists )
                 {
                     opponent = _ai.GetPokemonAs_IBattleAIUnit( job.Target );
                     return true;
@@ -4999,7 +5371,7 @@ public class UnitOrder
             }
             else
             {
-                if( TryGetJob( _ai.CurrentUnitDeciding.Pokemon, out var job ) && job.Active )
+                if( TryGetJob( _ai.CurrentUnitDeciding.Pokemon, out var job ) && job.Exists )
                 {
                     opponent = _ai.GetPokemonAs_IBattleAIUnit( job.Target );
                     return true;
@@ -5036,6 +5408,9 @@ public class UnitOrder
     {
         result = null;
 
+        // if( ally == null )
+            // return false;
+
         if( Cir.Jobs.TryGetValue( ally.Pokemon, out var job ) )
         {
             switch( job.ActionType )
@@ -5052,128 +5427,5 @@ public class UnitOrder
         }
 
         return false;
-    }
-
-    public MoveThreatResult BuildUnitMTR( IBattleAIUnit target, IBattleAIUnit targetAlly, IActionResult result )
-    {
-        MoveThreatResult mtr = new();
-
-        switch( result.ActionType )
-        {
-            case ActionType.Attack:
-
-                var attack = (MoveThreatResult)result;
-                mtr = attack;
-
-            break;
-
-            case ActionType.DefensiveSwitch:
-
-                var defSwitch = (SwitchCandidateResult)result;
-
-                mtr = new()
-                {
-                    Score = 0,
-                    Modifier = 0,
-                    Targets = new(),
-                    TargetBattleUnits = null,
-                    Move = null,
-                    EstimatedDamage = 0,
-                };
-
-                if( target != null )
-                    mtr.Targets.Add( target );
-
-                if( targetAlly != null )
-                    mtr.Targets.Add( targetAlly );
-
-            break;
-
-            case ActionType.OffensiveSwitch:
-
-                var offSwitch = (SwitchCandidateResult)result;
-
-                mtr = new()
-                {
-                    Score = 0,
-                    Modifier = 0,
-                    Targets = new(),
-                    TargetBattleUnits = null,
-                    Move = null,
-                    EstimatedDamage = 0,
-                };
-
-                if( target != null )
-                    mtr.Targets.Add( target );
-
-                if( targetAlly != null )
-                    mtr.Targets.Add( targetAlly );
-
-            break;
-
-            case ActionType.Setup:
-
-                var setup = (SetupThreatResult)result;
-
-                mtr = new()
-                {
-                    Score = 0,
-                    Modifier = 0,
-                    Targets = setup.Targets,
-                    TargetBattleUnits = setup.TargetBattleUnits,
-                    Move = setup.Move,
-                    EstimatedDamage = 0f,
-                };
-
-            break;
-
-            case ActionType.OffensiveStatus:
-
-                var offStatus = (StatusThreatResult)result;
-
-                mtr = new()
-                {
-                    Score = 0,
-                    Modifier = 0,
-                    Targets = offStatus.Targets,
-                    TargetBattleUnits = offStatus.TargetBattleUnits,
-                    Move = offStatus.Move,
-                    EstimatedDamage = 0f,
-                };
-
-            break;
-
-            case ActionType.SupportiveStatus:
-
-                var suppStatus = (StatusThreatResult)result;
-
-                mtr = new()
-                {
-                    Score = 0,
-                    Modifier = 0,
-                    Targets = suppStatus.Targets,
-                    TargetBattleUnits = suppStatus.TargetBattleUnits,
-                    Move = suppStatus.Move,
-                    EstimatedDamage = 0f,
-                };
-
-            break;
-        }
-
-        return mtr;
-    }
-
-    public SimModuleType GetModuleType( Pokemon pokemon, IActionResult result )
-    {
-        return result.ActionType switch
-        {
-            ActionType.Attack => SimModuleType.Attack,
-            ActionType.DefensiveSwitch => SimModuleType.Switch,
-            ActionType.OffensiveSwitch => SimModuleType.Switch,
-            ActionType.Setup => SimModuleType.Setup,
-            ActionType.OffensiveStatus => SimModuleType.OffensiveStatus,
-            ActionType.SupportiveStatus => SimModuleType.SupportiveStatus,
-            _ => SimModuleType.Attack,
-        };
     }
 }

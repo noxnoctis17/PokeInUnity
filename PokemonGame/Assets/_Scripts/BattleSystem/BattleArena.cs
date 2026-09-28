@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using Cinemachine;
+using Unity.Cinemachine;
 using UnityEngine.Rendering.Universal;
 using DG.Tweening;
 
@@ -19,10 +19,10 @@ public class BattleArena : MonoBehaviour
     private CinemachineBrain _cmBrain;
     public CinemachineBrain CMBrain => _cmBrain;
     [Header("Cameras")]
-    [SerializeField] private CinemachineVirtualCamera _1v1_EnemyIntroCamera;
-    [SerializeField] private CinemachineFreeLook _2v2_EnemyIntroCamera;
-    [SerializeField] private CinemachineFreeLook _singlesMainCamera;
-    [SerializeField] private CinemachineFreeLook _doublesMainCamera;
+    [SerializeField] private CinemachineCamera _1v1_EnemyIntroCamera;
+    [SerializeField] private CinemachineCamera _2v2_EnemyIntroCamera;
+    [SerializeField] private CinemachineCamera _singlesMainCamera;
+    [SerializeField] private CinemachineCamera _doublesMainCamera;
     [SerializeField] private DecalProjector _arenaDecal;
     [SerializeField] private GameObject _2v2_Encounter;
     private Camera _mainCamera;
@@ -124,31 +124,31 @@ public class BattleArena : MonoBehaviour
         yield return null;
     }
 
-    private IEnumerator SetCameras( CinemachineFreeLook camera, GameObject target = null )
-    {
-        if( target != null )
-        {
-            camera.LookAt = target.transform;
-            camera.Follow = target.transform;
-        }
+    // private IEnumerator SetCameras( CinemachineCamera camera, GameObject target = null )
+    // {
+    //     if( target != null )
+    //     {
+    //         camera.LookAt = target.transform;
+    //         camera.Follow = target.transform;
+    //     }
 
-        camera.gameObject.SetActive( true );
-        yield return null;
+    //     camera.gameObject.SetActive( true );
+    //     yield return null;
 
-        _battleSystem.BattleComposer.Init( _cmBrain );
+    //     _battleSystem.BattleComposer.Init( _cmBrain );
 
-        yield return new WaitUntil( () => !_animatingEnemyPositionsIn );
-        yield return new WaitUntil( () => !_cmBrain.IsBlending );
+    //     yield return new WaitUntil( () => !_animatingEnemyPositionsIn );
+    //     yield return new WaitUntil( () => !_cmBrain.IsBlending );
 
-        if( _battleSystem.BattleType == BattleType.WildBattle_1v1 || _battleSystem.BattleType == BattleType.TrainerSingles )
-            _singlesMainCamera.gameObject.SetActive( true );
-        else if( _battleSystem.BattleType == BattleType.TrainerDoubles )
-            _doublesMainCamera.gameObject.SetActive( true );
+    //     if( _battleSystem.BattleType == BattleType.WildBattle_1v1 || _battleSystem.BattleType == BattleType.TrainerSingles )
+    //         _singlesMainCamera.gameObject.SetActive( true );
+    //     else if( _battleSystem.BattleType == BattleType.TrainerDoubles )
+    //         _doublesMainCamera.gameObject.SetActive( true );
 
-        camera.gameObject.SetActive( false );
-    }
+    //     camera.gameObject.SetActive( false );
+    // }
 
-    private IEnumerator SetCameras( CinemachineVirtualCamera camera, GameObject target = null )
+    private IEnumerator SetCameras( CinemachineCamera camera, GameObject target = null )
     {
         if( target != null )
         {
@@ -172,14 +172,16 @@ public class BattleArena : MonoBehaviour
         camera.gameObject.SetActive( false );
     }
 
-    private void ClearCameras(){
+    private void ClearCameras()
+    {
         _1v1_EnemyIntroCamera.LookAt = null;
         _1v1_EnemyIntroCamera.gameObject.SetActive( false );
         _singlesMainCamera.gameObject.SetActive( false );
         _doublesMainCamera.gameObject.SetActive( false );
     }
 
-    private IEnumerator MovePlayerIntoPosition( Transform position ){
+    private IEnumerator MovePlayerIntoPosition( Transform position )
+    {
         // Debug.Log( "move player into position from battle arena" );
         yield return new WaitForSeconds( 0.25f );
         yield return PlayerReferences.Instance.PlayerMovement.MovePlayerIntoBattlePosition( position );

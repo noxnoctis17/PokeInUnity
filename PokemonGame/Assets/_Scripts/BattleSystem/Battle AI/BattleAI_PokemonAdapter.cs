@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using Eflatun.SceneReference;
 using UnityEngine;
 
 public class BattleAI_PokemonAdapter : IBattleAIUnit
@@ -35,6 +34,7 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
     public int SevereStatusTime { get; set; } //--For toxic, this increments.
     public List<VolatileConditionID> VolatileStatuses { get; set; }
     public List<BindingConditionID> Bindings { get; set; }
+    public TransientConditionID TransientStatus { get; set; }
 
     public CourtLocation CourtLocation { get; set; }
 
@@ -69,6 +69,7 @@ public class BattleAI_PokemonAdapter : IBattleAIUnit
         SevereStatusTime = pokemon.SevereStatusTime;
         VolatileStatuses = new( pokemon.VolatileStatuses.Keys );
         Bindings = new( pokemon.BindingStatuses.Keys );
+        TransientStatus = pokemon.TransientStatus != null ? pokemon.TransientStatus.ID : TransientConditionID.None;
 
         CourtLocation = _ai.BattleSystem.Field.GetPokemonCourtLocationFromTrainer( pokemon );
 

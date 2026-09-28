@@ -20,7 +20,7 @@ public class BattleAI_CandidateSelectors
         _proj = _ai.Projection;
     }
 
-    public MoveThreatResult GetMove_BestAttack( IBattleAIUnit attacker, IBattleAIUnit target, CurrentJob job = default, bool actionSelect = false, string source = "NO SOURCE", int depth = 0, bool logSim = false )
+    public MoveThreatResult GetMove_BestAttack( IBattleAIUnit attacker, IBattleAIUnit target, CurrentJob job = default, bool actionSelect = false, string source = "NO SOURCE", int depth = 0, bool logSim = false, SimulatedField fieldSim = null )
     {
         // CustomLogSession moveLog = new();
         int bestScore = int.MinValue;
@@ -32,7 +32,7 @@ public class BattleAI_CandidateSelectors
 
         //--Create Target's PTKO on attacker & target's sim unit once for use in each attacker's move's simulation
         
-        var fieldSim = _ai.UnitSim.BuildSimField();
+        fieldSim ??= _ai.UnitSim.BuildSimField();
 
         // moveLog.Add( $"===[Beginning Scoring for {attacker.Name}'s Best Simulated Attack vs {target.Name}, called from {source}]===" );
         if( attacker.Pokemon == target.Pokemon )
@@ -68,7 +68,7 @@ public class BattleAI_CandidateSelectors
             if( effectiveness == 0f )
                 continue;
 
-            if( job.Active && job.ActionType == ActionType.Attack && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
+            if( job.Exists && job.ActionType == ActionType.Attack && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
                 continue;
 
             var ally = _ai.GetActiveAllyAs_Adapter( attacker.Pokemon );
@@ -97,22 +97,22 @@ public class BattleAI_CandidateSelectors
                 }
             }
 
-            float attHPR                    = attacker.BeginningHPR; //_ai.Get_HPRatio( attacker );
-            float tarHPR                    = target.BeginningHPR; //_ai.Get_HPRatio( target );
+            float attHPR                    = attacker.BeginningHPR;
+            float tarHPR                    = target.BeginningHPR;
 
             float modifier                  = effectiveness * _ai.UnitSim.Get_MoveModifier( attacker, target, move );
-            MoveThreatResult mtr            = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, Targets = targets };
-            var attEDR                      = _proj.Get_EstimatedDamageResult( attacker, target, mtr );
+            MoveThreatResult attMTR         = new(){ Score = 0, Modifier = modifier, Move = move, TargetCount = targetCount, Targets = targets, CurrentActor = attacker };
+            var attEDR                      = _proj.Get_EstimatedDamageResult( attacker, target, attMTR, fieldSim );
             
             var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, default, false, "Opponent's best attack (recursion)", depth + 1 ) : _ai.GetMove_StrongestAttack( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
-            var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
+            var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR, fieldSim );
             
-            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attEDR, mtr, target );
-            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attacker );
+            PotentialToKO attPTKO           = _proj.GetPTKO_FromDamageEstimate( attEDR, target );
+            PotentialToKO tarPTKO           = _proj.GetPTKO_FromDamageEstimate( tarEDR, attacker );
 
             // moveLog.Add( $"[Best Simulated Move] PTKO for {attacker.Name}'s {move.MoveSO.Name} on {target.Name} (HPR: {tarHPR} is: {attPTKOR.PTKO} (Damage Estimate: {attEDR.DamageEstimate})" );
 
-            var attackerSimUnit             = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
+            var attackerSimUnit             = _ai.UnitSim.BuildSimUnit( attacker, attHPR, attMTR, fieldSim );
             var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
 
             SimulatedUnit allySimUnit = null;
@@ -135,7 +135,7 @@ public class BattleAI_CandidateSelectors
                 targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
             }
 
-            List<SimulatedUnit> attackerTargets = _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, mtr );
+            List<SimulatedUnit> attackerTargets = _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, attMTR );
             List<SimulatedUnit> opponentTargets = _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, tarMTR );
             List<SimulatedUnit> allyTargets = allySimUnit != null ? _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, allyMTR ) : new();
             List<SimulatedUnit> opponentAllyTargets = targetAllySimUnit != null ? _battleSim.GetTOPTargets( attackerSimUnit, targetSimUnit, allySimUnit, targetAllySimUnit, targetAllyMTR ) : new();
@@ -150,6 +150,10 @@ public class BattleAI_CandidateSelectors
             var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
             var top = _battleSim.RunSimulation( bse, logSim );
 
+            //--Get Actual PTKOs from simulation
+            attPTKO = top.AttackerPTKO;
+            tarPTKO = top.OpponentPTKO;
+
             //--Begin Scoring
             int score = 0;
             if( top.Attacker_DiesBeforeActing )
@@ -158,7 +162,7 @@ public class BattleAI_CandidateSelectors
             if( top.Opponent_DiesBeforeActing )
                 score += 150;
 
-            if( !top.OpponentCanAct )
+            if( !top.Opponent_ExpectedToAct )
             {
                 score += 25;
             }
@@ -171,7 +175,7 @@ public class BattleAI_CandidateSelectors
             if( top.MutualKO )
                 score += isBehind ? 40 : -40;
 
-            bool opponentThreatensKO = tarPTKOR.PTKO >= PotentialToKO.Risky;
+            bool opponentThreatensKO = tarPTKO >= PotentialToKO.Risky;
             if( opponentThreatensKO && move.MoveSO.MovePriority > MovePriority.Zero && top.Opponent_DiesBeforeActing )
                 score += 25;
 
@@ -229,7 +233,7 @@ public class BattleAI_CandidateSelectors
                 bestMove = move;
                 bestTop = top;
                 bestEDR = attEDR;
-                bestPTKO = attPTKOR.PTKO;
+                bestPTKO = attPTKO;
             }
         }
 
@@ -275,8 +279,10 @@ public class BattleAI_CandidateSelectors
             var tarMTR                      = depth == 0 ? GetMove_BestAttack( target, attacker, default, false, source, depth + 1 ) : _ai.Get_MostThreateningMove( target, attacker ); //--Remember, the order here is attacking unit vs target unit. this is the target's attack on the attacker here.
             var tarEDR                      = _proj.Get_EstimatedDamageResult( target, attacker, tarMTR );
 
-            PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attEDR, mtr, target );
-            PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attacker );
+            // PotentialToKOResult attPTKOR    = _proj.Get_PotentialToKOResult( attEDR, mtr, target );
+            // PotentialToKOResult tarPTKOR    = _proj.Get_PotentialToKOResult( tarEDR, tarMTR, attacker );
+            PotentialToKO attPTKO    = _proj.GetPTKO_FromDamageEstimate( attEDR, target );
+            PotentialToKO tarPTKO    = _proj.GetPTKO_FromDamageEstimate( tarEDR, attacker );
 
             var attackerSimUnit             = _ai.UnitSim.BuildSimUnit( attacker, attHPR, mtr, fieldSim );
             var targetSimUnit               = _ai.UnitSim.BuildSimUnit( target, tarHPR, tarMTR, fieldSim );
@@ -295,19 +301,22 @@ public class BattleAI_CandidateSelectors
             SimulationPackage attackerPack      = _battleSim.BuildSimPackage( attackerSimUnit, null, attackerTargets, SimModuleType.Attack );
             SimulationPackage targetPack        = _battleSim.BuildSimPackage( targetSimUnit, null, opponentTargets, SimModuleType.Attack );
 
-            SimulationPackage attackerAllyPack  = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, null, allyTargets, SimModuleType.Attack ) : default;
-            SimulationPackage targetAllyPack    = targetAllySimUnit != null ? _battleSim.BuildSimPackage( targetAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : default;
+            SimulationPackage attackerAllyPack  = /*allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, null, allyTargets, SimModuleType.Attack ) : */default;
+            SimulationPackage targetAllyPack    = /*targetAllySimUnit != null ? _battleSim.BuildSimPackage( targetAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : */default;
 
             var roundPack = _battleSim.BuildRoundPackage( attackerPack, attackerAllyPack, targetPack, targetAllyPack );
             var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
             var top = _battleSim.RunSimulation( bse );
+
+            attPTKO = top.AttackerPTKO;
+            tarPTKO = top.OpponentPTKO;
 
             bestScore       = 0;
             bestModifier    = modifier;
             bestMove        = fallbackMove;
             bestTop         = top;
             bestEDR         = attEDR;
-            bestPTKO        = attPTKOR.PTKO;
+            bestPTKO        = attPTKO;
         }
 
         // moveLog.Add( $"[Best Simulated Move] Final Chosen move & Score for {attacker.Name}'s {bestMove.MoveSO.Name} on {target.Name} Score: {bestScore}." );
@@ -420,7 +429,7 @@ public class BattleAI_CandidateSelectors
 
         foreach( var move in setupMoves )
         {
-            if( job.Active && job.ActionType == ActionType.Setup && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
+            if( job.Exists && job.ActionType == ActionType.Setup && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
                 continue;
 
             var stageDelta = _unitSim.BuildStatStageDelta( move );
@@ -656,7 +665,7 @@ public class BattleAI_CandidateSelectors
 
         foreach( var move in offensiveStatusMoves )
         {
-            if( job.Active && job.ActionType == ActionType.OffensiveStatus && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
+            if( job.Exists && job.ActionType == ActionType.OffensiveStatus && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
                 continue;
 
             if( !_battleSim.MoveSuccessCheck( attacker, target, move ) )
@@ -673,7 +682,7 @@ public class BattleAI_CandidateSelectors
             bool trans      = move.MoveEffects.TransientStatus  != TransientConditionID.None;
             bool bind       = move.MoveEffects.BindingStatus    != BindingConditionID.None; //--Consider having binding moves be part of this decision line later
 
-            bool statusEffect   = severe || vol  || trans;
+            bool statusEffect   = severe || vol || trans;
             bool hazard         = move.MoveEffects.CourtCondition   != CourtConditionID.None;
             bool debuff         = move.MoveEffects.StatChangeList?.Count > 0 && ( move.MoveSO.MoveEffects.Target == EffectTarget.Enemy || move.MoveSO.MoveEffects.Target == EffectTarget.OpposingSide );
             bool disruption     = false;
@@ -689,34 +698,22 @@ public class BattleAI_CandidateSelectors
                 if( target.VolatileStatuses.Contains( move.MoveSO.MoveEffects.VolatileStatus ) || ( isCurse && target.VolatileStatuses.Contains( VolatileConditionID.Cursed ) ) )
                     continue;
 
-                bool taunt = false;
-                bool encore = false;
-                bool healblock = false;
-                bool disable = false;
-                bool perish = false;
-
                 if( vol )
                 {
                     var vs = move.MoveSO.MoveEffects.VolatileStatus;
 
-                    if( vs == VolatileConditionID.Taunt )
-                        taunt = true;
-
-                    if( vs == VolatileConditionID.Encore )
-                        encore = true;
-
-                    if( vs == VolatileConditionID.HealBlocked )
-                        healblock = true;
-
-                    if( vs == VolatileConditionID.Disabled )
-                        disable = true;
-
-                    if( vs == VolatileConditionID.Perish )
-                        perish = true;
-
+                    bool taunt = vs == VolatileConditionID.Taunt;
+                    bool encore = vs == VolatileConditionID.Encore;
+                    bool healblock = vs == VolatileConditionID.HealBlocked;
+                    bool disable = vs == VolatileConditionID.Disabled;
+                    bool perish = vs == VolatileConditionID.Perish;
+                    
                     disruption = taunt || encore || healblock || disable || perish;
 
-                    type = OffensiveStatusType.Disruption;
+                    if( disruption )
+                        type = OffensiveStatusType.Disruption;
+                    else
+                        type = OffensiveStatusType.StatusEffect;
                 }
                 else
                     type = OffensiveStatusType.StatusEffect;
@@ -2000,7 +1997,7 @@ public class BattleAI_CandidateSelectors
 
         foreach( var move in supportiveStatusMoves )
         {
-            if( job.Active && job.ActionType == ActionType.SupportiveStatus && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
+            if( job.Exists && job.ActionType == ActionType.SupportiveStatus && job.Move != null && move.MoveSO.Name != job.Move.MoveSO.Name )
                 continue;
 
             StatusValue statusValue = default;
@@ -2276,6 +2273,7 @@ public class BattleAI_CandidateSelectors
         if( bestMove.MoveTarget == MoveTarget.Ally || bestMove.MoveSO.Name == "After You" )
         {
             actualTarget = allySim;
+            attackerTargets.Add( actualTarget );
         }
 
         if( bestMove.MoveTarget == MoveTarget.Self )
@@ -2303,6 +2301,7 @@ public class BattleAI_CandidateSelectors
         }
 
         //--This should probably end up being based on the job's opponent information when it's available...
+        //--09/08/26 we actually really do need to build the ally packs from job information
         List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( attackerSim, opponentSim, attackerAllySim, opponentAllySim, opponentSim.MTR );
         List<SimulatedUnit> allyTargets         = /* attackerAllySim != null ? _battleSim.GetTOPTargets( attackerSim, opponentSim, attackerAllySim, opponentAllySim, allyMTR ) : */ new();
         List<SimulatedUnit> opponentAllyTargets = /* opponentAllySim != null ? _battleSim.GetTOPTargets( attackerSim, opponentSim, attackerAllySim, opponentAllySim, targetAllyMTR ) : */ new();
@@ -2310,8 +2309,8 @@ public class BattleAI_CandidateSelectors
         SimulationPackage attackerPack = _battleSim.BuildSimPackage( attackerSim, null, attackerTargets, SimModuleType.SupportiveStatus );
         SimulationPackage opponentPack = _battleSim.BuildSimPackage( opponentSim, null, opponentTargets, SimModuleType.Attack );
 
-        SimulationPackage attackerAllyPack = attackerAllySim != null ? _battleSim.BuildSimPackage( attackerAllySim, null, allyTargets, SimModuleType.Attack ) : default;
-        SimulationPackage opponentAllyPack = opponentAllySim != null ? _battleSim.BuildSimPackage( opponentAllySim, null, opponentAllyTargets, SimModuleType.Attack ) : default;
+        SimulationPackage attackerAllyPack = attackerAllySim != null ? _battleSim.BuildSimPackage( attackerAllySim, null, allyTargets, SimModuleType.None ) : default;
+        SimulationPackage opponentAllyPack = opponentAllySim != null ? _battleSim.BuildSimPackage( opponentAllySim, null, opponentAllyTargets, SimModuleType.None ) : default;
 
         var roundPack   = _battleSim.BuildRoundPackage( attackerPack, attackerAllyPack, opponentPack, opponentAllyPack );
         var bse         = _battleSim.BuildBattleSimEvent( roundPack, field_Before );
@@ -4156,14 +4155,20 @@ public class BattleAI_CandidateSelectors
         // CustomLogSession defensiveSwitchLog = new();
 
         int bestScore = int.MinValue;
+
         Pokemon bestSwitch = null;
         float bestHPRatio = 0f;
+
         IBattleAIUnit threat;
         MoveThreatResult incomingMove;
-        PotentialToKOResult bestSwitch_OffensePTKOR = new() { PTKO = PotentialToKO.TwoHKO };
-        PotentialToKOResult bestSwitch_DefensePTKOR = new() { PTKO = PotentialToKO.TwoHKO };
+
+        PotentialToKO bestSwitch_OffensePTKO = default;
+        PotentialToKO bestSwitch_DefensePTKO = default;
+
         TurnOutcomeProjection bestCandidateTOP = new();
+
         float threatsScariestMoveModifier = 1f;
+
         bool islegit = true;
         bool isFaster = false;
 
@@ -4192,7 +4197,7 @@ public class BattleAI_CandidateSelectors
 
         // defensiveSwitchLog.Add( $"===[Defensive Switch Candidate] Ally Units Count: {allyUnits.Count}, Bench Count: {bench.Count}]===" );
 
-        threat = job.Active ? _ai.GetPokemonAs_IBattleAIUnit( job.Target ) : _ai.GetThreat_ImmediateDamage( opponentActiveUnits, returnPokemon ).Unit;
+        threat = job.Exists ? _ai.GetPokemonAs_IBattleAIUnit( job.Target ) : _ai.GetThreat_ImmediateDamage( opponentActiveUnits, returnPokemon ).Unit;
         incomingMove = _ai.CandidateSelect.GetMove_BestAttack( threat, returnPokemon, default, false, "GetSwitch_Defensive(), incoming move" );
         // defensiveSwitchLog.Add( $"===[Defensive Switch Candidate] Ally Active Unit[0]: {allyActiveUnits[0].Name}, Opponent Active Unit[0]: {opponentActiveUnits[0].Name}]===" );
         // defensiveSwitchLog.Add( $"===[Defensive Switch Candidate] Threat: {threat.Pokemon.NickName}, incoming move: {incomingMove.Move.MoveSO.Name}]===" );
@@ -4212,7 +4217,7 @@ public class BattleAI_CandidateSelectors
                 if( !returnAll && _ai.BattleSystem.IsPokemonSelectedToShift( candidate.Pokemon ) )
                     continue;
 
-                if( job.Active && job.ActionType == ActionType.DefensiveSwitch && job.SwitchCandidate != null && candidate.Pokemon != job.SwitchCandidate )
+                if( job.Exists && job.ActionType == ActionType.DefensiveSwitch && job.SwitchCandidate != null && candidate.Pokemon != job.SwitchCandidate )
                 {
                     if( !_ai.BattleSystem.IsPokemonSelectedToShift( job.SwitchCandidate ) )
                         continue;
@@ -4235,33 +4240,30 @@ public class BattleAI_CandidateSelectors
 
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidate.Name}] HPR after Hazards is: {candidateHPRafterHazards}" );
 
-                //--Rebuild incoming move's MTR.
+                //--Rebuild incoming move's MTR against switch candidate
                 float effectiveness = TypeChart.GetTotalMoveEffectiveness( candidate.Type, incomingMove.Move );
                 MoveThreatResult incomingMTR_vsCandidate = new()
                 {
                     Modifier = effectiveness * _ai.UnitSim.Get_MoveModifier( candidate, threat, incomingMove.Move ),
                     Move = incomingMove.Move,
                     TargetCount = 1,
+                    Targets = new(){ candidate },
+                    CurrentActor = threat,
                 };
 
-                //--Offensive PTKO Result. This is the candidate's potential to KO the current opponent.
-                var threatHPR = threat.BeginningHPR; //_ai.Get_HPRatio( threat );
-                var candidateMTR = _ai.CandidateSelect.GetMove_BestAttack( candidate, threat, default, false, "Get Switch Defensive (our move)" );
-                var candidateEDR = _proj.Get_EstimatedDamageResult( candidate, threat, candidateMTR );
-
-                //--Defensive PTKO Result. This is the opponent's potential to KO this candidate.
+                var threatHPR = threat.BeginningHPR;
                 var threatsEDR = _proj.Get_EstimatedDamageResult( threat, candidate, incomingMTR_vsCandidate );
 
-                PotentialToKOResult candidatePTKOR = _proj.Get_PotentialToKOResult( candidateEDR, candidateMTR, threat );
-                PotentialToKOResult threatPTKOR = _proj.Get_PotentialToKOResult( threatsEDR, incomingMTR_vsCandidate, candidate );
+                PotentialToKOResult threatPTKOR     = _proj.Get_PotentialToKOResult( threatsEDR, incomingMTR_vsCandidate, candidate );
+                PotentialToKO threatsPTKO_Candidate = threatPTKOR.PTKO;
 
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidate.Name}] Our PTKO them: {candidatePTKOR.PTKO}. Their PTKO us: {threatPTKOR.PTKO}" );
-
+                //--the wrong sim module is being put in somehow...
                 //--Build Simulation Units & Field
                 var fieldSim = _ai.UnitSim.BuildSimField();
 
                 var returnPokemonSim = _unitSim.BuildSimUnit( returnPokemon, returnPokemon.BeginningHPR, new(){ Targets = new() }, fieldSim );
-                var candidateSim = _ai.UnitSim.BuildSimUnit( candidate, candidateHPRafterHazards, candidateMTR, fieldSim );
+                var candidateSim = _ai.UnitSim.BuildSimUnit( candidate, candidateHPRafterHazards, new(), fieldSim );
                 var threatSim = _ai.UnitSim.BuildSimUnit( threat, threatHPR, incomingMTR_vsCandidate, fieldSim );
 
                 var ally = _ai.GetActiveAllyAs_Adapter( candidateSim.Pokemon );
@@ -4287,8 +4289,8 @@ public class BattleAI_CandidateSelectors
                 //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
                 // }
 
-                List<SimulatedUnit> attackerTargets     = new(); //--A switching unit has no targets
-                List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( candidateSim, threatSim, threatAllySimUnit, allySimUnit, incomingMove );
+                List<SimulatedUnit> attackerTargets     = new(){ threatSim }; //--A switching unit has no targets --this is now untrue as of 09/22/26, all opponents are targets of a switch for on entry ability effects
+                List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( candidateSim, threatSim, threatAllySimUnit, allySimUnit, incomingMTR_vsCandidate );
                 List<SimulatedUnit> allyTargets         = allySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, allyMTR ) : new();
                 List<SimulatedUnit> opponentAllyTargets = threatAllySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, threatAllyMTR ) : new();
 
@@ -4296,11 +4298,20 @@ public class BattleAI_CandidateSelectors
                 SimulationPackage threatPack            = _battleSim.BuildSimPackage( threatSim, null, opponentTargets, SimModuleType.Attack );
 
                 SimulationPackage attackerAllyPack      = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, null, allyTargets, SimModuleType.Attack ) : default;
-                SimulationPackage threatAllyPack      = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : default;
+                SimulationPackage threatAllyPack        = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : default;
 
                 var roundPack = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack, threatPack, threatAllyPack );
                 var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
-                var switchTOP = _battleSim.RunSimulation( bse );
+                var switchTOP = _battleSim.RunSimulation( bse, true, "GetSwitch_Defensive()" );
+
+                var candidateMTR = GetMove_BestAttack( candidate, threat, default, false, "Get Switch Defensive (our move)", fieldSim: switchTOP.Field );
+                var candidateEDR = _proj.Get_EstimatedDamageResult( candidate, threat, candidateMTR, switchTOP.Field );
+                PotentialToKOResult candidatePTKOR  = _proj.Get_PotentialToKOResult( candidateEDR, candidateMTR, threat );
+
+                threatsPTKO_Candidate = switchTOP.OpponentPTKO;
+                PotentialToKO candidatePTKO = candidatePTKOR.PTKO;
+
+                //--simulation just isn't executing sim modules at all! needs fixing asap.... likely has to do with there being 0 targets attached to the MTR!
 
                 // defensiveSwitchLog.Add( $"==[Defensive Switch Candidate][{candidate.Name}] Logging TOP]===" );
                 // defensiveSwitchLog.Add( $"{switchTOP.SimulationLog}" );
@@ -4381,7 +4392,7 @@ public class BattleAI_CandidateSelectors
 
                 //--Legitimacy Checks
                 bool isStillDying = switchTOP.Attacker_DiesBeforeActing || switchTOP.Attacker_EndOfTurnHP <= 0f;;
-                bool improvesKOClass = threatPTKOR.PTKO < threatPTKOR_onCurrentMon.PTKO;
+                bool improvesKOClass = threatsPTKO_Candidate < threatPTKOR_onCurrentMon.PTKO;
                 bool legitSwitch = true;
                 // defensiveSwitchLog.Add( $"[Defensive Switch Candidate][{candidate.Name}] KO Class Improved: {improvesKOClass}, The Switch will still die: {isStillDying}, IsLegit Switch: {islegit}" );
                 
@@ -4429,8 +4440,11 @@ public class BattleAI_CandidateSelectors
                         Score = score,
                         Pokemon = candidate.Pokemon,
                         HPRatio = candidateHPRafterHazards,
-                        SwitchOffensePTKOR = candidatePTKOR,
-                        SwitchDefensePTKOR = threatPTKOR,
+
+                        OriginalPTKO = threatPTKOR_onCurrentMon.PTKO,
+                        SwitchOffensePTKO = candidatePTKO,
+                        SwitchDefensePTKO = threatsPTKO_Candidate,
+
                         IsLegitimate = islegit,
                         Top = switchTOP,
                         CurrentActor = returnPokemon,
@@ -4448,8 +4462,8 @@ public class BattleAI_CandidateSelectors
                     bestScore = score;
                     bestSwitch = candidate.Pokemon;
                     bestHPRatio = candidateHPRafterHazards;
-                    bestSwitch_OffensePTKOR = candidatePTKOR;
-                    bestSwitch_DefensePTKOR = threatPTKOR;
+                    bestSwitch_OffensePTKO = candidatePTKO;
+                    bestSwitch_DefensePTKO = threatsPTKO_Candidate;
                     threatsScariestMoveModifier = incomingMTR_vsCandidate.Modifier;
                     bestCandidateTOP = switchTOP;
                     islegit = legitSwitch;
@@ -4478,8 +4492,11 @@ public class BattleAI_CandidateSelectors
             Score = bestScore,
             Pokemon = bestSwitch,
             HPRatio = bestHPRatio,
-            SwitchOffensePTKOR = bestSwitch_OffensePTKOR,
-            SwitchDefensePTKOR = bestSwitch_DefensePTKOR,
+
+            OriginalPTKO = threatPTKOR_onCurrentMon.PTKO,
+            SwitchOffensePTKO = bestSwitch_OffensePTKO,
+            SwitchDefensePTKO = bestSwitch_DefensePTKO,
+
             IsLegitimate = islegit,
             Top = bestCandidateTOP,
 
@@ -4512,9 +4529,10 @@ public class BattleAI_CandidateSelectors
         Pokemon bestSwitch = null;
         float bestHPRatio = 0f;
         MoveThreatResult mostThreateningMove = new();
+        MoveThreatResult incomingMTR;
         TurnOutcomeProjection bestTop = new();
-        PotentialToKOResult bestSwitch_OffensePTKOR = new() { PTKO = PotentialToKO.TwoHKO };
-        PotentialToKOResult bestSwitch_DefensePTKOR = new() { PTKO = PotentialToKO.TwoHKO };
+        PotentialToKO bestSwitch_OffensePTKO = default;
+        PotentialToKO bestSwitch_DefensePTKO = default;
         bool isFaster = false;
 
         List<IBattleAIUnit> bench = new();
@@ -4531,7 +4549,12 @@ public class BattleAI_CandidateSelectors
         allyUnits = _ai.GetTeamAs_IBattleAIUnit( returnPokemon.Pokemon );
         allyActiveUnits = _ai.GetActiveAllyUnits_AsBattleAIUnits( returnPokemon.Pokemon );
         opponentActiveUnits = _ai.GetActiveOpposingUnits_AsBattleAIUnits( returnPokemon.Pokemon );
-        var threat = job.Active ? _ai.GetPokemonAs_IBattleAIUnit( job.Target ) : _ai.GetThreat_ImmediateDamage( opponentActiveUnits, returnPokemon ).Unit;
+        
+        var threat = job.Exists ? _ai.GetPokemonAs_IBattleAIUnit( job.Target ) : _ai.GetThreat_ImmediateDamage( opponentActiveUnits, returnPokemon ).Unit;
+        incomingMTR = _ai.CandidateSelect.GetMove_BestAttack( threat, returnPokemon, default, false, "GetSwitch_Offensive(), incoming move" );
+
+        var threatsEDR_onCurrentMon = _proj.Get_EstimatedDamageResult( threat, returnPokemon, incomingMTR );
+        PotentialToKOResult threatPTKOR_onCurrentMon = _proj.Get_PotentialToKOResult( threatsEDR_onCurrentMon, incomingMTR, returnPokemon );
 
         if( allyUnits.Count > 6 )
             Debug.LogError( $"how this mf have more than 6 pokemon on his team? {returnPokemon.Name}" );
@@ -4550,7 +4573,7 @@ public class BattleAI_CandidateSelectors
             if( !returnAll && _ai.BattleSystem.IsPokemonSelectedToShift( candidate.Pokemon ) )
                 continue;
 
-            if( job.Active && job.ActionType == ActionType.OffensiveSwitch && job.SwitchCandidate != null && candidate.Pokemon != job.SwitchCandidate )
+            if( job.Exists && job.ActionType == ActionType.OffensiveSwitch && job.SwitchCandidate != null && candidate.Pokemon != job.SwitchCandidate )
             {
                 if( !_ai.BattleSystem.IsPokemonSelectedToShift( job.SwitchCandidate ) )
                     continue;
@@ -4578,28 +4601,34 @@ public class BattleAI_CandidateSelectors
                     continue;
             }
 
+            //--Rebuild incoming MTR against the switch candidate
+            MoveThreatResult incomingMTR_vsCandidate = new()
+            {
+                Modifier = TypeChart.GetTotalMoveEffectiveness( candidate.Type, incomingMTR.Move ) * _ai.UnitSim.Get_MoveModifier( candidate, threat, incomingMTR.Move ),
+                Move = incomingMTR.Move,
+                TargetCount = 1,
+                Targets = new(){ candidate },
+                CurrentActor = threat,
+            };
+
             //--Get PTKOs
             //--Offensive PTKO Result. This is the candidate's potential to KO the current opponent.
             var threatHPR                       = threat.BeginningHPR; //_ai.Get_HPRatio( threat.Unit );
-            var candidateMove                   = _ai.CandidateSelect.GetMove_BestAttack( candidate, threat, default, false, "Get Switch Offensive (candidate move vs current threat)" );
-            var candidateMoveModifier           = candidateMove.Modifier;
-            var candidateWSR                    = _proj.Get_EstimatedDamageResult( candidate, threat, candidateMove );
-            PotentialToKOResult offensePTKOR    = _proj.Get_PotentialToKOResult( candidateWSR, candidateMove, threat );
 
             //--Defensive PTKO Result. This is the opponent's potential to KO this candidate.
-            var threatMTR                     = _ai.CandidateSelect.GetMove_BestAttack( threat, candidate, default, false, "Get Switch Offensive (current threat vs candidate)" );
-            var threatsMoveModifier             = threatMTR.Modifier;
-            var threatsWSR                      = _proj.Get_EstimatedDamageResult( threat, candidate, threatMTR );
-            PotentialToKOResult defensePTKOR    = _proj.Get_PotentialToKOResult( threatsWSR, threatMTR, candidate );
+            // var threatMTR                       = _ai.CandidateSelect.GetMove_BestAttack( threat, candidate, default, false, "Get Switch Offensive (current threat vs candidate)" );
+            var threatsMoveModifier             = incomingMTR_vsCandidate.Modifier;
+            var threatsWSR                      = _proj.Get_EstimatedDamageResult( threat, candidate, incomingMTR_vsCandidate );
+            PotentialToKOResult defensePTKOR    = _proj.Get_PotentialToKOResult( threatsWSR, incomingMTR_vsCandidate, candidate );
 
             // Debug.Log( $"[AI Scoring][Offensive Switch Candidate][{pokemon.NickName}] PTKOs Obtained. {pokemon.NickName} PTKO: {offensePTKOR.PTKO}. {threat.Unit.Pokemon.NickName} PTKO: {defensePTKOR.PTKO}" );
 
             //--Build Simulation Units & Field
             var fieldSim                        = _ai.UnitSim.BuildSimField();
-            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat, threatHPR, threatMTR, fieldSim );
+            var threatSim                       = _ai.UnitSim.BuildSimUnit( threat, threatHPR, incomingMTR_vsCandidate, fieldSim );
 
             var returnPokemonSim                = _unitSim.BuildSimUnit( returnPokemon, returnPokemon.BeginningHPR, new(){ Targets = new() }, fieldSim );
-            var candidateSim                    = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, candidateMove, fieldSim );
+            var candidateSim                    = _ai.UnitSim.BuildSimUnit( candidate, hpRatioAfterHazards, new(), fieldSim );
 
             var ally = _ai.GetActiveAllyAs_Adapter( candidateSim.Pokemon );
             var threatAlly = _ai.GetActiveAllyAs_Adapter( threatSim.Pokemon );
@@ -4624,8 +4653,8 @@ public class BattleAI_CandidateSelectors
             //     targetAllySimUnit = _ai.UnitSim.BuildSimUnit( targetAlly, targetAlly.BeginningHPR, targetAllyMTR, fieldSim );
             // }
 
-            List<SimulatedUnit> attackerTargets     = new(); //--A switching unit has no targets
-            List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( candidateSim, threatSim, threatAllySimUnit, allySimUnit, threatMTR );
+            List<SimulatedUnit> attackerTargets     = new(){ threatSim }; //--A switching unit has no targets --this is untrue as of 9/22/26, switches have targets to apply on entry effects such as intimidate
+            List<SimulatedUnit> opponentTargets     = _battleSim.GetTOPTargets( candidateSim, threatSim, threatAllySimUnit, allySimUnit, incomingMTR_vsCandidate );
             List<SimulatedUnit> allyTargets         = allySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, allyMTR ) : new();
             List<SimulatedUnit> opponentAllyTargets = threatAllySimUnit != null ? _battleSim.GetTOPTargets( candidateSim, threatSim, allySimUnit, threatAllySimUnit, threatAllyMTR ) : new();
 
@@ -4633,15 +4662,23 @@ public class BattleAI_CandidateSelectors
             SimulationPackage threatPack            = _battleSim.BuildSimPackage( threatSim, null, opponentTargets, SimModuleType.Attack );
 
             SimulationPackage attackerAllyPack      = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, null, allyTargets, SimModuleType.Attack ) : default;
-            SimulationPackage threatAllyPack      = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : default;
+            SimulationPackage threatAllyPack        = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : default;
 
             var roundPack = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack, threatPack, threatAllyPack );
             var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
             var top = _battleSim.RunSimulation( bse );
 
+            PotentialToKO threatsPTKO_Candidate = top.OpponentPTKO;
+
+            var candidateMTR                    = _ai.CandidateSelect.GetMove_BestAttack( candidate, threat, default, false, "Get Switch Offensive (candidate move vs current threat)", fieldSim: top.Field );
+            var candidateMoveModifier           = candidateMTR.Modifier;
+            var candidateWSR                    = _proj.Get_EstimatedDamageResult( candidate, threat, candidateMTR );
+            PotentialToKOResult offensePTKOR    = _proj.Get_PotentialToKOResult( candidateWSR, candidateMTR, threat );
+
             //--Speed check.
             bool movesFirst = false;
 
+            candidateSim.MTR = candidateMTR;
             var attMovePrio = candidateSim.MTR.Move.Priority;
             var oppMovePrio = threatSim.MTR.Move.Priority;
 
@@ -4735,8 +4772,11 @@ public class BattleAI_CandidateSelectors
                     Score = score,
                     Pokemon = candidate.Pokemon,
                     HPRatio = hpRatioAfterHazards,
-                    SwitchOffensePTKOR = offensePTKOR,
-                    SwitchDefensePTKOR = defensePTKOR,
+
+                    OriginalPTKO = threatPTKOR_onCurrentMon.PTKO,
+                    SwitchOffensePTKO = offensePTKOR.PTKO,
+                    SwitchDefensePTKO = threatsPTKO_Candidate,
+
                     Top = top,
                     CurrentActor = returnPokemon,
                     Candidate = candidate,
@@ -4754,9 +4794,9 @@ public class BattleAI_CandidateSelectors
                 bestSwitch = candidate.Pokemon;
                 bestHPRatio = hpRatioAfterHazards;
                 bestTop = top;
-                bestSwitch_OffensePTKOR = offensePTKOR;
-                bestSwitch_DefensePTKOR = defensePTKOR;
-                mostThreateningMove = candidateMove;
+                bestSwitch_OffensePTKO = offensePTKOR.PTKO;
+                bestSwitch_DefensePTKO = threatsPTKO_Candidate;
+                mostThreateningMove = candidateMTR;
                 isFaster = movesFirst;
             }
         }
@@ -4771,8 +4811,11 @@ public class BattleAI_CandidateSelectors
             Score = bestScore,
             Pokemon = bestSwitch,
             HPRatio = bestHPRatio,
-            SwitchOffensePTKOR = bestSwitch_OffensePTKOR,
-            SwitchDefensePTKOR = bestSwitch_DefensePTKOR,
+
+            OriginalPTKO = threatPTKOR_onCurrentMon.PTKO,
+            SwitchOffensePTKO = bestSwitch_OffensePTKO,
+            SwitchDefensePTKO = bestSwitch_DefensePTKO,
+            
             MovesFirst = isFaster,
             Top = bestTop,
             CurrentActor = returnPokemon,
@@ -4797,7 +4840,7 @@ public class BattleAI_CandidateSelectors
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public SwitchCandidateResult GetSwitch_Revenge( List<IBattleAIUnit> opponents, bool requestForcedSwitch = false )
+    public SwitchCandidateResult GetSwitch_Revenge( List<IBattleAIUnit> opponents, bool requestForcedSwitch = false, List<IBattleAIUnit> bench = null )
     {
         int bestScore = int.MinValue;
         Pokemon bestSwitch = null;
@@ -4805,12 +4848,12 @@ public class BattleAI_CandidateSelectors
         ThreatResult biggestThreat = _ai.GetThreat_ImmediateDamage( opponents, _ai.CurrentUnitAdapter ); //--The biggest threat will start as the biggest threat to the current pokemon thinking of switching. It will get overwritten if there's a viable switch candidate. this prevents it from being null in the case there are no more viable switch ins.
         MoveThreatResult mostThreateningMove = new();
         TurnOutcomeProjection bestTop = new();
-        PotentialToKOResult bestSwitch_OffensePTKOR = new() { PTKO = PotentialToKO.TwoHKO };
-        PotentialToKOResult bestSwitch_DefensePTKOR = new() { PTKO = PotentialToKO.TwoHKO };
+        PotentialToKO bestSwitch_OffensePTKO = default;
+        PotentialToKO bestSwitch_DefensePTKO = default;
         bool islegit = true;
         bool isFaster = false;
 
-        List<IBattleAIUnit> bench = new();
+        // bench ??= new();
 
         List<IBattleAIUnit> allyTeam = new();
         // List<BattleUnit> allyActiveBattleUnits = new();
@@ -4824,7 +4867,7 @@ public class BattleAI_CandidateSelectors
         // if( allyTeam.Count > 6 )
             // Debug.LogError( $"how this mf have more than 6 pokemon on his team?" );
 
-        bench = allyTeam.Where( p => !allyActiveUnits.Any( u => u.Pokemon == p.Pokemon ) && p.Pokemon.CurrentHP > 0 ).ToList();
+        bench ??= allyTeam.Where( p => !allyActiveUnits.Any( u => u.Pokemon == p.Pokemon ) && p.Pokemon.CurrentHP > 0 ).ToList();
         int remaining = allyTeam.Where( p => p.Pokemon.CurrentHP > 0 ).ToList().Count;
 
         if( requestForcedSwitch )
@@ -4925,12 +4968,14 @@ public class BattleAI_CandidateSelectors
             SimulationPackage candidatePack         = _battleSim.BuildSimPackage( candidateSim, candidateSim, attackerTargets, SimModuleType.Switch );
             SimulationPackage threatPack            = _battleSim.BuildSimPackage( threatSim, null, opponentTargets, SimModuleType.Attack );
 
-            SimulationPackage attackerAllyPack      = allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, null, allyTargets, SimModuleType.Attack ) : default;
-            SimulationPackage threatAllyPack      = threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : default;
+            SimulationPackage attackerAllyPack      = /*allySimUnit != null ? _battleSim.BuildSimPackage( allySimUnit, null, allyTargets, SimModuleType.Attack ) : */default;
+            SimulationPackage threatAllyPack        = /*threatAllySimUnit != null ? _battleSim.BuildSimPackage( threatAllySimUnit, null, opponentAllyTargets, SimModuleType.Attack ) : */default;
 
             var roundPack = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack, threatPack, threatAllyPack );
             var bse = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
             var top = _battleSim.RunSimulation( bse );
+
+            PotentialToKO targetPTKO_Candidate = top.OpponentPTKO;
 
             //--Speed check.
             bool movesFirst = top.AttackerMovedFirst;
@@ -5096,8 +5141,8 @@ public class BattleAI_CandidateSelectors
                         SimulationPackage candidatePack_FollowUp    = _battleSim.BuildSimPackage( candidateSim_FollowUp, candidateSim_FollowUp, attackerTargets_FollowUp, SimModuleType.Attack );
                         SimulationPackage threatPack_FollowUp       = _battleSim.BuildSimPackage( threatSim_FollowUp, null, opponentTargets_FollowUp, SimModuleType.Attack );
 
-                        SimulationPackage attackerAllyPack_FollowUp  = allySimUnit_FollowUp != null ? _battleSim.BuildSimPackage( allySimUnit_FollowUp, null, allyTargets_FollowUp, SimModuleType.Attack ) : default;
-                        SimulationPackage targetAllyPack_FollowUp    = targetAllySimUnit_FollowUp != null ? _battleSim.BuildSimPackage( targetAllySimUnit_FollowUp, null, opponentAllyTargets_FollowUp, SimModuleType.Attack ) : default;
+                        SimulationPackage attackerAllyPack_FollowUp  = /*allySimUnit_FollowUp != null ? _battleSim.BuildSimPackage( allySimUnit_FollowUp, null, allyTargets_FollowUp, SimModuleType.Attack ) : */default;
+                        SimulationPackage targetAllyPack_FollowUp    = /*targetAllySimUnit_FollowUp != null ? _battleSim.BuildSimPackage( targetAllySimUnit_FollowUp, null, opponentAllyTargets_FollowUp, SimModuleType.Attack ) : */default;
 
                         var roundPack_FollowUp = _battleSim.BuildRoundPackage( candidatePack, attackerAllyPack_FollowUp, threatPack, targetAllyPack_FollowUp );
                         var bse_FollowUp = _battleSim.BuildBattleSimEvent( roundPack, fieldSim );
@@ -5145,8 +5190,8 @@ public class BattleAI_CandidateSelectors
                 bestSwitch = candidate.Pokemon;
                 bestHPRatio = hpRatioAfterHazards;
                 bestTop = top;
-                bestSwitch_OffensePTKOR = offensePTKOR;
-                bestSwitch_DefensePTKOR = defensePTKOR;
+                bestSwitch_OffensePTKO = offensePTKOR.PTKO;
+                bestSwitch_DefensePTKO = targetPTKO_Candidate;
                 biggestThreat = threat;
                 mostThreateningMove = candidateMove;
                 isFaster = movesFirst;
@@ -5177,8 +5222,8 @@ public class BattleAI_CandidateSelectors
             Score = bestScore,
             Pokemon = bestSwitch,
             HPRatio = bestHPRatio,
-            SwitchOffensePTKOR = bestSwitch_OffensePTKOR,
-            SwitchDefensePTKOR = bestSwitch_DefensePTKOR,
+            SwitchOffensePTKO = bestSwitch_OffensePTKO,
+            SwitchDefensePTKO = bestSwitch_DefensePTKO,
             IsLegitimate = islegit,
             MovesFirst = isFaster,
             Top = bestTop,

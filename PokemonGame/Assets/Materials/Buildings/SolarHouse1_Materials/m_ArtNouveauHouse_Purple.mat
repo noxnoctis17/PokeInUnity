@@ -18,7 +18,8 @@ Material:
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
-  disabledShaderPasses: []
+  disabledShaderPasses:
+  - MOTIONVECTORS
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
@@ -29,6 +30,7 @@ Material:
     - _BrickColor1: {r: 0.47005484, g: 0.35359558, b: 0.5471698, a: 1}
     - _BrickColor2: {r: 0.3490566, g: 0.08067818, b: 0.2568801, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!114 &627127411234684900
 MonoBehaviour:
   m_ObjectHideFlags: 11
@@ -41,4 +43,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  version: 7
+  version: 9

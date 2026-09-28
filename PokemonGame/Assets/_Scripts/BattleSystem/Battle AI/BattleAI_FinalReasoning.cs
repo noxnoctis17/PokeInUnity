@@ -107,7 +107,7 @@ public class BattleAI_FinalReasoning
             return context;
         }
 
-        if( !setup.Top2.AttackerCanAct )
+        if( !setup.Top2.Attacker_ExpectedToAct )
         {
             _ai.CurrentLog.Add( "Setup line cannot reach next turn or we cannot act next turn. Aborting comparison." );
             return context;
@@ -214,7 +214,7 @@ public class BattleAI_FinalReasoning
             _ai.CurrentLog.Add( "Setup preserves equivalent HP to attack. Advantage." );
         }
 
-        if( !setup.Top2.AttackerCanAct )
+        if( !setup.Top2.Attacker_ExpectedToAct )
         {
             setupRisks++;
             _ai.CurrentLog.Add( $"Setting up this turn causes us to be unable to act next turn. Risk." );

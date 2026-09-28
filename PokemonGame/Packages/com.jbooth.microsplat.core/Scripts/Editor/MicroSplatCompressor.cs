@@ -77,7 +77,7 @@ namespace JBooth.MicroSplat
             {
                MicroSplatCompressor comp = new MicroSplatCompressor ();
 #if UNITY_6000_0_OR_NEWER
-               MicroSplatObject[] objs = GameObject.FindObjectsByType<MicroSplatObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+               MicroSplatObject[] objs = GameObject.FindObjectsOfType<MicroSplatObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 #else
                MicroSplatObject [] objs = GameObject.FindObjectsOfType<MicroSplatObject> ();
 #endif
@@ -90,7 +90,7 @@ namespace JBooth.MicroSplat
             {
                MicroSplatCompressor comp = new MicroSplatCompressor ();
 #if UNITY_6000_0_OR_NEWER
-               MicroSplatObject[] objs = GameObject.FindObjectsByType<MicroSplatObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+               MicroSplatObject[] objs = GameObject.FindObjectsOfType<MicroSplatObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 #else
                MicroSplatObject [] objs = GameObject.FindObjectsOfType<MicroSplatObject> ();
 #endif

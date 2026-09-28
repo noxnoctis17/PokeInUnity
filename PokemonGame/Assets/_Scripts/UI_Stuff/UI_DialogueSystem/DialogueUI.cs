@@ -213,7 +213,7 @@ public class DialogueUI : MonoBehaviour
     
     public void CloseDialogueBox()
     {
-        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.DialogueState )
+        if( GameStateController.Instance.CurrentStateEnum == GameStateEnum.DialogueState )
             GameStateController.Instance.GameStateMachine.Pop();
 
         StopAllCoroutines();

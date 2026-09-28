@@ -23,9 +23,9 @@ public class BattleAI_ThreatIntent
 
         var theirEE = _ai.Projection.EvaluateExchange( threat, us );
         var theirBC = _ai.Projection.GetBoardContext( threat, us, theirEE );
-        var ourTP = _ai.GetThreatProfile( theirEE, theirBC, us, true ); //--this is our profile as a threat to them, from their perspective
+        var ourTP = _ai.GetThreatProfile( theirEE, theirBC, us, true, false ); //--this is our profile as a threat to them, from their perspective
         var theirGP = _ai.Blackboard.GetOpponentGamePlan( _ai.Blackboard.GamePlan );
-        var theirCP = _ai.Projection.EvaluateCurrentPlan( theirEE, theirBC, ourTP, theirGP, _ai.Blackboard.TheirCurrentPlan, true );
+        var theirCP = _ai.Projection.EvaluateCurrentPlan( theirEE, theirBC, ourTP, theirGP, _ai.Blackboard.TheirCurrentPlan, true, false );
 
         _ai.Blackboard.SetEnemyCurrentPlan( theirCP );
 
@@ -3394,7 +3394,7 @@ public class BattleAI_ThreatIntent
                 _tirLog.Add( $"Our switch probability ({ee.OpponentSwitchProbability}) >= 0.75f, so we're likely to switch. Offensive Status Evidence: {evidence}" );
             }
 
-            if( !offStatusTOP.OpponentCanAct )
+            if( !offStatusTOP.Opponent_ExpectedToAct )
             {
                 evidence += 1;
                 _tirLog.Add( $"We immediately can't act this turn if they land their intended status move (such as a faster sleep powder). Offensive Status Evidence: {evidence}" );

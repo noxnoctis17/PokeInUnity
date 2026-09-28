@@ -107,7 +107,7 @@ public class WildPokemon : MonoBehaviour
 
         //--Check to see if a battle is happening and this mon spawned during one somehow, missing the
         //--Event call and not turning its collider off, causing it to start a new battle with the player
-        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.BattleState ){
+        if( GameStateController.Instance.CurrentStateEnum == GameStateEnum.BattleState ){
             DisableCanStartBattle();
         }
 

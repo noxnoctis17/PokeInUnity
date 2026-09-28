@@ -6,6 +6,7 @@ using NoxNoctisDev.StateMachine;
 using Unity.VisualScripting;
 using UnityEngine;
 
+[RequireComponent(typeof(SpriteRenderer))]
 public class PokemonAnimator : MonoBehaviour
 {
     //==[STATE MACHINE]==
@@ -82,10 +83,9 @@ public class PokemonAnimator : MonoBehaviour
         _camera = PlayerReferences.MainCameraTransform;
     }
 
-    public void Initialize( PokemonSO pokeSO ){
+    public void Initialize( PokemonSO pokeSO )
+    {
         _materialPB = new();
-        _spriteRenderer.GetPropertyBlock( _materialPB );
-
         _originalPos = _pokemonTransform.position;
 
         PokeSO = pokeSO;
@@ -102,16 +102,19 @@ public class PokemonAnimator : MonoBehaviour
         _initialized = true;
     }
 
-    public void Clear(){
+    public void Clear()
+    {
         ResetAnimations();
         _spriteRenderer.sprite = null;
         _spriteRenderer = null;
         _spriteAnimator = null;
         _camera = null;
         _initialized = false;
+        _materialPB = null;
     }
 
-    private void Update(){
+    private void Update()
+    {
         if( _initialized )
         {
             StateMachine.Update();
@@ -122,11 +125,13 @@ public class PokemonAnimator : MonoBehaviour
         }
     }
 
-    private void Billboard(){
+    private void Billboard()
+    {
         transform.forward = _camera.forward;
     }
 
-    private void SetAllSpriteSheets( PokemonSO pokeSO ){
+    private void SetAllSpriteSheets( PokemonSO pokeSO )
+    {
         if( pokeSO != null ){
             //--Idle Sprites
             var idleState = _idleState as IPokemonAnimator_SpriteSetter;
@@ -245,15 +250,21 @@ public class PokemonAnimator : MonoBehaviour
         yield return sequence.WaitForCompletion();
     }
 
-    public IEnumerator PlayStatChangeAnimation( Texture2D texture, int direction )
+    public IEnumerator PlayStatChangeAnimation( int direction )
     {
         yield return null;
         float speed = 0;
         float duration = 1f;
         float timer = 0f;
 
+
         _spriteRenderer.GetPropertyBlock( _materialPB );
-        _materialPB.SetTexture( "_StatChangeTexture", texture );
+        
+        if( direction > 0 )
+            _materialPB.SetInt( "_UseStatUp", 1 );
+        else
+            _materialPB.SetInt( "_UseStatUp", 0 );
+
         _materialPB.SetFloat( "_StatChangeVisibility", 1f );
         _materialPB.SetFloat( "_ScrollSpeed", speed );
         _spriteRenderer.SetPropertyBlock( _materialPB );
@@ -272,7 +283,6 @@ public class PokemonAnimator : MonoBehaviour
             yield return null;
         }
 
-        _spriteRenderer.GetPropertyBlock( _materialPB );
         _materialPB.SetFloat( "_StatChangeVisibility", 0f );
         _materialPB.SetFloat( "_ScrollSpeed", 0f );
         _spriteRenderer.SetPropertyBlock( _materialPB );

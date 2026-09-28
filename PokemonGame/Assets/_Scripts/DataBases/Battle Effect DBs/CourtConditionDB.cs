@@ -391,11 +391,12 @@ public class CourtConditionDB
                 CourtConditionID.SafeGuard, new( 5, 0 )
                 {
                     ConditionType = ConditionType.AllySide_Buff,
-                    StartMessage = "safeguarded itself and its allies from severe statuses and confusion!",
+                    StartMessage = "The user creates a protective field that prevents severe status conditions, confusion, and flinching for five turns.",
 
                     //--Effects will be handled possibly in multiple locations. i will try to come back here and list them all.
-                    //--SetSevereStatus()
-                    //--SetVolatileStatus()
+                    //--Pokemon.SetSevereStatus()
+                    //--Pokemon.SetVolatileStatus()
+                    //--Pokemon.SetTransientStatus()
                 }
             },
             {

@@ -28,8 +28,8 @@ public class BattleAI_Projection
 
         var ee = action.ExchangePack;
 
-        bool iAmKO = top1.Attacker_EndOfTurnHP <= 0;
-        bool oppIsKO = top1.Opponent_EndOfTurnHP <= 0 ;
+        bool iAmKO = top1.Attacker.EndHPR <= 0;
+        bool oppIsKO = top1.Opponent.EndHPR <= 0 ;
 
         var futureExchangeEval = _ai.Projection.EvaluateExchange( top2.Attacker, top2.Opponent );
         var futureTempoState = _ai.Projection.GetTempoState( futureExchangeEval );
@@ -576,7 +576,7 @@ public class BattleAI_Projection
                     penalties++;
 
                 maxScore++;
-                if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                if( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct )
                     progress++;
 
                 maxScore++;
@@ -1422,8 +1422,8 @@ public class BattleAI_Projection
 
         //--Is Forced Trade Detection
         bool lowHP = eval.AttackerHPR <= 0.3f;
-        bool likelyDying = eval.OpponentPTKO >= PotentialToKO.Dangerous;
-        bool isForced = ( likelyDying && !safePivotExists ) || ( lowHP && eval.OpponentPTKO >= PotentialToKO.Risky );
+        bool likelyDying = eval.OpponentPTKO >= PotentialToKO.Dangerous && ( eval.OpponentMovesFirst || ( eval.AttackerMovesFirst && eval.AttackerPTKO <= PotentialToKO.Risky ) );
+        bool isForced = ( likelyDying && !safePivotExists ) || ( lowHP && ( eval.OpponentMovesFirst && eval.OpponentPTKO >= PotentialToKO.Risky || ( eval.AttackerMovesFirst && eval.AttackerPTKO <= PotentialToKO.Safe ) ) );
 
         //--Material Information
         var myTeamAlive = _ai.GetRemainingPartyAs_IBattleAIUnits( attacker.Pokemon );
@@ -1588,6 +1588,11 @@ public class BattleAI_Projection
     {
         const float MID_ROLL = 0.925f;
         const float LOW_ROLL = 0.85f;
+        const float SCREENS_MODIFIER = 0.66796875f;
+        const float AURORA_VEIL_MODIFIER = 0.6669921875f;
+
+        field ??= _ai.Blackboard.CurrentFieldSnapshot;
+
         float attack = 1f;
         float defense = 1f;
         Stat attackingStat = Stat.Attack;
@@ -1599,8 +1604,14 @@ public class BattleAI_Projection
         float brnOrfbt = 1f;
         float targets = mtr.TargetCount == 1 ? 1f : 0.75f;
         float expectedHits = 1f;
+        float screens = 1f;
+        float auroraVeil = 1f;
 
-        if( mtr != null && mtr.Move != null )
+        Dictionary<CourtConditionID, int> targetCourt = new();
+        if( target != null )
+            targetCourt = target.CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions;
+
+        if( mtr?.Move != null )
         {
             key = mtr.Move.MoveSO.Name;
             moveSO = mtr.Move.MoveSO;
@@ -1692,6 +1703,24 @@ public class BattleAI_Projection
             }
         }
 
+        if( defendingStat == Stat.Defense )
+        {
+            if( targetCourt.ContainsKey( CourtConditionID.Reflect ) )
+                screens = SCREENS_MODIFIER;
+
+            if( targetCourt.ContainsKey( CourtConditionID.AuroraVeil ) )
+                auroraVeil = AURORA_VEIL_MODIFIER;
+        }
+
+        if( defendingStat == Stat.SpDefense )
+        {
+            if( targetCourt.ContainsKey( CourtConditionID.LightScreen ) )
+                screens = SCREENS_MODIFIER;
+
+            if( targetCourt.ContainsKey( CourtConditionID.AuroraVeil ) )
+                auroraVeil = AURORA_VEIL_MODIFIER;
+        }
+
         float targetMHP = target.HP;
         float levelFactor = ( 2f * attacker.Level / 5f + 2f );
         float damage = 0f;
@@ -1710,10 +1739,10 @@ public class BattleAI_Projection
         }
         else
         {
-            damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * targets * MID_ROLL;
+            damage = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * screens * auroraVeil * targets * MID_ROLL;
             damagePercentage = Mathf.Floor( ( damage / targetMHP ) * 1000f ) / 1000f;
             
-            lowRoll = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * targets * LOW_ROLL;
+            lowRoll = ( ( levelFactor * movePower * ( attack / defense ) / 50 ) + 2 ) * modifier * brnOrfbt * screens * auroraVeil * targets * LOW_ROLL;
             lowRollPercentage = Mathf.Floor( ( lowRoll / targetMHP ) * 1000f ) / 1000f;
         }
 
@@ -1721,6 +1750,7 @@ public class BattleAI_Projection
             damagePercentage = 0;
 
         mtr.EstimatedDamage = damagePercentage; //--store damage in MTR for sim use
+        mtr.Modifier = modifier;
 
         // Debug.Log( $"[AI Scoring][Estimated Damage Result] Calculation Results: Target {target.Name}'s Assumed Defending Stat: {defendingStat}, {defense}, Assumed Max HP: {targetMHP}. Level {attacker.Level} ({levelFactor}) Attacker {attacker.Name}'s Assumed Attacking stat {attackingStat}, {attack}. Move: {mtr.Move?.MoveSO.Name}, Power: {movePower}, Modifier: {modifier}, BRN/FBT: {brnOrfbt}. Final Damage Estimate: {damage}, Percentage of target's assumed Max HP: {damagePercentage}" );
         
@@ -1748,12 +1778,16 @@ public class BattleAI_Projection
             MovePower = movePower,
             Modifier = modifier,
             BrnOrFBT = brnOrfbt,
+            Screens = screens,
+            AuroraVeil = auroraVeil,
             Targets = targets,
             Hits = expectedHits,
 
             Attacker = attacker,
             Target = target,
         };
+
+        mtr.EDR = edr;
 
         return edr;
     }
@@ -1777,6 +1811,13 @@ public class BattleAI_Projection
         float RecalcStat( IBattleAIUnit unit, Stat stat, float statValue, bool isTarget )
         {
             var statStageChanges = isTarget ? targetStatStageChanges : attackerStatStageChanges;
+
+            if( !unit.StatStages.ContainsKey( stat ) )
+                Debug.LogError( $"{unit.Name}'s Stat Stages dictionary does not contain stat key {stat}!" );
+            
+            if( statStageChanges != null && !statStageChanges.ContainsKey( stat ) )
+                Debug.LogError( $"Stat Stage Changes dictionary that was passed does not contain stat key {stat}!" );
+
             int stage = statStageChanges != null ? unit.StatStages[stat] + statStageChanges[stat] : unit.StatStages[stat];
 
             var stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
@@ -2219,7 +2260,7 @@ public class BattleAI_Projection
         return DetermineUnitSpeedOrder( units );
     }
 
-    public CurrentPlan EvaluateCurrentPlan( ExchangeEvaluation ee, BoardContext bc, ThreatProfile tp, GamePlan gp, CurrentPlan prevPlan, bool threatBrain = false )
+    public CurrentPlan EvaluateCurrentPlan( ExchangeEvaluation ee, BoardContext bc, ThreatProfile tp, GamePlan gp, CurrentPlan prevPlan, bool threatBrain = false, bool log = true )
     {
         CurrentPlan nextPlan = new()
         {
@@ -2235,19 +2276,19 @@ public class BattleAI_Projection
 
         if( !threatBrain )
         {
-            _ai.CurrentLog.Add( $"" );
-            _ai.CurrentLog.Add( $"================================================================================" );
-            _ai.CurrentLog.Add( $"=====[Evaluating Current Plan. Previous Plan Exists: {!previousIsNull}. Current Confidence: {currentConfidence}. Current Plan Type: {currentPlan}]=====" );
-            _ai.CurrentLog.Add( $"================================================================================" );
-            _ai.CurrentLog.Add( $"" );
+            if( log ) _ai.CurrentLog.Add( $"" );
+            if( log ) _ai.CurrentLog.Add( $"================================================================================" );
+            if( log ) _ai.CurrentLog.Add( $"=====[Evaluating Current Plan. Previous Plan Exists: {!previousIsNull}. Current Confidence: {currentConfidence}. Current Plan Type: {currentPlan}]=====" );
+            if( log ) _ai.CurrentLog.Add( $"================================================================================" );
+            if( log ) _ai.CurrentLog.Add( $"" );
         }
         else
         {
-            _ai.CurrentLog.Add( $"" );
-            _ai.CurrentLog.Add( $"================================================================================" );
-            _ai.CurrentLog.Add( $"=====[Evaluating Threat's Current Plan. Previous Plan Exists: {!previousIsNull}. Current Confidence: {currentConfidence}. Current Plan Type: {currentPlan}]=====" );
-            _ai.CurrentLog.Add( $"================================================================================" );
-            _ai.CurrentLog.Add( $"" );
+            if( log ) _ai.CurrentLog.Add( $"" );
+            if( log ) _ai.CurrentLog.Add( $"================================================================================" );
+            if( log ) _ai.CurrentLog.Add( $"=====[Evaluating Threat's Current Plan. Previous Plan Exists: {!previousIsNull}. Current Confidence: {currentConfidence}. Current Plan Type: {currentPlan}]=====" );
+            if( log ) _ai.CurrentLog.Add( $"================================================================================" );
+            if( log ) _ai.CurrentLog.Add( $"" );
         }
 
         float stabilizeScore = 0;
@@ -2264,7 +2305,7 @@ public class BattleAI_Projection
         bool iAmStable = ee.AttackerSurvives && ( !ee.OpponentThreatensKO || ee.AttackerThreatensKO );
         bool oppIsStable = ee.OpponentSurvives && ( !ee.AttackerThreatensKO || ee.OpponentThreatensKO );
 
-        _ai.CurrentLog.Add( $"[Current Plan] Gathered some context. Material Delta: {materialDelta}. I am Stable: {iAmStable}, Opp is Stable : {oppIsStable}" );
+        if( log ) _ai.CurrentLog.Add( $"[Current Plan] Gathered some context. Material Delta: {materialDelta}. I am Stable: {iAmStable}, Opp is Stable : {oppIsStable}" );
 
         //----------------------------------------
         //--Stabilize
@@ -2276,7 +2317,7 @@ public class BattleAI_Projection
         stabilizeScore += tp.Urgency >= ThreatUrgency.High ? 2f : 0f;
         stabilizeScore += tp.ThreatensImmediateKO ? 1.5f : 0f;
         stabilizeScore += tp.ForcesSwitch ? 1.0f : 0f;
-        _ai.CurrentLog.Add( $"[Current Plan] Stabilize Score: {stabilizeScore}" );
+        if( log ) _ai.CurrentLog.Add( $"[Current Plan] Stabilize Score: {stabilizeScore}" );
 
         //----------------------------------------
         //--Prevent Sweep
@@ -2298,14 +2339,14 @@ public class BattleAI_Projection
                 var theirUnit = _ai.Blackboard.TheirActiveBattleAIUnits[i];
                 if( theirUnit.Pokemon == gp.TheirPrimaryWinCon )
                 {
-                    _ai.CurrentLog.Add( $"[Current Plan] (Prevent Sweep) Their Primary WinCon is on the field." );
+                    if( log ) _ai.CurrentLog.Add( $"[Current Plan] (Prevent Sweep) Their Primary WinCon is on the field." );
                     preventSweepScore += 1.5f;
                 }
             }
         }
 
         preventSweepScore += tp.Urgency >= ThreatUrgency.High ? 1.5f : 0f;
-        _ai.CurrentLog.Add( $"[Current Plan] Prevent Sweep Score: {preventSweepScore}" );
+        if( log ) _ai.CurrentLog.Add( $"[Current Plan] Prevent Sweep Score: {preventSweepScore}" );
 
         //----------------------------------------
         //--Enable Sweep
@@ -2336,7 +2377,7 @@ public class BattleAI_Projection
             if( unit.Pokemon == gp.OurPrimaryWinCon && winConIsOffensiveRole )
             {
                 score += 1.5f;
-                _ai.CurrentLog.Add( $"[Current Plan] (Enable Sweep) Evaluating our Primary WinCon's sweep potential." );
+                if( log ) _ai.CurrentLog.Add( $"[Current Plan] (Enable Sweep) Evaluating our Primary WinCon's sweep potential." );
             }
             // _ai.CurrentLog.Add( $"[Win Con] Checking for sweep potential for {unit.Name}. Threats: {threats}, Safe Matchups: {safeMatchups}. Score: {score}" );
 
@@ -2362,7 +2403,7 @@ public class BattleAI_Projection
         if( !iAmStable )
             enableSweepScore -= 1.5f;
 
-        _ai.CurrentLog.Add( $"[Current Plan] Enable Sweep Score: {enableSweepScore}" );
+        if( log ) _ai.CurrentLog.Add( $"[Current Plan] Enable Sweep Score: {enableSweepScore}" );
 
         //----------------------------------------
         //--Aggress them
@@ -2389,7 +2430,7 @@ public class BattleAI_Projection
             if( gp.TheirBlockers.Contains( opp.Pokemon ) )
             {
                 blocks++;
-                _ai.CurrentLog.Add( $"[Current Plan] (Aggress) Primary blocker still alive. Adding." );
+                if( log ) _ai.CurrentLog.Add( $"[Current Plan] (Aggress) Primary blocker still alive. Adding." );
             }
 
             if( blocks > blockCount )
@@ -2405,7 +2446,7 @@ public class BattleAI_Projection
         if( tp.Type == ThreatType.Persistent || tp.ConstrainingPressure >= 4f || gp.TheirBlockers.Contains( tp.ThreatUnit.Pokemon ) )
             aggressScore += 2f;
 
-        _ai.CurrentLog.Add( $"[Current Plan] Aggress Score: {aggressScore}" );
+        if( log ) _ai.CurrentLog.Add( $"[Current Plan] Aggress Score: {aggressScore}" );
 
         //----------------------------------------
         //--Trade
@@ -2468,9 +2509,9 @@ public class BattleAI_Projection
         finalPlan.AllowSacrifice = allowSacrifice;
         finalPlan.SweepPotential = tp.SweepPotential;
 
-        _ai.CurrentLog.Add( $"[Current Plan] Final Plan: {finalPlan.Type}, Confidence: {finalPlan.Confidence}, Sacrifice Allowed: {finalPlan.AllowSacrifice}" );
-        _ai.CurrentLog.Add( $"===================================================================================================" );
-        _ai.CurrentLog.Add( $"" );
+        if( log ) _ai.CurrentLog.Add( $"[Current Plan] Final Plan: {finalPlan.Type}, Confidence: {finalPlan.Confidence}, Sacrifice Allowed: {finalPlan.AllowSacrifice}" );
+        if( log ) _ai.CurrentLog.Add( $"===================================================================================================" );
+        if( log ) _ai.CurrentLog.Add( $"" );
 
         return finalPlan;
     }
@@ -2572,7 +2613,7 @@ public class BattleAI_Projection
 
                 if( action.Type == ActionType.OffensiveStatus )
                 {
-                    if( !_unitSim.MoveIsEntryHazard( action.MovePayload ) && top1.Attacker_EndOfTurnHP > 0f && ( !top1.OpponentCanAct || !top2.OpponentCanAct ) )
+                    if( !_unitSim.MoveIsEntryHazard( action.MovePayload ) && top1.Attacker_EndOfTurnHP > 0f && ( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct ) )
                     {
                         score += 10;
                     }
@@ -2713,7 +2754,7 @@ public class BattleAI_Projection
 
                 if( action.Type == ActionType.SupportiveStatus )
                 {
-                    if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                    if( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct )
                     {
                         score += 10;
                     }
@@ -2909,7 +2950,7 @@ public class BattleAI_Projection
                     if( !top1.AttackerMovedFirst )
                         score -= 5;
 
-                    if( !top1.AttackerCanAct )
+                    if( !top1.Attacker_ExpectedToAct )
                         score -= 5;
 
                     if( top1.Attacker_DiesBeforeActing )
@@ -2920,7 +2961,7 @@ public class BattleAI_Projection
                 {
                     score += 5;
 
-                    if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                    if( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct )
                     {
                         score += 10;
                     }
@@ -3034,12 +3075,12 @@ public class BattleAI_Projection
                 {
                     if( !_unitSim.MoveIsEntryHazard( action.MovePayload ) )
                     {
-                        if( !top1.OpponentCanAct )
+                        if( !top1.Opponent_ExpectedToAct )
                         {
                             score += 20;
                         }
                         
-                        if( !top2.OpponentCanAct )
+                        if( !top2.Opponent_ExpectedToAct )
                         {
                             if( top1.Attacker_EndOfTurnHP > 0 )
                             {
@@ -3064,7 +3105,7 @@ public class BattleAI_Projection
                 {
                     score += 5;
 
-                    if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+                    if( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct )
                     {
                         score += 10;
                     }
@@ -4224,24 +4265,28 @@ public class BattleAI_Projection
         return sp;
     }
 
-    public UnitComparison MakeUnitComparison( IBattleAIUnit attacker, IBattleAIUnit target )
+    public UnitComparison MakeUnitComparison( IBattleAIUnit attacker, IBattleAIUnit target, SimulatedField field = null )
     {
+        field ??= _ai.Blackboard.CurrentFieldSnapshot;
+
         UnitComparison uc = new()
         {
             Attacker = GetUnitComparison( attacker, target ),
             Target = GetUnitComparison( target, attacker ),
         };
 
-        bool bestInteractionOutSpeed;
+        bool bestInteractionOutspeed;
         var attackerBestPTKOPriority = uc.Attacker.CurrentPTKOs.First().Key.Priority;
         var targetBestPTKOPriority = uc.Target.CurrentPTKOs.First().Key.Priority;
 
         if( attackerBestPTKOPriority != targetBestPTKOPriority )
-            bestInteractionOutSpeed = attackerBestPTKOPriority > targetBestPTKOPriority;
+            bestInteractionOutspeed = attackerBestPTKOPriority > targetBestPTKOPriority;
+        else if( !field.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) )
+            bestInteractionOutspeed = !uc.Attacker.FasterSpeed;
         else
-            bestInteractionOutSpeed = uc.Attacker.FasterSpeed;
+            bestInteractionOutspeed = uc.Attacker.FasterSpeed;
 
-        uc.AttackerMovesFirst = bestInteractionOutSpeed;
+        uc.AttackerMovesFirst = bestInteractionOutspeed;
 
         return uc;
     }
@@ -4357,6 +4402,13 @@ public class BattleAI_Projection
         if( attackersHighestPriority > targetsHighestPriority )
             attackerFasterPriority = true;
 
+        bool hasTypeAdvantage = false;
+        float offensiveTypeEffectiveness = TypeChart.GetTotalEffectiveness( attacker.Type.One, target.Type.One, target.Type.Two ) * TypeChart.GetTotalEffectiveness( attacker.Type.Two, target.Type.One, target.Type.Two );
+        float defensiveTypeEffectiveness = TypeChart.GetTotalEffectiveness( target.Type.One, attacker.Type.One, attacker.Type.Two ) * TypeChart.GetTotalEffectiveness( target.Type.Two, attacker.Type.One, attacker.Type.Two );
+        
+        if( offensiveTypeEffectiveness > 1f || defensiveTypeEffectiveness < 1f )
+            hasTypeAdvantage = true;
+
         return new()
         {
             BestFreshPTKO = freshPTKOs.First().Value.PTKO,
@@ -4369,6 +4421,8 @@ public class BattleAI_Projection
 
             FasterSpeed = attackerFasterSpeed,
             FasterPriority = attackerFasterPriority,
+
+            HasNaturalTypeAdvantage = hasTypeAdvantage,
         };
     }
 
@@ -4725,6 +4779,8 @@ public struct UnitComparisonResult
 
     public bool FasterSpeed;
     public bool FasterPriority;
+
+    public bool HasNaturalTypeAdvantage;
 }
 
 public struct UnitComparison

@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 using System.Collections.Generic;
 using DG.Tweening;
-using Cinemachine;
+using Unity.Cinemachine;
 using UnityEngine.EventSystems;
 using NoxNoctisDev.StateMachine;
 
@@ -56,7 +56,7 @@ public class BattleSystem : MonoBehaviour
     [SerializeField] private PartyScreen_Battle _pkmnMenu;
     [SerializeField] private PartyDisplay _partyDisplay;
     [SerializeField] private GameObject _thrownPokeBall;
-    [SerializeField] private CinemachineVirtualCamera _singleTargetCamera;
+    [SerializeField] private CinemachineCamera _singleTargetCamera;
 #endregion
 #region Private References
     //--Private-----------------------------------------------------------
@@ -463,7 +463,7 @@ public class BattleSystem : MonoBehaviour
                 // Debug.Log( $"[UI Queue] Starting UI Coroutine: {next()}" );
                 yield return next();
                 // Debug.Log( $"[UI Queue] Waiting for Dialogue State to End." );
-                yield return new WaitUntil( () => GameStateController.Instance.CurrentStateEnum != GameStateController.GameStateEnum.DialogueState );
+                yield return new WaitUntil( () => GameStateController.Instance.CurrentStateEnum != GameStateEnum.DialogueState );
                 // Debug.Log( $"[UI Queue] Finished UI Coroutine: {next()}" );
                 _uiQueueProcessing = false;
             }
@@ -1201,7 +1201,8 @@ public class BattleSystem : MonoBehaviour
         return true;
     }
 
-    public IEnumerator ShowStatusChanges( BattleUnit unit ){
+    public IEnumerator ShowStatusChanges( BattleUnit unit )
+    {
         // Debug.Log( $"[Show Status Changes] Unit: {unit}, {unit.Pokemon.NickName}" );
         var pokemon = unit.Pokemon;
 
@@ -1214,20 +1215,15 @@ public class BattleSystem : MonoBehaviour
 
             if( statusEvent.Type == StatusEventType.StatChange )
             {
-                Texture2D tex;
                 if( statusEvent.StageChange > 0 )
-                {
-                    tex = _statUpEffectTex;
                     AudioController.Instance.PlaySFX( SoundEffect.StatUp );
-                }
                 else
-                {
-                    tex = _statDownEffectTex;
                     AudioController.Instance.PlaySFX( SoundEffect.StatDown );
-                }
 
                 // Debug.Log( $"[Show Status Changes] Stat Change Event" );
-                yield return unit.PokeAnimator.PlayStatChangeAnimation( tex, statusEvent.StageChange );
+                yield return unit.PokeAnimator.PlayStatChangeAnimation( statusEvent.StageChange );
+                yield return null;
+                yield return null;
                 // Debug.Log( $"[Show Status Changes] Stat Change Event Complete" );
             }
 

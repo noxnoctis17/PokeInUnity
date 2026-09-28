@@ -46,6 +46,16 @@ public class PlayerController : MonoBehaviour
     public void SetPlayerMovement( PlayerMovement playerMovement ){
         _playerMovement = playerMovement;
     }
+
+    private void HidePlayer()
+    {
+        
+    }
+
+    private void UnhidePlayer()
+    {
+        
+    }
     
     private void OnInteract( InputAction.CallbackContext context ){
 
@@ -92,7 +102,7 @@ public class PlayerController : MonoBehaviour
     }
 
     private void OnLoadPressed( InputAction.CallbackContext context ){
-        if( GameStateController.Instance.CurrentStateEnum == GameStateController.GameStateEnum.FreeRoamState ){
+        if( GameStateController.Instance.CurrentStateEnum == GameStateEnum.FreeRoamState ){
             Debug.Log( "Load Fired" );
             SavingSystem.Instance.Load( "SaveSlot_1" );
         }

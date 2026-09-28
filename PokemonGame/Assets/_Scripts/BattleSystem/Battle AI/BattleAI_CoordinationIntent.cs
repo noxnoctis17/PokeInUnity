@@ -9,6 +9,8 @@ public class BattleAI_CoordinationIntent
     private readonly BattleAI _ai;
     private PairStrategyIntent OpponentPrimaryStrategy;
     private readonly float[] _stageModifier = new float[] { 1f, 1.5f, 2f, 2.5f, 3f, 3.5f, 4f };
+    private const float SCREENS_MODIFIER = 0.66796875f;
+    private const float AURORA_VEIL_MODIFIER = 0.6669921875f;
 
     public BattleAI_CoordinationIntent( BattleAI ai )
     {
@@ -17,25 +19,21 @@ public class BattleAI_CoordinationIntent
 
     public CoordinationIntentResult GetCoordinationIntentResult( PairIntentResult pir, bool oneOpponentRemains = false )
     {
-        OpponentPrimaryStrategy = pir.PrimaryStrategy;
-
-        HashSet<StrategyPressureEvidence> primaryPressureEvidence = ExtractPressures( pir.PrimaryStrategy, pir.Poe );
-        HashSet<StrategyPressureEvidence> secondaryPressuresEvidence = new();
-
-        if( pir.Strategies.Count > 1 )
-            secondaryPressuresEvidence = ExtractPressures( pir.SecondaryStrategy, pir.Poe );
-
         CustomLogSession cirLog = new();
-        cirLog.Add( $"===================================" );
-        cirLog.Add( $"===[Primary Pressure Extraction]===" );
-        cirLog.Add( $"===================================" );
-        cirLog.Add( $"" );
-        cirLog.Add( $"Primary Strategy: {pir.PrimaryStrategy.Strategy}" );
 
-        foreach( var e in primaryPressureEvidence )
-            cirLog.Add( $"Found....{e.Pressure}" );
+        OpponentPrimaryStrategy = pir.PrimaryStrategy;
+        HashSet<StrategyPressureEvidence> primaryPressureEvidence = ExtractPressures( pir.PrimaryStrategy, pir.Poe );
         
-        cirLog.Add( $"" );
+        // cirLog.Add( $"===================================" );
+        // cirLog.Add( $"===[Primary Pressure Extraction]===" );
+        // cirLog.Add( $"===================================" );
+        // cirLog.Add( $"" );
+        // cirLog.Add( $"Primary Strategy: {pir.PrimaryStrategy.Strategy}" );
+
+        // foreach( var e in primaryPressureEvidence )
+        //     cirLog.Add( $"Found....{e.Pressure}" );
+        
+        // cirLog.Add( $"" );
 
         //--Our Units
         List<IBattleAIUnit> ourActive = _ai.Blackboard.OurActiveBattleAIUnits;
@@ -49,216 +47,220 @@ public class BattleAI_CoordinationIntent
         FindBoardControlCapability( ourActive, ourBench, capabilitySets );
         FindPositioningCapability( ourActive, ourBench, capabilitySets );
         FindEnablementCapability( ourActive, ourBench, capabilitySets );
-
-        cirLog.Add( $"=============================" );
-        cirLog.Add( $"===[Response Observations]===" );
-        cirLog.Add( $"=============================" );
-        cirLog.Add( $"" );
-
-        foreach( var kvp in capabilitySets )
+        //--put extract base capabilities here
+        //--needs some major adjustments across all 12 candidate functions
+        foreach( var u in ourActive )
         {
-            var responses = kvp.Value;
-
-            cirLog.Add( $"{kvp.Key.NickName} had {kvp.Value.Count} responses" );
-            foreach( var response in responses )
-                cirLog.Add( $"{response}" );
-
-            cirLog.Add( $"" );
+            ExtractBaseCapabilities( ActionType.Attack, u.Pokemon, capabilitySets );
+            ExtractBaseCapabilities( ActionType.DefensiveSwitch, u.Pokemon, capabilitySets );
+            ExtractBaseCapabilities( ActionType.Setup, u.Pokemon, capabilitySets );
+            ExtractBaseCapabilities( ActionType.OffensiveStatus, u.Pokemon, capabilitySets );
+            ExtractBaseCapabilities( ActionType.SupportiveStatus, u.Pokemon, capabilitySets );
+            ExtractBaseCapabilities( ActionType.Protect, u.Pokemon, capabilitySets );
         }
+
+
+        // cirLog.Add( $"=============================" );
+        // cirLog.Add( $"===[Response Observations]===" );
+        // cirLog.Add( $"=============================" );
+        // cirLog.Add( $"" );
+
+        // foreach( var kvp in capabilitySets )
+        // {
+        //     var responses = kvp.Value;
+
+        //     cirLog.Add( $"{kvp.Key.NickName} had {kvp.Value.Count} responses" );
+        //     foreach( var response in responses )
+        //         cirLog.Add( $"{response}" );
+
+        //     cirLog.Add( $"" );
+        // }
 
         var pressureResponses = GatherPressureResponses( capabilitySets, primaryPressureEvidence );
 
-        cirLog.Add( $"==============================" );
-        cirLog.Add( $"===[Responses to Pressures]===" );
-        cirLog.Add( $"==============================" );
-        cirLog.Add( $"" );
+        // cirLog.Add( $"==============================" );
+        // cirLog.Add( $"===[Responses to Pressures]===" );
+        // cirLog.Add( $"==============================" );
+        // cirLog.Add( $"" );
 
-        foreach( var kvp in pressureResponses )
-        {
-            var pressure = kvp.Key;
-            var spe = kvp.Value;
-            int i = 1;
+        // foreach( var kvp in pressureResponses )
+        // {
+        //     var pressure = kvp.Key;
+        //     var spe = kvp.Value;
+        //     int i = 1;
 
-            cirLog.Add( $"Pressure: {pressure}" );
-            foreach( var capability in spe.ResponseCapabilities )
-            {
-                var responses = capability.Value;
-                foreach( var response in responses )
-                    cirLog.Add( $"{i}. {response}" );
+        //     cirLog.Add( $"Pressure: {pressure}" );
+        //     foreach( var capability in spe.ResponseCapabilities )
+        //     {
+        //         var responses = capability.Value;
+        //         foreach( var response in responses )
+        //             cirLog.Add( $"{i}. {response}" );
 
-                i++;
-            }
+        //         i++;
+        //     }
 
-            cirLog.Add( $"" );
-        }
+        //     cirLog.Add( $"" );
+        // }
 
         Dictionary<CoordinationAction, CoordinationActionScores> coordinationResponses = new();
         Dictionary<CoordinationAction, CoordinationActionScores> coordinationOpportunities = new();
 
+        //-----------------------------------
+        //--Attack Responses & Capabilities--
+        //-----------------------------------
         if( HasCapabilityOfActionType( ActionType.Attack, pressureResponses ) )
         {
             var responses = GetAttackResponses( pressureResponses );
-            var opportunities = GetAttackOpportunities( capabilitySets );
+            responses = responses.OrderByDescending( kvp => kvp.Value.FinalScore ).Take( 2 ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
             foreach( var kvp in responses )
                 coordinationResponses.Add( kvp.Key, kvp.Value );
-
-            foreach( var kvp in opportunities )
-                coordinationOpportunities.Add( kvp.Key, kvp.Value );
         }
 
+        var attackOpportunities = GetAttackOpportunities( capabilitySets );
+        foreach( var kvp in attackOpportunities )
+            coordinationOpportunities.Add( kvp.Key, kvp.Value );
+
+        //----------------------------------------------
+        //--Defensive Switch Responses & Opportunities--
+        //----------------------------------------------
         if( HasCapabilityOfActionType( ActionType.DefensiveSwitch, pressureResponses ) )
         {
             // Debug.LogError( $"defensive capability found!" );
             var responses = GetSwitchResponses( pressureResponses );
-            var opportunities = GetSwitchOpportunities( capabilitySets );
+            responses = responses.OrderByDescending( kvp => kvp.Value.FinalScore ).Take( 2 ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
             foreach( var kvp in responses )
                 coordinationResponses.Add( kvp.Key, kvp.Value );
-
-            foreach( var kvp in opportunities )
-                coordinationOpportunities.Add( kvp.Key, kvp.Value );
         }
 
+        var switchOpportunities = GetSwitchOpportunities( capabilitySets );
+        foreach( var kvp in switchOpportunities )
+            coordinationOpportunities.Add( kvp.Key, kvp.Value );
+
+        //-----------------------------------
+        //--Setup Responses & Opportunities--
+        //-----------------------------------
         if( HasCapabilityOfActionType( ActionType.Setup, pressureResponses ) )
         {
             var responses = GetSetupResponses( pressureResponses );
-            var opportunities = GetSetupOpportunities( capabilitySets );
+            responses = responses.OrderByDescending( kvp => kvp.Value.FinalScore ).Take( 2 ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
             foreach( var kvp in responses )
                 coordinationResponses.Add( kvp.Key, kvp.Value );
-
-            foreach( var kvp in opportunities )
-                coordinationOpportunities.Add( kvp.Key, kvp.Value );
         }
 
+        var setupOpportunities = GetSetupOpportunities( capabilitySets );
+        foreach( var kvp in setupOpportunities )
+            coordinationOpportunities.Add( kvp.Key, kvp.Value );
+
+        //----------------------------------------------
+        //--Offensive Status Responses & Opportunities--
+        //----------------------------------------------
         if( HasCapabilityOfActionType( ActionType.OffensiveStatus, pressureResponses ) )
         {
             var responses = GetOffensiveStatusResponses( pressureResponses );
-            var opportunities = GetOffensiveStatusOpportunities( capabilitySets );
+            responses = responses.OrderByDescending( kvp => kvp.Value.FinalScore ).Take( 2 ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
             foreach( var kvp in responses )
                 coordinationResponses.Add( kvp.Key, kvp.Value );
-
-            foreach( var kvp in opportunities )
-                coordinationOpportunities.Add( kvp.Key, kvp.Value );
         }
 
+        var offensiveStatusOpportunities = GetOffensiveStatusOpportunities( capabilitySets );
+        foreach( var kvp in offensiveStatusOpportunities )
+            coordinationOpportunities.Add( kvp.Key, kvp.Value );
+
+        //-----------------------------------------------
+        //--Supportive Status Responses & Opportunities--
+        //-----------------------------------------------
         if( HasCapabilityOfActionType( ActionType.SupportiveStatus, pressureResponses ) )
         {
             var responses = GetSupportiveStatusResponses( pressureResponses );
+            responses = responses.OrderByDescending( kvp => kvp.Value.FinalScore ).Take( 2 ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
             foreach( var kvp in responses )
                 coordinationResponses.Add( kvp.Key, kvp.Value );
-
-            var opportunities = GetSupportiveStatusOpportunities( capabilitySets );
-
-            foreach( var kvp in opportunities )
-                coordinationOpportunities.Add( kvp.Key, kvp.Value );
         }
+
+        var supportiveStatusOpportunities = GetSupportiveStatusOpportunities( capabilitySets );
+        foreach( var kvp in supportiveStatusOpportunities )
+            coordinationOpportunities.Add( kvp.Key, kvp.Value );
 
         if( HasCapabilityOfActionType( ActionType.Protect, pressureResponses ) )
         {
             var responses = GetProtectResponses( pressureResponses );
+            responses = responses.OrderByDescending( kvp => kvp.Value.FinalScore ).Take( 2 ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
             foreach( var kvp in responses )
                 coordinationResponses.Add( kvp.Key, kvp.Value );
-
-            var opportunities = GetProtectOpportunities( capabilitySets );
-
-            foreach( var kvp in opportunities )
-                coordinationResponses.Add( kvp.Key, kvp.Value );
         }
 
-        static Dictionary<CoordinationAction, CoordinationActionScores> TakeTopThree( Dictionary<CoordinationAction, CoordinationActionScores> cooardinationActions )
+        var protectOpportunities = GetProtectOpportunities( capabilitySets );
+        foreach( var kvp in protectOpportunities )
+            coordinationResponses.Add( kvp.Key, kvp.Value );
+
+        static Dictionary<CoordinationAction, CoordinationActionScores> TakeTopTwo( ActionType action, Pokemon pokemon, Dictionary<CoordinationAction, CoordinationActionScores> cooardinationActions )
         {
-            int unit1Count = 0;
-            int unit2Count = 0;
+            Dictionary<CoordinationAction, CoordinationActionScores> topTwo = new();
 
-            Pokemon unit1 = null;
-            Pokemon unit2 = null;
-
-            Dictionary<CoordinationAction, CoordinationActionScores> topThree = new();
-
-            var sortedForPicking = cooardinationActions.OrderByDescending( kvp => kvp.Value.FinalScore ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
-
-            //--Take Top 2 for Unit 1
-            foreach( var kvp in sortedForPicking )
+            int count = 0;
+            foreach( var kvp in cooardinationActions )
             {
-                var action = kvp.Key;
-                var scores = kvp.Value;
+                if( count == 2 )
+                    break;
 
-                var mon = action.Actor;
-
-                unit1 ??= mon;
-
-                if( mon != unit1 )
+                if( kvp.Key.ActionType != action )
                     continue;
 
-                if( unit1Count < 3 )
-                {
-                    topThree.Add( action, scores );
-                    unit1Count++;
-                }
-                else
-                    break;
+                if( kvp.Key.Actor != pokemon )
+                    continue;
+
+                topTwo.Add( kvp.Key, kvp.Value );
+                count++;
             }
 
-            //--Take Top 2 for Unit 2
-            foreach( var kvp in sortedForPicking )
-            {
-                var action = kvp.Key;
-                var scores = kvp.Value;
+            return topTwo;
 
-                var mon = action.Actor;
-
-                if( mon == unit1 )
-                    continue;
-
-                unit2 ??= mon;
-
-                if( mon != unit2 )
-                    continue;
-
-                if( unit2Count < 3 )
-                {
-                    topThree.Add( action, scores );
-                    unit2Count++;
-                }
-                else
-                    break;
-            }
-
-            return topThree;
         }
 
-        coordinationResponses = TakeTopThree( coordinationResponses );
-        coordinationOpportunities = TakeTopThree( coordinationOpportunities );
+        // coordinationResponses = TakeTopThree( coordinationResponses );
+        // coordinationOpportunities = TakeTopThree( coordinationOpportunities );
 
-        Dictionary<CoordinationAction, CoordinationActionScores> finalSort = new();
+        coordinationResponses = coordinationResponses.OrderByDescending( kvp => kvp.Value.FinalScore ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+        coordinationOpportunities = coordinationOpportunities.OrderByDescending( kvp => kvp.Value.FinalScore ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
-        foreach( var kvp in coordinationResponses )
-            finalSort.Add( kvp.Key, kvp.Value );
+        Dictionary<CoordinationAction, CoordinationActionScores> finalCandidateSet = new();
+        foreach( var u in ourActive )
+        {
+            foreach( ActionType actionType in Enum.GetValues( typeof(ActionType) ) )
+            {
+                var topTwoActionResponses = TakeTopTwo( actionType, u.Pokemon, coordinationResponses );
+                var topTwoActionOpportunities = TakeTopTwo( actionType, u.Pokemon, coordinationOpportunities );
 
-        foreach( var kvp in coordinationOpportunities )
-            finalSort.Add( kvp.Key, kvp.Value );
+                foreach( var action in topTwoActionResponses )
+                    finalCandidateSet.Add( action.Key, action.Value );
 
-        finalSort = finalSort.OrderByDescending( kvp => kvp.Value.FinalScore ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+                foreach( var action in topTwoActionOpportunities )
+                    finalCandidateSet.Add( action.Key, action.Value );
+            }
+        }
+
+        finalCandidateSet = finalCandidateSet.OrderByDescending( kvp => kvp.Value.FinalScore ).ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
 
         cirLog.Add( $"" );
         cirLog.Add( $"================================" );
         cirLog.Add( $"=====[Coordination Actions]=====" );
         cirLog.Add( $"================================" );
         cirLog.Add( $"" );
-        cirLog.Add( $"Coordination Response Candidate Count: {finalSort.Count}" );
-        foreach( var kvp in finalSort )
+        cirLog.Add( $"Coordination Response Candidate Count: {finalCandidateSet.Count}" );
+        foreach( var kvp in finalCandidateSet )
         {
             var coordAction = kvp.Key;
             var scores = kvp.Value;
 
             cirLog.Add( $"===[{coordAction.Type} Capability: {coordAction.Capability}]===" );
             cirLog.Add( $"" );
-            cirLog.Add( $"Action Type: {coordAction.Action}" );
+            cirLog.Add( $"Action Type: {coordAction.ActionType}" );
             cirLog.Add( $"Actor: {coordAction.Actor.NickName}" );
             cirLog.Add( $"Target: {coordAction.Target.NickName}" );
             cirLog.Add( $"Move: {coordAction.MoveCandidate?.MoveSO.Name}" );
@@ -272,7 +274,7 @@ public class BattleAI_CoordinationIntent
                     cirLog.Add( $"{spe.Pressure}" );
             }
 
-            if( coordAction.Action == ActionType.DefensiveSwitch || coordAction.Action == ActionType.OffensiveSwitch )
+            if( coordAction.ActionType == ActionType.DefensiveSwitch || coordAction.ActionType == ActionType.OffensiveSwitch )
             {
                 cirLog.Add( $"" );
                 cirLog.Add( $"Defensive Alignment: {scores.DefensiveAlignment}" );
@@ -305,11 +307,15 @@ public class BattleAI_CoordinationIntent
         cirLog.Add( $"=================================" );
         cirLog.Add( $"" );
 
-        var actionPairs = BuildActionPairs( finalSort.Keys.ToList(), cirLog );
+        var actionPairs = BuildActionPairs( finalCandidateSet.Keys.ToList(), cirLog );
 
         if( actionPairs == null || actionPairs?.Count <= 0 )
         {
+            string cock = Application.persistentDataPath + "/Strategy Pressure_Log.txt";
+            System.IO.File.AppendAllText( cock, cirLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
+            cirLog.Clear();
             Debug.LogError( $"We have no legal pairs! Relying entirely on local scoring..." );
+            return default;
             //--build jobs where there's a target pulled from the highest scoring action candidate but no actual job action
             //--so that the ai has a target to build a local decision from
         }
@@ -347,14 +353,100 @@ public class BattleAI_CoordinationIntent
             cirLog.Add( $"" );
         }
 
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"===============================================" );
+        cirLog?.Add( $"=====[Coordination Action Pair Evaluation]=====" );
+        cirLog?.Add( $"===============================================" );
+        cirLog?.Add( $"" );
+        int pairsEvaluated = 0;
+        foreach( var pair in actionPairs )
+        {
+            pairsEvaluated++;
+            cirLog?.Add( $"Pair {pairsEvaluated}/{actionPairs.Count}" );
+            cirLog?.Add( $"" );
+            CoordinationActionPairEvaluation( pair, OpponentPrimaryStrategy, cirLog );
+        }
+
+        actionPairs = actionPairs.OrderByDescending( ap => ap.Final ).ToList();
+        cirLog?.Add( $"Action Pairs Sorted after CAPE Scoring" );
+        cirLog?.Add( $"" );
+        for( int i = 0; i < actionPairs.Count; i++ )
+        {
+            var pair = actionPairs[i];
+            cirLog?.Add( $"Pair {i+1}/{actionPairs.Count}, Score: {pair.Final}" );
+            cirLog?.Add( $"Unit 1: {pair.Unit1Action.Actor?.NickName}, Target: {pair.Unit1Action.Target?.NickName}, Move: {pair.Unit1Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit1Action.SwitchCandidate?.NickName} ({pair.Unit1Action.Capability})" );
+            cirLog?.Add( $"Unit 2: {pair.Unit2Action.Actor?.NickName}, Target: {pair.Unit2Action.Target?.NickName}, Move: {pair.Unit2Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit2Action.SwitchCandidate?.NickName} ({pair.Unit2Action.Capability})" );
+            cirLog?.Add( $"" );
+        }
+
+        actionPairs = actionPairs.Take( 4 ).ToList();
+        // int pairCount = 0;
+        foreach( var pair in actionPairs )
+        {
+            PairLookAheadProjection( pair, capabilitySets, cirLog );
+            // pairCount++;
+        }
+
+        //--Final Sorting after PLAP
+        actionPairs = actionPairs.OrderByDescending( ap => ap.Final ).ToList();
+        cirLog?.Add( $"Action Pairs Sorted after PLAP Scoring" );
+        cirLog?.Add( $"" );
+        for( int i = 0; i < actionPairs.Count; i++ )
+        {
+            var pair = actionPairs[i];
+            cirLog?.Add( $"Pair {i+1}/{actionPairs.Count}, Score: {pair.Final}" );
+            cirLog?.Add( $"Unit 1: {pair.Unit1Action.Actor?.NickName}, Target: {pair.Unit1Action.Target?.NickName}, Move: {pair.Unit1Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit1Action.SwitchCandidate?.NickName} ({pair.Unit1Action.Capability})" );
+            cirLog?.Add( $"Unit 2: {pair.Unit2Action.Actor?.NickName}, Target: {pair.Unit2Action.Target?.NickName}, Move: {pair.Unit2Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit2Action.SwitchCandidate?.NickName} ({pair.Unit2Action.Capability})" );
+            cirLog?.Add( $"" );
+        }
+
+        cirLog?.Add( $"===[Final Pair Scores]===" );
+        cirLog?.Add( $"" );
+        foreach( var pair in actionPairs )
+        {
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"Unit 1: {pair.Unit1Action.Actor.NickName}, {pair.Unit1Action.ActionType}, {pair.Unit1Action.Capability}, Move: {pair.Unit1Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit1Action.SwitchCandidate?.NickName}" );
+            cirLog?.Add( $"Unit 2: {pair.Unit2Action.Actor.NickName}, {pair.Unit2Action.ActionType}, {pair.Unit2Action.Capability}, Move: {pair.Unit2Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit2Action.SwitchCandidate?.NickName}" );
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"Projected Board Evaluation: {pair.PBE}" );
+            cirLog?.Add( $"Action Fulfillment Evaluation: {pair.AFM}" );
+            cirLog?.Add( $"Coordination Synergy Evaluation: {pair.SYN}" );
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"Final CAPE Score: {pair.Final}" );
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"===[TOP Log]===" );
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"{pair.TopLog}" );
+            cirLog?.Add( $"" );
+            cirLog?.Add( $"" );
+        }
+
+        var unit1Action = actionPairs.First().Unit1Action;
+        var unit2Action = actionPairs.First().Unit2Action;
+        
+        cirLog.Add( $"====================" );
+        cirLog.Add( $"=====[Top Pair]=====" );
+        cirLog.Add( $"====================" );
+        cirLog.Add( $"" );
+        cirLog.Add( $"Unit 1: {unit1Action.Actor}, {unit1Action.ActionType}, {unit1Action.Capability}, Move: {unit1Action.MoveCandidate?.MoveSO.Name}, Switch: {unit1Action.SwitchCandidate?.NickName}" );
+        cirLog.Add( $"Unit 2: {unit2Action.Actor}, {unit2Action.ActionType}, {unit2Action.Capability}, Move: {unit2Action.MoveCandidate?.MoveSO.Name}, Switch: {unit2Action.SwitchCandidate?.NickName}" );
+        cirLog.Add( $"" );
+        cirLog?.Add( $"Final CAPE Score: {actionPairs.First().Final}" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"===[TOP Log]===" );
+        cirLog.Add( $"{actionPairs.First().TopLog}" );            
+
         string path = Application.persistentDataPath + "/Strategy Pressure_Log.txt";
         System.IO.File.AppendAllText( path, cirLog.ToString() + "\n" + "\n" + "\n" + "\n" + "\n" );
         cirLog.Clear();
 
         Dictionary<Pokemon, CurrentJob> jobs = new()
         {
-            { ourActive[0].Pokemon, CreateJob( finalSort.First( kvp => kvp.Key.Actor == ourActive[0].Pokemon ).Key, pir.PrimaryStrategy ) },
-            { ourActive[1].Pokemon, CreateJob( finalSort.First( kvp => kvp.Key.Actor == ourActive[1].Pokemon ).Key, pir.PrimaryStrategy ) },
+            { unit1Action.Actor, CreateJob( unit1Action, pir.PrimaryStrategy ) },
+            { unit2Action.Actor, CreateJob( unit2Action, pir.PrimaryStrategy ) },
         };
 
         return new()
@@ -369,10 +461,10 @@ public class BattleAI_CoordinationIntent
     {
         return new()
         {
-            Active                  = true,
+            Exists                  = true,
 
             Actor                   = candidate.Actor,
-            ActionType              = candidate.Action,
+            ActionType              = candidate.ActionType,
             Move                    = candidate.MoveCandidate,
             SwitchCandidate         = candidate.SwitchCandidate,
 
@@ -460,8 +552,8 @@ public class BattleAI_CoordinationIntent
         {
             foreach( var a2 in unit2Actions )
             {
-                bool a1switch = a1.Action == ActionType.DefensiveSwitch || a1.Action == ActionType.OffensiveSwitch;
-                bool a2switch = a2.Action == ActionType.DefensiveSwitch || a1.Action == ActionType.OffensiveSwitch;
+                bool a1switch = a1.ActionType == ActionType.DefensiveSwitch || a1.ActionType == ActionType.OffensiveSwitch;
+                bool a2switch = a2.ActionType == ActionType.DefensiveSwitch || a2.ActionType == ActionType.OffensiveSwitch;
 
                 if( a1switch && a2switch )
                 {
@@ -475,10 +567,87 @@ public class BattleAI_CoordinationIntent
                 if( ( a1helpingyou && a2switch ) || ( a2helpingyou && a1switch ) )
                     continue;
 
-                bool a1attack = a1.Action == ActionType.Attack;
-                bool a2attack = a2.Action == ActionType.Attack;
+                bool a1attack = a1.ActionType == ActionType.Attack;
+                bool a2attack = a2.ActionType == ActionType.Attack;
 
                 if( ( a1.Capability == CapabilityObservation.HelpingHand && !a2attack ) || ( a2.Capability == CapabilityObservation.HelpingHand && !a1attack ) )
+                    continue;
+
+                bool neitherIsSpread = false;
+                bool targetIsLowHP = false;
+
+                bool bothHaveDangerousPTKO = false;
+                bool a1HasGoodPTKO = false;
+                bool a2HasGoodPTKO = false;
+                bool bothPTKOsAreSame = false;
+
+                bool doubleTargetAllowed = true;
+
+                if( a1attack && a2attack )
+                {
+                    var a1Target = a1.Target;
+                    var a2Target = a2.Target;
+
+                    if( a1Target == a2.Target )
+                    {
+                        IBattleAIUnit a1ActorUnit = _ai.GetPokemonAs_IBattleAIUnit( a1.Actor );
+                        IBattleAIUnit a2ActorUnit = _ai.GetPokemonAs_IBattleAIUnit( a2.Actor );
+
+                        IBattleAIUnit a1TargetUnit = _ai.GetPokemonAs_IBattleAIUnit( a1Target );
+                        IBattleAIUnit a2TargetUnit = _ai.GetPokemonAs_IBattleAIUnit( a2Target );
+
+                        if( a1TargetUnit.Pokemon != a2TargetUnit.Pokemon )
+                        {
+                            Debug.LogError( $"Double target protection in CIR gave us two different Pokemon somehow. Ignoring guard." );
+                            continue;
+                        }
+
+                        var a1Vs_Target1 = _ai.Projection.MakeUnitComparison( a1ActorUnit, a1TargetUnit );
+                        var a2Vs_Target2 = _ai.Projection.MakeUnitComparison( a2ActorUnit, a2TargetUnit );
+
+                        bool targetCanProtect = _ai.CanUseProtect( a1TargetUnit.Pokemon );
+
+                        var a1Move = a1.MoveCandidate;
+                        var a2Move = a2.MoveCandidate;
+
+                        bool a1MoveSpread = a1Move?.MoveSO.MoveTarget == MoveTarget.AllAdjacent && a1Move?.MoveSO.MoveTarget == MoveTarget.OpposingSide;
+                        bool a2MoveSpread = a2Move?.MoveSO.MoveTarget == MoveTarget.AllAdjacent && a2Move?.MoveSO.MoveTarget == MoveTarget.OpposingSide;
+
+                        var a1PTKO_Target1 = a1Vs_Target1.Attacker.CurrentPTKOs[a1Move];
+                        var a2PTKO_Target2 = a2Vs_Target2.Attacker.CurrentPTKOs[a2Move];
+
+                        if( !a1MoveSpread && !a2MoveSpread )
+                            neitherIsSpread = true;
+
+                        if( a1TargetUnit.BeginningHPR <= 0.25f )
+                            targetIsLowHP = true;
+
+                        if( a1PTKO_Target1 >= PotentialToKO.Dangerous && a2PTKO_Target2 >= PotentialToKO.Dangerous )
+                            bothHaveDangerousPTKO = true;
+
+                        if( a1PTKO_Target1 >= PotentialToKO.Risky )
+                            a1HasGoodPTKO = true;
+                        
+                        if( a2PTKO_Target2 >= PotentialToKO.Risky )
+                            a2HasGoodPTKO = true;
+                        
+                        if( a1PTKO_Target1 == a2PTKO_Target2 )
+                            bothPTKOsAreSame = true;
+
+                        if( neitherIsSpread && bothHaveDangerousPTKO )
+                            doubleTargetAllowed = false;
+                        else if( neitherIsSpread && !bothPTKOsAreSame && ( a1HasGoodPTKO || a2HasGoodPTKO ) )
+                            doubleTargetAllowed = false;
+                        else if( neitherIsSpread && targetCanProtect )
+                            doubleTargetAllowed = false;
+                        else if( ( a1HasGoodPTKO || a2HasGoodPTKO ) && targetIsLowHP )
+                            doubleTargetAllowed = false;
+                        else
+                            doubleTargetAllowed = true;
+                    }
+                }
+
+                if( !doubleTargetAllowed )
                     continue;
 
                 CoordinationActionPair pair = new()
@@ -496,9 +665,9 @@ public class BattleAI_CoordinationIntent
         log?.Add( $"" );
         foreach( var pair in actionPairs )
         {
-            log?.Add( $"Unit 1: Actor {pair.Unit1Action.Actor.NickName}, Capability {pair.Unit1Action.Capability}" );
+            log?.Add( $"Unit 1: Actor {pair.Unit1Action.Actor.NickName}, Capability {pair.Unit1Action.Capability}, Move: {pair.Unit1Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit1Action.SwitchCandidate?.NickName}" );
             log?.Add( $"" );
-            log?.Add( $"Unit 2 Actor {pair.Unit2Action.Actor.NickName}, Capability {pair.Unit2Action.Capability}" );
+            log?.Add( $"Unit 2 Actor {pair.Unit2Action.Actor.NickName}, Capability {pair.Unit2Action.Capability}, Move: {pair.Unit2Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit2Action.SwitchCandidate?.NickName}" );
             log?.Add( $"" );
         }
 
@@ -539,7 +708,7 @@ public class BattleAI_CoordinationIntent
                 bool actorMatch = r.Actor == o.Actor;
                 bool targetMatch = r.Target == o.Target;
                 bool switchCandidateMatch = r.SwitchCandidate != null && o.SwitchCandidate != null && r.SwitchCandidate == o.SwitchCandidate;
-                bool bothAreSwitchActions = ( r.Action == ActionType.DefensiveSwitch && o.Action == ActionType.DefensiveSwitch ) || ( r.Action == ActionType.OffensiveSwitch && o.Action == ActionType.OffensiveSwitch );
+                bool bothAreSwitchActions = ( r.ActionType == ActionType.DefensiveSwitch && o.ActionType == ActionType.DefensiveSwitch ) || ( r.ActionType == ActionType.OffensiveSwitch && o.ActionType == ActionType.OffensiveSwitch );
                 
                 bool switchActionFitForMerging = bothAreSwitchActions && switchCandidateMatch;
                 bool moveActionFitForMerging = capabilityMatch && actorMatch && targetMatch;
@@ -552,7 +721,7 @@ public class BattleAI_CoordinationIntent
                     log?.Add( $"Types: {r.Type}, {o.Type}" );
                     log?.Add( $"" );
                     log?.Add( $"Actor: {r.Actor?.NickName}, {o.Actor?.NickName}" );
-                    log?.Add( $"Action: {r.Action}, {o.Action}" );
+                    log?.Add( $"Action: {r.ActionType}, {o.ActionType}" );
                     log?.Add( $"Move: {r.MoveCandidate?.MoveSO.Name}, {o.MoveCandidate?.MoveSO.Name}" );
                     log?.Add( $"Switch: {r.SwitchCandidate?.NickName}, {o.SwitchCandidate?.NickName}" );
                     log?.Add( $"" );
@@ -572,7 +741,7 @@ public class BattleAI_CoordinationIntent
                         Type = CoordinationActionType.Merged,
 
                         Actor = r.Actor ?? null,
-                        Action = r.Action,
+                        ActionType = r.ActionType,
                         MoveCandidate = r.MoveCandidate ?? null,
                         SwitchCandidate = r.SwitchCandidate ?? null,
 
@@ -2098,6 +2267,13 @@ public class BattleAI_CoordinationIntent
         //--Only Active units matter here
         foreach( var unit in ourActive )
             SearchForCapability( unit );
+
+        //--Not true, Fake Out is a powerful switch-in capability, it just doesn't activate the same turn as the switch. --09/24/26
+        foreach( var unit in ourBench )
+        {
+            if( _ai.CanUseFakeOut( unit ) )
+                AddObservation( unit.Pokemon, CapabilityObservation.FakeOut );
+        }
     }
 
     private void FindProtectionCapability( List<IBattleAIUnit> ourActive, List<IBattleAIUnit> ourBench, Dictionary<Pokemon, HashSet<CapabilityObservation>> observations )
@@ -2850,10 +3026,9 @@ public class BattleAI_CoordinationIntent
 
         return capabilitySets;
     }
-    private Dictionary<Pokemon, HashSet<CapabilityObservation>> ExtractBaseCapabilities( ActionType action, Pokemon pokemon )
-    {
-        Dictionary<Pokemon, HashSet<CapabilityObservation>> capabilitySets = new();
 
+    private void ExtractBaseCapabilities( ActionType action, Pokemon pokemon, Dictionary<Pokemon, HashSet<CapabilityObservation>> capabilitySets )
+    {
         switch( action )
         {
             case ActionType.Attack:
@@ -2861,17 +3036,29 @@ public class BattleAI_CoordinationIntent
                 if( _ai.UnitSim.PokemonHasMove_DamagingAttack( pokemon ) )
                 {
                     if( capabilitySets.TryGetValue( pokemon, out var attackCapabilities ) )
+                    {
                         attackCapabilities.Add( CapabilityObservation.StrongestAttack );
+                        // Debug.LogError( $"Adding Strongest Attack Capability to {pokemon.NickName}'s existing attack capabilities" );
+                    }
                     else
+                    {
                         capabilitySets.Add( pokemon, new(){ CapabilityObservation.StrongestAttack } );
+                        // Debug.LogError( $"Adding Strongest Attack Capability to {pokemon.NickName}" );
+                    }
                 }
 
                 if( _ai.UnitSim.PokemonHasMove_Coverage( pokemon ) )
                 {
                     if( capabilitySets.TryGetValue( pokemon, out var attackCapabilities ) )
+                    {
                         attackCapabilities.Add( CapabilityObservation.CoverageMove );
+                        // Debug.LogError( $"Adding Coverage Move Capability to {pokemon.NickName}'s existing attack capabilities" );
+                    }
                     else
+                    {
                         capabilitySets.Add( pokemon, new(){ CapabilityObservation.CoverageMove } );
+                        // Debug.LogError( $"Adding Coverage Move Capability to {pokemon.NickName}" );
+                    }
                 }
 
             break;
@@ -2901,8 +3088,6 @@ public class BattleAI_CoordinationIntent
                 
             break;
         }
-
-        return capabilitySets;
     }
 
     private bool TryExtractMoveFromPokemon( string name, IBattleAIUnit unit, out Move extractedMove )
@@ -3471,7 +3656,7 @@ public class BattleAI_CoordinationIntent
 
         Dictionary<IBattleAIUnit, Move> units = new();
 
-        if( actionCandidate.Type != CoordinationActionType.SwitchCandidatePotential && actionCandidate.Action != ActionType.OffensiveSwitch && actionCandidate.Action != ActionType.DefensiveSwitch )
+        if( actionCandidate.Type != CoordinationActionType.SwitchCandidatePotential && actionCandidate.ActionType != ActionType.OffensiveSwitch && actionCandidate.ActionType != ActionType.DefensiveSwitch )
         {
             units.Add( attacker, actionCandidate.MoveCandidate );
         }
@@ -3536,7 +3721,7 @@ public class BattleAI_CoordinationIntent
             OurAllyVsThem = ourAllyVsThem,
             OurAllyVsTheirAlly = ourAllyVsTheirAlly,
 
-            OurAction = actionCandidate.Action,
+            OurAction = actionCandidate.ActionType,
             OurAllyAction = ActionType.Attack,
             TheirAction = theirAction,
             TheirAllyAction = theirAllyIntent.IntentResult != null ? theirAllyIntent.IntentResult.ActionType : ActionType.Attack,
@@ -3775,7 +3960,7 @@ public class BattleAI_CoordinationIntent
         return new()
         {
             Type = type,
-            Action = ActionType.Attack,
+            ActionType = ActionType.Attack,
 
             Actor = us.Pokemon,
             Target = them.Pokemon,
@@ -3792,7 +3977,7 @@ public class BattleAI_CoordinationIntent
         return new()
         {
             Type = type,
-            Action = ActionType.DefensiveSwitch,
+            ActionType = ActionType.DefensiveSwitch,
 
             Actor = us.Pokemon,
             Target = them.Pokemon,
@@ -3827,7 +4012,7 @@ public class BattleAI_CoordinationIntent
         return new()
         {
             Type = type,
-            Action = ActionType.Setup,
+            ActionType = ActionType.Setup,
 
             Actor = us.Pokemon,
             Target = them.Pokemon,
@@ -3946,7 +4131,7 @@ public class BattleAI_CoordinationIntent
         return new()
         {
             Type = type,
-            Action = ActionType.OffensiveStatus,
+            ActionType = ActionType.OffensiveStatus,
 
             Actor = us.Pokemon,
             Target = them.Pokemon,
@@ -4166,7 +4351,7 @@ public class BattleAI_CoordinationIntent
         return new()
         {
             Type = type,
-            Action = ActionType.SupportiveStatus,
+            ActionType = ActionType.SupportiveStatus,
 
             Actor = us.Pokemon,
             Target = them.Pokemon,
@@ -4244,7 +4429,7 @@ public class BattleAI_CoordinationIntent
         return new()
         {
             Type = type,
-            Action = ActionType.Protect,
+            ActionType = ActionType.Protect,
 
             Actor = us.Pokemon,
             Target = them.Pokemon,
@@ -5151,7 +5336,7 @@ public class BattleAI_CoordinationIntent
                     {
                         Type = CoordinationActionType.SwitchCandidatePotential,
                         Actor = ourSwitch.Pokemon,
-                        Action = ActionType.Attack,
+                        ActionType = ActionType.Attack,
                     };
 
                     var ourSwitchIP = GetInteractionProfile( ourSwitch, them, switchCandidate, e );
@@ -6727,7 +6912,7 @@ public class BattleAI_CoordinationIntent
                     {
                         Type = CoordinationActionType.SwitchCandidatePotential,
                         Actor = ourSwitch.Pokemon,
-                        Action = ActionType.Attack,
+                        ActionType = ActionType.Attack,
                     };
 
                     var ourSwitchIP = GetInteractionProfile( ourSwitch, them, switchCandidate, e );
@@ -6808,14 +6993,14 @@ public class BattleAI_CoordinationIntent
                         {
                             if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 0 && theirAllyActionResult.Targets[0]?.Pokemon == us.Pokemon )
                                 theirAllyTargetsUs = true;
-                            else if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 0 && theirAllyActionResult.Targets[0]?.Pokemon == ourAlly.Pokemon )
-                                theirAllyTargetsOurAlly = true;
+                            // else if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 0 && theirAllyActionResult.Targets[0]?.Pokemon == ourAlly.Pokemon )
+                                // theirAllyTargetsOurAlly = true;
 
                             if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 1 && theirAllyActionResult.Targets[1]?.Pokemon == us.Pokemon )
                                 theirAllyTargetsUs = true;
 
-                            if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 1 && theirAllyActionResult.Targets[1]?.Pokemon == ourAlly.Pokemon )
-                                theirAllyTargetsOurAlly = true;
+                            // if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 1 && theirAllyActionResult.Targets[1]?.Pokemon == ourAlly.Pokemon )
+                                // theirAllyTargetsOurAlly = true;
                         }
                     }
 
@@ -7396,14 +7581,14 @@ public class BattleAI_CoordinationIntent
                         {
                             if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 0 && theirAllyActionResult.Targets[0]?.Pokemon == us.Pokemon )
                                 theirAllyTargetsUs = true;
-                            else if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 0 && theirAllyActionResult.Targets[0]?.Pokemon == ourAlly.Pokemon )
-                                theirAllyTargetsOurAlly = true;
+                            // else if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 0 && theirAllyActionResult.Targets[0]?.Pokemon == ourAlly.Pokemon )
+                                // theirAllyTargetsOurAlly = true;
 
                             if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 1 && theirAllyActionResult.Targets[1]?.Pokemon == us.Pokemon )
                                 theirAllyTargetsUs = true;
 
-                            if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 1 && theirAllyActionResult.Targets[1]?.Pokemon == ourAlly.Pokemon )
-                                theirAllyTargetsOurAlly = true;
+                            // if( theirAllyUsesMove && theirAllyActionResult.Targets?.Count > 1 && theirAllyActionResult.Targets[1]?.Pokemon == ourAlly.Pokemon )
+                                // theirAllyTargetsOurAlly = true;
                         }
                     }
 
@@ -8730,10 +8915,6 @@ public class BattleAI_CoordinationIntent
                 {
                     var ip = GetInteractionProfile( us, them, candidate, e );
                     var ourPTKO_Them = ip.AttackerPTKO;
-
-                    const float SCREENS_MODIFIER = 0.66796875f;
-                    const float AURORA_VEIL_MODIFIER = 0.6669921875f;
-
                     var theirPTKO_Us = ip.TargetPTKO;
                     var theirAction = ip.TheirAction;
                     var theirActionResult = ip.TheirActionResult;
@@ -11181,16 +11362,9 @@ public class BattleAI_CoordinationIntent
         foreach( var unit in ourActive )
         {
             List<CoordinationAction> candidates = new();
-            var baseCapabilities = ExtractBaseCapabilities( ActionType.Attack, unit.Pokemon );
 
             if( capabilitySets.TryGetValue( unit.Pokemon, out var monCapabilities ) )
             {
-                if( baseCapabilities.TryGetValue( unit.Pokemon, out var bcs ) )
-                {
-                    foreach( var bc in bcs )
-                        monCapabilities.Add( bc );
-                }
-
                 foreach( var capability in monCapabilities )
                 {
                     if( GetCapabilityActionType( capability ) != ActionType.Attack )
@@ -11699,9 +11873,6 @@ public class BattleAI_CoordinationIntent
                     bool weHaveAScreen = weHaveReflect || weHaveLightScreen || weHaveAuroraVeil;
                     bool weHaveDualScreens = weHaveReflect && weHaveLightScreen;
 
-                    const float SCREENS_MODIFIER = 0.66796875f;
-                    const float AURORA_VEIL_MODIFIER = 0.6669921875f;
-
                     if( theirCourt.ContainsKey( CourtConditionID.Reflect ) )
                     {
                         boardFit += 1;
@@ -12182,18 +12353,11 @@ public class BattleAI_CoordinationIntent
         foreach( var unit in ourActive )
         {
             List<CoordinationAction> candidates = new();
-            var baseCapabilities = ExtractBaseCapabilities( ActionType.DefensiveSwitch, unit.Pokemon );
 
             foreach( var switchCandidate in ourBench )
             {
                 if( capabilitySets.TryGetValue( unit.Pokemon, out var monCapabilities ) )
                 {
-                    if( baseCapabilities.TryGetValue( unit.Pokemon, out var bcs ) )
-                    {
-                        foreach( var bc in bcs )
-                            monCapabilities.Add( bc );
-                    }
-
                     foreach( var capability in monCapabilities )
                     {
                         if( GetCapabilityActionType( capability ) != ActionType.DefensiveSwitch )
@@ -13762,16 +13926,9 @@ public class BattleAI_CoordinationIntent
         foreach( var unit in ourActive )
         {
             List<CoordinationAction> candidates = new();
-            var baseCapabilities = ExtractBaseCapabilities( ActionType.Setup, unit.Pokemon );
 
             if( capabilitySets.TryGetValue( unit.Pokemon, out var monCapabilities ) )
             {
-                if( baseCapabilities.TryGetValue( unit.Pokemon, out var bcs ) )
-                {
-                    foreach( var bc in bcs )
-                        monCapabilities.Add( bc );
-                }
-
                 foreach( var capability in monCapabilities )
                 {
                     if( GetCapabilityActionType( capability ) != ActionType.Setup )
@@ -13802,6 +13959,7 @@ public class BattleAI_CoordinationIntent
                 var us = _ai.GetPokemonAs_IBattleAIUnit( candidate.Actor );
                 var them = _ai.GetPokemonAs_IBattleAIUnit( candidate.Target );
                 var ourSwitch = candidate.SwitchCandidate != null ? _ai.GetPokemonAs_IBattleAIUnit( candidate.SwitchCandidate ) : null;
+                bool weHaveSwitch = ourSwitch != null;
 
                 var ip = GetInteractionProfile( us, them, candidate, null );
 
@@ -13879,13 +14037,13 @@ public class BattleAI_CoordinationIntent
                 var theirAllyPTKO_Us = theirAllyTargetsUs ? ip.UsVsTheirAlly.Target.BestCurrentPTKO : PotentialToKO.Untouchable;
                 var theirAllyPTKO_OurAlly = theirAllyTargetsOurAlly ? ip.OurAllyVsTheirAlly.Target.BestCurrentPTKO : PotentialToKO.Untouchable;
 
-                var theirAllyVsOurSwitch = theyHaveAlly ? _ai.Projection.MakeUnitComparison( theirAlly, ourSwitch ) : default;
-                var theirAllyEDR_OurSwitch = theyHaveAlly && theirAllyMove != null ? GetEDROnSwitchCandidate( theirAlly, ourSwitch, theirAllyMove ) : default;
-                var theirAllyPTKO_OurSwitch = theyHaveAlly && theirAllyMove != null ? _ai.Projection.GetPTKO_FromDamageEstimate( theirAllyEDR_OurSwitch, ourSwitch ) : PotentialToKO.Untouchable;
+                var theirAllyVsOurSwitch = theyHaveAlly && weHaveSwitch ? _ai.Projection.MakeUnitComparison( theirAlly, ourSwitch ) : default;
+                var theirAllyEDR_OurSwitch = theyHaveAlly && weHaveSwitch && theirAllyMove != null ? GetEDROnSwitchCandidate( theirAlly, ourSwitch, theirAllyMove ) : default;
+                var theirAllyPTKO_OurSwitch = theyHaveAlly && weHaveSwitch && theirAllyMove != null ? _ai.Projection.GetPTKO_FromDamageEstimate( theirAllyEDR_OurSwitch, ourSwitch ) : PotentialToKO.Untouchable;
                 
-                var themVsOurSwitch = _ai.Projection.MakeUnitComparison( them, us );
-                var theirEDR_OurSwitch = theirMove != null ? GetEDROnSwitchCandidate( them, ourSwitch, theirMove ) : default;
-                var theirPTKO_OurSwitch = theirMove != null ? _ai.Projection.GetPTKO_FromDamageEstimate( theirEDR_OurSwitch, ourSwitch ) : PotentialToKO.Untouchable;
+                var themVsOurSwitch = ourSwitch != null ? _ai.Projection.MakeUnitComparison( them, ourSwitch ) : default;
+                var theirEDR_OurSwitch = ourSwitch != null && theirMove != null ? GetEDROnSwitchCandidate( them, ourSwitch, theirMove ) : default;
+                var theirPTKO_OurSwitch = ourSwitch != null && theirMove != null ? _ai.Projection.GetPTKO_FromDamageEstimate( theirEDR_OurSwitch, ourSwitch ) : PotentialToKO.Untouchable;
 
                 var ourAllyMove_Them = weHaveAlly ? ip.OurAllyVsThem.Attacker.CurrentPTKOs.Keys.First() : null;
                 var ourAllyMove_TheirAlly = weHaveAlly && theyHaveAlly ? ip.OurAllyVsTheirAlly.Attacker.CurrentPTKOs.Keys.First() : null;
@@ -14421,16 +14579,9 @@ public class BattleAI_CoordinationIntent
         foreach( var unit in ourActive )
         {
             List<CoordinationAction> candidates = new();
-            var baseCapabilities = ExtractBaseCapabilities( ActionType.OffensiveStatus, unit.Pokemon );
 
             if( capabilitySets.TryGetValue( unit.Pokemon, out var monCapabilities ) )
             {
-                if( baseCapabilities.TryGetValue( unit.Pokemon, out var bcs ) )
-                {
-                    foreach( var bc in bcs )
-                        monCapabilities.Add( bc );
-                }
-
                 foreach( var capability in monCapabilities )
                 {
                     if( GetCapabilityActionType( capability ) != ActionType.OffensiveStatus )
@@ -16144,16 +16295,9 @@ public class BattleAI_CoordinationIntent
         foreach( var unit in ourActive )
         {
             List<CoordinationAction> candidates = new();
-            var baseCapabilities = ExtractBaseCapabilities( ActionType.SupportiveStatus, unit.Pokemon );
 
             if( capabilitySets.TryGetValue( unit.Pokemon, out var monCapabilities ) )
             {
-                if( baseCapabilities.TryGetValue( unit.Pokemon, out var bcs ) )
-                {
-                    foreach( var bc in bcs )
-                        monCapabilities.Add( bc );
-                }
-
                 foreach( var capability in monCapabilities )
                 {
                     if( GetCapabilityActionType( capability ) != ActionType.SupportiveStatus )
@@ -16290,10 +16434,6 @@ public class BattleAI_CoordinationIntent
 
                 var ip = GetInteractionProfile( us, them, candidate, null );
                 var ourPTKO_Them = ip.AttackerPTKO;
-
-                const float SCREENS_MODIFIER = 0.66796875f;
-                const float AURORA_VEIL_MODIFIER = 0.6669921875f;
-
                 var theirPTKO_Us = ip.TargetPTKO;
                 var theirAction = ip.TheirAction;
                 var theirActionResult = ip.TheirActionResult;
@@ -19314,16 +19454,9 @@ public class BattleAI_CoordinationIntent
         foreach( var unit in ourActive )
         {
             List<CoordinationAction> candidates = new();
-            var baseCapabilities = ExtractBaseCapabilities( ActionType.Protect, unit.Pokemon );
 
             if( capabilitySets.TryGetValue( unit.Pokemon, out var monCapabilities ) )
             {
-                if( baseCapabilities.TryGetValue( unit.Pokemon, out var bcs ) )
-                {
-                    foreach( var bc in bcs )
-                        monCapabilities.Add( bc );
-                }
-
                 foreach( var capability in monCapabilities )
                 {
                     if( GetCapabilityActionType( capability ) != ActionType.Protect )
@@ -19871,9 +20004,9 @@ public class BattleAI_CoordinationIntent
         if( action1.Capability == CapabilityObservation.Redirection || action2.Capability == CapabilityObservation.Redirection )
             pair.Synergies.Add( CoordinationSynergy.RedirectionPressure );
 
-        if( action1.Action == ActionType.Attack )
+        if( action1.ActionType == ActionType.Attack )
         {
-            if( action2.Action == ActionType.Attack || action2.Action == ActionType.OffensiveStatus || action2.Capability == CapabilityObservation.Tailwind )
+            if( action2.ActionType == ActionType.Attack || action2.ActionType == ActionType.OffensiveStatus || action2.Capability == CapabilityObservation.Tailwind )
                 pair.Synergies.Add( CoordinationSynergy.OffensivePressure );
 
             if( action2.Capability == CapabilityObservation.Tailwind )
@@ -19922,8 +20055,10 @@ public class BattleAI_CoordinationIntent
                 pair.Synergies.Add( CoordinationSynergy.OffensivePressure );
             }
 
-            if( action2.Action == ActionType.DefensiveSwitch || action2.Action == ActionType.OffensiveSwitch )
+            if( action2.ActionType == ActionType.DefensiveSwitch || action2.ActionType == ActionType.OffensiveSwitch )
             {
+                pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
+
                 if( action1.Capability == CapabilityObservation.FakeOut )
                     pair.Synergies.Add( CoordinationSynergy.ProtectsAlly );
 
@@ -20124,10 +20259,9 @@ public class BattleAI_CoordinationIntent
                 }
             }
 
-            if( action2.Capability == CapabilityObservation.Protect || action2.Capability == CapabilityObservation.WideGuard )
+            if( action1.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.AllAdjacent && ( action2.Capability == CapabilityObservation.Protect || action2.Capability == CapabilityObservation.WideGuard ) )
             {
                 pair.Synergies.Add( CoordinationSynergy.ProtectAndSpreadAttack );
-                pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
             }
 
             if( action1.Capability == CapabilityObservation.HybridDebuff )
@@ -20138,7 +20272,7 @@ public class BattleAI_CoordinationIntent
                 {
                     foreach( var sc in moveStatStages )
                     {
-                        if( action2.Action == ActionType.Attack )
+                        if( action2.ActionType == ActionType.Attack )
                         {
                             if( ( sc.Stat == Stat.Defense && action2.MoveCandidate?.MoveSO.MoveCategory == MoveCategory.Physical ) || ( sc.Stat == Stat.SpDefense && action2.MoveCandidate?.MoveSO.MoveCategory == MoveCategory.Special ) )
                             {
@@ -20154,7 +20288,7 @@ public class BattleAI_CoordinationIntent
                                 pair.Synergies.Add( CoordinationSynergy.ReinforcesAllyDefense );
                                 pair.Synergies.Add( CoordinationSynergy.ImprovesBoardDefense );
                                 
-                                if( action2.Action != ActionType.Attack && action1.Actor.Speed > action2.Actor.Speed )
+                                if( action2.ActionType != ActionType.Attack && action1.Actor.Speed > action2.Actor.Speed )
                                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
                             }
                         }
@@ -20215,7 +20349,7 @@ public class BattleAI_CoordinationIntent
             }
         }
 
-        if( action1.Action == ActionType.DefensiveSwitch || action1.Action == ActionType.OffensiveSwitch )
+        if( action1.ActionType == ActionType.DefensiveSwitch || action1.ActionType == ActionType.OffensiveSwitch )
         {
             if( action2.Capability == CapabilityObservation.Protect || action2.Capability == CapabilityObservation.WideGuard )
             {
@@ -20451,9 +20585,9 @@ public class BattleAI_CoordinationIntent
             }
         }
 
-        if( action1.Action == ActionType.Setup )
+        if( action1.ActionType == ActionType.Setup )
         {
-            if( action2.Action == ActionType.OffensiveStatus || action2.Capability == CapabilityObservation.WideGuard || action2.Capability == CapabilityObservation.AllySwitch || action2.Capability == CapabilityObservation.Redirection || action2.Capability == CapabilityObservation.FakeOut )
+            if( action2.ActionType == ActionType.OffensiveStatus || action2.Capability == CapabilityObservation.WideGuard || action2.Capability == CapabilityObservation.AllySwitch || action2.Capability == CapabilityObservation.Redirection || action2.Capability == CapabilityObservation.FakeOut )
             {
                 pair.Synergies.Add( CoordinationSynergy.ProtectsAlly );
                 pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
@@ -20462,7 +20596,7 @@ public class BattleAI_CoordinationIntent
             }
         }
 
-        if( action1.Action == ActionType.OffensiveStatus )
+        if( action1.ActionType == ActionType.OffensiveStatus )
         {
             var target1 = _ai.GetPokemonAs_IBattleAIUnit( action1.Target );
             var target2 = _ai.GetPokemonAs_IBattleAIUnit( action2.Target );
@@ -20476,7 +20610,7 @@ public class BattleAI_CoordinationIntent
                 pair.Synergies.Add( CoordinationSynergy.EnablesAlly );
             }
 
-            if( action2.Action == ActionType.Attack )
+            if( action2.ActionType == ActionType.Attack )
             {
                 pair.Synergies.Add( CoordinationSynergy.EnablesAttack );
                 pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
@@ -20520,7 +20654,7 @@ public class BattleAI_CoordinationIntent
             }
         }
 
-        if( action1.Action == ActionType.SupportiveStatus )
+        if( action1.ActionType == ActionType.SupportiveStatus )
         {
             var target1 = _ai.GetPokemonAs_IBattleAIUnit( action1.Target );
             var target2 = _ai.GetPokemonAs_IBattleAIUnit( action2.Target );
@@ -20739,13 +20873,13 @@ public class BattleAI_CoordinationIntent
                 {
                     pair.Synergies.Add( CoordinationSynergy.ImprovesAllyTurnOrder );
 
-                    if( action2.Action != ActionType.DefensiveSwitch && action2.Action != ActionType.OffensiveSwitch )
+                    if( action2.ActionType != ActionType.DefensiveSwitch && action2.ActionType != ActionType.OffensiveSwitch )
                     {
                         pair.Synergies.Add( CoordinationSynergy.EnablesAlly );
 
-                        if( action2.Action == ActionType.Attack )
+                        if( action2.ActionType == ActionType.Attack )
                             pair.Synergies.Add( CoordinationSynergy.ReinforcesAllyOffense );
-                        else if( action2.Action == ActionType.SupportiveStatus || action2.Action == ActionType.Setup )
+                        else if( action2.ActionType == ActionType.SupportiveStatus || action2.ActionType == ActionType.Setup )
                             pair.Synergies.Add( CoordinationSynergy.EnablesSetup );
                     }
                 }
@@ -20773,7 +20907,7 @@ public class BattleAI_CoordinationIntent
                 var targetStatStages = action2.Target.StatStages;
                 var actor2StatStages = action2.Actor.StatStages;
 
-                if( action2.Action == ActionType.Attack && action1.Actor.Speed > action2.Actor.Speed )
+                if( action2.ActionType == ActionType.Attack && action1.Actor.Speed > action2.Actor.Speed )
                 {
                     foreach( var sc in targetStatStages )
                     {
@@ -20803,7 +20937,7 @@ public class BattleAI_CoordinationIntent
 
             if( action1.Capability == CapabilityObservation.Defog )
             {
-                if( action2.Action == ActionType.DefensiveSwitch || action2.Action == ActionType.OffensiveSwitch )
+                if( action2.ActionType == ActionType.DefensiveSwitch || action2.ActionType == ActionType.OffensiveSwitch )
                 {
                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
                     pair.Synergies.Add( CoordinationSynergy.ProtectsAlly );
@@ -20820,7 +20954,7 @@ public class BattleAI_CoordinationIntent
                 {
                     foreach( var sc in moveStatStages )
                     {
-                        if( action2.Action == ActionType.Attack )
+                        if( action2.ActionType == ActionType.Attack )
                         {
                             if( ( sc.Stat == Stat.Attack && action2.MoveCandidate?.MoveSO.MoveCategory == MoveCategory.Physical ) || ( sc.Stat == Stat.SpAttack && action2.MoveCandidate?.MoveSO.MoveCategory == MoveCategory.Special ) )
                             {
@@ -20851,7 +20985,7 @@ public class BattleAI_CoordinationIntent
 
             if( action1.Capability == CapabilityObservation.SelfHeal )
             {
-                if( action2.Action == ActionType.DefensiveSwitch || action2.Action == ActionType.OffensiveSwitch )
+                if( action2.ActionType == ActionType.DefensiveSwitch || action2.ActionType == ActionType.OffensiveSwitch )
                 {
                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
                     pair.Synergies.Add( CoordinationSynergy.ProtectAndSwitch );
@@ -20860,7 +20994,7 @@ public class BattleAI_CoordinationIntent
 
             if( action1.Capability == CapabilityObservation.SideHeal )
             {
-                if( action2.Action == ActionType.DefensiveSwitch || action2.Action == ActionType.OffensiveSwitch )
+                if( action2.ActionType == ActionType.DefensiveSwitch || action2.ActionType == ActionType.OffensiveSwitch )
                 {
                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
 
@@ -20888,7 +21022,7 @@ public class BattleAI_CoordinationIntent
                 if( action1.TargetsMove?.MoveSO.MoveCategory == MoveCategory.Physical || action2.TargetsMove?.MoveSO.MoveCategory == MoveCategory.Physical )
                     pair.Synergies.Add( CoordinationSynergy.ProtectsAlly );
 
-                if( ( action1.Actor.Speed > action2.Actor.Speed || action1.Actor.AbilityID == AbilityID.Prankster ) && ( action2.Action == ActionType.Setup || action2.Action == ActionType.OffensiveStatus || action2.Action == ActionType.SupportiveStatus ) )
+                if( ( action1.Actor.Speed > action2.Actor.Speed || action1.Actor.AbilityID == AbilityID.Prankster ) && ( action2.ActionType == ActionType.Setup || action2.ActionType == ActionType.OffensiveStatus || action2.ActionType == ActionType.SupportiveStatus ) )
                 {
                     pair.Synergies.Add( CoordinationSynergy.EnablesSetup );
                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
@@ -20902,7 +21036,7 @@ public class BattleAI_CoordinationIntent
                 if( action1.TargetsMove?.MoveSO.MoveCategory == MoveCategory.Special || action2.TargetsMove?.MoveSO.MoveCategory == MoveCategory.Special )
                     pair.Synergies.Add( CoordinationSynergy.ProtectsAlly );
 
-                if( ( action1.Actor.Speed > action2.Actor.Speed || action1.Actor.AbilityID == AbilityID.Prankster ) && ( action2.Action == ActionType.Setup || action2.Action == ActionType.OffensiveStatus || action2.Action == ActionType.SupportiveStatus ) )
+                if( ( action1.Actor.Speed > action2.Actor.Speed || action1.Actor.AbilityID == AbilityID.Prankster ) && ( action2.ActionType == ActionType.Setup || action2.ActionType == ActionType.OffensiveStatus || action2.ActionType == ActionType.SupportiveStatus ) )
                 {
                     pair.Synergies.Add( CoordinationSynergy.EnablesSetup );
                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
@@ -20916,7 +21050,7 @@ public class BattleAI_CoordinationIntent
                 if( action1.TargetsMove?.MoveSO.MoveCategory != MoveCategory.Status || action2.TargetsMove?.MoveSO.MoveCategory != MoveCategory.Status )
                     pair.Synergies.Add( CoordinationSynergy.ProtectsAlly );
 
-                if( ( action1.Actor.Speed > action2.Actor.Speed || action1.Actor.AbilityID == AbilityID.Prankster ) && ( action2.Action == ActionType.Setup || action2.Action == ActionType.OffensiveStatus || action2.Action == ActionType.SupportiveStatus ) )
+                if( ( action1.Actor.Speed > action2.Actor.Speed || action1.Actor.AbilityID == AbilityID.Prankster ) && ( action2.ActionType == ActionType.Setup || action2.ActionType == ActionType.OffensiveStatus || action2.ActionType == ActionType.SupportiveStatus ) )
                 {
                     pair.Synergies.Add( CoordinationSynergy.EnablesSetup );
                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
@@ -20925,13 +21059,13 @@ public class BattleAI_CoordinationIntent
 
             if( action1.Capability == CapabilityObservation.TidyUp )
             {
-                if( action2.Action == ActionType.DefensiveSwitch || action2.Action == ActionType.OffensiveSwitch )
+                if( action2.ActionType == ActionType.DefensiveSwitch || action2.ActionType == ActionType.OffensiveSwitch )
                 {
                     pair.Synergies.Add( CoordinationSynergy.CoversInvestment );
                     pair.Synergies.Add( CoordinationSynergy.ProtectsAlly );
                 }
 
-                if( ( action2.Action == ActionType.Attack || action2.Action == ActionType.OffensiveStatus ) && action1.Actor.Speed > action2.Actor.Speed && action2.MoveCandidate?.Priority <= MovePriority.Zero )
+                if( ( action2.ActionType == ActionType.Attack || action2.ActionType == ActionType.OffensiveStatus ) && action1.Actor.Speed > action2.Actor.Speed && action2.MoveCandidate?.Priority <= MovePriority.Zero )
                 {
                     if( action2.Target.VolatileStatuses.ContainsKey( VolatileConditionID.Substitute ) )
                     {
@@ -20944,37 +21078,6851 @@ public class BattleAI_CoordinationIntent
         }
     }
 
-    private void CoordinationActionPairEvaluation( CoordinationActionPair actionPair )
+    private IActionResult BuildCoordinationActionResult( CoordinationAction action, IBattleAIUnit actor, IBattleAIUnit actorAlly, IBattleAIUnit opponent, IBattleAIUnit opponentAlly )
     {
+        List<IBattleAIUnit> targets = new();
+        var move = action.MoveCandidate ?? null;
+
+        switch( action.ActionType )
+        {
+            case ActionType.Attack:
+
+                MoveThreatResult mtr = new()
+                {
+                    Score = 0,
+                    Modifier = 1,
+                    CurrentActor = actor,
+                    Targets = new(),
+                    TargetBattleUnits = new(),
+                    Move = action.MoveCandidate,
+
+                    Type = ActionResultType.Move,
+                    ActionType = ActionType.Attack,
+                };
+
+                var attackTarget = action.MoveCandidate.MoveSO.MoveTarget;
+                if( attackTarget == MoveTarget.Enemy )
+                {
+                    if( action.Target == opponent?.Pokemon )
+                        targets.Add( opponent );
+                    else if( action.Target == opponentAlly?.Pokemon )
+                        targets.Add( opponentAlly );
+                    else if( action.Target == actorAlly?.Pokemon )
+                        targets.Add( actorAlly );
+                    else
+                        targets.Add( _ai.GetPokemonAs_IBattleAIUnit( action.Target ) );
+                }
+                else if( attackTarget == MoveTarget.OpposingSide )
+                {
+                    if( opponent != null )
+                        targets.Add( opponent );
+
+                    if( opponentAlly != null )
+                        targets.Add( opponentAlly );
+                }
+                else if( attackTarget == MoveTarget.AllAdjacent )
+                {
+                    if( actorAlly != null )
+                        targets.Add( actorAlly );
+
+                    if( opponent != null )
+                        targets.Add( opponent );
+
+                    if( opponentAlly != null )
+                        targets.Add( opponentAlly );
+                }
+
+                mtr.Targets = targets.ToList();
+                mtr.TargetCount = targets.Count;
+
+                mtr.EDR = _ai.Projection.Get_EstimatedDamageResult( actor, _ai.GetPokemonAs_IBattleAIUnit( action.Target ), mtr );
+                if( mtr.EstimatedDamage <= 0 )
+                    mtr.EstimatedDamage = mtr.EDR.DamageEstimate;
+
+                mtr.PTKO = _ai.Projection.GetPTKO_FromDamageEstimate( mtr.EDR, _ai.GetPokemonAs_IBattleAIUnit( action.Target ) );
+
+                return mtr;
+
+            case ActionType.DefensiveSwitch:
+
+                SwitchCandidateResult dscr = new()
+                {
+                    Score = 0,
+                    Pokemon = action.SwitchCandidate,
+
+                    Type = ActionResultType.Switch,
+                    ActionType = ActionType.DefensiveSwitch,
+                    CurrentActor = actor,
+                    Targets = new(),
+                    Candidate = _ai.GetPokemonAs_IBattleAIUnit( action.SwitchCandidate ),
+                };
+
+                if( opponent != null )
+                    targets.Add( opponent );
+                else if( opponentAlly != null )
+                    targets.Add( opponentAlly );
+
+                return dscr;
+
+            case ActionType.OffensiveSwitch:
+
+                SwitchCandidateResult oscr = new()
+                {
+                    Score = 0,
+                    Pokemon = action.SwitchCandidate,
+
+                    Type = ActionResultType.Switch,
+                    ActionType = ActionType.OffensiveSwitch,
+                    CurrentActor = actor,
+                    Targets = targets.ToList(),
+                    Candidate = _ai.GetPokemonAs_IBattleAIUnit( action.SwitchCandidate ),
+                };
+
+                if( action.Target == opponent?.Pokemon )
+                    targets.Add( opponent );
+                else if( action.Target == opponentAlly?.Pokemon )
+                    targets.Add( opponentAlly );
+
+                return oscr;
+
+            case ActionType.Setup:
+
+                SetupThreatResult sutr = new()
+                {
+                    Move = action.MoveCandidate,
+                    CurrentActor = actor,
+                    Targets = new(){ actor },
+                    TargetBattleUnits = new(),
+
+                    Type = ActionResultType.Move,
+                    ActionType = ActionType.Setup,
+                };
+
+                return sutr;
+
+            case ActionType.OffensiveStatus:
+
+                OffensiveStatusType offensiveStatusType = OffensiveStatusType.None;
+
+                bool isCurse    = move.MoveSO.Name == "Curse" && actor.Pokemon.CheckTypes( PokemonType.Ghost );
+                bool severe     = move.MoveEffects.SevereStatus     != SevereConditionID.None;
+                bool vol        = move.MoveEffects.VolatileStatus   != VolatileConditionID.None || isCurse;
+                bool trans      = move.MoveEffects.TransientStatus  != TransientConditionID.None;
+                bool bind       = move.MoveEffects.BindingStatus    != BindingConditionID.None; //--Consider having binding moves be part of this decision line later
+
+                bool statusEffect   = severe || vol || trans;
+                bool hazard         = move.MoveEffects.CourtCondition   != CourtConditionID.None;
+                bool debuff         = move.MoveEffects.StatChangeList?.Count > 0 && ( move.MoveSO.MoveEffects.Target == EffectTarget.Enemy || move.MoveSO.MoveEffects.Target == EffectTarget.OpposingSide );
+                bool phazing        = move.MoveEffects.SwitchType == SwitchEffectType.Phaze;
+
+                if( statusEffect )
+                {
+                    if( vol )
+                    {
+                        var vs = move.MoveSO.MoveEffects.VolatileStatus;
+
+                        bool taunt = vs == VolatileConditionID.Taunt;
+                        bool encore = vs == VolatileConditionID.Encore;
+                        bool healblock = vs == VolatileConditionID.HealBlocked;
+                        bool disable = vs == VolatileConditionID.Disabled;
+                        bool perish = vs == VolatileConditionID.Perish;
+
+                        bool disruption = taunt || encore || healblock || disable || perish;
+
+                        if( disruption )
+                            offensiveStatusType = OffensiveStatusType.Disruption;
+                        else
+                            offensiveStatusType = OffensiveStatusType.StatusEffect;
+                    }
+                    else
+                        offensiveStatusType = OffensiveStatusType.StatusEffect;
+                }
+                else if( hazard )
+                    offensiveStatusType = OffensiveStatusType.EntryHazard;
+                else if( debuff )
+                    offensiveStatusType = OffensiveStatusType.StatDebuff;
+                else if( phazing )
+                    offensiveStatusType = OffensiveStatusType.Phaze;
+
+                StatusThreatResult ostr = new()
+                {
+                    OffensiveStatusType = offensiveStatusType,
+                    SupportiveStatusType = SupportiveStatusType.None,
+                    Score = 0,
+                    StatusValue = 0,
+                    Move = action.MoveCandidate,
+                    CurrentActor = actor,
+                    Targets = new(),
+                    TargetBattleUnits = new(),
+
+                    Type = ActionResultType.Move,
+                    ActionType = ActionType.OffensiveStatus,
+                };
+
+                if( action.Target == opponent?.Pokemon )
+                    targets.Add( opponent );
+                else if( action.Target == opponentAlly?.Pokemon )
+                    targets.Add( opponentAlly );
+                else if( action.Target == actorAlly?.Pokemon )
+                    targets.Add( actorAlly );
+                else
+                    targets.Add( _ai.GetPokemonAs_IBattleAIUnit( action.Target ) );
+
+                ostr.Targets = targets.ToList();
+
+                return ostr;
+
+            case ActionType.SupportiveStatus:
+
+                SupportiveStatusType supportiveStatusType = SupportiveStatusType.None;
+
+                var moveTarget = move.MoveSO.MoveTarget;
+                var effects = move.MoveSO.MoveEffects;
+
+                bool isSelfHeal = _ai.UnitSim.MoveIsSelfHeal( move );
+                bool isAllyHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.Ally;
+                bool isSideHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.AllySide;
+
+                bool isAllySetup = _ai.UnitSim.MoveIsSetup( move ) && effects.Target == EffectTarget.AllySide;
+                bool isHelpingHand = effects.VolatileStatus == VolatileConditionID.HelpingHand;
+                bool isAfteryou = move.MoveSO.Name == "After You";
+
+                bool isWeather = effects.Weather != WeatherConditionID.None;
+                bool isTerrain = effects.Terrain != TerrainID.None;
+                bool isField = effects.FieldCondition != FieldConditionID.None;
+
+                bool isTailwind = effects.CourtCondition == CourtConditionID.Tailwind;
+                
+                bool isReflect = effects.CourtCondition == CourtConditionID.Reflect;
+                bool isLightScreen = effects.CourtCondition == CourtConditionID.LightScreen;
+                bool isAuroraVeil = effects.CourtCondition == CourtConditionID.AuroraVeil;
+                bool isScreens = isReflect || isLightScreen || isAuroraVeil;
+
+                bool isSafeguard = effects.CourtCondition == CourtConditionID.SafeGuard;
+
+                bool isRedirection = effects.TransientStatus == TransientConditionID.CenterOfAttention;
+
+                if( isSelfHeal )
+                {
+                    supportiveStatusType = SupportiveStatusType.Recovery;
+                }
+                else if( isTailwind || isScreens || isAllySetup || isHelpingHand || isAfteryou )
+                {
+                    supportiveStatusType = SupportiveStatusType.ForceMultiplier;
+                }
+                else if( isWeather || isTerrain || isField || isSafeguard )
+                {
+                    supportiveStatusType = SupportiveStatusType.BattlefieldControl;
+                }
+                else if( isAllyHeal || isSideHeal || isRedirection )
+                {
+                    supportiveStatusType = SupportiveStatusType.AllyProtection;
+                }
+
+                StatusThreatResult sstr = new()
+                {
+                    OffensiveStatusType = OffensiveStatusType.None,
+                    SupportiveStatusType = supportiveStatusType,
+                    Score = 0,
+                    StatusValue = 0,
+                    Move = action.MoveCandidate,
+                    CurrentActor = actor,
+                    Targets = new(),
+                    TargetBattleUnits = new(),
+
+                    Type = ActionResultType.Move,
+                    ActionType = ActionType.SupportiveStatus,
+                };
+
+                if( move.MoveTarget == MoveTarget.Ally )
+                {
+                    if( actorAlly != null )
+                        targets.Add( actorAlly );
+                }
+
+                if( move.MoveSO.Name == "After You" )
+                {
+                    if( actorAlly != null )
+                        targets.Add( actorAlly );
+                }
+
+                if( move.MoveTarget == MoveTarget.Self )
+                {
+                    if( actor != null )
+                        targets.Add( actor );
+                }
+
+                if( move.MoveTarget == MoveTarget.AllySide )
+                {
+                    if( actor != null )
+                        targets.Add( actor );
+
+                    if( actorAlly != null )
+                        targets.Add( actorAlly );
+                }
+
+                if( move.MoveTarget == MoveTarget.AllField )
+                {
+                    if( actor != null )
+                        targets.Add( actor );
+
+                    if( actorAlly != null )
+                        targets.Add( actorAlly );
+
+                    if( opponent != null )
+                        targets.Add( opponent );
+
+                    if( opponentAlly != null )
+                        targets.Add( opponent );
+                }
+
+                sstr.Targets.AddRange( targets );
+
+                return sstr;
+
+            case ActionType.Protect:
+            break;
+        }
+
+        Debug.LogError( $"No Action Result built!" );
+        return null;
+    }
+
+    private TurnOutcomeProjection BuildCAPETOP( CoordinationActionPair pair, PairStrategyIntent psi )
+    {
+        //--Gather units & targets
+        IBattleAIUnit ourUnit1 = pair.Unit1Action.Actor != null ? _ai.GetPokemonAs_IBattleAIUnit( pair.Unit1Action.Actor ) : null;
+        IBattleAIUnit ourUnit2 = pair.Unit2Action.Actor != null ? _ai.GetPokemonAs_IBattleAIUnit( pair.Unit2Action.Actor ) : null;
+
+        IBattleAIUnit theirUnit1 = psi.LeftIntent.IntentResult?.CurrentActor;
+        IBattleAIUnit theirUnit2 = psi.RightIntent.IntentResult?.CurrentActor;
+
+        bool weHave1 = ourUnit1 != null;
+        bool weHave2 = ourUnit2 != null;
+
+        bool theyHave1 = theirUnit1 != null;
+        bool theyHave2 = theirUnit2 != null;
+
+        //--Gather action results & build MTRs
+        // if( psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == "After You" )
+        //     Debug.LogError( $"After You detected from opponent's Left Intent. Action Type: {psi.LeftIntent.ActionType}" );
+
+        // if( psi.RightIntent.IntentResult?.Move?.MoveSO.Name == "After You" )
+        //     Debug.LogError( $"After You detected from opponent's Right Intent. Action Type: {psi.RightIntent.ActionType}" );
+
+        var ourResult1 = weHave1 ? BuildCoordinationActionResult( pair.Unit1Action, ourUnit1, ourUnit2, theirUnit1, theirUnit2 ) : null;
+        var ourResult2 = weHave2 ? BuildCoordinationActionResult( pair.Unit2Action, ourUnit2, ourUnit1, theirUnit1, theirUnit2 ) : null;
+
+        var ourMTR1 = ourResult1 != null ? _ai.BattleSim.BuildUnitMTR( ourUnit1, theirUnit1, theirUnit2, ourResult1 ) : null;
+        var ourMTR2 = ourResult2 != null ? _ai.BattleSim.BuildUnitMTR( ourUnit1, theirUnit1, theirUnit2, ourResult2 ) : null;
+
+        var theirResult1 = psi.LeftIntent.IntentResult ?? null;
+        var theirResult2 = psi.RightIntent.IntentResult ?? null;
+
+        var theirMTR1 = theirResult1 != null ? _ai.BattleSim.BuildUnitMTR( theirUnit1, ourUnit1, ourUnit2, theirResult1 ) : null;
+        var theirMTR2 = theirResult2 != null ? _ai.BattleSim.BuildUnitMTR( theirUnit2, ourUnit1, ourUnit2, theirResult2 ) : null;
+
+        //--Build Simulation Modules
+        SimModuleType attackerModule = ourResult1 != null ? _ai.BattleSim.GetModuleType( ourResult1 ) : SimModuleType.None;
+        SimModuleType attackerAllyModule = ourResult2 != null ? _ai.BattleSim.GetModuleType( ourResult2 ) : SimModuleType.None;
+
+        SimModuleType opponentModule = theirResult1 != null ? _ai.BattleSim.GetModuleType( theirResult1 ) : SimModuleType.None;
+        SimModuleType opponentAllyModule = theirResult2 != null ? _ai.BattleSim.GetModuleType( theirResult2 ) : SimModuleType.None;
+
+        SimulatedField field = _ai.UnitSim.BuildSimField();
+
+        bool attackerHasAlly = weHave2 && ourMTR2 != null;
+        bool opponentHasAlly = theyHave2 && theirMTR2 != null;
+
+        SimulatedUnit attackerSimUnit = _ai.UnitSim.BuildSimUnit( ourUnit1, ourUnit1.BeginningHPR, ourMTR1, field );
+        SimulatedUnit attackerAllySimUnit = attackerHasAlly ? _ai.UnitSim.BuildSimUnit( ourUnit2, ourUnit2.BeginningHPR, ourMTR2, field ) : null;
+
+        SimulatedUnit opponentSimUnit = _ai.UnitSim.BuildSimUnit( theirUnit1, theirUnit1.BeginningHPR, theirMTR1, field );
+        SimulatedUnit opponentAllySimUnit = opponentHasAlly ? _ai.UnitSim.BuildSimUnit( theirUnit2, theirUnit2.BeginningHPR, theirMTR2, field ) : null;
+
+        SimulatedUnit attackerSwitchCandidateSimUnit = ourResult1.Candidate != null ? _ai.UnitSim.BuildSimUnit( ourResult1.Candidate, ourResult1.Candidate.BeginningHPR, new(){ Targets = new() }, field ) : null;
+        SimulatedUnit attackerAllySwitchCandidateSimUnit = ourResult2.Candidate != null ? _ai.UnitSim.BuildSimUnit( ourResult2.Candidate, ourResult2.Candidate.BeginningHPR, new(){ Targets = new() }, field ) : null;
+
+        SimulatedUnit opponentSwitchCandidateSimUnit = theirResult1.Candidate != null ? _ai.UnitSim.BuildSimUnit( theirResult1.Candidate, theirResult1.Candidate.BeginningHPR, new(){ Targets = new() }, field ) : null;
+        SimulatedUnit opponentAllySwitchCandidateSimUnit = theirResult2.Candidate != null ? _ai.UnitSim.BuildSimUnit( theirResult2.Candidate, theirResult2.Candidate.BeginningHPR, new(){ Targets = new() }, field ) : null;
+
+        List<SimulatedUnit> attackerTargets = _ai.BattleSim.GetTOPTargets( attackerSimUnit, opponentSimUnit, attackerAllySimUnit, opponentAllySimUnit, ourMTR1 );
+        List<SimulatedUnit> attackerAllyTargets = attackerHasAlly ? _ai.BattleSim.GetTOPTargets( attackerSimUnit, opponentSimUnit, attackerAllySimUnit, opponentAllySimUnit, ourMTR2 ) : new();
+
+        List<SimulatedUnit> opponentTargets = _ai.BattleSim.GetTOPTargets( attackerSimUnit, opponentSimUnit, attackerAllySimUnit, opponentAllySimUnit, theirMTR1 );
+        List<SimulatedUnit> opponentAllyTargets = opponentHasAlly ? _ai.BattleSim.GetTOPTargets( attackerSimUnit, opponentSimUnit, attackerAllySimUnit, opponentAllySimUnit, theirMTR2 ) : new();
+
+        SimulationPackage attackerPack = _ai.BattleSim.BuildSimPackage( attackerSimUnit, attackerSwitchCandidateSimUnit, attackerTargets, attackerModule );
+        SimulationPackage attackerAllyPack = attackerHasAlly ? _ai.BattleSim.BuildSimPackage( attackerAllySimUnit, attackerAllySwitchCandidateSimUnit, attackerAllyTargets, attackerAllyModule ) : default;
+
+        SimulationPackage opponentPack = _ai.BattleSim.BuildSimPackage( opponentSimUnit, opponentSwitchCandidateSimUnit, opponentTargets, opponentModule );
+        SimulationPackage opponentAllyPack = opponentHasAlly ? _ai.BattleSim.BuildSimPackage( opponentAllySimUnit, opponentAllySwitchCandidateSimUnit, opponentAllyTargets, opponentAllyModule ) : default;
+
+        var roundPack = _ai.BattleSim.BuildRoundPackage( attackerPack, attackerAllyPack, opponentPack, opponentAllyPack );
+        var bse = _ai.BattleSim.BuildBattleSimEvent( roundPack, field );
+        
+        return _ai.BattleSim.RunSimulation( bse, true, "BuildCAPETop()" );
+    }
+
+    private bool MovesBeforeTOP_Expected( SimulatedUnit unit1, SimulatedUnit unit2, TurnOutcomeProjection top )
+    {
+        return top.ExpectedTurnOrder[unit1] > top.ExpectedTurnOrder[unit2];
+    }
+
+    private bool MovesBeforeTOP_Actual( SimulatedUnit unit1, SimulatedUnit unit2, TurnOutcomeProjection top )
+    {
+        return top.TurnOrderHistory[unit1] > top.TurnOrderHistory[unit2];
+    }
+
+    private void CoordinationActionPairEvaluation( CoordinationActionPair pair, PairStrategyIntent psi, CustomLogSession cirLog = null )
+    {
+        //--Scoreboard
+        int pbe = 0;
+        int afm = 0;
+        int syn = 0;
+
+        var unit1Action = pair.Unit1Action;
+        var unit2Action = pair.Unit2Action;
+
+        var theirLeft = psi.LeftIntent.IntentResult?.CurrentActor != null ? psi.LeftIntent.IntentResult.CurrentActor : null;
+        var theirRight = psi.RightIntent.IntentResult?.CurrentActor != null ? psi.RightIntent.IntentResult.CurrentActor : null;
+
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"Unit 1: {unit1Action.Actor.NickName}, {unit1Action.ActionType}, {unit1Action.Capability}, Move: {unit1Action.MoveCandidate?.MoveSO.Name}, Switch: {unit1Action.SwitchCandidate?.NickName}" );
+        cirLog?.Add( $"Unit 2: {unit2Action.Actor.NickName}, {unit2Action.ActionType}, {unit2Action.Capability}, Move: {unit2Action.MoveCandidate?.MoveSO.Name}, Switch: {unit2Action.SwitchCandidate?.NickName}" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"VS" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"Unit 2: {theirLeft?.Name}, {psi.LeftIntent.IntentResult?.ActionType}, Move: {psi.LeftIntent.IntentResult?.Move?.MoveSO.Name}, Switch: {psi.LeftIntent.IntentResult?.Candidate?.Name}" );
+        cirLog?.Add( $"Unit 2: {theirRight?.Name}, {psi.RightIntent.IntentResult?.ActionType}, Move: {psi.RightIntent.IntentResult?.Move?.MoveSO.Name}, Switch: {psi.RightIntent.IntentResult?.Candidate?.Name}" );
+        cirLog?.Add( $"" );
+
+        //--Build Coordination Action Pair vs Pair Strategy Intent TOP
+        var top = BuildCAPETOP( pair, psi );
+        cirLog?.Add( top.SimulationLog );
+
+        var currentField = _ai.Blackboard.CurrentFieldSnapshot;
+        var simField = top.Field;
+
+        var ourCurrentCourt = top.Attacker.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+        var theirCurrentCourt = top.Opponent.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+
+        var ourSimCourt = top.Attacker.CourtLocation == CourtLocation.TopCourt ? simField.TopCourtConditions : simField.BottomCourtConditions;
+        var theirSimCourt = top.Opponent.CourtLocation == CourtLocation.TopCourt ? simField.TopCourtConditions : simField.BottomCourtConditions;
+
+        //--Unit Assignments. When we build BSE and TOP, we always assign unit1 to attacker, unit2 to attackerAlly, theirLeft to opponent, and theirRight to opponentAlly
+        //--So there is no need to perform unit searching, this is just always true. whether units exist in those locations is the only point of concern
+        //--along with whether someone switched, which we can check top for a particular unit's switched bool, and look at the previous unit via their "before" ibaiunit
+
+        IBattleAIUnit attackerBefore = unit1Action.Actor != null ? _ai.GetPokemonAs_IBattleAIUnit( unit1Action.Actor ) : null;
+        SimulatedUnit attacker = top.Attacker ?? null;
+
+        IBattleAIUnit attackerAllyBefore = unit2Action.Actor != null ? _ai.GetPokemonAs_IBattleAIUnit( unit2Action.Actor ) : null;
+        SimulatedUnit attackerAlly = top.AttackerAlly ?? null;
+
+        IBattleAIUnit opponentBefore = theirLeft ?? null;
+        SimulatedUnit opponent = top.Opponent ?? null;
+
+        IBattleAIUnit opponentAllyBefore = theirRight ?? null;
+        SimulatedUnit opponentAlly = top.OpponentAlly ?? null;
+
+        bool attackerTargeted_Opponent = top.Attacker?.MTR?.Targets?.Count > 0 && top.Attacker.MTR.Targets.Any( t => t.Pokemon == top.Opponent?.Pokemon );
+        bool attackerTargeted_OpponentAlly = top.Attacker?.MTR?.Targets?.Count > 0 && top.Attacker.MTR.Targets.Any( t => t.Pokemon == top.OpponentAlly?.Pokemon );
+
+        bool attackerAllyTargeted_Opponent = top.AttackerAlly?.MTR?.Targets?.Count > 0 && top.Attacker.MTR.Targets.Any( t => t.Pokemon == top.Opponent?.Pokemon );
+        bool attackerAllyTargeted_OpponentAlly = top.AttackerAlly?.MTR?.Targets?.Count > 0 && top.Attacker.MTR.Targets.Any( t => t.Pokemon == top.OpponentAlly?.Pokemon );
+
+        bool opponentTargeted_Attacker = top.Attacker != null && psi.LeftIntent.IntentResult?.Targets?.Count > 0 && psi.LeftIntent.IntentResult.Targets.Any( t => t.Pokemon == top.Attacker.Pokemon );
+        bool opponentTargeted_AttackerAlly = top.AttackerAlly != null && psi.LeftIntent.IntentResult?.Targets?.Count > 0 && psi.LeftIntent.IntentResult.Targets.Any( t => t.Pokemon == top.AttackerAlly.Pokemon );
+        bool opponentAllyTargeted_Attacker = top.Attacker != null && psi.RightIntent.IntentResult?.Targets?.Count > 0 && psi.RightIntent.IntentResult.Targets.Any( t => t.Pokemon == top.Attacker.Pokemon );
+        bool opponentAllyTargeted_AttackerAlly = top.Attacker != null && psi.RightIntent.IntentResult?.Targets?.Count > 0 && psi.RightIntent.IntentResult.Targets.Any( t => t.Pokemon == top.Attacker.Pokemon );
+
         //-----------------------------------
         //-----Projected Board Evaluation----
         //-----------------------------------
 
         //--Material
+        int usKOd = 0;
+        int opponentsKOd = 0;
 
-        //--HP/Preservation
+        int ourSwitchKOd = 0;
+        int theirSwitchKOd = 0;
 
-        //--Threat/Pressure
+        if( top.Attacker?.EndHPR <= 0f )
+        {
+            usKOd++;
+            cirLog?.Add( $"{top.Attacker.Name} was KO'd!" );
 
-        //--Turn Order/Tempo
+            if( top.AttackerSwitched )
+            {
+                ourSwitchKOd++;
+                cirLog?.Add( $"This was a switched-in unit!" );
+            }
+        }
 
-        //--Battlefield Conditions
+        if( top.AttackerAlly?.EndHPR <= 0f )
+        {
+            usKOd++;
+            cirLog?.Add( $"{top.AttackerAlly.Name} was KO'd!" );
 
-        //--Status/Persistent Unit Effects
+            if( top.AttackerAllySwitched )
+            {
+                ourSwitchKOd++;
+                cirLog?.Add( $"This was a switched-in unit!" );
+            }
+        }
 
-        //--Position/Board Occupancy
 
-        //--Defensive Safety/Vulnerability
+        if( top.Opponent?.EndHPR <= 0f )
+        {
+            opponentsKOd++;
+            cirLog?.Add( $"{top.Opponent.Name} was KO'd!" );
 
-        //--Resource/State Preservation
+            if( top.OpponentSwitched )
+            {
+                theirSwitchKOd++;
+                cirLog?.Add( $"This was a switched-in unit!" );
+            }
+        }
+
+        if( top.OpponentAlly?.EndHPR <= 0f )
+        {
+            opponentsKOd++;
+            cirLog?.Add( $"{top.OpponentAlly.Name} was KO'd!" );
+
+            if( top.OpponentAllySwitched )
+            {
+                theirSwitchKOd++;
+                cirLog?.Add( $"This was a switched-in unit!" );
+            }
+        }
+
+        pbe -= usKOd;
+        pbe -= ourSwitchKOd;
+
+        pbe += opponentsKOd;
+        pbe += theirSwitchKOd;
+
+        cirLog?.Add( $"Material Checks: UsKOd: {usKOd}, OurSwitchKOd: {ourSwitchKOd}, OppKOd: {opponentsKOd}, TheirSwitchKOd: {theirSwitchKOd}, PBE: {pbe}" );
+
+        //--We will eventually want TOP to provide expected and actual PTKOs, store actions, etc.
+        //--We will be able to use this information to ask interesting preservation questions,
+        //--such as "did setting reflect prevent a KO? did we KO a target who was going to KO our ally if that target survived?
+        //--i would have to rebuild a lot of this information unless we store it in TOP, so we'll hold off on these checks until
+        //--TOP is expanded and improved.
+
+        //--PTKO Changes
+        //--PTKOs Improved
+        bool attackerPTKO_Improved = top.AttackerPTKO > top.Attacker_ExpectedPTKO;
+        bool attackerAllyPTKO_Improved = top.AttackerAllyPTKO > top.AttackerAlly_ExpectedPTKO;
+        bool opponentPTKO_Improved = top.OpponentPTKO > top.Opponent_ExpectedPTKO;
+        bool opponentAllyPTKO_Improved = top.OpponentAllyPTKO > top.OpponentAlly_ExpectedPTKO;
+
+        //--PTKOs Deteriorated
+        bool attackerPTKO_Dropped = top.AttackerPTKO < top.Attacker_ExpectedPTKO;
+        bool attackerAllyPTKO_Dropped = top.AttackerAllyPTKO < top.AttackerAlly_ExpectedPTKO;
+        bool opponentPTKO_Dropped = top.OpponentPTKO < top.Opponent_ExpectedPTKO;
+        bool opponentAllyPTKO_Dropped = top.OpponentAllyPTKO < top.OpponentAlly_ExpectedPTKO;
+
+        if( attackerPTKO_Improved )
+        {
+            pbe += top.AttackerPTKO - top.Attacker_ExpectedPTKO;
+            cirLog?.Add( $"attackerPTKO_Improved! Value: {top.AttackerPTKO - top.Attacker_ExpectedPTKO}, PBE: {pbe}" );
+        }
+
+        if( attackerAllyPTKO_Improved )
+        {
+            pbe += top.AttackerAllyPTKO - top.AttackerAlly_ExpectedPTKO;
+            cirLog?.Add( $"attackerAllyPTKO_Improved! Value: {top.AttackerAllyPTKO - top.AttackerAlly_ExpectedPTKO}, PBE: {pbe}" );
+        }
+
+        if( opponentPTKO_Improved )
+        {
+            pbe -= top.OpponentPTKO - top.Opponent_ExpectedPTKO;
+            cirLog?.Add( $"opponentPTKO_Improved! Value: {top.OpponentPTKO - top.Opponent_ExpectedPTKO}, PBE: {pbe}" );
+        }
+
+        if( opponentAllyPTKO_Improved )
+        {
+            pbe -= top.OpponentAllyPTKO - top.OpponentAlly_ExpectedPTKO;
+            cirLog?.Add( $"opponentAllyPTKO_Improved! Value: {top.OpponentAllyPTKO - top.OpponentAlly_ExpectedPTKO}, PBE: {pbe}" );
+        }
+
+        if( attackerPTKO_Dropped )
+        {
+            pbe -= top.Attacker_ExpectedPTKO - top.AttackerPTKO;
+            cirLog?.Add( $"attackerPTKO_Dropped! Value: {top.Attacker_ExpectedPTKO - top.AttackerPTKO}, PBE: {pbe}" );
+        }
+
+        if( attackerAllyPTKO_Dropped )
+        {
+            pbe -= top.AttackerAlly_ExpectedPTKO - top.AttackerAllyPTKO;
+            cirLog?.Add( $"attackerAllyPTKO_Dropped! Value: {top.AttackerAlly_ExpectedPTKO - top.AttackerAllyPTKO}, PBE: {pbe}" );
+        }
+
+        if( opponentPTKO_Dropped )
+        {
+            pbe += top.Opponent_ExpectedPTKO - top.OpponentPTKO;
+            cirLog?.Add( $"opponentPTKO_Dropped! Value: {top.Opponent_ExpectedPTKO - top.OpponentPTKO}, PBE: {pbe}" );
+        }
+
+        if( opponentAllyPTKO_Dropped )
+        {
+            pbe += top.OpponentAlly_ExpectedPTKO - top.OpponentAllyPTKO;
+            cirLog?.Add( $"opponentAllyPTKO_Dropped! Value: {top.OpponentAlly_ExpectedPTKO - top.OpponentAllyPTKO}, PBE: {pbe}" );
+        }
+
+        //--Turn Order
+        //--We were expected to move first and do so
+        if( !top.AttackerSwitched && top.Attacker != null && top.ExpectedTurnOrder[top.Attacker] == 1 && top.TurnOrderHistory[top.Attacker] == 1 )
+        {
+            pbe += 1;
+             cirLog?.Add( $"Attacker was expected to move first and it did during the simulation. PBE: {pbe}" );
+        }
+
+        //--Our ally was expected to move first and does so
+        if( !top.AttackerAllySwitched && top.AttackerAlly != null && top.ExpectedTurnOrder[top.AttackerAlly] == 1 && top.TurnOrderHistory[top.AttackerAlly] == 1 )
+        {
+            pbe += 1;
+             cirLog?.Add( $"AttackerAlly was expected to move first and it did during the simulation. PBE: {pbe}" );
+        }
+
+        //--We moved sooner than expected
+        if( !top.AttackerSwitched && top.Attacker != null && top.TurnOrderHistory[top.Attacker] < top.ExpectedTurnOrder[top.Attacker] )
+        {
+            pbe += 1;
+            cirLog?.Add( $"Attacker moved sooner than expected to! PBE: {pbe}" );
+
+            //--We moved from very late to very early in the turn order (maybe due to after you or a weather/tailwind speed boost)
+            if( top.ExpectedTurnOrder[top.Attacker] > 2 && top.TurnOrderHistory[top.Attacker] <= 2 )
+            {
+                pbe += 1;
+                cirLog?.Add( $"Attacker jumped from going 3rd or 4th to going 1st or 2nd! PBE: {pbe}" );
+            }
+        }
+        else if( !top.AttackerSwitched && top.Attacker != null && top.ExpectedTurnOrder[top.Attacker] < top.TurnOrderHistory[top.Attacker] )
+        {
+            pbe -= 1;
+            cirLog?.Add( $"Attacker moved later than expected to! PBE: {pbe}" );
+        }
+
+        //--Our ally moved sooner than expected
+        if( !top.AttackerAllySwitched && top.AttackerAlly != null && top.TurnOrderHistory[top.AttackerAlly] < top.ExpectedTurnOrder[top.AttackerAlly] )
+        {
+            pbe += 1;
+            cirLog?.Add( $"AttackerAlly moved sooner than expected to! PBE: {pbe}" );
+
+            //--Our ally moved from very late to very early in the turn order (maybe due to after you or a weather/tailwind speed boost)
+            if( top.ExpectedTurnOrder[top.AttackerAlly] > 2 && top.TurnOrderHistory[top.AttackerAlly] <= 2 )
+            {
+                pbe += 1;
+                cirLog?.Add( $"AttackerAlly jumped from going 3rd or 4th to going 1st or 2nd! PBE: {pbe}" );
+            }
+        }
+        else if( !top.AttackerAllySwitched && top.AttackerAlly != null && top.ExpectedTurnOrder[top.AttackerAlly] < top.TurnOrderHistory[top.AttackerAlly] )
+        {
+            pbe -= 1;
+            cirLog?.Add( $"AttackerAlly moved later than expected to! PBE: {pbe}" );
+        }
+
+        if( !top.AttackerSwitched && top.Attacker != null && top.Opponent != null )
+        {
+            //--We weren't expected to move before one of their units, but we did
+            if( MovesBeforeTOP_Expected( top.Opponent, top.Attacker, top ) && MovesBeforeTOP_Actual( top.Attacker, top.Opponent, top ) )
+            {
+                pbe += 1;
+                cirLog?.Add( $"Attacker moved before Opponent in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+            else if( MovesBeforeTOP_Expected( top.Attacker, top.Opponent, top ) && MovesBeforeTOP_Actual( top.Opponent, top.Attacker, top ) )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"Attacker moved later than Opponent in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+        }
+
+        if( !top.AttackerSwitched && top.Attacker != null && top.OpponentAlly != null )
+        {
+            //--We weren't expected to move before one of their units, but we did
+            if( MovesBeforeTOP_Expected( top.OpponentAlly, top.Attacker, top ) && MovesBeforeTOP_Actual( top.Attacker, top.OpponentAlly, top ) )
+            {
+                pbe += 1;
+                cirLog?.Add( $"Attacker moved before OpponentAlly in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+            else if( MovesBeforeTOP_Expected( top.Attacker, top.OpponentAlly, top ) && MovesBeforeTOP_Actual( top.OpponentAlly, top.Attacker, top ) )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"Attacker moved later than OpponentAlly in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+        }
+
+        if( !top.AttackerAllySwitched && top.AttackerAlly != null && top.Opponent != null )
+        {
+            //--We weren't expected to move before one of their units, but we did
+            if( MovesBeforeTOP_Expected( top.Opponent, top.AttackerAlly, top ) && MovesBeforeTOP_Actual( top.AttackerAlly, top.Opponent, top ) )
+            {
+                pbe += 1;
+                cirLog?.Add( $"AttackerAlly moved before Opponent in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+            else if( MovesBeforeTOP_Expected( top.AttackerAlly, top.Opponent, top ) && MovesBeforeTOP_Actual( top.Opponent, top.AttackerAlly, top ) )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"AttackerAlly moved later than Opponent in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+        }
+
+        if( !top.AttackerAllySwitched && top.AttackerAlly != null && top.OpponentAlly != null )
+        {
+            //--We weren't expected to move before one of their units, but we did
+            if( MovesBeforeTOP_Expected( top.OpponentAlly, top.AttackerAlly, top ) && MovesBeforeTOP_Actual( top.AttackerAlly, top.OpponentAlly, top ) )
+            {
+                pbe += 1;
+                cirLog?.Add( $"AttackerAlly moved before OpponentAlly in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+            else if( MovesBeforeTOP_Expected( top.AttackerAlly, top.OpponentAlly, top ) && MovesBeforeTOP_Actual( top.OpponentAlly, top.AttackerAlly, top ) )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"AttackerAlly moved later than OpponentAlly in simulation when they weren't expected to! PBE: {pbe}" );
+            }
+        }
+
+        if( top.Opponent != null && !top.Opponent_ExpectedToAct )
+        {
+            pbe += 1;
+            cirLog?.Add( $"Opponent not expected to act! PBE: {pbe}" );
+        }
+
+        if( top.OpponentAlly != null && !top.OpponentAlly_ExpectedToAct )
+        {
+            pbe += 1;
+            cirLog?.Add( $"OpponentAlly not expected to act! PBE: {pbe}" );
+        }
+
+        if( top.Attacker != null && !top.Attacker_ExpectedToAct )
+        {
+            pbe -= 1;
+            cirLog?.Add( $"Attacker not expected to act! PBE: {pbe}" );
+        }
+
+        if( top.AttackerAlly != null && !top.AttackerAlly_ExpectedToAct )
+        {
+            pbe -= 1;
+            cirLog?.Add( $"AttackerAlly not expected to act! PBE: {pbe}" );
+        }
+
+        if( top.Opponent != null && !top.OpponentSwitched && top.Opponent_ExpectedToAct && !top.Opponent.CouldAct )
+        {
+            pbe += 2;
+            cirLog?.Add( $"Opponent was expected to act but couldn't! PBE: {pbe}" );
+        }
+
+        if( top.OpponentAlly != null && !top.OpponentAllySwitched && top.OpponentAlly_ExpectedToAct && !top.OpponentAlly.CouldAct )
+        {
+            pbe += 2;
+            cirLog?.Add( $"OpponentAlly was expected to act but couldn't! PBE: {pbe}" );
+        }
+
+        if( top.Attacker != null && !top.AttackerSwitched && top.Attacker_ExpectedToAct && !top.Attacker.CouldAct )
+        {
+            pbe -= 2;
+            cirLog?.Add( $"Attacker was expected to act but couldn't! PBE: {pbe}" );
+        }
+
+        if( top.AttackerAlly != null && !top.AttackerAllySwitched && top.AttackerAlly_ExpectedToAct && !top.AttackerAlly.CouldAct )
+        {
+            pbe -= 2;
+            cirLog?.Add( $"AttackerAlly was expected to act but couldn't! PBE: {pbe}" );
+        }
+
+        //--Current round unit value KOs
+        if( top.OpponentPTKO >= PotentialToKO.Dangerous && top.Opponent?.EndHPR <= 0f )
+        {
+            pbe += 1;
+            cirLog?.Add( $"Opponent was KO'd and they had a Dangerous or better PTKO! PBE: {pbe}" );
+        }
+
+        if( top.OpponentAllyPTKO >= PotentialToKO.Dangerous && top.OpponentAlly?.EndHPR <= 0f )
+        {
+            pbe += 1;
+            cirLog?.Add( $"OpponentAlly was KO'd and they had a Dangerous or better PTKO! PBE: {pbe}" );
+        }
+
+        //--Next round PTKO Projections/pseudo look ahead
+        List<IBattleAIUnit> ourActive = new();
+        List<IBattleAIUnit> ourBench = new();
+
+        List<IBattleAIUnit> theirActive = new();
+        List<IBattleAIUnit> theirBench = new();
+
+        foreach( var p in _ai.Blackboard.OurTeamAdapters.Keys )
+        {
+            if( top.Attacker?.Pokemon == p || top.AttackerAlly?.Pokemon == p )
+                continue;
+            else
+                ourBench.Add( _ai.GetPokemonAs_IBattleAIUnit( p ) );
+        }
+
+        foreach( var p in _ai.Blackboard.TheirTeamAdapters.Keys )
+        {
+            if( top.Opponent?.Pokemon == p || top.OpponentAlly?.Pokemon == p )
+                continue;
+            else
+                theirBench.Add( _ai.GetPokemonAs_IBattleAIUnit( p ) );
+        }
+
+        bool attackerAvailable = top.Attacker?.EndHPR > 0f;
+        bool attackerAllyAvailable = top.AttackerAlly?.EndHPR > 0f;
+        bool opponentAvailable = top.Opponent?.EndHPR > 0f;
+        bool opponentAllyAvailable = top.OpponentAlly?.EndHPR > 0f;
+
+        IBattleAIUnit pAttacker       = attackerAvailable ? _ai.UnitSim.GetUpdatedUnitForLookAhead( top.Attacker ) : null;
+        IBattleAIUnit pAttackerAlly   = attackerAllyAvailable ? _ai.UnitSim.GetUpdatedUnitForLookAhead( top.AttackerAlly ) : null;
+        IBattleAIUnit pOpponent       = opponentAvailable ? _ai.UnitSim.GetUpdatedUnitForLookAhead( top.Opponent ) : null;
+        IBattleAIUnit pOpponentAlly   = opponentAllyAvailable ? _ai.UnitSim.GetUpdatedUnitForLookAhead( top.OpponentAlly ) : null;
+
+        if( pAttacker?.EndHPR > 0f )
+            ourActive.Add( pAttacker );
+
+        if( pAttackerAlly?.EndHPR > 0f )
+            ourActive.Add( pAttackerAlly );
+
+        if( pOpponent?.EndHPR > 0f )
+            theirActive.Add( pOpponent );
+
+        if( pOpponentAlly?.EndHPR > 0f )
+            theirActive.Add( pOpponentAlly );
+
+        bool attackerAllyReplaced = false;
+        bool opponentAllyReplaced = false;
+
+        //--Properly replace our missing units
+        if( top.Attacker != null && ourBench?.Count > 0 )
+        {
+            if( pAttacker == null || pAttacker?.EndHPR <= 0f )
+            {
+                if( top.AttackerAlly != null )
+                {
+                    if( top.AttackerAlly.EndHPR > 0f )
+                        pAttacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                    else
+                    {
+                        if( top.Attacker?.Speed >= top.AttackerAlly?.Speed )
+                        {
+                            pAttacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+
+                            int remove = -1;
+                            for( int i = 0; i < ourBench.Count; i++ )
+                            {
+                                var b = ourBench[i];
+                                if( b.Pokemon == attacker.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                ourBench.RemoveAt( remove );
+
+                            pAttackerAlly = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                            attackerAllyReplaced = true;
+                        }
+                        else
+                        {
+                            pAttackerAlly = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                            attackerAllyReplaced = true;
+
+                            int remove = -1;
+                            for( int i = 0; i < ourBench.Count; i++ )
+                            {
+                                var b = ourBench[i];
+                                if( b.Pokemon == attackerAlly.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                ourBench.RemoveAt( remove );
+
+                            pAttacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                        }
+                    }
+                }
+                else
+                    pAttacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+            }
+        }
+
+        if( top.AttackerAlly != null && !attackerAllyReplaced && ourBench?.Count > 0 )
+        {
+            if( ( pAttackerAlly == null || pAttackerAlly?.EndHPR <= 0f ) && ourBench?.Count > 0 )
+                pAttackerAlly = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+        }
+
+        //--Properly replace their missing units
+        if( top.Opponent != null && theirBench?.Count > 0 )
+        {
+            if( pOpponent == null || pOpponent?.EndHPR <= 0f )
+            {
+                if( top.OpponentAlly != null )
+                {
+                    if( top.OpponentAlly.EndHPR > 0f )
+                        pOpponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                    else
+                    {
+                        if( top.Opponent?.Speed >= top.OpponentAlly?.Speed )
+                        {
+                            pOpponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+
+                            int remove = -1;
+                            for( int i = 0; i < theirBench.Count; i++ )
+                            {
+                                var b = theirBench[i];
+                                if( b.Pokemon == opponent.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                theirBench.RemoveAt( remove );
+
+                            pOpponentAlly = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                            opponentAllyReplaced = true;
+                        }
+                        else
+                        {
+                            pOpponentAlly = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                            opponentAllyReplaced = true;
+
+                            int remove = -1;
+                            for( int i = 0; i < theirBench.Count; i++ )
+                            {
+                                var b = theirBench[i];
+                                if( b.Pokemon == pOpponentAlly.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                theirBench.RemoveAt( remove );
+
+                            pOpponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                        }
+                    }
+                }
+                else
+                    pOpponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+            }
+        }
+
+        if( top.OpponentAlly != null && !opponentAllyReplaced && theirBench?.Count > 0 )
+        {
+            if( ( pOpponentAlly == null || pOpponentAlly?.EndHPR <= 0f ) && theirBench?.Count > 0 )
+                pOpponentAlly = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+        }
+
+        var attackerVs_Opponent           = pAttacker?.BeginningHPR > 0f && pOpponent?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pAttacker, pOpponent ) : default;
+        var attackerVs_OpponentAlly       = pAttacker?.BeginningHPR > 0f && pOpponentAlly?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pAttacker, pOpponentAlly ) : default;
+        var attackerAllyVs_Opponent       = pAttackerAlly?.BeginningHPR > 0f && pOpponent?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pAttackerAlly, pOpponent ) : default;
+        var attackerAllyVs_OpponentAlly   = pAttackerAlly?.BeginningHPR > 0f && pOpponentAlly?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pAttackerAlly, pOpponentAlly ) : default;
+
+        var opponentVs_Attacker           = pOpponent?.BeginningHPR > 0f && pAttacker?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pOpponent, pAttacker ) : default;
+        var opponentVs_AttackerAlly       = pOpponent?.BeginningHPR > 0f && pAttackerAlly?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pOpponent, pAttackerAlly ) : default;
+        var opponentAllyVs_Attacker       = pOpponentAlly?.BeginningHPR > 0f && pAttacker?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pOpponentAlly, pAttacker ) : default;
+        var opponentAllyVs_AttackerAlly   = pOpponentAlly?.BeginningHPR > 0f && pAttackerAlly?.BeginningHPR > 0f ? _ai.Projection.MakeUnitComparison( pOpponentAlly, pAttackerAlly ) : default;
+
+        var attackerPTKO_Opponent           = attackerVs_Opponent.Attacker.BestCurrentPTKO;
+        var attackerPTKO_OpponentAlly       = attackerVs_OpponentAlly.Attacker.BestCurrentPTKO;
+        var attackerAllyPTKO_Opponent       = attackerAllyVs_Opponent.Attacker.BestCurrentPTKO;
+        var attackerAllyPTKO_OpponentAlly   = attackerAllyVs_OpponentAlly.Attacker.BestCurrentPTKO;
+
+        var opponentPTKO_Attacker           = opponentVs_Attacker.Attacker.BestCurrentPTKO;
+        var opponentPTKO_AttackerAlly       = opponentVs_AttackerAlly.Attacker.BestCurrentPTKO;
+        var opponentAllyPTKO_Attacker       = opponentAllyVs_Attacker.Attacker.BestCurrentPTKO;
+        var opponentAllyPTKO_AttackerAlly   = opponentAllyVs_AttackerAlly.Attacker.BestCurrentPTKO;
+
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"Next Round Units:" );
+        cirLog?.Add( $"pAttacker: {pAttacker?.Name}, Speed: {pAttacker?.Speed}, PTKOs: {attackerPTKO_Opponent}, {attackerPTKO_OpponentAlly}" );
+        cirLog?.Add( $"pAttackerAlly: {pAttackerAlly?.Name}, Speed: {pAttackerAlly?.Speed}, PTKOs: {attackerAllyPTKO_Opponent}, {attackerAllyPTKO_OpponentAlly}" );
+        cirLog?.Add( $"pOpponent: {pOpponent?.Name}, Speed: {pOpponent?.Speed}, PTKOs: {opponentPTKO_Attacker}, {opponentPTKO_AttackerAlly}" );
+        cirLog?.Add( $"pOpponentAlly: {pOpponentAlly?.Name}, Speed: {pOpponentAlly?.Speed}, PTKOs: {opponentAllyPTKO_Attacker}, {opponentAllyPTKO_AttackerAlly}" );
+        cirLog?.Add( $"" );
+
+        //--Next round is offensively advantageous
+        if( attackerVs_Opponent.AttackerMovesFirst )
+        {
+            if( attackerPTKO_Opponent >= PotentialToKO.TwoHKO )
+                pbe += 1;
+
+            if( opponentPTKO_Attacker <= PotentialToKO.Risky )
+                pbe += 1;
+                
+            if( attackerPTKO_Opponent >= PotentialToKO.Dangerous )
+            {
+                pbe += 1;
+                cirLog?.Add( $"Attacker has an offensive advantage on Opponent next turn! PBE: {pbe}" );
+
+                //--PTKO last round was a guaranteed TwoHKO or better, meaning did acceptable damage and threaten a KO next turn
+                if( top.AttackerPTKO >= PotentialToKO.TwoHKO && attackerTargeted_Opponent )
+                {
+                    pbe += 1;
+                    cirLog?.Add( $"Attacker had a TwoHKO or better this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+                }
+   
+            }
+        }
+
+        if( attackerVs_OpponentAlly.AttackerMovesFirst )
+        {
+            if( attackerPTKO_OpponentAlly >= PotentialToKO.TwoHKO )
+                pbe += 1;
+
+            if( opponentAllyPTKO_Attacker <= PotentialToKO.Risky )
+                pbe += 1;
+                
+            if( attackerPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+            {
+                pbe += 1;
+                cirLog?.Add( $"Attacker has an offensive advantage on OpponentAlly next turn! PBE: {pbe}" );
+
+                if( top.AttackerPTKO >= PotentialToKO.TwoHKO && attackerTargeted_OpponentAlly )
+                {
+                    pbe += 1;
+                    cirLog?.Add( $"Attacker had a TwoHKO or better this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+                }
+            }
+        }
+
+        if( attackerAllyVs_Opponent.AttackerMovesFirst )
+        {
+            if( attackerAllyPTKO_Opponent >= PotentialToKO.TwoHKO )
+                pbe += 1;
+
+            if( opponentPTKO_AttackerAlly <= PotentialToKO.Risky )
+                pbe += 1;
+                
+            if( attackerAllyPTKO_Opponent >= PotentialToKO.Dangerous )
+            {
+                pbe += 1;
+                cirLog?.Add( $"AttackerAlly has an offensive advantage on Opponent next turn! PBE: {pbe}" );
+
+                //--PTKO last round was a guaranteed TwoHKO or better, meaning did acceptable damage and threaten a KO next turn
+                if( top.AttackerAllyPTKO >= PotentialToKO.TwoHKO && attackerAllyTargeted_Opponent )
+                {
+                    pbe += 1;
+                    cirLog?.Add( $"AttackerAlly had a TwoHKO this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+             
+            }   }
+            }
+
+        if( attackerAllyVs_OpponentAlly.AttackerMovesFirst )
+        {
+            if( attackerAllyPTKO_OpponentAlly >= PotentialToKO.TwoHKO )
+                pbe += 1;
+
+            if( opponentAllyPTKO_AttackerAlly <= PotentialToKO.Risky )
+                pbe += 1;
+                
+            if( attackerAllyPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+            {
+                pbe += 1;
+                cirLog?.Add( $"AttackerAlly has an offensive advantage on OpponentAlly next turn! PBE: {pbe}" );
+
+                if( top.AttackerAllyPTKO >= PotentialToKO.TwoHKO && attackerAllyTargeted_OpponentAlly )
+                {
+                    pbe += 1;
+                    cirLog?.Add( $"AttackerAlly had a TwoHKO this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+                }
+            }
+        }
+
+        //--Next round is offensively disadvantageous
+        if( !attackerVs_Opponent.AttackerMovesFirst )
+        {
+            if( opponentPTKO_Attacker >= PotentialToKO.TwoHKO )
+                pbe -= 1;
+
+            if( attackerPTKO_Opponent <= PotentialToKO.Risky )
+                pbe -= 1;
+
+            if( opponentPTKO_Attacker >= PotentialToKO.Dangerous )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"Opponent has an offensive advantage on Attacker next turn! PBE: {pbe}" );
+
+                //--PTKO last round was a guaranteed TwoHKO or better, meaning did acceptable damage and threaten a KO next turn
+                if( top.OpponentPTKO >= PotentialToKO.TwoHKO && opponentTargeted_Attacker )
+                {
+                    pbe -= 1;
+                    cirLog?.Add( $"Opponent had a TwoHKO this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+                }
+            }
+        }
+
+        if( !attackerVs_OpponentAlly.AttackerMovesFirst )
+        {
+            if( opponentAllyPTKO_AttackerAlly >= PotentialToKO.TwoHKO )
+                pbe -= 1;
+
+            if( attackerPTKO_OpponentAlly <= PotentialToKO.Risky )
+                pbe -= 1;
+
+            if( opponentAllyPTKO_AttackerAlly >= PotentialToKO.Dangerous )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"Opponent has an offensive advantage on AttackerAlly next turn! PBE: {pbe}" );
+
+                if( top.OpponentAllyPTKO >= PotentialToKO.TwoHKO && opponentAllyTargeted_AttackerAlly )
+                {
+                    pbe -= 1;
+                    cirLog?.Add( $"Opponent had a TwoHKO this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+                }
+            }
+        }
+
+        if( !attackerVs_OpponentAlly.AttackerMovesFirst )
+        {
+            if( opponentAllyPTKO_Attacker >= PotentialToKO.TwoHKO )
+                pbe -= 1;
+
+            if( attackerPTKO_Opponent <= PotentialToKO.Risky )
+                pbe -= 1;
+
+            if( opponentAllyPTKO_Attacker >= PotentialToKO.Dangerous )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"OpponentAlly has an offensive advantage on Attacker next turn! PBE: {pbe}" );
+
+                //--PTKO last round was a guaranteed TwoHKO or better, meaning did acceptable damage and threaten a KO next turn
+                if( top.OpponentAllyPTKO >= PotentialToKO.TwoHKO && opponentAllyTargeted_Attacker )
+                {
+                    pbe -= 1;
+                    cirLog?.Add( $"OpponentAlly had a TwoHKO this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+                }
+            }
+        }
+
+        if( !attackerAllyVs_OpponentAlly.AttackerMovesFirst )
+        {
+            if( opponentAllyPTKO_AttackerAlly >= PotentialToKO.TwoHKO )
+                pbe -= 1;
+
+            if( attackerAllyPTKO_OpponentAlly <= PotentialToKO.Risky )
+                pbe -= 1;
+
+            if( opponentAllyPTKO_AttackerAlly >= PotentialToKO.Dangerous )
+            {
+                pbe -= 1;
+                cirLog?.Add( $"OpponentAlly has an offensive advantage on AttackerAlly next turn! PBE: {pbe}" );
+
+                if( top.OpponentAllyPTKO >= PotentialToKO.TwoHKO && opponentAllyTargeted_AttackerAlly )
+                {
+                    pbe -= 1;
+                    cirLog?.Add( $"OpponentAlly had a TwoHKO this round, meaning they are actively fulfilling a guaranteed 2-hit KO scenario. PBE: {pbe}" );
+                }
+            }
+        }
+
+        //--Battlefield Changes
+        //--Our Court Effects
+        if( !ourCurrentCourt.ContainsKey( CourtConditionID.Tailwind ) && ourSimCourt.ContainsKey( CourtConditionID.Tailwind ) )
+        {
+            int tailwind = 2;
+
+            pbe += 1;
+
+            if( top.Opponent?.Speed > top.Attacker?.Speed / tailwind && top.Attacker?.Speed > top.Opponent?.Speed )
+                pbe += 1;
+
+            if( top.OpponentAlly?.Speed > top.Attacker?.Speed / tailwind && top.Attacker?.Speed > top.OpponentAlly?.Speed )
+                pbe += 1;
+
+            if( top.Opponent?.Speed > top.AttackerAlly?.Speed / tailwind && top.AttackerAlly?.Speed > top.Opponent?.Speed )
+                pbe += 1;
+
+            if( top.OpponentAlly?.Speed > top.AttackerAlly?.Speed / tailwind && top.AttackerAlly?.Speed > top.OpponentAlly?.Speed )
+                pbe += 1;
+        }
+
+        if( !ourCurrentCourt.ContainsKey( CourtConditionID.Reflect ) && ourSimCourt.ContainsKey( CourtConditionID.Reflect ) )
+        {
+            pbe += 1;
+
+            if( top.Opponent != null && top.Opponent.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                pbe += 1;
+
+            if( top.OpponentAlly != null && top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                pbe += 1;
+        }
+
+        if( !ourCurrentCourt.ContainsKey( CourtConditionID.LightScreen ) && ourSimCourt.ContainsKey( CourtConditionID.LightScreen ) )
+        {
+            pbe += 1;
+
+            if( top.Opponent != null && top.Opponent.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                pbe += 1;
+
+            if( top.OpponentAlly != null && top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                pbe += 1;
+        }
+
+        if( !ourCurrentCourt.ContainsKey( CourtConditionID.AuroraVeil ) && ourSimCourt.ContainsKey( CourtConditionID.AuroraVeil ) )
+            pbe += 2;
+
+        //--Their Court Effects
+        if( !theirCurrentCourt.ContainsKey( CourtConditionID.Tailwind ) && theirSimCourt.ContainsKey( CourtConditionID.Tailwind ) )
+        {
+            int tailwind = 2;
+
+            pbe -= 1;
+
+            if( top.Attacker?.Speed > top.Opponent?.Speed / tailwind && top.Opponent?.Speed > top.Attacker?.Speed )
+                pbe -= 1;
+
+            if( top.AttackerAlly?.Speed > top.Opponent?.Speed / tailwind && top.Opponent?.Speed > top.AttackerAlly?.Speed )
+                pbe -= 1;
+
+            if( top.Attacker?.Speed > top.Opponent?.Speed / tailwind && top.OpponentAlly?.Speed > top.Attacker?.Speed )
+                pbe -= 1;
+
+            if( top.AttackerAlly?.Speed > top.Opponent?.Speed / tailwind && top.OpponentAlly?.Speed > top.AttackerAlly?.Speed )
+                pbe -= 1;
+        }
+
+        if( !theirCurrentCourt.ContainsKey( CourtConditionID.Reflect ) && theirSimCourt.ContainsKey( CourtConditionID.Reflect ) )
+        {
+            pbe -= 1;
+
+            if( top.Attacker != null && top.Attacker.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                pbe -= 1;
+
+            if( top.AttackerAlly != null && top.AttackerAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                pbe -= 1;
+        }
+
+        if( !theirCurrentCourt.ContainsKey( CourtConditionID.LightScreen ) && theirSimCourt.ContainsKey( CourtConditionID.LightScreen ) )
+        {
+            pbe -= 1;
+
+            if( top.Attacker != null && top.Attacker.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                pbe -= 1;
+
+            if( top.AttackerAlly != null && top.AttackerAlly.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                pbe -= 1;
+        }
+
+        if( !theirCurrentCourt.ContainsKey( CourtConditionID.AuroraVeil ) && theirSimCourt.ContainsKey( CourtConditionID.AuroraVeil ) )
+            pbe -= 2;
+
+        //--Weather
+        if( currentField.Weather != WeatherConditionID.None && simField.Weather != WeatherConditionID.None && currentField.Weather != simField.Weather )
+        {
+            var currentWeather = currentField.Weather;
+            var newWeather = simField.Weather;
+
+            //--Weather change improves the board in our favor
+            if( top.Opponent != null && _ai.UnitSim.PokemonBenefits_Weather( top.Opponent, currentWeather ) && !_ai.UnitSim.PokemonBenefits_Weather( top.Opponent, newWeather ) )
+                pbe += 1;
+
+            if( top.OpponentAlly != null && _ai.UnitSim.PokemonBenefits_Weather( top.OpponentAlly, currentWeather ) && !_ai.UnitSim.PokemonBenefits_Weather( top.OpponentAlly, newWeather ) )
+                pbe += 1;
+
+            if( top.Attacker != null && !_ai.UnitSim.PokemonBenefits_Weather( top.Attacker, currentWeather ) && _ai.UnitSim.PokemonBenefits_Weather( top.Attacker, newWeather ) )
+                pbe += 1;
+
+            if( top.AttackerAlly != null && !_ai.UnitSim.PokemonBenefits_Weather( top.AttackerAlly, currentWeather ) && _ai.UnitSim.PokemonBenefits_Weather( top.AttackerAlly, newWeather ) )
+                pbe += 1;
+
+            //--Weather change improves the board in their favor
+            if( top.Opponent != null && !_ai.UnitSim.PokemonBenefits_Weather( top.Opponent, currentWeather ) && _ai.UnitSim.PokemonBenefits_Weather( top.Opponent, newWeather ) )
+                pbe -= 1;
+
+            if( top.OpponentAlly != null && !_ai.UnitSim.PokemonBenefits_Weather( top.OpponentAlly, currentWeather ) && _ai.UnitSim.PokemonBenefits_Weather( top.OpponentAlly, newWeather ) )
+                pbe -= 1;
+
+            if( top.Attacker != null && _ai.UnitSim.PokemonBenefits_Weather( top.Attacker, currentWeather ) && !_ai.UnitSim.PokemonBenefits_Weather( top.Attacker, newWeather ) )
+                pbe -= 1;
+
+            if( top.AttackerAlly != null && _ai.UnitSim.PokemonBenefits_Weather( top.AttackerAlly, currentWeather ) && !_ai.UnitSim.PokemonBenefits_Weather( top.AttackerAlly, newWeather ) )
+                pbe -= 1;
+        }
+        else if( currentField.Weather == WeatherConditionID.None && simField.Weather != WeatherConditionID.None )
+        {
+            var newWeather = simField.Weather;
+
+            //--Weather change improves the board in our favor
+            if( top.Attacker != null && _ai.UnitSim.PokemonBenefits_Weather( top.Attacker, newWeather ) )
+                pbe += 1;
+
+            if( top.AttackerAlly != null && _ai.UnitSim.PokemonBenefits_Weather( top.AttackerAlly, newWeather ) )
+                pbe += 1;
+
+            //--Weather change improves the board in their favor
+            if( top.Opponent != null && _ai.UnitSim.PokemonBenefits_Weather( top.Opponent, newWeather ) )
+                pbe -= 1;
+
+            if( top.OpponentAlly != null && _ai.UnitSim.PokemonBenefits_Weather( top.OpponentAlly, newWeather ) )
+                pbe -= 1;
+        }
+
+        //--Weather Speed Improvement Checks
+        if( simField.Weather != WeatherConditionID.None )
+        {
+            int weatherSpeed = 2;
+            var newWeather = simField.Weather;
+            if( top.Attacker != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( top.Attacker.Pokemon, newWeather ) )
+            {
+                if( top.Attacker?.Speed / weatherSpeed < top.Opponent?.Speed && top.Attacker?.Speed > top.Opponent?.Speed )
+                    pbe += 1;
+
+                if( top.Attacker?.Speed / weatherSpeed < top.OpponentAlly?.Speed && top.Attacker?.Speed > top.OpponentAlly?.Speed )
+                    pbe += 1;
+            }
+
+            if( top.AttackerAlly != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( top.AttackerAlly.Pokemon, newWeather ) )
+            {
+                if( top.AttackerAlly?.Speed / weatherSpeed < top.Opponent?.Speed && top.AttackerAlly?.Speed > top.Opponent?.Speed )
+                    pbe += 1;
+
+                if( top.AttackerAlly?.Speed / weatherSpeed < top.OpponentAlly?.Speed && top.AttackerAlly?.Speed > top.OpponentAlly?.Speed )
+                    pbe += 1;
+            }
+
+            if( top.Opponent != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( top.Opponent.Pokemon, newWeather ) )
+            {
+                if( top.Opponent?.Speed / weatherSpeed < top.Attacker?.Speed && top.Opponent?.Speed > top.Attacker?.Speed )
+                    pbe -= 1;
+
+                if( top.Opponent?.Speed / weatherSpeed < top.AttackerAlly?.Speed && top.Opponent?.Speed > top.AttackerAlly?.Speed )
+                    pbe -= 1;
+            }
+
+            if( top.OpponentAlly != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( top.OpponentAlly.Pokemon, newWeather ) )
+            {
+                if( top.OpponentAlly?.Speed / weatherSpeed < top.Attacker?.Speed && top.OpponentAlly?.Speed > top.Attacker?.Speed )
+                    pbe -= 1;
+
+                if( top.OpponentAlly?.Speed / weatherSpeed < top.AttackerAlly?.Speed && top.OpponentAlly?.Speed > top.AttackerAlly?.Speed )
+                    pbe -= 1;
+            }
+        }
+
+        //--Terrain
+        if( currentField.Terrain != TerrainID.None && simField.Terrain != TerrainID.None && currentField.Terrain != simField.Terrain )
+        {
+            var currentTerrain = currentField.Terrain;
+            var newTerrain = simField.Terrain;
+
+            //--Weather change improves the board in our favor
+            if( top.Opponent != null && _ai.UnitSim.PokemonBenefits_Terrain( top.Opponent, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( top.Opponent, newTerrain ) )
+                pbe += 1;
+
+            if( top.OpponentAlly != null && _ai.UnitSim.PokemonBenefits_Terrain( top.OpponentAlly, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( top.OpponentAlly, newTerrain ) )
+                pbe += 1;
+
+            if( top.Attacker != null && !_ai.UnitSim.PokemonBenefits_Terrain( top.Attacker, currentTerrain ) && _ai.UnitSim.PokemonBenefits_Terrain( top.Attacker, newTerrain ) )
+                pbe += 1;
+
+            if( top.AttackerAlly != null && !_ai.UnitSim.PokemonBenefits_Terrain( top.AttackerAlly, currentTerrain ) && _ai.UnitSim.PokemonBenefits_Terrain( top.AttackerAlly, newTerrain ) )
+                pbe += 1;
+
+            //--Weather change improves the board in their favor
+            if( top.Opponent != null && !_ai.UnitSim.PokemonBenefits_Terrain( top.Opponent, currentTerrain ) && _ai.UnitSim.PokemonBenefits_Terrain( top.Opponent, newTerrain ) )
+                pbe -= 1;
+
+            if( top.OpponentAlly != null && !_ai.UnitSim.PokemonBenefits_Terrain( top.OpponentAlly, currentTerrain ) && _ai.UnitSim.PokemonBenefits_Terrain( top.OpponentAlly, newTerrain ) )
+                pbe -= 1;
+
+            if( top.Attacker != null && _ai.UnitSim.PokemonBenefits_Terrain( top.Attacker, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( top.Attacker, newTerrain ) )
+                pbe -= 1;
+
+            if( top.AttackerAlly != null && _ai.UnitSim.PokemonBenefits_Terrain( top.AttackerAlly, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( top.AttackerAlly, newTerrain ) )
+                pbe -= 1;
+        }
+        else if( currentField.Terrain == TerrainID.None && simField.Terrain != TerrainID.None )
+        {
+            var newTerrain = simField.Terrain;
+
+            //--Weather change improves the board in our favor
+            if( top.Attacker != null && _ai.UnitSim.PokemonBenefits_Terrain( top.Attacker, newTerrain ) )
+                pbe += 1;
+
+            if( top.AttackerAlly != null && _ai.UnitSim.PokemonBenefits_Terrain( top.AttackerAlly, newTerrain ) )
+                pbe += 1;
+
+            //--Weather change improves the board in their favor
+            if( top.Opponent != null && _ai.UnitSim.PokemonBenefits_Terrain( top.Opponent, newTerrain ) )
+                pbe -= 1;
+
+            if( top.OpponentAlly != null && _ai.UnitSim.PokemonBenefits_Terrain( top.OpponentAlly, newTerrain ) )
+                pbe -= 1;
+        }
+
+        if( simField.Terrain == TerrainID.Psychic )
+        {
+            if( top.Attacker != null && top.Attacker.RoleProfile.Traits.Contains( RoleTrait.Priority ) )
+                pbe -= 1;
+
+            if( top.AttackerAlly != null && top.AttackerAlly.RoleProfile.Traits.Contains( RoleTrait.Priority ) )
+                pbe -= 1;
+
+            if( top.Opponent != null && top.Opponent.RoleProfile.Traits.Contains( RoleTrait.Priority ) )
+                pbe += 1;
+
+            if( top.OpponentAlly != null && top.OpponentAlly.RoleProfile.Traits.Contains( RoleTrait.Priority ) )
+                pbe += 1;
+        }
+
+        //--Trick Room
+        if( simField.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) )
+        {
+            if( top.Attacker?.Speed < top.Opponent?.Speed )
+                pbe += 1;
+            else
+                pbe -= 1;
+
+            if( top.Attacker?.Speed < top.OpponentAlly?.Speed )
+                pbe += 1;
+            else
+                pbe -= 1;
+
+            if( top.AttackerAlly?.Speed < top.Opponent?.Speed )
+                pbe += 1;
+            else
+                pbe -= 1;
+
+            if( top.AttackerAlly?.Speed < top.OpponentAlly?.Speed )
+                pbe += 1;
+            else
+                pbe -= 1;
+
+            if( top.Attacker != null && ( top.Attacker.RoleProfile.PrimaryRole == RoleClass.TrickRoomAbuser || top.Attacker.RoleProfile.SecondaryRoles.Contains( RoleClass.TrickRoomAbuser ) ) )
+                pbe += 1;
+
+            if( top.AttackerAlly != null && ( top.AttackerAlly.RoleProfile.PrimaryRole == RoleClass.TrickRoomAbuser || top.AttackerAlly.RoleProfile.SecondaryRoles.Contains( RoleClass.TrickRoomAbuser ) ) )
+                pbe += 1;
+
+            if( top.Opponent != null && ( top.Opponent.RoleProfile.PrimaryRole == RoleClass.TrickRoomAbuser || top.Opponent.RoleProfile.SecondaryRoles.Contains( RoleClass.TrickRoomAbuser ) ) )
+                pbe -= 1;
+
+            if( top.OpponentAlly != null && ( top.OpponentAlly.RoleProfile.PrimaryRole == RoleClass.TrickRoomAbuser || top.OpponentAlly.RoleProfile.SecondaryRoles.Contains( RoleClass.TrickRoomAbuser ) ) )
+                pbe -= 1;
+        } 
+
+        //--Persistent Unit Effects
+        //--We disrupt them
+        //--Severe
+        if( opponentBefore?.SevereStatus == SevereConditionID.None && opponent.SevereStatus != SevereConditionID.None )
+        {
+            pbe += 1;
+
+            if( top.Opponent.RoleProfile.Biases.Contains( RoleBias.Physical ) && top.Opponent.SevereStatus == SevereConditionID.BRN )
+                pbe += 1;
+
+            if( top.Opponent.RoleProfile.Biases.Contains( RoleBias.Special ) && top.Opponent.SevereStatus == SevereConditionID.FBT )
+                pbe += 1;
+
+            if( top.Opponent.RoleProfile.Traits.Contains( RoleTrait.ParalysisWeak ) && top.Opponent.SevereStatus == SevereConditionID.PAR )
+            {
+                pbe += 1;
+
+                if( top.Opponent_ExpectedToAct && !top.Opponent.CouldAct )
+                    pbe += 1;
+            }
+
+            if( top.Opponent.SevereStatus == SevereConditionID.SLP )
+            {
+                pbe += 1;
+
+                if( top.Opponent_ExpectedToAct && !top.Opponent.CouldAct )
+                    pbe += 1;
+            }
+
+            if( top.OpponentSwitched )
+                pbe += 1;
+        }
+
+        //--Taunt
+        if( opponentBefore != null && opponent != null && !opponentBefore.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && opponent.VolatileStatuses.Contains( VolatileConditionID.Taunt ) )
+        {
+            if( top.Opponent.RoleProfile.Signals.StatusMoveCount > 1 )
+                pbe += 1;
+
+            if( !top.OpponentSwitched && top.Opponent_ExpectedToAct && !top.Opponent.CouldAct )
+                pbe += 1;
+        }
+
+        if( opponentAllyBefore?.SevereStatus == SevereConditionID.None && top.OpponentAlly?.SevereStatus != SevereConditionID.None )
+        {
+            pbe += 1;
+
+            if( top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) && top.OpponentAlly.SevereStatus == SevereConditionID.BRN )
+                pbe += 1;
+
+            if( top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Special ) && top.OpponentAlly.SevereStatus == SevereConditionID.FBT )
+                pbe += 1;
+
+            if( top.OpponentAlly.RoleProfile.Traits.Contains( RoleTrait.ParalysisWeak ) && top.OpponentAlly.SevereStatus == SevereConditionID.PAR )
+            {
+                pbe += 1;
+
+                if( top.OpponentAlly_ExpectedToAct && !top.OpponentAlly.CouldAct )
+                    pbe += 1;
+            }
+
+            if( top.OpponentAlly.SevereStatus == SevereConditionID.SLP )
+            {
+                pbe += 1;
+
+                if( top.OpponentAlly_ExpectedToAct && !top.OpponentAlly.CouldAct )
+                    pbe += 1;
+            }
+
+            if( top.OpponentAllySwitched )
+                pbe += 1;
+        }
+
+        //--Taunt
+        if( opponentAllyBefore != null && opponentAlly != null && !opponentAlly.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && opponentAlly.VolatileStatuses.Contains( VolatileConditionID.Taunt ) )
+        {
+            if( top.OpponentAlly.RoleProfile.Signals.StatusMoveCount > 1 )
+                pbe += 1;
+
+            if( !top.OpponentAllySwitched && top.OpponentAlly_ExpectedToAct && !top.OpponentAlly.CouldAct )
+                pbe += 1;
+        }
+
+        //--They disrupt us
+        //--Severe
+        if( attackerBefore?.SevereStatus == SevereConditionID.None && top.Attacker?.SevereStatus != SevereConditionID.None )
+        {
+            pbe -= 1;
+
+            if( top.Attacker.RoleProfile.Biases.Contains( RoleBias.Physical ) && top.Attacker.SevereStatus == SevereConditionID.BRN )
+                pbe -= 1;
+
+            if( top.Attacker.RoleProfile.Biases.Contains( RoleBias.Special ) && top.Attacker.SevereStatus == SevereConditionID.FBT )
+                pbe -= 1;
+
+            if( top.Attacker.RoleProfile.Traits.Contains( RoleTrait.ParalysisWeak ) && top.Attacker.SevereStatus == SevereConditionID.PAR )
+            {
+                pbe -= 1;
+
+                if( top.Attacker_ExpectedToAct && !top.Attacker.CouldAct )
+                    pbe -= 1;
+            }
+
+            if( top.Attacker.SevereStatus == SevereConditionID.SLP )
+            {
+                pbe -= 1;
+
+                if( top.Attacker_ExpectedToAct && !top.Attacker.CouldAct )
+                    pbe -= 1;
+            }
+
+            if( top.AttackerSwitched )
+                pbe -= 1;
+        }
+
+        //--Taunt
+        if( attackerBefore != null && attacker != null && !attackerBefore.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && top.Attacker.VolatileStatuses.Contains( VolatileConditionID.Taunt ) )
+        {
+            if( top.Attacker.RoleProfile.Signals.StatusMoveCount > 1 )
+                pbe -= 1;
+
+            if( !top.AttackerSwitched && top.Attacker_ExpectedToAct && !top.Attacker.CouldAct )
+                pbe -= 1;
+        }
+
+        //--Severe
+        if( attackerAllyBefore?.SevereStatus == SevereConditionID.None && top.AttackerAlly?.SevereStatus != SevereConditionID.None )
+        {
+            pbe -= 1;
+
+            if( top.AttackerAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) && top.AttackerAlly.SevereStatus == SevereConditionID.BRN )
+                pbe -= 1;
+
+            if( top.AttackerAlly.RoleProfile.Biases.Contains( RoleBias.Special ) && top.AttackerAlly.SevereStatus == SevereConditionID.FBT )
+                pbe -= 1;
+
+            if( top.AttackerAlly.RoleProfile.Traits.Contains( RoleTrait.ParalysisWeak ) && top.AttackerAlly.SevereStatus == SevereConditionID.PAR )
+            {
+                pbe -= 1;
+
+                if( top.AttackerAlly_ExpectedToAct && !top.AttackerAlly.CouldAct )
+                    pbe -= 1;
+            }
+
+            if( top.AttackerAlly.SevereStatus == SevereConditionID.SLP )
+            {
+                pbe -= 1;
+
+                if( top.AttackerAlly_ExpectedToAct && !top.AttackerAlly.CouldAct )
+                    pbe -= 1;
+            }
+
+            if( top.AttackerAllySwitched )
+                pbe -= 1;
+        }
+
+        //--Taunt
+        if( attackerAllyBefore != null && attackerAlly != null && !attackerAllyBefore.VolatileStatuses.Contains( VolatileConditionID.Taunt ) && top.AttackerAlly.VolatileStatuses.Contains( VolatileConditionID.Taunt ) )
+        {
+            if( top.AttackerAlly.RoleProfile.Signals.StatusMoveCount > 1 )
+                pbe -= 1;
+
+            if( !top.AttackerAllySwitched && top.AttackerAlly_ExpectedToAct && !top.AttackerAlly.CouldAct )
+                pbe -= 1;
+        }
 
         //-----------------------------------
         //---Action Fulfillment Evaluation---
         //-----------------------------------
 
+        //--Attack
+        if( unit1Action.ActionType == ActionType.Attack )
+            ScoreAttackAction( unit1Action, 1 );   
+
+        if( unit2Action.ActionType == ActionType.Attack )
+            ScoreAttackAction( unit2Action, 2 );
+
+        if( unit1Action.ActionType == ActionType.Attack && unit2Action.ActionType == ActionType.Attack )
+        {
+            if( attackerTargeted_Opponent && attackerAllyTargeted_Opponent )
+            {
+                afm += 1;
+
+                if( top.Opponent.EndHPR <= 0f )
+                    afm += 2;
+
+                if( !top.Opponent.CompletedTurn || !top.Opponent.CouldAct )
+                    afm += 1;
+            }
+
+            if( attackerTargeted_OpponentAlly && attackerAllyTargeted_OpponentAlly )
+            {
+                afm += 1;
+
+                if( top.OpponentAlly?.EndHPR <= 0f )
+                    afm += 2;
+
+                if( !top.OpponentAlly.CompletedTurn || !top.OpponentAlly.CouldAct )
+                    afm += 1;
+            }
+        }
+
+        void ScoreAttackAction( CoordinationAction action, int unit )
+        {
+            bool unitIs1 = unit == 1;
+
+            SimulatedUnit actor = unitIs1 ? attacker : attackerAlly;
+            List<IBattleAIUnit> targetUnits = new();
+            List<SimulatedUnit> targets = new();
+
+            if( unitIs1 )
+            {
+                if( top.Attacker?.MTR?.Targets?.Count > 0 )
+                    targetUnits = top.Attacker.MTR.Targets.ToList();
+            }
+            else
+            {
+                if( top.AttackerAlly?.MTR?.Targets?.Count > 0 )
+                    targetUnits = top.AttackerAlly.MTR.Targets.ToList();
+            }
+
+            if( targetUnits?.Count <= 0 )
+            {
+                Debug.LogError( $"No targets in attack action!" );
+                return;
+            }
+            else
+            {
+                foreach( var t in targetUnits )
+                {
+                    if( t.Pokemon == top.Opponent?.Pokemon )
+                        targets.Add( top.Opponent );
+
+                    if( t.Pokemon == top.OpponentAlly?.Pokemon )
+                        targets.Add( top.OpponentAlly );
+                }
+            }
+
+            foreach( var target in targets )
+            {
+                var attackerNowVs_Target = _ai.Projection.MakeUnitComparison( actor, target );
+                var attackerNext = _ai.UnitSim.GetUpdatedUnitForLookAhead( actor );
+                var targetNext = _ai.UnitSim.GetUpdatedUnitForLookAhead( target );
+                var attackerVs_TargetNext = _ai.Projection.MakeUnitComparison( attackerNext, targetNext );
+                var attackerNextPTKO = attackerVs_TargetNext.Attacker.BestCurrentPTKO;
+                var attackerNextMovesFirst = attackerVs_TargetNext.AttackerMovesFirst;
+
+                PotentialToKO attackerPTKO_Target = actor.MTR?.Move != null ? actor.MTR.PTKO : attackerNowVs_Target.Attacker.CurrentPTKOs[action.MoveCandidate]; //--we really need to switch to move IDs. i bet this breaks all the time. 09/10/26
+                PotentialToKO targetPTKO_Attacker = target.MTR?.Move != null ? target.MTR.PTKO : attackerNowVs_Target.Target.BestCurrentPTKO;
+
+                bool targetSwitched = target.Pokemon == top.Opponent?.Pokemon && top.OpponentSwitched || target.Pokemon == top.OpponentAlly?.Pokemon && top.OpponentAllySwitched;
+
+                if( actor.MTR == null || actor.MTR?.PTKO == PotentialToKO.Untouchable )
+                    Debug.LogError( $"{actor.Name}'s {actor.MTR?.Move?.MoveSO.Name}'s PTKO on {target?.Name} is: {actor.MTR?.PTKO}" );
+
+                if( target.EndHPR <= 0f )
+                    afm += 2;
+                else if( target.BeginningHPR - target.EndHPR >= 0.25f )
+                    afm += 1;
+
+                if( actor.BeginningHPR == actor.EndHPR || top.TurnOrderHistory[actor] < top.TurnOrderHistory[target] )
+                    afm += 1;
+
+                if( target.BeginningHPR <= 0.45f && attackerPTKO_Target >= PotentialToKO.Dangerous )
+                    afm += 1;
+
+                if( MovesBeforeTOP_Actual( actor, target, top ) && attackerPTKO_Target >= PotentialToKO.TwoHKO )
+                {
+                    afm += 1;
+
+                    if( targetPTKO_Attacker <= PotentialToKO.TwoHKO )
+                        afm += 1;
+
+                    if( attackerPTKO_Target >= PotentialToKO.Dangerous )
+                        afm += 1;
+                }
+
+                if( attackerPTKO_Target >= PotentialToKO.TwoHKO && attackerNextPTKO >= PotentialToKO.Dangerous )
+                {
+                    afm += 1;
+
+                    if( attackerNextMovesFirst )
+                        afm += 1;
+                }
+
+                if( action.RelevantPressures?.Count > 0 )
+                {
+                    foreach( var spe in action.RelevantPressures )
+                    {
+                        if( CheckIfActionAnswersPressure( ActionType.Attack, spe.Pressure ) && ( target.EndHPR <= 0f || !target.CouldAct || !target.CompletedTurn ) )
+                            afm += 1;
+                    }
+                }
+
+                if( ( ( target.Pokemon == top.Opponent?.Pokemon && top.OpponentPTKO >= PotentialToKO.Dangerous ) || ( target.Pokemon == top.OpponentAlly?.Pokemon && top.OpponentAllyPTKO >= PotentialToKO.Dangerous ) ) && target.EndHPR <= 0f )
+                {
+                    afm += 1;
+
+                    if( top.TurnOrderHistory[actor] < top.TurnOrderHistory[target] )
+                        afm += 1;
+                }
+
+                if( _ai.CanUseProtect( target.Pokemon ) )
+                {
+                    afm -= 2;
+
+                    if( attackerPTKO_Target >= PotentialToKO.Risky )
+                        afm -= 1;
+
+                    if( target.BeginningHPR == 1f || target.BeginningHPR <= 0.5f )
+                        afm -= 1;
+
+                    if( target.Item == ItemBattleEffectID.FocusSash && target.BeginningHPR == 1f && _ai.Round < 3 )
+                        afm -= 1;
+
+                    if( theirLeft != null && theirLeft == target.Pokemon && psi.LeftIntent.IntentResult?.ActionType == ActionType.Protect )
+                    {
+                        afm -= 2;
+
+                        if( theirRight != null && ( psi.RightIntent.IntentResult?.ActionType == ActionType.DefensiveSwitch || psi.RightIntent.IntentResult?.ActionType == ActionType.OffensiveSwitch ) )
+                            afm -= 1;
+                    }
+
+                    if( theirRight != null && theirRight == target.Pokemon && psi.RightIntent.IntentResult?.ActionType == ActionType.Protect )
+                    {
+                        afm -= 2;
+
+                        if( theirLeft != null && ( psi.LeftIntent.IntentResult?.ActionType == ActionType.DefensiveSwitch || psi.LeftIntent.IntentResult?.ActionType == ActionType.OffensiveSwitch ) )
+                            afm -= 1;
+                    }
+                }
+
+                if( target.Pokemon == top.Opponent?.Pokemon && top.OpponentSwitched )
+                {
+                    if( top.Opponent.BeginningHPR - top.Opponent.EndHPR >= 0.33f )
+                        afm += 1;
+
+                    if( actor.MTR?.Move != null && TypeChart.GetTotalMoveEffectiveness( target.Type, actor.MTR.Move ) > 1f )
+                        afm += 1;
+
+                    if( action.Capability == CapabilityObservation.CoverageMove )
+                        afm += 2;
+
+                    if( action.Capability == CapabilityObservation.StrongestAttack )
+                    {
+                        if( action.MoveCandidate?.MoveSO.Name == attackerNowVs_Target.Attacker.CurrentPTKOs.Keys.First().MoveSO.Name )
+                            afm += 2;
+                        else if( action.MoveCandidate?.MoveSO.Name == attackerNowVs_Target.Attacker.CurrentPTKOs.Keys.Skip( 1 ).First().MoveSO.Name )
+                            afm += 1;
+                    }
+                }
+
+                if( target.Pokemon == top.OpponentAlly?.Pokemon && top.OpponentAllySwitched )
+                {
+                    if( top.OpponentAlly.BeginningHPR - top.OpponentAlly.EndHPR >= 0.33f )
+                        afm += 1;
+
+                    if( actor.MTR?.Move != null && TypeChart.GetTotalMoveEffectiveness( target.Type, actor.MTR.Move ) > 1f )
+                        afm += 1;
+
+                    if( action.Capability == CapabilityObservation.CoverageMove )
+                        afm += 2;
+
+                    if( action.Capability == CapabilityObservation.StrongestAttack )
+                    {
+                        if( action.MoveCandidate?.MoveSO.Name == attackerNowVs_Target.Attacker.CurrentPTKOs.Keys.First().MoveSO.Name )
+                            afm += 2;
+                        else if( action.MoveCandidate?.MoveSO.Name == attackerNowVs_Target.Attacker.CurrentPTKOs.Keys.Skip( 1 ).First().MoveSO.Name )
+                            afm += 1;
+                    }
+                }
+
+                //--Unique attacks like fake out and knock off go here
+                if( action.Capability == CapabilityObservation.CoverageMove && targetSwitched )
+                {
+                    if( attackerPTKO_Target >= PotentialToKO.TwoHKO )
+                    {
+                        afm += 1;
+
+                        if( attackerNextMovesFirst )
+                            afm += 1;
+
+                        if( attackerPTKO_Target >= PotentialToKO.Dangerous )
+                            afm += 1;
+                    }
+
+                    if( target.Pokemon.CheckHasActiveMove( "Eruption" ) || target.Pokemon.CheckHasActiveMove( "Water Spout" ) )
+                        afm += 2;
+
+                    if( target.Pokemon == top.Opponent?.Pokemon && top.OpponentSwitched )
+                    {
+                        afm += 1;
+
+                        if( actor.MTR?.Move != null && TypeChart.GetTotalMoveEffectiveness( target.Type, actor.MTR.Move ) > 1f )
+                            afm += 2;
+
+                        if( attackerPTKO_Target >= PotentialToKO.TwoHKO )
+                        {
+                            afm += 1;
+
+                            if( attackerNextMovesFirst )
+                                afm += 2;
+                        }
+                    }
+
+                    if( target.Pokemon == top.OpponentAlly?.Pokemon && top.OpponentAllySwitched )
+                    {
+                        afm += 1;
+
+                        if( actor.MTR?.Move != null && TypeChart.GetTotalMoveEffectiveness( target.Type, actor.MTR.Move ) > 1f )
+                            afm += 2;
+
+                        if( attackerPTKO_Target >= PotentialToKO.TwoHKO )
+                        {
+                            afm += 1;
+
+                            if( attackerNextMovesFirst )
+                                afm += 2;
+                        }
+                    }
+                }
+
+                if( action.Capability == CapabilityObservation.FakeOut && !target.CouldAct )
+                {
+                    afm += 2;
+
+                    if( actor?.Pokemon == top.Attacker?.Pokemon )
+                    {
+                        if( target.Pokemon == top.Opponent?.Pokemon && attackerAllyTargeted_Opponent && target.EndHPR <= 0f )
+                            afm += 1;
+
+                        if( target.Pokemon == top.OpponentAlly?.Pokemon && attackerAllyTargeted_OpponentAlly && target.EndHPR <= 0f )
+                            afm += 1;
+                    }
+
+                    if( actor?.Pokemon == top.AttackerAlly?.Pokemon )
+                    {
+                        if( target.Pokemon == top.Opponent?.Pokemon && attackerTargeted_Opponent && target.EndHPR <= 0f )
+                            afm += 1;
+
+                        if( target.Pokemon == top.OpponentAlly?.Pokemon && attackerTargeted_OpponentAlly && target.EndHPR <= 0f )
+                            afm += 1;
+                    }
+
+                    if( target.Item == ItemBattleEffectID.FocusSash && target.BeginningHPR == 1f )
+                        afm += 1;
+                }
+
+                if( action.Capability == CapabilityObservation.KnockOff && target.Item == ItemBattleEffectID.None && ( ( target.Pokemon == theirLeft && theirLeft.Item != ItemBattleEffectID.None ) || ( target.Pokemon == theirRight && theirRight.Item != ItemBattleEffectID.None ) ) )
+                    afm += 2;
+
+                if( action.Capability == CapabilityObservation.ThroatChop && ( !target.CouldAct || target.RoleProfile.Traits.Contains( RoleTrait.SoundMoves ) ) )
+                    afm += 2;
+
+                if( action.Capability == CapabilityObservation.RagingBull || action.Capability == CapabilityObservation.BrickBreak || action.Capability == CapabilityObservation.PsychicFangs )
+                {
+                    if( theirCurrentCourt.ContainsKey( CourtConditionID.Reflect ) && !theirSimCourt.ContainsKey( CourtConditionID.Reflect ) )
+                        afm += 1;
+
+                    if( theirCurrentCourt.ContainsKey( CourtConditionID.LightScreen ) && !theirSimCourt.ContainsKey( CourtConditionID.LightScreen ) )
+                        afm += 1;
+
+                    if( theirCurrentCourt.ContainsKey( CourtConditionID.AuroraVeil ) && !theirSimCourt.ContainsKey( CourtConditionID.AuroraVeil ) )
+                        afm += 1;
+                }
+
+                if( action.Capability == CapabilityObservation.RapidSpin || action.Capability == CapabilityObservation.MortalSpin )
+                {
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.LeechSeed ) && !ourSimCourt.ContainsKey( CourtConditionID.LeechSeed ) )
+                        afm += 1;
+
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.Spikes ) && !ourSimCourt.ContainsKey( CourtConditionID.Spikes ) )
+                        afm += 1;
+
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.ToxicSpikes ) && !ourSimCourt.ContainsKey( CourtConditionID.ToxicSpikes ) )
+                        afm += 1;
+
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.StealthRock ) && !ourSimCourt.ContainsKey( CourtConditionID.StealthRock ) )
+                        afm += 1;
+
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.StickyWeb ) && !ourSimCourt.ContainsKey( CourtConditionID.StickyWeb ) )
+                        afm += 1;
+                }
+                
+                if( action.Capability == CapabilityObservation.TrapMove && target.Bindings?.Count > 0 )
+                {
+                    afm += 1;
+
+                    if( target.EndHPR <= 0.33f )
+                    {
+                        afm += 1;
+
+                        if( actor.Pokemon == top.Attacker?.Pokemon && top.Attacker?.EndHPR > 0f )
+                        {
+                            if( target.Pokemon == top.Opponent?.Pokemon && attackerPTKO_Opponent >= PotentialToKO.Dangerous && attackerVs_Opponent.AttackerMovesFirst )
+                                afm += 1;
+
+                            if( target.Pokemon == top.OpponentAlly?.Pokemon && attackerPTKO_OpponentAlly >= PotentialToKO.Dangerous && attackerVs_OpponentAlly.AttackerMovesFirst )
+                                afm += 1;
+                        }
+
+                        if( actor.Pokemon == top.AttackerAlly?.Pokemon && top.AttackerAlly?.EndHPR > 0f )
+                        {
+                            if( target.Pokemon == top.Opponent?.Pokemon && attackerAllyPTKO_Opponent >= PotentialToKO.Dangerous && attackerAllyVs_Opponent.AttackerMovesFirst )
+                                afm += 1;
+
+                            if( target.Pokemon == top.OpponentAlly?.Pokemon && attackerAllyPTKO_OpponentAlly >= PotentialToKO.Dangerous && attackerAllyVs_OpponentAlly.AttackerMovesFirst )
+                                afm += 1;
+                        }
+                    }
+
+                    if( actor.Pokemon == top.Attacker?.Pokemon && top.AttackerAlly != null && top.AttackerAlly.RoleProfile.Traits.Contains( RoleTrait.PerishSong ) )
+                        afm += 1;
+
+                    if( actor.Pokemon == top.AttackerAlly?.Pokemon && top.Attacker != null && top.Attacker.RoleProfile.Traits.Contains( RoleTrait.PerishSong ) )
+                        afm += 1;
+                }
+            }
+        }
+
+        //--Defensive/Offensive Switch
+        if( unit1Action.ActionType == ActionType.DefensiveSwitch || unit1Action.ActionType == ActionType.OffensiveSwitch )
+        {
+            ScoreSwitchAction( unit1Action, 1 );
+
+            if( unit2Action.ActionType == ActionType.Protect || unit2Action.Capability == CapabilityObservation.Redirection || unit2Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+        }
+
+        if( unit2Action.ActionType == ActionType.DefensiveSwitch || unit2Action.ActionType == ActionType.OffensiveSwitch )
+        {
+            ScoreSwitchAction( unit2Action, 2 );
+
+            if( unit1Action.ActionType == ActionType.Protect || unit1Action.Capability == CapabilityObservation.Redirection || unit1Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+        }
+
+        void ScoreSwitchAction( CoordinationAction action, int unit )
+        {
+            bool unitIs1 = unit == 1;
+
+            IBattleAIUnit actor = unitIs1 ? attackerBefore : attackerAllyBefore;
+            SimulatedUnit switchCandidate = unitIs1 ? attacker : attackerAlly;
+            SimulatedUnit switchesAlly = null;
+            List<SimulatedUnit> opponents = new();
+
+            if( unitIs1 && top.AttackerAlly != null )
+                switchesAlly = top.AttackerAlly;
+            else if( !unitIs1 && top.Attacker != null )
+                switchesAlly = top.Attacker;
+
+            var currentWeather = currentField.Weather;
+            var currentTerrain = currentField.Terrain;
+
+            if( unitIs1 )
+            {
+                if( opponentTargeted_Attacker )
+                    opponents.Add( top.Opponent );
+
+                if( opponentAllyTargeted_Attacker )
+                    opponents.Add( top.OpponentAlly );
+            }
+            else
+            {
+                if( opponentTargeted_AttackerAlly )
+                    opponents.Add( top.Opponent );
+
+                if( opponentAllyTargeted_AttackerAlly )
+                    opponents.Add( top.OpponentAlly );
+            }
+
+            if( switchCandidate == null )
+            {
+                Debug.LogError( $"No switch candidate match found!" );
+                return;
+            }
+
+            //--Possibly no danger incoming to switch
+            if( opponents?.Count <= 0 )
+            {
+                //--Neither opponent targets this switch during simulation
+                //--For now, let's just flat reward it
+                afm += 3;
+            }
+            else //--Regular switch checking
+            {
+                if( switchCandidate.EndHPR <= 0f )
+                {
+                    afm -= 10;
+                    return;
+                }
+
+                //--Update Switch for next-round checks.
+                var switchNextRound = _ai.UnitSim.CopySimUnit( switchCandidate );
+                switchNextRound.BeginningHPR = switchCandidate.EndHPR;
+
+                if( switchCandidate.BeginningHPR - switchCandidate.EndHPR < 0.33f || switchCandidate.EndHPR > 0.66f )
+                    afm += opponents?.Count > 0 ? opponents.Count : 0;
+
+                foreach( var opp in opponents )
+                {
+                    IBattleAIUnit oppAlly = null;
+                    var actorVs_Opponent = _ai.Projection.MakeUnitComparison( actor, opp );
+                    var switchIncomingVs_Opponent = _ai.Projection.MakeUnitComparison( switchCandidate, opp );
+                    var switchNextVs_Opponent = _ai.Projection.MakeUnitComparison( switchNextRound, opp );
+
+                    PotentialToKO actorPTKO = actorVs_Opponent.Attacker.BestCurrentPTKO;
+                    PotentialToKO switchPTKO = switchNextVs_Opponent.Attacker.BestCurrentPTKO;
+                    PotentialToKO oppPTKO_Switch = switchNextVs_Opponent.Target.BestCurrentPTKO;
+
+                    bool switchMovesFirst = switchNextVs_Opponent.AttackerMovesFirst;
+                    Move incomingMove = opp.MTR?.Move;
+
+                    PotentialToKO incomingPTKO = default;
+                    PotentialToKO originalPTKO = default;
+
+                    bool incomingMoveFound = false;
+
+                    if( incomingMove != null )
+                    {
+                        if( switchIncomingVs_Opponent.Target.CurrentPTKOs.TryGetValue( incomingMove, out incomingPTKO ) )
+                            incomingMoveFound = true;
+
+                        if( !incomingMoveFound )
+                        {
+                            Debug.LogError( $"Incoming Move's PTKO on the switch for the round it actually enters the field not found. Fix this or nothing will work!" );
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError( $"Incoming Move not found. Fix this or nothing will work!" );
+                        return;
+                    }
+
+                    //--Handle opponent's ally
+                    if( opp.Pokemon == top.Opponent?.Pokemon && top.OpponentAlly != null )
+                        oppAlly = top.OpponentAlly;
+                    else if( opp.Pokemon == top.OpponentAlly?.Pokemon && top.Opponent != null )
+                        oppAlly = top.Opponent;
+
+                    var switchNextVs_OppAlly = oppAlly != null ? _ai.Projection.MakeUnitComparison( switchNextRound, oppAlly ) : default;
+                    PotentialToKO switchPTKO_OppAlly = oppAlly != null ? switchNextVs_OppAlly.Attacker.BestCurrentPTKO : default;
+                    PotentialToKO oppAllyPTKO_Switch = oppAlly != null ? switchNextVs_OppAlly.Target.BestCurrentPTKO : default;
+
+                    //--Check natural type advantages
+                    if( switchNextVs_Opponent.Attacker.HasNaturalTypeAdvantage )
+                        afm += 1;
+                    else if( switchNextVs_Opponent.Target.HasNaturalTypeAdvantage )
+                        afm -= 1;
+
+                    if( switchNextVs_Opponent.Attacker.HasNaturalTypeAdvantage && !actorVs_Opponent.Attacker.HasNaturalTypeAdvantage )
+                    {
+                        afm += 1;
+
+                        if( actorVs_Opponent.Target.HasNaturalTypeAdvantage )
+                            afm += 1;
+                    }
+                    else if( actorVs_Opponent.Target.HasNaturalTypeAdvantage && !switchNextVs_Opponent.Target.HasNaturalTypeAdvantage )
+                        afm += 1;
+
+                    //--Check incoming damaging attack
+                    if( incomingMove?.MoveSO.MoveCategory != MoveCategory.Status )
+                    {
+                        float movesEffectiveness = TypeChart.GetTotalMoveEffectiveness( switchCandidate.Type, incomingMove );
+
+                        //--Get Opponent's original targeting information
+                        if( opp.Pokemon == top.Opponent?.Pokemon )
+                            originalPTKO = top.OpponentPTKO;
+
+                        if( opp.Pokemon == top.OpponentAlly?.Pokemon )
+                            originalPTKO = top.OpponentAllyPTKO;
+
+                        if( incomingPTKO < originalPTKO )
+                        {
+                            afm += 1;
+
+                            if( incomingPTKO <= PotentialToKO.Safe || originalPTKO - incomingPTKO > 2 )
+                                afm += 1;
+
+                            if( incomingPTKO <= PotentialToKO.TwoHKO && originalPTKO >= PotentialToKO.Dangerous )
+                                afm += 1;
+                        }
+
+                        if( movesEffectiveness == 0f )
+                            afm += 3;
+                        else if( movesEffectiveness == 0.25f )
+                            afm += 2;
+                        else if( movesEffectiveness == 0.5f )
+                            afm += 1;
+
+                        if( switchPTKO >= PotentialToKO.Dangerous )
+                        {
+                            if( switchMovesFirst )
+                                afm += 2;
+                            else if( oppPTKO_Switch <= PotentialToKO.Risky )
+                                afm += 1;
+                        }
+
+                        if( switchPTKO > actorPTKO )
+                        {
+                            afm += 1;
+
+                            if( ( switchPTKO >= PotentialToKO.Dangerous && actorPTKO <= PotentialToKO.TwoHKO ) || switchPTKO - actorPTKO > 2 )
+                                afm += 1;
+                        }
+
+                        if( switchCandidate.Speed > actor.Speed )
+                        {
+                            afm += 1;
+
+                            if( opp.Speed > actor.Speed && switchCandidate.Speed > opp.Speed )
+                                afm += 1;
+                        }
+
+                        if( !actorVs_Opponent.AttackerMovesFirst && switchNextVs_Opponent.AttackerMovesFirst )
+                            afm += 1;
+                    }
+                    else
+                    {
+                        //--TODO: do stuff if positive resistance into offensive status or the switch's ability does something to negate the incoming status move maybe
+                        if( opp.Ability == AbilityID.Prankster )
+                        {
+                            if( switchCandidate.Pokemon.CheckTypes( PokemonType.Dark ) )
+                                afm += 1;
+
+                            if( switchCandidate.RoleProfile.Traits.Contains( RoleTrait.PriorityBlockAbility ) || switchCandidate.Ability == AbilityID.PsychicSurge )
+                                afm += 2;
+                        }
+
+                        if( opp.Ability == AbilityID.FlashFire && incomingMove?.MoveSO.Name == "Will-O-Wisp" )
+                            afm += 1;
+
+                        if( ( opp.Ability == AbilityID.VoltAbsorb || opp.Ability == AbilityID.LightningRod ) && incomingMove?.MoveSO.Name == "Thunder Wave" )
+                            afm += 1;
+                    }
+
+                    //--Switch comes into already existing major/common/strong battlefield effects
+                    //--Weather
+                    if( currentWeather != WeatherConditionID.None && _ai.UnitSim.PokemonBenefits_Weather( switchCandidate, currentWeather ) )
+                    {
+                        afm += 1;
+
+                        if( _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( switchCandidate.Pokemon, currentWeather ) )
+                        {
+                            int weatherSpeed = 2;
+                            if( opp.Speed > switchCandidate.Speed && switchCandidate.Speed * weatherSpeed > opp.Speed )
+                            {
+                                afm += 1;
+
+                                if( oppPTKO_Switch >= PotentialToKO.Dangerous && switchPTKO >= PotentialToKO.Dangerous )
+                                    afm += 1;
+                            }
+
+                            if( oppAlly?.Speed > switchCandidate.Speed && switchCandidate.Speed * weatherSpeed > oppAlly?.Speed )
+                            {
+                                afm += 1;
+
+                                if( oppAllyPTKO_Switch >= PotentialToKO.Dangerous && switchPTKO_OppAlly >= PotentialToKO.Dangerous )
+                                    afm += 1;
+                            }
+                        }
+                    }
+
+                    //--Terrain
+                    if( currentTerrain != TerrainID.None && _ai.UnitSim.PokemonBenefits_Terrain( switchCandidate, currentTerrain ) )
+                    {
+                        afm += 1;
+
+                        if( switchCandidate.Speed > opp.Speed && _ai.UnitSim.PokemonHasMove_AbusesTerrain( switchCandidate.Pokemon, currentTerrain ) )
+                            afm += 1;
+
+                        if( switchCandidate.Speed > oppAlly?.Speed && _ai.UnitSim.PokemonHasMove_AbusesTerrain( switchCandidate.Pokemon, currentTerrain ) )
+                            afm += 1;
+                    }
+
+                    //--Tailwind
+                    if( ourCurrentCourt.TryGetValue( CourtConditionID.Tailwind, out int duration ) && duration > 1 )
+                    {
+                        int tailwind = 2;
+                        if( opp.Speed > switchCandidate.Speed && switchCandidate.Speed * tailwind > opp.Speed )
+                        {
+                            afm += 1;
+
+                            if( oppPTKO_Switch >= PotentialToKO.Dangerous && switchPTKO >= PotentialToKO.Dangerous )
+                                afm += 1;
+                        }
+
+                        if( oppAlly?.Speed > switchCandidate.Speed && switchCandidate.Speed * tailwind > oppAlly?.Speed )
+                        {
+                            afm += 1;
+
+                            if( oppAllyPTKO_Switch >= PotentialToKO.Dangerous && switchPTKO_OppAlly >= PotentialToKO.Dangerous )
+                                afm += 1;
+                        }
+                    }
+
+                    //--Screens
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.Reflect ) && incomingMove?.MoveSO.MoveCategory == MoveCategory.Physical && oppPTKO_Switch <= PotentialToKO.TwoHKO )
+                        afm += 1;
+
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.LightScreen ) && incomingMove?.MoveSO.MoveCategory == MoveCategory.Special && oppPTKO_Switch <= PotentialToKO.TwoHKO )
+                        afm += 1;
+
+                    if( ourCurrentCourt.ContainsKey( CourtConditionID.AuroraVeil ) && incomingMove?.MoveSO.MoveCategory != MoveCategory.Status && oppPTKO_Switch <= PotentialToKO.TwoHKO )
+                        afm += 1;
+                }
+
+                //--Pressure Response Checks
+                if( action.RelevantPressures?.Count > 0 )
+                {
+                    foreach( var spe in action.RelevantPressures )
+                    {
+                        if( CheckIfActionAnswersPressure( ActionType.DefensiveSwitch, spe.Pressure ) && CheckIfPressureResponse( spe.Pressure, action.Capability ) )
+                            afm += 1;
+                    }
+                }
+
+                //--Unique Capability Checks
+                if( action.Capability == CapabilityObservation.Intimidate )
+                {
+                    if( top.Opponent != null && top.Opponent.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                        afm += 1;
+
+                    if( top.OpponentAlly != null && top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                        afm += 1;
+                }
+
+                if( action.Capability == CapabilityObservation.Demoralize )
+                {
+                    if( top.Opponent != null && top.Opponent.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                        afm += 1;
+
+                    if( top.OpponentAlly != null && top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                        afm += 1;
+                }
+
+                if( action.Capability == CapabilityObservation.WeatherSetAbility )
+                {
+                    if( _ai.UnitSim.GetWeatherFrom_Ability( switchCandidate.Pokemon ) is var switchesWeather && switchesWeather != WeatherConditionID.None && switchesWeather != currentWeather )
+                    {
+                        afm += 1;
+
+                        if( switchesAlly != null && _ai.UnitSim.PokemonBenefits_Weather( switchesAlly, switchesWeather ) )
+                            afm += 1;
+
+                        if( switchesAlly != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( switchesAlly.Pokemon, switchesWeather ) )
+                        {
+                            if( switchesAlly?.Speed * 2 > top.Opponent?.Speed )
+                            {
+                                afm += 1;
+
+                                if( top.Opponent?.Speed > switchesAlly?.Speed )
+                                    afm += 1;
+                            }
+
+                            if( switchesAlly?.Speed * 2 > top.OpponentAlly?.Speed )
+                            {
+                                afm += 1;
+
+                                if( top.OpponentAlly?.Speed > switchesAlly?.Speed )
+                                    afm += 1;
+                            }
+                        }
+
+                        if( top.Opponent != null )
+                        {
+                            if( _ai.UnitSim.PokemonBenefits_Weather( top.Opponent, currentWeather ) )
+                                afm += 1;
+
+                            if( _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( top.Opponent.Pokemon, currentWeather ) )
+                            {
+                                if( top.Opponent?.Speed > switchCandidate.Speed && switchCandidate.Speed > top.Opponent?.Speed / 2 )
+                                    afm += 1;
+
+                                if( top.Opponent?.Speed > switchesAlly?.Speed && switchesAlly?.Speed > top.Opponent?.Speed / 2 )
+                                    afm += 1;
+                            }
+                        }
+
+                        if( top.OpponentAlly != null )
+                        {
+                            if( _ai.UnitSim.PokemonBenefits_Weather( top.OpponentAlly, currentWeather ) )
+                                afm += 1;
+
+                            if( _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( top.OpponentAlly.Pokemon, currentWeather ) )
+                            {
+                                if( top.OpponentAlly?.Speed > switchCandidate.Speed && switchCandidate.Speed > top.OpponentAlly?.Speed / 2 )
+                                    afm += 1;
+
+                                if( top.OpponentAlly?.Speed > switchesAlly?.Speed && switchesAlly?.Speed > top.OpponentAlly?.Speed / 2 )
+                                    afm += 1;
+                            }
+                        }
+                    }
+                }
+
+                if( action.Capability == CapabilityObservation.TerrainSetAbility )
+                {
+                    if( _ai.UnitSim.GetTerrainFrom_Ability( switchCandidate.Pokemon ) is var switchesTerrain && switchesTerrain != TerrainID.None && switchesTerrain != currentTerrain )
+                    {
+                        afm += 1;
+
+                        if( switchesAlly != null && _ai.UnitSim.PokemonBenefits_Terrain( switchesAlly, switchesTerrain ) )
+                            afm += 1;
+
+                        if( switchesAlly != null && switchesAlly.Pokemon.CheckHasActiveMove( "Expanding Force" ) && switchesTerrain == TerrainID.Psychic )
+                            afm += 1;
+                    }
+                }
+
+                if( action.Capability == CapabilityObservation.TrapAbility )
+                {
+                    if( switchesAlly != null && switchesAlly.RoleProfile.Traits.Contains( RoleTrait.PerishSong ) )
+                        afm += 2;
+                }
+
+                if( action.Capability == CapabilityObservation.Hospitality )
+                {
+                    if( switchesAlly != null && switchesAlly.BeginningHPR <= 0.66f )
+                    {
+                        afm += 1;
+
+                        if( switchesAlly.BeginningHPR <= 0.33f )
+                            afm += 1;
+                    }
+                }
+
+                if( action.Capability == CapabilityObservation.AbilityPriorityBlock )
+                {
+                    if( theirLeft?.Ability == AbilityID.Prankster && psi.LeftIntent.ActionType == ActionType.OffensiveStatus )
+                        afm += 1;
+
+                    if( psi.LeftIntent.ActionType == ActionType.Attack && psi.LeftIntent.IntentResult?.Move?.Priority > MovePriority.Zero )
+                        afm += 1;
+
+                    if( theirRight?.Ability == AbilityID.Prankster && psi.RightIntent.ActionType == ActionType.OffensiveStatus )
+                        afm += 1;
+
+                    if( psi.RightIntent.ActionType == ActionType.Attack && psi.RightIntent.IntentResult?.Move?.Priority > MovePriority.Zero )
+                        afm += 1;
+                }
+
+                if( action.Capability == CapabilityObservation.CloudNine )
+                {
+                    if( currentWeather != WeatherConditionID.None )
+                    {
+                        if( theirLeft != null && _ai.UnitSim.PokemonBenefits_Weather( theirLeft, currentWeather ) )
+                            afm += 1;
+
+                        if( theirRight != null && _ai.UnitSim.PokemonBenefits_Weather( theirRight, currentWeather ) )
+                            afm += 1;
+                    }
+                }
+
+                if( action.Capability == CapabilityObservation.BatonPass )
+                {
+                    var statStages = switchCandidate.StatStages;
+                    if( statStages?.Count > 0 )
+                    {
+                        foreach( var sc in statStages )
+                        {
+                            if( sc.Value > 0 )
+                                afm += 1;
+                        }
+                    }
+                }
+
+            }
+        }
+
+        //--Setup
+        if( unit1Action.ActionType == ActionType.Setup )
+        {
+            ScoreSetupAction( unit1Action, 1 );
+            
+            if( unit2Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+            
+            if( unit2Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+        }
+
+        if( unit2Action.ActionType == ActionType.Setup )
+        {
+            ScoreSetupAction( unit2Action, 2 );
+            
+            if( unit1Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+            
+            if( unit1Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+        }
+
+        void ScoreSetupAction( CoordinationAction action, int unit )
+        {
+            bool unitIs1 = unit == 1;
+            SimulatedUnit actor = unitIs1 ? top.Attacker : top.AttackerAlly;
+            IBattleAIUnit actorBefore = unitIs1 ? _ai.GetPokemonAs_IBattleAIUnit( unit1Action.Actor ) : _ai.GetPokemonAs_IBattleAIUnit( unit2Action.Actor );
+            Move setupMove = action.MoveCandidate;
+            var statChanges = setupMove.MoveEffects.StatChangeList;
+
+            if( actor.CouldAct && actor.EndHPR > 0f )
+            {
+                float damageTaken = actor.BeginningHPR - actor.EndHPR;
+
+                if( damageTaken > 0.33f )
+                    afm -= 2;
+
+                if( action.Capability == CapabilityObservation.Substitute && actor.VolatileStatuses.Contains( VolatileConditionID.Substitute ) )
+                    afm += 3;
+                else if( action.Capability != CapabilityObservation.Substitute )
+                    afm += 1;
+
+                if( action.RelevantPressures?.Count > 0 )
+                {
+                    foreach( var spe in action.RelevantPressures )
+                    {
+                        if( CheckIfActionAnswersPressure( ActionType.Setup, spe.Pressure ) && damageTaken <= 0.33f )
+                            afm += 1;
+                    }
+                }
+
+                List<IBattleAIUnit> opponents = new();
+
+                if( top.Opponent != null )
+                    opponents.Add( top.Opponent );
+
+                if( top.OpponentAlly != null )
+                    opponents.Add( top.OpponentAlly );
+
+                foreach( var opp in opponents )
+                {
+                    var actorBeforeVs_Opp = _ai.Projection.MakeUnitComparison( actorBefore, opp );
+                    var actorAfterVs_Opp = _ai.Projection.MakeUnitComparison( actor, opp );
+
+                    var actorBeforePTKO_Opp = actorBeforeVs_Opp.Attacker.BestCurrentPTKO;
+                    var actorAfterPTKO_Opp = actorAfterVs_Opp.Attacker.BestCurrentPTKO;
+
+                    var oppPTKO_ActorBefore = actorBeforeVs_Opp.Target.BestCurrentPTKO;
+                    var oppPTKO_ActorAfter = actorAfterVs_Opp.Target.BestCurrentPTKO;
+
+                    if( actor.EndHPR <= 0.33f && !actorAfterVs_Opp.AttackerMovesFirst )
+                        afm -= 3;
+
+                    if( actorAfterPTKO_Opp > actorBeforePTKO_Opp )
+                    {
+                        afm += 1;
+
+                        if( !actorBeforeVs_Opp.AttackerMovesFirst && actorAfterVs_Opp.AttackerMovesFirst )
+                            afm += 1;
+
+                        if( actorAfterPTKO_Opp - actorBeforePTKO_Opp > 2 || actorAfterPTKO_Opp >= PotentialToKO.Dangerous )
+                            afm += 1;
+                    }
+
+                    if( oppPTKO_ActorAfter < oppPTKO_ActorBefore )
+                    {
+                        afm += 1;
+
+                        if( !actorBeforeVs_Opp.AttackerMovesFirst && actorAfterVs_Opp.AttackerMovesFirst )
+                            afm += 1;
+
+                        if( oppPTKO_ActorBefore - oppPTKO_ActorAfter > 2 || oppPTKO_ActorAfter <= PotentialToKO.Safe )
+                            afm += 1;
+                    }
+
+                    if( opp.Speed > actorBefore.Speed && actor.Speed > opp.Speed )
+                    {
+                        afm += 1;
+
+                        if( !actorBeforeVs_Opp.AttackerMovesFirst && actorAfterVs_Opp.AttackerMovesFirst )
+                            afm += 1;
+                    }
+
+                    if( statChanges?.Count > 0 )
+                    {
+                        foreach( var sc in statChanges )
+                        {
+                            if( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack )
+                            {
+                                if( actorAfterPTKO_Opp > actorBeforePTKO_Opp )
+                                    afm += 1;
+                                else
+                                    afm -= 2;
+
+                                if( sc.Change > 1 && _ai.UnitSim.PokemonHasMove_Spread( actor.Pokemon ) )
+                                {
+                                    if( top.Opponent != null && top.OpponentAlly != null )
+                                        afm += 1;
+
+                                    foreach( var kvp in actorAfterVs_Opp.Attacker.CurrentPTKOs )
+                                    {
+                                        var m = kvp.Key;
+                                        var ptko = kvp.Value;
+
+                                        if( ( m.MoveSO.MoveTarget == MoveTarget.OpposingSide || m.MoveSO.MoveTarget == MoveTarget.AllAdjacent ) && ptko >= PotentialToKO.Dangerous )
+                                            afm += 1;
+                                    }
+                                }
+                            }
+
+                            if( ( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense ) && oppPTKO_ActorBefore > oppPTKO_ActorAfter )
+                                afm += 1;
+
+                            if( sc.Stat == Stat.Defense && actor.Pokemon.CheckHasActiveMove( "Body Press" ) )
+                                afm += 2;
+
+                            if( actor.Pokemon.CheckHasActiveMove( "Stored Power" ) )
+                                afm += sc.Change;
+
+                            if( sc.Stat == Stat.Speed )
+                                afm += 1;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                afm -= 5;
+
+                if( !actor.CompletedTurn )
+                    afm -= 2;
+
+                if( actor.EndHPR <= 0f )
+                    afm -= 5;
+            }
+        }
+
+        //--Offensive Status
+        if( unit1Action.ActionType == ActionType.OffensiveStatus )
+        {
+            ScoreOffensiveStatusAction( unit1Action, 1 );
+            
+            if( unit2Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+            
+            if( unit2Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+
+            if( unit2Action.ActionType == ActionType.Attack && unit1Action.Capability != CapabilityObservation.FakeOut )
+                afm += 1;
+        }
+
+        if( unit2Action.ActionType == ActionType.OffensiveStatus )
+        {
+            ScoreOffensiveStatusAction( unit2Action, 2 );
+            
+            if( unit1Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+            
+            if( unit1Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+
+            if( unit1Action.ActionType == ActionType.Attack && unit1Action.Capability != CapabilityObservation.FakeOut )
+                afm += 1;
+        }
+
+        void ScoreOffensiveStatusAction( CoordinationAction action, int unit )
+        {
+            bool unitIs1 = unit == 1;
+            SimulatedUnit actor = unitIs1 ? top.Attacker : top.AttackerAlly;
+            SimulatedUnit target = null;
+            IBattleAIUnit targetBefore = null;
+
+            if( top.Opponent != null && top.Opponent.Pokemon == action.Target )
+                target = top.Opponent;
+
+            if( top.OpponentAlly != null && top.OpponentAlly.Pokemon == action.Target )
+                target = top.OpponentAlly;
+
+            if( actor == null || target == null )
+                return;
+
+            targetBefore = _ai.GetPokemonAs_IBattleAIUnit( target.Pokemon );
+
+            Move move = action.MoveCandidate;
+
+            if( move.MoveSO.MoveCategory != MoveCategory.Status )
+                return;
+
+            var targetBattleUnit = _ai.GetBattleUnit( target.Pokemon );
+            var lastMove = targetBattleUnit != null ? targetBattleUnit.LastUsedMove : null;
+
+            var moveEffects = move.MoveSO.MoveEffects;
+            bool status = moveEffects.SevereStatus != SevereConditionID.None || moveEffects.VolatileStatus == VolatileConditionID.Confusion;
+            bool disruption = moveEffects.VolatileStatus == VolatileConditionID.Taunt || moveEffects.VolatileStatus == VolatileConditionID.Encore || moveEffects.VolatileStatus == VolatileConditionID.HealBlocked || moveEffects.VolatileStatus == VolatileConditionID.Disabled || moveEffects.VolatileStatus == VolatileConditionID.Perish || moveEffects.VolatileStatus == VolatileConditionID.Torment || moveEffects.CourtCondition == CourtConditionID.Imprison || move.MoveSO.Name == "Quash";
+            bool debuff = _ai.UnitSim.MoveIsDebuff( move );
+            bool hazard = _ai.UnitSim.MoveIsEntryHazard( move );
+            bool phaze = _ai.UnitSim.MoveIsPhaze( move );
+
+            if( action.RelevantPressures?.Count > 0 )
+            {
+                foreach( var spe in action.RelevantPressures )
+                {
+                    if( CheckIfActionAnswersPressure( ActionType.OffensiveStatus, spe.Pressure ) )
+                        afm += 1;
+                }
+            }
+
+            if( status && targetBefore.SevereStatus == SevereConditionID.None )
+            {
+                bool burn = moveEffects.SevereStatus == SevereConditionID.BRN;
+                bool frost = moveEffects.SevereStatus == SevereConditionID.FBT;
+                bool poison = moveEffects.SevereStatus == SevereConditionID.PSN;
+                bool toxic = moveEffects.SevereStatus == SevereConditionID.TOX;
+                bool paralysis = moveEffects.SevereStatus == SevereConditionID.PAR;
+                bool sleep = moveEffects.SevereStatus == SevereConditionID.SLP;
+                bool confusion = moveEffects.VolatileStatus == VolatileConditionID.Confusion;
+                
+                if( burn )
+                {
+                    if( target.SevereStatus == SevereConditionID.BRN )
+                        afm += 1;
+
+                    if( target.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                        afm += 1;
+
+                    if( target.Pokemon == theirLeft && psi.LeftIntent.ActionType == ActionType.Attack && psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Physical )
+                        afm += 1;
+
+                    if( target.Pokemon == theirRight && psi.RightIntent.ActionType == ActionType.Attack && psi.RightIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Physical )
+                        afm += 1;
+
+                    if( target.BeginningHPR > 0.1f )
+                        afm += 1;
+                }
+
+                if( frost )
+                {
+                    if( target.SevereStatus == SevereConditionID.FBT )
+                        afm += 1;
+
+                    if( target.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                        afm += 1;
+
+                    if( target.Pokemon == theirLeft && psi.LeftIntent.ActionType == ActionType.Attack && psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Special )
+                        afm += 1;
+
+                    if( target.Pokemon == theirRight && psi.RightIntent.ActionType == ActionType.Attack && psi.RightIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Special )
+                        afm += 1;
+
+                    if( target.BeginningHPR > 0.1f )
+                        afm += 1;
+                }
+
+                if( poison || toxic )
+                {
+                    if( target.SevereStatus == SevereConditionID.PSN )
+                        afm += 1;
+
+                    if( target.RoleProfile.Biases.Contains( RoleBias.AttritionFocused ) )
+                        afm += 1;
+
+                    if( target.RoleProfile.PrimaryArchetype != RoleClassArchetype.Offensive )
+                        afm += 1;
+
+                    if( target.Item != ItemBattleEffectID.None && target.RoleProfile.Traits.Contains( RoleTrait.RecoveryItem ) )
+                        afm += 1;
+
+                    if( target.RoleProfile.Traits.Contains( RoleTrait.RecoveryAbility ) )
+                        afm += 1;
+
+                    if( toxic && target.RoleProfile.PrimaryArchetype == RoleClassArchetype.Defensive )
+                        afm += 1;
+                }
+
+                if( paralysis )
+                {
+                    if( target.SevereStatus == SevereConditionID.PAR )
+                        afm += 2;
+
+                    if( target.RoleProfile.Traits.Contains( RoleTrait.ParalysisWeak ) )
+                        afm += 1;
+
+                    if( MovesBeforeTOP_Actual( actor, target, top ) )
+                    {
+                        afm += 2;
+
+                        if( theirLeft != null && target.Pokemon == theirLeft && psi.LeftIntent.IntentResult?.Move != null )
+                            afm += 1;
+
+                        if( theirRight != null && target.Pokemon == theirRight && psi.RightIntent.IntentResult?.Move != null )
+                            afm += 1;
+                    }
+                    else if( actor.BeginningHPR - actor.EndHPR > 0.33f )
+                        afm += 2;
+
+                    if( target.Speed > top.Attacker?.Speed )
+                        afm += 1;
+
+                    if( target.Speed > top.AttackerAlly?.Speed )
+                        afm += 1;
+
+                    if( target.RoleProfile.PrimaryArchetype == RoleClassArchetype.Utility )
+                        afm += 1;
+                }
+
+                if( sleep )
+                {
+                    if( target.SevereStatus == SevereConditionID.SLP )
+                        afm += 3;
+
+                    if( target.RoleProfile.PrimaryArchetype != RoleClassArchetype.Defensive )
+                        afm += 2;
+
+                    if( MovesBeforeTOP_Actual( actor, target, top ) )
+                    {
+                        afm += 2;
+
+                        if( theirLeft != null && target.Pokemon == theirLeft && psi.LeftIntent.IntentResult?.Move != null )
+                            afm += 1;
+
+                        if( theirRight != null && target.Pokemon == theirRight && psi.RightIntent.IntentResult?.Move != null )
+                            afm += 1;
+                    }
+                    else if( actor.BeginningHPR - actor.EndHPR > 0.33f )
+                        afm += 2;
+                }
+
+                if( confusion )
+                {
+                    if( target.VolatileStatuses.Contains( VolatileConditionID.Confusion ) )
+                        afm += 2;
+
+                    if( target.RoleProfile.Biases.Contains( RoleBias.Physical ) || ( target.StatStages?.Count > 0 && target.StatStages[Stat.Attack] > 0 ) )
+                        afm += 1;
+
+                    if( target.BeginningHPR > 0.1f )
+                        afm += 1;
+
+                    if( MovesBeforeTOP_Actual( actor, target, top ) )
+                    {
+                        afm += 2;
+
+                        if( theirLeft != null && target.Pokemon == theirLeft && psi.LeftIntent.IntentResult?.Move != null )
+                            afm += 1;
+
+                        if( theirRight != null && target.Pokemon == theirRight && psi.RightIntent.IntentResult?.Move != null )
+                            afm += 1;
+                    }
+                    else if( actor.BeginningHPR - actor.EndHPR > 0.33f )
+                        afm += 2;
+                }
+            }
+
+            if( disruption )
+            {
+                bool taunt = moveEffects.VolatileStatus == VolatileConditionID.Taunt;
+                bool encore = moveEffects.VolatileStatus == VolatileConditionID.Encore;
+                bool disable = moveEffects.VolatileStatus == VolatileConditionID.Disabled;
+                bool torment = moveEffects.VolatileStatus == VolatileConditionID.Torment;
+                bool imprison = moveEffects.CourtCondition == CourtConditionID.Imprison;
+                bool healBlock = moveEffects.VolatileStatus == VolatileConditionID.HealBlocked;
+                bool perishSong = moveEffects.VolatileStatus == VolatileConditionID.Perish;
+                bool quash = move.MoveSO.Name == "Quash";
+
+                if( taunt && !targetBefore.VolatileStatuses.Contains( VolatileConditionID.Taunt ) )
+                {
+                    if( target.VolatileStatuses.Contains( VolatileConditionID.Taunt ) )
+                        afm += 1;
+
+                    if( target.RoleProfile.PrimaryArchetype != RoleClassArchetype.Offensive )
+                    {
+                        afm += 1;
+
+                        if( target.RoleProfile.PrimaryRole == RoleClass.UtilitySupport || target.RoleProfile.PrimaryRole == RoleClass.Disrupter )
+                            afm += 2;
+                    }
+
+                    if( target.RoleProfile.Signals.StatusMoveCount > 2 )
+                        afm += 2;
+
+                    if( MovesBeforeTOP_Actual( actor, target, top ) )
+                    {
+                        afm += 1;
+
+                        if( theirLeft != null && target.Pokemon == theirLeft && psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Status )
+                            afm += 2;
+
+                        if( theirRight != null && target.Pokemon == theirRight && psi.RightIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Status )
+                            afm += 2;
+                    }
+                }
+
+                if( encore && lastMove != null && !targetBefore.VolatileStatuses.Contains( VolatileConditionID.Encore ) )
+                {
+                    if( target.VolatileStatuses.Contains( VolatileConditionID.Encore ) )
+                        afm += 1;
+
+                    if( MovesBeforeTOP_Actual( actor, target, top ) )
+                    {
+                        if( _ai.UnitSim.MoveIsSetup( lastMove ) )
+                            afm += 5;
+
+                        if( _ai.UnitSim.MoveIsBattlefieldControl( lastMove ) )
+                            afm += 3;
+
+                        if( lastMove.MoveEffects.CourtCondition == CourtConditionID.Reflect || lastMove.MoveEffects.CourtCondition == CourtConditionID.LightScreen || lastMove.MoveEffects.CourtCondition == CourtConditionID.AuroraVeil )
+                            afm += 3;
+
+                        if( _ai.UnitSim.MoveIsSelfHeal( lastMove ) || _ai.UnitSim.MoveIsSideHeal( lastMove ) )
+                            afm += 2;
+                    }
+                }
+
+                if( disable && lastMove != null && !targetBefore.VolatileStatuses.Contains( VolatileConditionID.Disabled ) )
+                {
+                    if( target.VolatileStatuses.Contains( VolatileConditionID.Disabled ) )
+                        afm += 1;
+
+                    if( MovesBeforeTOP_Actual( actor, target, top ) )
+                    {
+                        afm += 1;
+
+                        if( theirLeft != null && target.Pokemon == theirLeft && psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == lastMove?.MoveSO.Name )
+                            afm += 3;
+
+                        if( theirRight != null && target.Pokemon == theirRight && psi.RightIntent.IntentResult?.Move?.MoveSO.Name == lastMove?.MoveSO.Name )
+                            afm += 3;
+
+                        if( _ai.UnitSim.MoveIsSetup( lastMove ) )
+                            afm += 2;
+
+                        if( _ai.UnitSim.MoveIsBattlefieldControl( lastMove ) )
+                            afm += 2;
+
+                        if( lastMove.MoveEffects.CourtCondition == CourtConditionID.Reflect || lastMove.MoveEffects.CourtCondition == CourtConditionID.LightScreen || lastMove.MoveEffects.CourtCondition == CourtConditionID.AuroraVeil )
+                            afm += 2;
+
+                        if( _ai.UnitSim.MoveIsSelfHeal( lastMove ) || _ai.UnitSim.MoveIsSideHeal( lastMove ) )
+                            afm += 2;
+                    }
+                }
+
+                if( torment && !targetBefore.VolatileStatuses.Contains( VolatileConditionID.Torment ) )
+                {
+                    if( target.VolatileStatuses.Contains( VolatileConditionID.Torment ) )
+                        afm += 1;
+
+                    if( MovesBeforeTOP_Actual( actor, target, top ) )
+                    {
+                        afm += 1;
+
+                        if( theirLeft != null && target.Pokemon == theirLeft && psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == lastMove?.MoveSO.Name )
+                            afm += 3;
+
+                        if( theirRight != null && target.Pokemon == theirRight && psi.RightIntent.IntentResult?.Move?.MoveSO.Name == lastMove?.MoveSO.Name )
+                            afm += 3;
+
+                        if( _ai.UnitSim.MoveIsSetup( lastMove ) )
+                            afm += 2;
+
+                        if( _ai.UnitSim.MoveIsBattlefieldControl( lastMove ) )
+                            afm += 2;
+
+                        if( lastMove.MoveEffects.CourtCondition == CourtConditionID.Reflect || lastMove.MoveEffects.CourtCondition == CourtConditionID.LightScreen || lastMove.MoveEffects.CourtCondition == CourtConditionID.AuroraVeil )
+                            afm += 2;
+
+                        if( _ai.UnitSim.MoveIsSelfHeal( lastMove ) || _ai.UnitSim.MoveIsSideHeal( lastMove ) )
+                            afm += 2;
+                    }
+                }
+
+                if( imprison )
+                {
+                    foreach( var ourMove in actor.ActiveMoves )
+                    {
+                        foreach( var themMove in target.ActiveMoves )
+                        {
+                            if( ourMove.MoveSO.Name == themMove.MoveSO.Name )
+                            {
+                                afm += 1;
+
+                                if( MovesBeforeTOP_Actual( actor, target, top ) )
+                                    afm += 3;
+
+                                var moveName = themMove.MoveSO.Name;
+
+                                if( moveName == "Trick Room" )
+                                    afm += 3;
+
+                                if( moveName == "Tailwind" )
+                                    afm += 2;
+
+                                if( moveName == "Reflect" )
+                                    afm += 1;
+
+                                if( moveName == "Light Screen" )
+                                    afm += 1;
+
+                                if( moveName == "Aurora Veil" )
+                                    afm += 1;
+
+                                if( moveName == "Helping Hand" )
+                                    afm += 1;
+
+                                if( moveName == "Follow Me" )
+                                    afm += 1;
+
+                                if( moveName == "Rage Powder" )
+                                    afm += 1;
+
+                                if( moveName == "Protect" )
+                                    afm += 2;
+                            }
+                        }
+                    }
+                }
+
+                if( healBlock )
+                {
+                    if( target.RoleProfile.Traits.Contains( RoleTrait.RecoveryMove ) )
+                        afm += 2;
+
+                    if( theirLeft != null && target.Pokemon == theirLeft && psi.LeftIntent.IntentResult?.Move?.MoveSO.HealType != HealType.None )
+                    {
+                        afm += 2;
+
+                        if( MovesBeforeTOP_Actual( actor, target, top ) )
+                        {
+                            afm += 3;
+
+                            if( top.Opponent?.Pokemon == theirLeft && top.OpponentAlly != null && ( psi.LeftIntent.IntentResult?.Move?.MoveTarget == MoveTarget.AllySide || psi.LeftIntent.IntentResult?.Move?.MoveTarget == MoveTarget.Ally ) )
+                            {
+                                if( top.OpponentAlly?.BeginningHPR <= 0.33f )
+                                    afm += 2;
+                                else if( top.OpponentAlly?.BeginningHPR <= 0.66f )
+                                    afm += 1;
+                            }
+                            else if( top.OpponentAlly?.Pokemon == theirLeft && top.Opponent != null && ( psi.LeftIntent.IntentResult?.Move?.MoveTarget == MoveTarget.AllySide || psi.LeftIntent.IntentResult?.Move?.MoveTarget == MoveTarget.Ally ) )
+                            {
+                                if( top.Opponent?.BeginningHPR <= 0.33f )
+                                    afm += 2;
+                                else if( top.Opponent?.BeginningHPR <= 0.66f )
+                                    afm += 1;
+                            }
+                        }
+                    }
+
+                    if( theirRight != null && target.Pokemon == theirRight && psi.RightIntent.IntentResult?.Move?.MoveSO.HealType != HealType.None )
+                    {
+                        afm += 2;
+
+                        if( MovesBeforeTOP_Actual( actor, target, top ) )
+                        {
+                            afm += 3;
+
+                            if( top.Opponent?.Pokemon == theirRight && top.OpponentAlly != null && ( psi.RightIntent.IntentResult?.Move?.MoveTarget == MoveTarget.AllySide || psi.RightIntent.IntentResult?.Move?.MoveTarget == MoveTarget.Ally ) )
+                            {
+                                if( top.OpponentAlly?.BeginningHPR <= 0.33f )
+                                    afm += 2;
+                                else if( top.OpponentAlly?.BeginningHPR <= 0.66f )
+                                    afm += 1;
+                            }
+                            else if( top.OpponentAlly?.Pokemon == theirRight && top.Opponent != null && ( psi.RightIntent.IntentResult?.Move?.MoveTarget == MoveTarget.AllySide || psi.RightIntent.IntentResult?.Move?.MoveTarget == MoveTarget.Ally ) )
+                            {
+                                if( top.Opponent?.BeginningHPR <= 0.33f )
+                                    afm += 2;
+                                else if( top.Opponent?.BeginningHPR <= 0.66f )
+                                    afm += 1;
+                            }
+                        }
+                    }
+
+                    if( target.BeginningHPR <= 0.33f )
+                        afm += 2;
+                    else if( target.BeginningHPR <= 0.66f )
+                        afm += 1;
+                }
+
+                if( perishSong )
+                {
+                    int ourRemaining = GetPokemonBench( actor.Pokemon ).Count;
+                    int theirRemaining = GetPokemonBench( target.Pokemon ).Count;
+
+                    if( ourRemaining > theirRemaining )
+                        afm += 1;
+
+                    if( theirRemaining <= 0 )
+                        afm += 1;
+
+                    if( top.Attacker != null && top.Attacker.RoleProfile.Traits.Contains( RoleTrait.TrappingAbility ) )
+                        afm += 3;
+
+                    if( top.AttackerAlly != null && top.AttackerAlly.RoleProfile.Traits.Contains( RoleTrait.TrappingAbility ) )
+                        afm += 3;
+
+                    if( ourRemaining > 0 )
+                        afm += 1;
+
+                    if( target.Bindings?.Count > 0 )
+                        afm += 2;
+                }
+
+                if( quash )
+                {
+                    //--TODO
+                }
+            }
+
+            if( debuff )
+            {
+                var actorVs_TargetBefore = _ai.Projection.MakeUnitComparison( actor, targetBefore );
+                var actorVs_TargetAfter = _ai.Projection.MakeUnitComparison( actor, target );
+
+                var actorPTKO_TargetBefore = actorVs_TargetBefore.Attacker.BestCurrentPTKO;
+                var actorPTKO_TargetAfter = actorVs_TargetAfter.Attacker.BestCurrentPTKO;
+
+                var targetBeforePTKO_Actor = actorVs_TargetBefore.Target.BestCurrentPTKO;
+                var targetAfterPTKO_Actor = actorVs_TargetAfter.Target.BestCurrentPTKO;
+
+                if( move.MoveTarget == MoveTarget.OpposingSide )
+                    afm += 1;
+
+                if( actor.EndHPR <= 0.33f && !actorVs_TargetAfter.AttackerMovesFirst )
+                    afm -= 3;
+
+                if( actorPTKO_TargetAfter > actorPTKO_TargetBefore )
+                {
+                    afm += 1;
+
+                    if( !actorVs_TargetBefore.AttackerMovesFirst && actorVs_TargetAfter.AttackerMovesFirst )
+                        afm += 1;
+
+                    if( actorPTKO_TargetAfter - actorPTKO_TargetBefore < 2 || actorPTKO_TargetAfter >= PotentialToKO.Dangerous )
+                        afm += 1;
+                }
+
+                if( targetBeforePTKO_Actor > targetAfterPTKO_Actor )
+                {
+                    afm += 1;
+
+                    if( !actorVs_TargetBefore.AttackerMovesFirst && actorVs_TargetAfter.AttackerMovesFirst )
+                        afm += 1;
+
+                    if( targetBeforePTKO_Actor - targetAfterPTKO_Actor > 2 || targetAfterPTKO_Actor <= PotentialToKO.Safe )
+                        afm += 1;
+                }
+
+                if( targetBefore.Speed > actor.Speed && actor.Speed > target.Speed )
+                {
+                    afm += 1;
+
+                    if( !actorVs_TargetBefore.AttackerMovesFirst && actorVs_TargetAfter.AttackerMovesFirst )
+                        afm += 1;
+                }
+
+                var statChanges = move.MoveEffects.StatChangeList;
+                if( statChanges?.Count > 0 )
+                {
+                    foreach( var sc in statChanges )
+                    {
+                        if( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack )
+                        {
+                            if( actorPTKO_TargetAfter > actorPTKO_TargetBefore )
+                                afm += 1;
+                            else
+                                afm -= 2;
+
+                            if( sc.Change < -1 && _ai.UnitSim.PokemonHasMove_Spread( target.Pokemon ) )
+                            {
+                                afm += 1;
+
+                                foreach( var kvp in actorVs_TargetAfter.Target.CurrentPTKOs )
+                                {
+                                    var m = kvp.Key;
+                                    var ptko = kvp.Value;
+
+                                    if( ( m.MoveSO.MoveTarget == MoveTarget.OpposingSide || m.MoveSO.MoveTarget == MoveTarget.AllAdjacent ) && ptko >= PotentialToKO.Dangerous )
+                                        afm += 1;
+                                }
+                            }
+                        }
+
+                        if( ( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense ) && targetBeforePTKO_Actor > targetAfterPTKO_Actor )
+                            afm += 1;
+
+                        if( sc.Stat == Stat.Defense && actor.Pokemon.CheckHasActiveMove( "Body Press" ) )
+                            afm += 2;
+
+                        if( actor.Pokemon.CheckHasActiveMove( "Stored Power" ) )
+                            afm += Mathf.Abs( sc.Change );
+
+                        if( sc.Stat == Stat.Speed )
+                            afm += 1;
+                    }
+                }
+            }
+
+            if( hazard )
+            {
+                if( move?.MoveSO.MoveEffects.CourtCondition == CourtConditionID.LeechSeed )
+                    afm += 5;
+                else if( _ai.UnitSim.MoveIsEntryHazard( move ) )
+                    afm += 3;
+
+                //--TODO?
+            }
+
+            if( phaze )
+            {
+                if( target.RoleProfile.PrimaryArchetype != RoleClassArchetype.Offensive )
+                    afm += 2;
+
+                if( target.RoleProfile.Biases.Contains( RoleBias.AttritionFocused ) )
+                    afm += 1;
+
+                if( target.RoleProfile.Signals.SetupMoveCount > 0 )
+                    afm += 1;
+
+                if( target.StatStages?.Count > 0 )
+                {
+                    foreach( var sc in target.StatStages )
+                    {
+                        if( sc.Value > 0 )
+                            afm += 1;
+                    }
+                }
+
+                if( theirLeft != null && target.Pokemon == theirLeft && ( psi.LeftIntent.ActionType == ActionType.Setup || psi.LeftIntent.ActionType == ActionType.SupportiveStatus ) )
+                {
+                    afm += 2;
+
+                    if( psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveEffects.FieldCondition == FieldConditionID.TrickRoom )
+                        afm += 3;
+                }
+
+                if( theirRight != null && target.Pokemon == theirRight && ( psi.RightIntent.ActionType == ActionType.Setup || psi.RightIntent.ActionType == ActionType.SupportiveStatus ) )
+                {
+                    afm += 2;
+
+                    if( psi.RightIntent.IntentResult?.Move?.MoveSO.MoveEffects.FieldCondition == FieldConditionID.TrickRoom )
+                        afm += 3;
+                }
+
+                if( target.RoleProfile.Traits.Contains( RoleTrait.TrappingAbility ) )
+                {
+                    afm += 2;
+
+                    if( top.Attacker != null && top.Attacker.VolatileStatuses.Contains( VolatileConditionID.Perish ) )
+                        afm += 2;
+
+                    if( top.AttackerAlly != null && top.AttackerAlly.VolatileStatuses.Contains( VolatileConditionID.Perish ) )
+                        afm += 2;
+                }
+
+                if( MovesBeforeTOP_Actual( actor, target, top ) )
+                {
+                    afm += 2;
+
+                    if( target.Pokemon == top.Opponent?.Pokemon && top.Opponent?.MTR?.PTKO >= PotentialToKO.Dangerous )
+                        afm += 1;
+
+                    if( target.Pokemon == top.OpponentAlly?.Pokemon && top.OpponentAlly?.MTR.PTKO >= PotentialToKO.Dangerous )
+                        afm += 1;
+                }
+            }
+        }
+
+        //--Supportive Status
+        if( unit1Action.ActionType == ActionType.SupportiveStatus )
+        {
+            ScoreSupportiveStatusAction( unit1Action, 1 );
+            
+            if( unit2Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+            
+            if( unit2Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+
+            if( unit2Action.ActionType == ActionType.Attack && unit1Action.Capability != CapabilityObservation.FakeOut )
+                afm += 1;
+        }
+
+        if( unit2Action.ActionType == ActionType.SupportiveStatus )
+        {
+            ScoreSupportiveStatusAction( unit2Action, 2 );
+            
+            if( unit1Action.Capability == CapabilityObservation.FakeOut )
+                afm += 1;
+            
+            if( unit1Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+
+            if( unit1Action.ActionType == ActionType.Attack && unit1Action.Capability != CapabilityObservation.FakeOut )
+                afm += 1;
+        }
+
+        void ScoreSupportiveStatusAction( CoordinationAction action, int unit )
+        {
+            bool unitIs1 = unit == 1;
+            SimulatedUnit actor = unitIs1 ? top.Attacker : top.AttackerAlly;
+            SimulatedUnit actorAlly = unitIs1 ? top.AttackerAlly : top.Attacker;
+            var gp = _ai.Blackboard.GamePlan;
+
+            if( actor.Pokemon == actorAlly.Pokemon )
+                Debug.LogError( $"You fucka up" );
+
+            Move move = action.MoveCandidate;
+
+            if( move.MoveSO.MoveCategory != MoveCategory.Status )
+                return;
+
+            var moveTarget = move.MoveSO.MoveTarget;
+            var effects = move.MoveSO.MoveEffects;
+
+            //--Self Heal
+            bool isSelfHeal = _ai.UnitSim.MoveIsSelfHeal( move );
+
+            //--Force Multiplier
+            bool isReflect = effects.CourtCondition == CourtConditionID.Reflect;
+            bool isLightScreen = effects.CourtCondition == CourtConditionID.LightScreen;
+            bool isAuroraVeil = effects.CourtCondition == CourtConditionID.AuroraVeil;
+
+            bool isTailwind = effects.CourtCondition == CourtConditionID.Tailwind;
+            bool isScreens = isReflect || isLightScreen || isAuroraVeil;
+            bool isAllySetup = _ai.UnitSim.MoveIsSetup( move ) && effects.Target == EffectTarget.AllySide;
+            bool isHelpingHand = effects.VolatileStatus == VolatileConditionID.HelpingHand;
+            bool isAfteryou = move.MoveSO.Name == "After You";
+            
+            //--Battlefield Control
+            bool isWeather = effects.Weather != WeatherConditionID.None;
+            bool isTerrain = effects.Terrain != TerrainID.None;
+            bool isField = effects.FieldCondition != FieldConditionID.None;
+            bool isSafeguard = effects.CourtCondition == CourtConditionID.SafeGuard;
+
+            //--Ally Protection
+            bool isAllyHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.Ally;
+            bool isSideHeal = move.MoveSO.HealType != HealType.None && moveTarget == MoveTarget.AllySide;
+            bool isRedirection = effects.TransientStatus == TransientConditionID.CenterOfAttention;
+
+            //--Final Category Check
+            bool selfHeal = isSelfHeal;
+            bool forceMultiplier = isTailwind || isScreens || isAllySetup || isHelpingHand || isAfteryou;
+            bool battlefieldControl = isWeather || isTerrain || isField || isSafeguard;
+            bool allyProtection = isAllyHeal || isSideHeal || isRedirection;
+
+            if( action.RelevantPressures?.Count > 0 )
+            {
+                foreach( var spe in action.RelevantPressures )
+                {
+                    if( CheckIfActionAnswersPressure( ActionType.SupportiveStatus, spe.Pressure ) )
+                        afm += 1;
+                }
+            }
+
+            if( selfHeal && actor.CouldAct )
+            {
+                if( actor.BeginningHPR <= 0.33f )
+                    afm += 3;
+                else if( actor.BeginningHPR <= 0.66f )
+                    afm += 2;
+                else if( actor.BeginningHPR < 1f )
+                    afm += 1;
+
+                if( actor.EndHPR > actor.BeginningHPR )
+                {
+                    afm += 1;
+
+                    if( actor.EndHPR - actor.BeginningHPR >= 0.45f )
+                        afm += 2;
+                }
+
+                if( actor.Pokemon == top.Attacker.Pokemon )
+                {
+                    if( unit2Action.Capability == CapabilityObservation.Redirection )
+                        afm += 1;
+
+                    if( unit2Action.ActionType == ActionType.Attack )
+                    {
+                        afm += 1;
+
+                        if( top.AttackerPTKO >= PotentialToKO.Risky )
+                            afm += 1;
+                    }
+                }
+
+                if( actor.Pokemon == gp.OurPrimaryWinCon || gp.OurEnablers.Contains( actor.Pokemon ) || gp.OurBlockers.Contains( actor.Pokemon ) )
+                    afm += 2;
+
+                if( actor.RoleProfile.PrimaryArchetype == RoleClassArchetype.Offensive )
+                {
+                    if( actor.Speed > top.Opponent?.Speed )
+                        afm += 1;
+
+                    if( actor.Speed > top.OpponentAlly?.Speed )
+                        afm += 1;
+                }
+                else
+                {
+                    afm += 2;
+                }
+            }
+
+            if( forceMultiplier && actor.CouldAct )
+            {
+                if( isTailwind && !ourCurrentCourt.ContainsKey( CourtConditionID.Tailwind ) )
+                {
+                    if( top.Opponent != null && MovesBeforeTOP_Expected( top.Opponent, actorAlly, top ) && MovesBeforeTOP_Actual( actorAlly, top.Opponent, top ) )
+                        afm += 2;
+
+                    if( top.OpponentAlly != null && MovesBeforeTOP_Expected( top.OpponentAlly, actorAlly, top ) && MovesBeforeTOP_Actual( actorAlly, top.OpponentAlly, top ) )
+                        afm += 2;
+
+                    if( top.Opponent?.Speed > actor.Speed && actor.Speed * 2 > top.Opponent?.Speed )
+                        afm += 1;
+
+                    if( top.Opponent?.Speed > actorAlly?.Speed && actorAlly?.Speed * 2 > top.Opponent?.Speed )
+                        afm += 1;
+
+                    if( top.OpponentAlly?.Speed > actor.Speed && actor.Speed * 2 > top.OpponentAlly?.Speed )
+                        afm += 1;
+
+                    if( top.OpponentAlly?.Speed > actorAlly?.Speed && actorAlly?.Speed * 2 > top.OpponentAlly?.Speed )
+                        afm += 1;
+
+                    if( actor.Pokemon == actorAlly?.Pokemon && ( actor.Speed > actorAlly?.Speed || actor.Ability == AbilityID.Prankster ) )
+                    {
+                        afm += 1;
+
+                        if( actorAlly.Pokemon == top.Attacker?.Pokemon )
+                        {
+                            if( unit1Action.ActionType == ActionType.Attack && top.AttackerPTKO >= PotentialToKO.Risky )
+                            {
+                                afm += 1;
+
+                                if( unit1Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.OpposingSide || unit1Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
+                                    afm += 2;
+
+                                if( attackerTargeted_Opponent && MovesBeforeTOP_Actual( top.Attacker, top.Opponent, top ) )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                        afm += 1;
+                                }
+
+                                if( attackerTargeted_OpponentAlly && MovesBeforeTOP_Actual( top.Attacker, top.OpponentAlly, top ) )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                        afm += 1;
+                                }
+                            }
+                        }
+
+                        if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon )
+                        {
+                            if( unit2Action.ActionType == ActionType.Attack && top.AttackerAllyPTKO >= PotentialToKO.Risky )
+                            {
+                                afm += 1;
+
+                                if( unit2Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.OpposingSide || unit2Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.AllAdjacent )
+                                    afm += 2;
+
+                                if( attackerAllyTargeted_Opponent && MovesBeforeTOP_Actual( top.AttackerAlly, top.Opponent, top ) )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                        afm += 1;
+                                }
+
+                                if( attackerAllyTargeted_OpponentAlly && MovesBeforeTOP_Actual( top.AttackerAlly, top.OpponentAlly, top ) )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                        afm += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if( isScreens )
+                {
+                    if( isReflect && !ourCurrentCourt.ContainsKey( CourtConditionID.Reflect ) )
+                    {
+                        if( top.Opponent != null && top.Opponent.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                            afm += 2;
+
+                        if( top.OpponentAlly != null && top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                            afm += 2;
+
+                        if( actor.RoleProfile.Biases.Contains( RoleBias.PhysicallyBulky ) || actor.RoleProfile.Biases.Contains( RoleBias.SpeciallyBulky ) )
+                            afm += 1;
+
+                        if( actorAlly != null && ( actorAlly.RoleProfile.Biases.Contains( RoleBias.PhysicallyBulky ) || actorAlly.RoleProfile.Biases.Contains( RoleBias.SpeciallyBulky ) ) )
+                            afm += 1;
+
+                        if( actorAlly != null && actorAlly.RoleProfile.PrimaryArchetype == RoleClassArchetype.Offensive )
+                            afm += 1;
+
+                        if( theirLeft != null && psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Physical )
+                        {
+                            afm += 1;
+
+                            if( top.Opponent != null && MovesBeforeTOP_Actual( actor, top.Opponent, top ) && top.Opponent_ExpectedPTKO > top.OpponentPTKO )
+                            {
+                                afm += 1;
+
+                                if( top.OpponentPTKO - top.Opponent_ExpectedPTKO > 2 || top.OpponentPTKO <= PotentialToKO.Safe )
+                                    afm += 2;
+                            }
+                        }
+
+                        if( theirRight != null && psi.RightIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Physical )
+                        {
+                            afm += 1;
+
+                            if( top.OpponentAlly != null && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) && top.OpponentAlly_ExpectedPTKO > top.OpponentAllyPTKO )
+                            {
+                                afm += 1;
+
+                                if( top.OpponentAllyPTKO - top.OpponentAlly_ExpectedPTKO > 2 || top.OpponentAllyPTKO <= PotentialToKO.Safe )
+                                    afm += 2;
+                            }
+                        }
+                    }
+
+                    if( isLightScreen && !ourCurrentCourt.ContainsKey( CourtConditionID.LightScreen ) )
+                    {
+                        if( top.Opponent != null && top.Opponent.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                            afm += 2;
+
+                        if( top.OpponentAlly != null && top.OpponentAlly.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                            afm += 2;
+
+                        if( actor.RoleProfile.Biases.Contains( RoleBias.PhysicallyBulky ) || actor.RoleProfile.Biases.Contains( RoleBias.SpeciallyBulky ) )
+                            afm += 1;
+
+                        if( actorAlly != null && ( actorAlly.RoleProfile.Biases.Contains( RoleBias.PhysicallyBulky ) || actorAlly.RoleProfile.Biases.Contains( RoleBias.SpeciallyBulky ) ) )
+                            afm += 1;
+
+                        if( actorAlly != null && actorAlly.RoleProfile.PrimaryArchetype == RoleClassArchetype.Offensive )
+                            afm += 1;
+
+                        if( theirLeft != null && psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Special )
+                        {
+                            afm += 1;
+
+                            if( top.Opponent != null && MovesBeforeTOP_Actual( actor, top.Opponent, top ) && top.Opponent_ExpectedPTKO > top.OpponentPTKO )
+                            {
+                                afm += 1;
+
+                                if( top.OpponentPTKO - top.Opponent_ExpectedPTKO > 2 || top.OpponentPTKO <= PotentialToKO.Safe )
+                                    afm += 2;
+                            }
+                        }
+
+                        if( theirRight != null && psi.RightIntent.IntentResult?.Move?.MoveSO.MoveCategory == MoveCategory.Special )
+                        {
+                            afm += 1;
+
+                            if( top.OpponentAlly != null && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) && top.OpponentAlly_ExpectedPTKO > top.OpponentAllyPTKO )
+                            {
+                                afm += 1;
+
+                                if( top.OpponentAllyPTKO - top.OpponentAlly_ExpectedPTKO > 2 || top.OpponentAllyPTKO <= PotentialToKO.Safe )
+                                    afm += 2;
+                            }
+                        }
+                    }
+
+                    if( isAuroraVeil && !ourCurrentCourt.ContainsKey( CourtConditionID.AuroraVeil ) )
+                    {
+                        afm += 4;
+
+                        if( actor.RoleProfile.Biases.Contains( RoleBias.PhysicallyBulky ) || actor.RoleProfile.Biases.Contains( RoleBias.SpeciallyBulky ) )
+                            afm += 1;
+
+                        if( actorAlly != null && ( actorAlly.RoleProfile.Biases.Contains( RoleBias.PhysicallyBulky ) || actorAlly.RoleProfile.Biases.Contains( RoleBias.SpeciallyBulky ) ) )
+                            afm += 1;
+
+                        if( actorAlly != null && actorAlly.RoleProfile.PrimaryArchetype == RoleClassArchetype.Offensive )
+                            afm += 1;
+
+                        if( theirLeft != null && psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveCategory != MoveCategory.Status )
+                        {
+                            afm += 1;
+
+                            if( top.Opponent != null && MovesBeforeTOP_Actual( actor, top.Opponent, top ) && top.Opponent_ExpectedPTKO > top.OpponentPTKO )
+                            {
+                                afm += 1;
+
+                                if( top.OpponentPTKO - top.Opponent_ExpectedPTKO > 2 || top.OpponentPTKO <= PotentialToKO.Safe )
+                                    afm += 2;
+                            }
+                        }
+
+                        if( theirRight != null && psi.RightIntent.IntentResult?.Move?.MoveSO.MoveCategory != MoveCategory.Status )
+                        {
+                            afm += 1;
+
+                            if( top.OpponentAlly != null && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) && top.OpponentAlly_ExpectedPTKO > top.OpponentAllyPTKO )
+                            {
+                                afm += 1;
+
+                                if( top.OpponentAllyPTKO - top.OpponentAlly_ExpectedPTKO > 2 || top.OpponentAllyPTKO <= PotentialToKO.Safe )
+                                    afm += 2;
+                            }
+                        }
+                    }
+                }
+
+                if( isAllySetup && actorAlly != null )
+                {
+                    int atkBoosts = 0;
+                    int defBoosts = 0;
+                    int spatkBoosts = 0;
+                    int spdefBoosts = 0;
+                    int speBoosts = 0;
+                    var statStages = action.MoveCandidate.MoveSO.MoveEffects.StatChangeList;
+
+                    if( statStages?.Count > 0 )
+                    {
+                        foreach( var sc in statStages )
+                        {
+                            if( sc.Change > 0 )
+                            {
+                                switch( sc.Stat )
+                                {
+                                    case Stat.Attack: atkBoosts += sc.Change; break;
+                                    case Stat.Defense: defBoosts += sc.Change; break;
+                                    case Stat.SpAttack: spatkBoosts += sc.Change; break;
+                                    case Stat.SpDefense: spdefBoosts += sc.Change; break;
+                                    case Stat.Speed: speBoosts += sc.Change; break;
+                                }
+                            }
+                        }
+
+                        int totalBoosts = atkBoosts + defBoosts + spatkBoosts + spdefBoosts + speBoosts;
+
+                        if( action.MoveCandidate.MoveSO.Name == "Howl" )
+                        {
+                            if( actor.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                            {
+                                afm += 1;
+
+                                if( actorAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                                    afm += 1;
+                            }
+
+                            if( _ai.CanUseProtect( actorAlly.Pokemon ) )
+                                afm += 1;
+                        }
+
+                        if( totalBoosts > 3 )
+                            afm += 3;
+                        else if( totalBoosts > 1 )
+                            afm += 2;
+                        else if( totalBoosts > 0 )
+                            afm += 1;
+
+                        if( totalBoosts > 0 && MovesBeforeTOP_Actual( actor, actorAlly, top ) )
+                            afm += 1;
+                    }
+
+                    if( actorAlly.Pokemon == top.Attacker?.Pokemon )
+                    {
+                        if( top.AttackerPTKO > top.Attacker_ExpectedPTKO )
+                        {
+                            afm += 1;
+
+                            if( top.AttackerPTKO - top.Attacker_ExpectedPTKO > 2 || top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                afm += 1;
+                        }
+
+                        if( attackerTargeted_Opponent )
+                        {
+                            afm += 1;
+
+                            if( MovesBeforeTOP_Actual( top.Attacker, top.Opponent, top ) )
+                                afm += 1;
+
+                            if( top.Opponent.EndHPR <= 0f )
+                                afm += 1;
+                        }
+
+                        if( attackerTargeted_OpponentAlly )
+                        {
+                            afm += 1;
+
+                            if( MovesBeforeTOP_Actual( top.Attacker, top.OpponentAlly, top ) )
+                                afm += 1;
+
+                            if( top.OpponentAlly.EndHPR <= 0f )
+                                afm += 1;
+                        }
+
+                        if( opponentTargeted_Attacker && top.Opponent_ExpectedPTKO > top.OpponentPTKO )
+                        {
+                            afm += 1;
+
+                            if( top.Opponent_ExpectedPTKO - top.OpponentPTKO > 2 || top.OpponentPTKO <= PotentialToKO.Safe )
+                                afm += 1;
+                        }
+
+                        if( opponentAllyTargeted_Attacker && top.OpponentAlly_ExpectedPTKO > top.OpponentAllyPTKO )
+                        {
+                            afm += 1;
+
+                            if( top.OpponentAlly_ExpectedPTKO - top.OpponentAllyPTKO > 2 || top.OpponentAllyPTKO <= PotentialToKO.Safe )
+                                afm += 1;
+                        }
+
+                        if( top.Opponent?.Speed > unit1Action.Actor.Speed && top.Attacker?.Speed > top.Opponent?.Speed )
+                            afm += 1;
+
+                        if( top.OpponentAlly?.Speed > unit1Action.Actor.Speed && top.Attacker?.Speed > top.OpponentAlly?.Speed )
+                            afm += 1;
+                    }
+
+                    if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon && top.AttackerAllyPTKO > top.AttackerAlly_ExpectedPTKO )
+                    {
+                        afm += 1;
+
+                        if( top.AttackerAllyPTKO - top.AttackerAlly_ExpectedPTKO > 2 || top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                            afm += 1;
+
+                        if( attackerAllyTargeted_Opponent )
+                        {
+                            afm += 1;
+
+                            if( MovesBeforeTOP_Actual( top.AttackerAlly, top.Opponent, top ) )
+                                afm += 1;
+
+                            if( top.Opponent.EndHPR <= 0f )
+                                afm += 1;
+                        }
+
+                        if( attackerAllyTargeted_OpponentAlly )
+                        {
+                            afm += 1;
+
+                            if( MovesBeforeTOP_Actual( top.AttackerAlly, top.OpponentAlly, top ) )
+                                afm += 1;
+
+                            if( top.OpponentAlly.EndHPR <= 0f )
+                                afm += 1;
+                        }
+
+                        if( opponentTargeted_AttackerAlly && top.Opponent_ExpectedPTKO > top.OpponentPTKO )
+                        {
+                            afm += 1;
+
+                            if( top.Opponent_ExpectedPTKO - top.OpponentPTKO > 2 || top.OpponentPTKO <= PotentialToKO.Safe )
+                                afm += 1;
+                        }
+                        
+                        if( opponentAllyTargeted_AttackerAlly && top.OpponentAlly_ExpectedPTKO > top.OpponentAllyPTKO )
+                        {
+                            afm += 1;
+
+                            if( top.OpponentAlly_ExpectedPTKO - top.OpponentAllyPTKO > 2 || top.OpponentAllyPTKO <= PotentialToKO.Safe )
+                                afm += 1;
+                        }
+
+                        if( top.Opponent?.Speed > unit2Action.Actor.Speed && top.AttackerAlly?.Speed > top.Opponent?.Speed )
+                            afm += 1;
+
+                        if( top.OpponentAlly?.Speed > unit2Action.Actor.Speed && top.AttackerAlly?.Speed > top.OpponentAlly?.Speed )
+                            afm += 1;
+                    }
+                }
+
+                if( isHelpingHand )
+                {
+                    if( actorAlly.Pokemon == top.Attacker?.Pokemon )
+                    {
+                        if( top.AttackerPTKO > top.Attacker_ExpectedPTKO )
+                        {
+                            afm += 1;
+
+                            if( top.AttackerPTKO - top.Attacker_ExpectedPTKO > 2 || top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                afm += 2;
+
+                            if( top.AttackerPTKO == PotentialToKO.OHKO )
+                                afm += 1;
+
+                            if( unit1Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.AllAdjacent || unit1Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.OpposingSide )
+                                afm += 1;
+
+                            if( attackerTargeted_Opponent )
+                            {
+                                afm += 1;
+
+                                if( MovesBeforeTOP_Actual( top.Attacker, top.Opponent, top ) )
+                                    afm += 1;
+
+                                if( top.Opponent.EndHPR <= 0f )
+                                    afm += 1;
+                            }
+
+                            if( attackerTargeted_OpponentAlly )
+                            {
+                                afm += 1;
+
+                                if( MovesBeforeTOP_Actual( top.Attacker, top.OpponentAlly, top ) )
+                                    afm += 1;
+
+                                if( top.OpponentAlly.EndHPR <= 0f )
+                                    afm += 1;
+                            }
+                        }
+                        else
+                            afm -= 3;
+                    }
+
+                    if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon )
+                    {
+                        if( top.AttackerAllyPTKO > top.AttackerAlly_ExpectedPTKO )
+                        {
+                            afm += 1;
+
+                            if( top.AttackerAllyPTKO - top.AttackerAlly_ExpectedPTKO > 2 || top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                afm += 2;
+
+                            if( top.AttackerAllyPTKO == PotentialToKO.OHKO )
+                                afm += 1;
+
+                            if( unit2Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.AllAdjacent || unit2Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.OpposingSide )
+                                afm += 1;
+
+                            if( attackerAllyTargeted_Opponent )
+                            {
+                                afm += 1;
+
+                                if( MovesBeforeTOP_Actual( top.AttackerAlly, top.Opponent, top ) )
+                                    afm += 1;
+
+                                if( top.Opponent.EndHPR <= 0f )
+                                    afm += 1;
+                            }
+
+                            if( attackerAllyTargeted_OpponentAlly )
+                            {
+                                afm += 1;
+
+                                if( MovesBeforeTOP_Actual( top.AttackerAlly, top.OpponentAlly, top ) )
+                                    afm += 1;
+
+                                if( top.OpponentAlly.EndHPR <= 0f )
+                                    afm += 1;
+                            }
+                        }
+                        else
+                            afm -= 3;
+                    }
+                }
+
+                if( isAfteryou && actorAlly != null && MovesBeforeTOP_Actual( actor, actorAlly, top ) )
+                {
+                    if( top.Opponent != null )
+                    {
+                        if( MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                        {
+                            afm += 1;
+
+                            if( MovesBeforeTOP_Expected( top.Opponent, actorAlly, top ) )
+                                afm += 1;
+
+                            if( actorAlly.Pokemon == top.Attacker?.Pokemon && attackerTargeted_Opponent && top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                afm += 2;
+
+                            if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon && attackerAllyTargeted_Opponent && top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                afm += 2;
+                        }
+                        else if( actorAlly.EndHPR > 0f )
+                        {
+                            if( actorAlly.Pokemon == top.Attacker?.Pokemon && attackerTargeted_Opponent && top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                afm += 1;
+
+                            if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon && attackerAllyTargeted_Opponent && top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                afm += 1;
+                        }
+                    }
+
+                    if( top.OpponentAlly != null )
+                    {
+                        if( MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                        {
+                            afm += 1;
+
+                            if( MovesBeforeTOP_Expected( top.OpponentAlly, actorAlly, top ) )
+                                afm += 1;
+
+                            if( actorAlly.Pokemon == top.Attacker?.Pokemon && attackerTargeted_OpponentAlly && top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                afm += 2;
+
+                            if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon && attackerAllyTargeted_OpponentAlly && top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                afm += 2;
+                        }
+                        else if( actorAlly.EndHPR > 0f )
+                        {
+                            if( actorAlly.Pokemon == top.Attacker?.Pokemon && attackerTargeted_OpponentAlly && top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                afm += 1;
+
+                            if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon && attackerAllyTargeted_OpponentAlly && top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                afm += 1;
+                        }
+                    }
+
+                    if( actorAlly.Pokemon == top.Attacker?.Pokemon )
+                    {
+                        if( unit1Action.ActionType == ActionType.OffensiveStatus )
+                            afm += 1;
+
+                        if( unit1Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.AllAdjacent || unit1Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.OpposingSide )
+                            afm += 2;
+                    }
+
+                    if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon )
+                    {
+                        if( unit2Action.ActionType == ActionType.OffensiveStatus )
+                            afm += 1;
+
+                        if( unit2Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.AllAdjacent || unit2Action.MoveCandidate?.MoveSO.MoveTarget == MoveTarget.OpposingSide )
+                            afm += 2;
+                    }
+                }
+
+            }
+
+            if( battlefieldControl )
+            {
+                if( isWeather && _ai.UnitSim.GetWeatherFrom_Move( action.MoveCandidate ) is var movesWeather && movesWeather != WeatherConditionID.None && movesWeather != currentField.Weather )
+                {
+                    var currentWeather = currentField.Weather;
+
+                    if( actorAlly != null && MovesBeforeTOP_Actual( actor, actorAlly, top ) )
+                    {
+                        afm += 1;
+
+                        if( unit1Action.ActionType == ActionType.Attack && _ai.UnitSim.Move_AbusesWeather( unit1Action.MoveCandidate, movesWeather ) )
+                            afm += 2;
+
+                        if( unit2Action.ActionType == ActionType.Attack && _ai.UnitSim.Move_AbusesWeather( unit2Action.MoveCandidate, movesWeather ) )
+                            afm += 2;
+                    }
+
+                    if( actorAlly != null && _ai.UnitSim.PokemonBenefits_Weather( actorAlly, movesWeather ) )
+                        afm += 1;
+
+                    if( _ai.UnitSim.PokemonBenefits_Weather( actor, movesWeather ) )
+                        afm += 1;
+
+                    if( actorAlly != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( actorAlly.Pokemon, movesWeather ) )
+                    {
+                        afm += 2;
+
+                        if( top.Opponent?.Pokemon.Speed > actorAlly?.Pokemon.Speed && actorAlly?.Speed > top.Opponent?.Speed )
+                        {
+                            afm += 1;
+
+                            if( actorAlly?.Pokemon == top.Attacker?.Pokemon && unit1Action.ActionType == ActionType.Attack && attackerTargeted_Opponent )
+                            {
+                                if( top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+
+                                if( top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+                            }
+
+                            if( actorAlly?.Pokemon == top.AttackerAlly?.Pokemon && unit2Action.ActionType == ActionType.Attack && attackerAllyTargeted_Opponent )
+                            {
+                                if( top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+
+                                if( top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+                            }
+                        }
+
+                        if( top.OpponentAlly?.Pokemon.Speed > actorAlly?.Pokemon.Speed && actorAlly?.Speed > top.OpponentAlly?.Speed )
+                        {
+                            afm += 1;
+
+                            if( actorAlly?.Pokemon == top.Attacker?.Pokemon && unit1Action.ActionType == ActionType.Attack && attackerTargeted_OpponentAlly )
+                            {
+                                if( top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+
+                                if( top.AttackerPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+                            }
+
+                            if( actorAlly?.Pokemon == top.AttackerAlly?.Pokemon && unit2Action.ActionType == ActionType.Attack && attackerAllyTargeted_OpponentAlly )
+                            {
+                                if( top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous && top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+
+                                if( top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+                            }
+                        }
+                    }
+                }
+
+                if( isTerrain && _ai.UnitSim.GetTerrainFrom_Move( action.MoveCandidate ) is var movesTerrain && movesTerrain != TerrainID.None && movesTerrain != currentField.Terrain )
+                {
+                    if( actorAlly != null && MovesBeforeTOP_Actual( actor, actorAlly, top ) )
+                    {
+                        afm += 1;
+
+                        if( unit1Action.ActionType == ActionType.Attack && _ai.UnitSim.Move_AbusesTerrain( unit1Action.MoveCandidate, movesTerrain ) )
+                            afm += 2;
+
+                        if( unit2Action.ActionType == ActionType.Attack && _ai.UnitSim.Move_AbusesTerrain( unit2Action.MoveCandidate, movesTerrain ) )
+                            afm += 2;
+                    }
+
+                    if( actorAlly != null && _ai.UnitSim.PokemonBenefits_Terrain( actorAlly, movesTerrain ) )
+                        afm += 1;
+
+                    if( _ai.UnitSim.PokemonBenefits_Terrain( actor, movesTerrain ) )
+                        afm += 1;
+
+                    if( actorAlly?.Pokemon == top.Attacker?.Pokemon && top.AttackerPTKO > top.Attacker_ExpectedPTKO )
+                    {
+                        afm += 1;
+
+                        if( top.AttackerPTKO - top.Attacker_ExpectedPTKO > 2 || top.AttackerPTKO >= PotentialToKO.Dangerous )
+                            afm += 2;
+                    }
+
+                    if( actorAlly?.Pokemon == top.AttackerAlly?.Pokemon && top.AttackerAllyPTKO > top.AttackerAlly_ExpectedPTKO )
+                    {
+                        afm += 1;
+
+                        if( top.AttackerAllyPTKO - top.AttackerAlly_ExpectedPTKO > 2 || top.AttackerAllyPTKO >= PotentialToKO.Dangerous )
+                            afm += 2;
+                    }
+
+                    if( top.Opponent != null && top.Opponent_ExpectedPTKO > top.OpponentPTKO )
+                    {
+                        afm += 1;
+
+                        if( top.Opponent_ExpectedPTKO - top.OpponentPTKO > 2 || top.OpponentPTKO <= PotentialToKO.Safe )
+                            afm += 2;
+                    }
+
+                    if( top.OpponentAlly != null && top.OpponentAlly_ExpectedPTKO > top.OpponentAllyPTKO )
+                    {
+                        afm += 1;
+
+                        if( top.OpponentAlly_ExpectedPTKO - top.OpponentAllyPTKO > 2 || top.OpponentAllyPTKO <= PotentialToKO.Safe )
+                            afm += 2;
+                    }
+
+                    if( top.Opponent != null && theirLeft != null )
+                    {
+                        if( psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == "Earthquake" && movesTerrain == TerrainID.Grassy && MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                            afm += 1;
+                        
+                        if( psi.LeftIntent.IntentResult?.Move?.Priority > MovePriority.Zero && movesTerrain == TerrainID.Psychic && MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                            afm += 1;
+
+                        if( psi.LeftIntent.IntentResult?.Move?.MoveType == PokemonType.Dragon && movesTerrain == TerrainID.Misty && MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                            afm += 1;
+
+                        if( psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == "Expanding Force" && currentField.Terrain == TerrainID.Psychic && MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                            afm += 2;
+
+                        if( psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == "Grassy Glide" && currentField.Terrain == TerrainID.Grassy && MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                            afm += 2;
+                    }
+
+                    if( top.OpponentAlly != null && theirRight != null )
+                    {
+                        if( psi.RightIntent.IntentResult?.Move?.MoveSO.Name == "Earthquake" && movesTerrain == TerrainID.Grassy && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                            afm += 1;
+                        
+                        if( psi.RightIntent.IntentResult?.Move?.Priority > MovePriority.Zero && movesTerrain == TerrainID.Psychic && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                            afm += 1;
+
+                        if( psi.RightIntent.IntentResult?.Move?.MoveType == PokemonType.Dragon && movesTerrain == TerrainID.Misty && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                            afm += 1;
+
+                        if( psi.RightIntent.IntentResult?.Move?.MoveSO.Name == "Expanding Force" && currentField.Terrain == TerrainID.Psychic && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                            afm += 2;
+
+                        if( psi.RightIntent.IntentResult?.Move?.MoveSO.Name == "Grassy Glide" && currentField.Terrain == TerrainID.Grassy && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                            afm += 2;
+                    }
+                }
+
+                if( isField )
+                {
+                    if( effects.FieldCondition == FieldConditionID.TrickRoom )
+                    {
+                        var updatedAlly = _ai.UnitSim.GetUpdatedUnitForLookAhead( actorAlly );
+                        var updatedOpponent = top.Opponent?.EndHPR > 0f ? _ai.UnitSim.GetUpdatedUnitForLookAhead( top.Opponent ) : null;
+                        var updatedOpponentAlly = top.OpponentAlly?.EndHPR > 0f ? _ai.UnitSim.GetUpdatedUnitForLookAhead( top.OpponentAlly ) : null;
+
+                        var allyVs_Opponent = updatedOpponent != null ? _ai.Projection.MakeUnitComparison( updatedAlly, updatedOpponent ) : default;
+                        var allyVs_OpponentAlly = updatedOpponentAlly != null ? _ai.Projection.MakeUnitComparison( updatedAlly, updatedOpponentAlly ) : default;
+
+                        int ourTRBenefit = _ai.UnitSim.Get_TrickRoomContextScore( actor.Pokemon, true ) + _ai.UnitSim.Get_TrickRoomContextScore( actorAlly.Pokemon, true );
+                        int theirTRBenefit = 0;
+                        
+                        if( top.Opponent != null )
+                            theirTRBenefit += _ai.UnitSim.Get_TrickRoomContextScore( top.Opponent.Pokemon, true );
+
+                        if( top.OpponentAlly != null )
+                            theirTRBenefit += _ai.UnitSim.Get_TrickRoomContextScore( top.OpponentAlly.Pokemon, true );
+
+                        if( !currentField.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) )
+                        {
+                            if( top.Attacker?.Pokemon.Speed < top.Opponent?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( top.Attacker?.Pokemon.Speed < top.OpponentAlly?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( top.AttackerAlly?.Pokemon.Speed < top.Opponent?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( top.AttackerAlly?.Pokemon.Speed < top.OpponentAlly?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( actorAlly != null )
+                            {
+                                if( actorAlly.Pokemon == top.Attacker?.Pokemon && unit1Action.MoveCandidate?.MoveSO.Name == "Fake Out" )
+                                    afm += 1;
+
+                                if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon && unit2Action.MoveCandidate?.MoveSO.Name == "Fake Out" )
+                                    afm += 1;
+
+                                if( actorAlly.RoleProfile.Biases.Contains( RoleBias.SlowSpeed ) || actorAlly.RoleProfile.Biases.Contains( RoleBias.TrickRoomSpeed ) )
+                                {
+                                    afm += 2;
+
+                                    if( actorAlly.RoleProfile.PrimaryArchetype == RoleClassArchetype.Offensive )
+                                        afm += 1;
+
+                                    if( actorAlly.RoleProfile.PrimaryRole == RoleClass.TrickRoomAbuser )
+                                        afm += 1;
+
+                                    if( actor.RoleProfile.PrimaryArchetype == RoleClassArchetype.Utility )
+                                        afm += 1;
+                                }
+
+                                if( updatedOpponent != null )
+                                {
+                                    if( allyVs_Opponent.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous )
+                                    {
+                                        afm += 1;
+
+                                        if( allyVs_Opponent.AttackerMovesFirst )
+                                            afm += 2;
+                                    }
+                                }
+
+                                if( updatedOpponentAlly != null )
+                                {
+                                    if( allyVs_OpponentAlly.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous )
+                                    {
+                                        afm += 1;
+
+                                        if( allyVs_OpponentAlly.AttackerMovesFirst )
+                                            afm += 2;
+                                    }
+                                }
+
+                                if( ourTRBenefit > theirTRBenefit )
+                                {
+                                    afm += 1;
+
+                                    if( ourTRBenefit - theirTRBenefit > 5 )
+                                        afm += 1;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if( theirTRBenefit > ourTRBenefit  )
+                                afm += 3;
+
+                            if( top.Attacker?.Pokemon.Speed > top.Opponent?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( top.Attacker?.Pokemon.Speed > top.OpponentAlly?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( top.AttackerAlly?.Pokemon.Speed > top.Opponent?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( top.AttackerAlly?.Pokemon.Speed > top.OpponentAlly?.Pokemon.Speed )
+                                afm += 2;
+
+                            if( updatedOpponent != null )
+                            {
+                                if( allyVs_Opponent.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous && allyVs_Opponent.AttackerMovesFirst )
+                                    afm += 2;
+                            }
+
+                            if( updatedOpponentAlly != null )
+                            {
+                                if( allyVs_OpponentAlly.Attacker.BestCurrentPTKO >= PotentialToKO.Dangerous && allyVs_OpponentAlly.AttackerMovesFirst )
+                                    afm += 2;
+                            }
+                        }
+                    }
+                }
+
+                if( isSafeguard )
+                {
+                    if( top.Opponent != null )
+                    {
+                        if( theirLeft != null && psi.LeftIntent.IntentResult?.ActionType == ActionType.OffensiveStatus && MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                            afm += 2;
+                    }
+
+                    if( top.OpponentAlly != null )
+                    {
+                        if( theirRight != null && psi.RightIntent.IntentResult?.ActionType == ActionType.OffensiveStatus && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                            afm += 2;
+                    }
+
+                    foreach( var u in _ai.Blackboard.TheirTeamAdapters.Values )
+                    {
+                        if( u.BeginningHPR <= 0f || u.Pokemon.CurrentHP <= 0 )
+                            continue;
+
+                        foreach( var m in u.ActiveMoves )
+                        {
+                            if( m.MoveSO.MoveEffects.SevereStatus != SevereConditionID.None )
+                                afm += 1;
+
+                            if( m.MoveSO.MoveEffects.VolatileStatus == VolatileConditionID.Confusion )
+                                afm += 1;
+
+                            if( m.MoveSO.Name == "Fake Out" )
+                                afm += 2;
+                        }
+                    }
+                }
+            }
+
+            if( allyProtection )
+            {
+                if( actorAlly != null && ( isAllyHeal || isSideHeal ) )
+                {
+                    if( isSideHeal )
+                    {
+                        if( actor.BeginningHPR <= 0.33f )
+                            afm += 3;
+                        else if( actor.BeginningHPR <= 0.66f )
+                            afm += 2;
+                        else if( actor.BeginningHPR < 1f )
+                            afm += 1;
+                    }
+
+                    if( actorAlly.BeginningHPR <= 0.33f )
+                        afm += 3;
+                    else if( actor.BeginningHPR <= 0.66f )
+                        afm += 2;
+                    else if( actor.BeginningHPR < 1f )
+                        afm += 1;
+
+                    if( top.Opponent != null && MovesBeforeTOP_Actual( actor, top.Opponent, top ) )
+                    {
+                        afm += 1;
+
+                        if( opponentTargeted_Attacker && top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous )
+                            afm += 2;
+
+                        if( opponentTargeted_AttackerAlly && top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous )
+                            afm += 2;
+
+                        if( actor.EndHPR > 0.45f )
+                            afm += 1;
+
+                        if( actorAlly.EndHPR > 0.45f )
+                            afm += 1;
+                    }
+
+                    if( top.OpponentAlly != null && MovesBeforeTOP_Actual( actor, top.OpponentAlly, top ) )
+                    {
+                        afm += 1;
+
+                        if( opponentAllyTargeted_Attacker && top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous )
+                            afm += 2;
+
+                        if( opponentAllyTargeted_AttackerAlly && top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous )
+                            afm += 2;
+
+                        if( actor.EndHPR > 0.45f )
+                            afm += 1;
+
+                        if( actorAlly.EndHPR > 0.45f )
+                            afm += 1;
+                    }
+                }
+
+                if( isRedirection && actorAlly != null )
+                {
+                    if( actorAlly.Pokemon == top.Attacker?.Pokemon )
+                    {
+                        if( theirLeft != null && top.Opponent != null && ( psi.LeftIntent.IntentResult?.ActionType == ActionType.Attack || psi.LeftIntent.IntentResult?.ActionType == ActionType.OffensiveStatus ) )
+                        {
+                            afm += 2;
+
+                            if( opponentTargeted_Attacker )
+                            {
+                                if( psi.LeftIntent.IntentResult?.Move?.MoveSO.MoveCategory != MoveCategory.Status && top.Opponent_ExpectedPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+
+                                if( attackerTargeted_Opponent && top.AttackerPTKO >= PotentialToKO.Risky )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerPTKO >= PotentialToKO.OHKO )
+                                        afm += 2;
+                                }
+
+                                if( attackerTargeted_OpponentAlly && top.AttackerPTKO >= PotentialToKO.Risky )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerPTKO >= PotentialToKO.OHKO )
+                                        afm += 2;
+                                }
+                            }
+
+                            if( !_ai.UnitSim.MoveIsSpreadAttack( psi.LeftIntent.IntentResult?.Move ) )
+                                afm += 1;
+                            else
+                                afm -= 3;
+                        }
+
+                        if( theirRight != null && top.OpponentAlly != null && ( psi.RightIntent.IntentResult?.ActionType == ActionType.Attack || psi.RightIntent.IntentResult?.ActionType == ActionType.OffensiveStatus ) )
+                        {
+                            afm += 2;
+
+                            if( opponentAllyTargeted_Attacker )
+                            {
+                                if( psi.RightIntent.IntentResult?.Move?.MoveSO.MoveCategory != MoveCategory.Status && top.OpponentAlly_ExpectedPTKO >= PotentialToKO.Dangerous )
+                                    afm += 2;
+
+                                if( attackerTargeted_Opponent && top.AttackerPTKO >= PotentialToKO.Risky )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerPTKO >= PotentialToKO.OHKO )
+                                        afm += 2;
+                                }
+
+                                if( attackerTargeted_OpponentAlly && top.AttackerPTKO >= PotentialToKO.Risky )
+                                {
+                                    afm += 1;
+
+                                    if( top.AttackerPTKO >= PotentialToKO.OHKO )
+                                        afm += 2;
+                                }
+                            }
+
+                            if( !_ai.UnitSim.MoveIsSpreadAttack( psi.RightIntent.IntentResult?.Move ) )
+                                afm += 1;
+                            else
+                                afm -= 3;
+                        }
+                    }
+                }
+
+            }
+        }
+
+        //--Protect
+        if( unit1Action.ActionType == ActionType.Protect )
+        {
+            ScoreProtectAction( unit1Action, 1 );
+            
+            if( unit2Action.ActionType == ActionType.DefensiveSwitch || unit2Action.ActionType == ActionType.OffensiveSwitch )
+                afm += 1;
+            
+            if( unit2Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+
+            if( unit2Action.ActionType == ActionType.Attack && unit1Action.Capability != CapabilityObservation.FakeOut )
+            {
+                afm += 1;
+
+                if( _ai.UnitSim.MoveIsSpreadAttack( unit2Action.MoveCandidate ) )
+                    afm += 1;
+            }
+        }
+
+        if( unit2Action.ActionType == ActionType.Protect )
+        {
+            ScoreProtectAction( unit2Action, 2 );
+            
+            if( unit1Action.ActionType == ActionType.DefensiveSwitch || unit1Action.ActionType == ActionType.OffensiveSwitch )
+                afm += 1;
+            
+            if( unit1Action.Capability == CapabilityObservation.Redirection )
+                afm += 1;
+
+            if( unit1Action.ActionType == ActionType.Attack && unit1Action.Capability != CapabilityObservation.FakeOut )
+            {
+                afm += 1;
+
+                if( _ai.UnitSim.MoveIsSpreadAttack( unit1Action.MoveCandidate ) )
+                    afm += 1;
+            }
+        }
+
+        void ScoreProtectAction( CoordinationAction action, int unit )
+        {
+            bool unitIs1 = unit == 1;
+            SimulatedUnit actor = unitIs1 ? top.Attacker : top.AttackerAlly;
+            SimulatedUnit actorAlly = unitIs1 ? top.AttackerAlly : top.Attacker;
+            var gp = _ai.Blackboard.GamePlan;
+
+            if( actor == null )
+                return;
+
+            if( actor.Pokemon == actorAlly.Pokemon )
+                Debug.LogError( $"You fucka up" );
+
+            if( actor.Pokemon == top.Attacker?.Pokemon )
+            {
+                if( top.Opponent != null && opponentTargeted_Attacker )
+                {
+                    if( top.OpponentPTKO >= PotentialToKO.TwoHKO )
+                        afm += 1;
+
+                    if( top.OpponentPTKO >= PotentialToKO.Dangerous )
+                        afm += 1;
+
+                    if( theirLeft != null && psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == "Fake Out" )
+                        afm += 2;
+                }
+
+                if( top.OpponentAlly != null && opponentAllyTargeted_Attacker )
+                {
+                    if( top.OpponentAllyPTKO >= PotentialToKO.TwoHKO )
+                        afm += 1;
+
+                    if( top.OpponentAllyPTKO >= PotentialToKO.Dangerous )
+                        afm += 1;
+
+                    if( theirRight != null && psi.RightIntent.IntentResult?.Move?.MoveSO.Name == "Fake Out" )
+                        afm += 2;
+                }
+
+                if( opponentTargeted_Attacker && opponentAllyTargeted_Attacker )
+                    afm += 3;
+            }
+
+            if( actor.Pokemon == top.AttackerAlly?.Pokemon )
+            {
+                if( top.Opponent != null && opponentTargeted_AttackerAlly )
+                {
+                    if( top.OpponentPTKO >= PotentialToKO.TwoHKO )
+                        afm += 1;
+
+                    if( top.OpponentPTKO >= PotentialToKO.Dangerous )
+                        afm += 1;
+
+                    if( theirLeft != null && psi.LeftIntent.IntentResult?.Move?.MoveSO.Name == "Fake Out" )
+                        afm += 2;
+                }
+
+                if( top.OpponentAlly != null && opponentAllyTargeted_AttackerAlly )
+                {
+                    if( top.OpponentAllyPTKO >= PotentialToKO.TwoHKO )
+                        afm += 1;
+
+                    if( top.OpponentAllyPTKO >= PotentialToKO.Dangerous )
+                        afm += 1;
+
+                    if( theirRight != null && psi.RightIntent.IntentResult?.Move?.MoveSO.Name == "Fake Out" )
+                        afm += 2;
+                }
+
+                if( opponentTargeted_AttackerAlly && opponentAllyTargeted_AttackerAlly )
+                    afm += 3;
+            }
+
+            if( actorAlly != null )
+            {
+                if( actorAlly.Pokemon == top.Attacker?.Pokemon )
+                {
+                    if( unit1Action.ActionType == ActionType.DefensiveSwitch || unit1Action.ActionType == ActionType.OffensiveSwitch )
+                    {
+                        afm += 2;
+
+                        if( opponentTargeted_AttackerAlly )
+                            afm += 1;
+
+                        if( opponentAllyTargeted_AttackerAlly )
+                            afm += 1;
+                    }
+
+                    if( unit1Action.ActionType == ActionType.Attack )
+                    {
+                        afm += 1;
+
+                        if( _ai.UnitSim.MoveIsSpreadAttack( unit1Action.MoveCandidate ) )
+                            afm += 2;
+
+                        if( top.AttackerPTKO >= PotentialToKO.Risky )
+                            afm += 1; 
+                    }
+
+                    if( unit1Action.ActionType == ActionType.OffensiveStatus || unit1Action.ActionType == ActionType.SupportiveStatus )
+                        afm += 2;
+
+                    if( unit1Action.ActionType == ActionType.Protect )
+                        afm += 1;
+                }
+
+                if( actorAlly.Pokemon == top.AttackerAlly?.Pokemon )
+                {
+                    if( unit2Action.ActionType == ActionType.DefensiveSwitch || unit2Action.ActionType == ActionType.OffensiveSwitch )
+                    {
+                        afm += 2;
+
+                        if( opponentTargeted_Attacker )
+                            afm += 1;
+
+                        if( opponentAllyTargeted_Attacker )
+                            afm += 1;
+                    }
+
+                    if( unit2Action.ActionType == ActionType.Attack )
+                    {
+                        afm += 1;
+
+                        if( _ai.UnitSim.MoveIsSpreadAttack( unit2Action.MoveCandidate ) )
+                            afm += 2;
+
+                        if( top.AttackerAllyPTKO >= PotentialToKO.Risky )
+                            afm += 1; 
+                    }
+
+                    if( unit2Action.ActionType == ActionType.OffensiveStatus || unit2Action.ActionType == ActionType.SupportiveStatus )
+                        afm += 2;
+
+                    if( unit2Action.ActionType == ActionType.Protect )
+                        afm += 1;
+                }
+            }
+        }
+
         //-----------------------------------
         //--Coordination Synergy Evaluation--
         //-----------------------------------
+
+        //--Maybe we can just simply add synergies as a score lol
+        // syn += pair.Synergies?.Count > 0 ? pair.Synergies.Count : 0;
+
+        //--Score Adding & Logging
+        int final = pbe + afm + syn;
+
+        pair.PBE = pbe;
+        pair.AFM = afm;
+        pair.SYN = syn;
+        pair.Final = final;
+
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"Final Scores:" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"PBE: {pbe}" );
+        cirLog?.Add( $"AFM: {afm}" );
+        cirLog?.Add( $"SYN: {syn}" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"Final: {final}" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"" );
+
+        pair.Top = top;
+        pair.TopLog = top.SimulationLog.ToString();
+    }
+
+    private void PairLookAheadProjection( CoordinationActionPair pair, Dictionary<Pokemon, HashSet<CapabilityObservation>> ourCapabilitySets, CustomLogSession cirLog = null )
+    {
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"======================================" );
+        cirLog?.Add( $"=====[Pair Look Ahead Projection]=====" );
+        cirLog?.Add( $"======================================" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"Current Pair" );
+        cirLog?.Add( $"Unit 1: {pair.Unit1Action.Actor?.NickName}, {pair.Unit1Action.ActionType}, {pair.Unit1Action.Capability}, Move: {pair.Unit1Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit1Action.SwitchCandidate?.NickName}" );
+        cirLog?.Add( $"Unit 2: {pair.Unit2Action.Actor?.NickName}, {pair.Unit2Action.ActionType}, {pair.Unit2Action.Capability}, Move: {pair.Unit2Action.MoveCandidate?.MoveSO.Name}, Switch: {pair.Unit2Action.SwitchCandidate?.NickName}" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"" );
+        cirLog?.Add( $"Gathering post-round units and preparing the next round..." );
+
+        var top = pair.Top;
+
+        var currentField = _ai.Blackboard.CurrentFieldSnapshot;
+        var nextField = top.Field;
+
+        var currentWeather = _ai.Blackboard.CurrentFieldSnapshot.Weather;
+        var currentTerrain = _ai.Blackboard.CurrentFieldSnapshot.Terrain;
+
+        var nextWeather = nextField.Weather;
+        var nextTerrain = nextField.Terrain;
+
+        List<IBattleAIUnit> ourActive = new();
+        List<IBattleAIUnit> ourBench = new();
+
+        List<IBattleAIUnit> theirActive = new();
+        List<IBattleAIUnit> theirBench = new();
+
+        if( top.Attacker?.EndHPR > 0f )
+            ourActive.Add( top.Attacker );
+
+        if( top.AttackerAlly?.EndHPR > 0f )
+            ourActive.Add( top.AttackerAlly );
+
+        if( top.Opponent?.EndHPR > 0f )
+            theirActive.Add( top.Opponent );
+
+        if( top.OpponentAlly?.EndHPR > 0f )
+            theirActive.Add( top.OpponentAlly );
+
+        foreach( var p in _ai.Blackboard.OurTeamAdapters.Keys )
+        {
+            if( top.Attacker?.Pokemon == p || top.AttackerAlly?.Pokemon == p )
+                continue;
+            else
+                ourBench.Add( _ai.GetPokemonAs_IBattleAIUnit( p ) );
+        }
+
+        foreach( var p in _ai.Blackboard.TheirTeamAdapters.Keys )
+        {
+            if( top.Opponent?.Pokemon == p || top.OpponentAlly?.Pokemon == p )
+                continue;
+            else
+                theirBench.Add( _ai.GetPokemonAs_IBattleAIUnit( p ) );
+        }
+
+        //--Update units for look ahead unit comparisons
+        IBattleAIUnit attacker = null;
+        IBattleAIUnit attackerAlly = null;
+
+        IBattleAIUnit opponent = null;
+        IBattleAIUnit opponentAlly = null;
+
+        bool attackerAllyReplaced = false;
+        bool opponentAllyReplaced = false;
+
+        //--Properly replace our missing units
+        if( top.Attacker != null && ourBench?.Count > 0 )
+        {
+            if( top.Attacker.EndHPR > 0f )
+                attacker = _ai.UnitSim.GetUpdatedUnitForLookAhead( top.Attacker );
+            else
+            {
+                if( top.AttackerAlly != null )
+                {
+                    if( top.AttackerAlly.EndHPR > 0f )
+                        attacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                    else
+                    {
+                        if( top.Attacker?.Speed >= top.AttackerAlly?.Speed )
+                        {
+                            attacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+
+                            int remove = -1;
+                            for( int i = 0; i < ourBench.Count; i++ )
+                            {
+                                var b = ourBench[i];
+                                if( b.Pokemon == attacker.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                ourBench.RemoveAt( remove );
+
+                            attackerAlly = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                            attackerAllyReplaced = true;
+                        }
+                        else
+                        {
+                            attackerAlly = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                            attackerAllyReplaced = true;
+
+                            int remove = -1;
+                            for( int i = 0; i < ourBench.Count; i++ )
+                            {
+                                var b = ourBench[i];
+                                if( b.Pokemon == attackerAlly.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                ourBench.RemoveAt( remove );
+
+                            attacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+                        }
+                    }
+                }
+                else
+                    attacker = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+            }
+        }
+
+        if( top.AttackerAlly != null && !attackerAllyReplaced && ourBench?.Count > 0 )
+        {
+            if( top.AttackerAlly.EndHPR > 0f )
+                attackerAlly = _ai.UnitSim.GetUpdatedUnitForLookAhead( top.AttackerAlly );
+            else
+                attackerAlly = ourBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( theirActive, bench: ourBench ) : null;
+        }
+
+        //--Properly replace their missing units
+        if( top.Opponent != null && theirBench?.Count > 0 )
+        {
+            if( top.Opponent.EndHPR > 0f )
+                opponent = _ai.UnitSim.GetUpdatedUnitForLookAhead( top.Opponent );
+            else
+            {
+                if( top.OpponentAlly != null )
+                {
+                    if( top.OpponentAlly.EndHPR > 0f )
+                        opponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                    else
+                    {
+                        if( top.Opponent?.Speed >= top.OpponentAlly?.Speed )
+                        {
+                            opponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+
+                            int remove = -1;
+                            for( int i = 0; i < theirBench.Count; i++ )
+                            {
+                                var b = theirBench[i];
+                                if( b.Pokemon == opponent.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                theirBench.RemoveAt( remove );
+
+                            opponentAlly = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                            opponentAllyReplaced = true;
+                        }
+                        else
+                        {
+                            opponentAlly = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                            opponentAllyReplaced = true;
+
+                            int remove = -1;
+                            for( int i = 0; i < theirBench.Count; i++ )
+                            {
+                                var b = theirBench[i];
+                                if( b.Pokemon == opponentAlly.Pokemon )
+                                {
+                                    remove = i;
+                                    break;
+                                }
+                            }
+
+                            if( remove >= 0 )
+                                theirBench.RemoveAt( remove );
+
+                            opponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+                        }
+                    }
+                }
+                else
+                    opponent = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+            }
+        }
+
+        if( top.OpponentAlly != null && !opponentAllyReplaced && theirBench?.Count > 0 )
+        {
+            if( top.OpponentAlly.EndHPR > 0f )
+                opponentAlly = _ai.UnitSim.GetUpdatedUnitForLookAhead( top.OpponentAlly );
+            else
+                opponentAlly = theirBench?.Count > 0 ? _ai.GetSwitch_CurrentPressure( ourActive, bench: theirBench ) : null;
+        }
+
+        //--Ensure properly updated units are now in our active slots
+        ourActive.Clear();
+        if( attacker?.BeginningHPR > 0f )
+            ourActive.Add( attacker );
+
+        if( attackerAlly?.BeginningHPR > 0f )
+            ourActive.Add( attackerAlly );
+
+        //--Ensure properly updated units are now in their active slots
+        theirActive.Clear();
+        if( opponent?.BeginningHPR > 0f )
+            theirActive.Add( opponent );
+
+        if( opponentAlly?.BeginningHPR > 0f )
+            theirActive.Add( opponentAlly );
+
+        if( attacker != null && ( attacker.StatStages == null || attacker.StatStages?.Count <= 0 ) )
+            Debug.LogError( $"{attacker.Name}'s Stat Stage dictionary is null or empty" );
+
+        if( attackerAlly != null && ( attackerAlly.StatStages == null || attackerAlly.StatStages?.Count <= 0 ) )
+            Debug.LogError( $"{attackerAlly.Name}'s Stat Stage dictionary is null or empty" );
+
+        if( opponent != null && ( opponent.StatStages == null || opponent.StatStages?.Count <= 0 ) )
+            Debug.LogError( $"{opponent.Name}'s Stat Stage dictionary is null or empty" );
+
+        if( opponentAlly != null && ( opponentAlly.StatStages == null || opponentAlly.StatStages?.Count <= 0 ) )
+            Debug.LogError( $"{opponentAlly.Name}'s Stat Stage dictionary is null or empty" );
+
+        //--Unit existence flags
+        bool haveAttacker = attacker != null;
+        bool haveAttackerAlly = attackerAlly != null;
+        bool haveOpponent = opponent != null;
+        bool haveOpponentAlly = opponentAlly != null;
+
+        //--2x2 MakeUnitComparison
+        var attackerVs_Opponent = haveAttacker && haveOpponent ? _ai.Projection.MakeUnitComparison( attacker, opponent, nextField ) : default;
+        var attackerVs_OpponentAlly = haveAttacker && haveOpponentAlly ? _ai.Projection.MakeUnitComparison( attacker, opponentAlly, nextField ) : default;
+
+        var attackerAllyVs_Opponent = haveAttackerAlly && haveOpponent ? _ai.Projection.MakeUnitComparison( attackerAlly, opponent, nextField ) : default;
+        var attackerAllyVs_OpponentAlly = haveAttackerAlly && haveOpponentAlly ? _ai.Projection.MakeUnitComparison( attackerAlly, opponentAlly, nextField ) : default;
+
+        //--Our PTKOs
+        var attackerPTKO_Opponent = attackerVs_Opponent.Attacker.BestCurrentPTKO;
+        var attackerPTKO_OpponentAlly = attackerVs_OpponentAlly.Attacker.BestCurrentPTKO;
+        var attackerAllyPTKO_Opponent = attackerAllyVs_Opponent.Attacker.BestCurrentPTKO;
+        var attackerAllyPTKO_OpponentAlly = attackerAllyVs_OpponentAlly.Attacker.BestCurrentPTKO;
+
+        //--Their PTKOs
+        var opponentPTKO_Attacker = attackerVs_Opponent.Target.BestCurrentPTKO;
+        var opponentPTKO_AttackerAlly = attackerVs_OpponentAlly.Target.BestCurrentPTKO;
+        var opponentAllyPTKO_Attacker = attackerAllyVs_Opponent.Target.BestCurrentPTKO;
+        var opponentAllyPTKO_AttackerAlly = attackerAllyVs_OpponentAlly.Target.BestCurrentPTKO;
+
+        //--Court locations
+        Dictionary<CourtConditionID, int> ourCourtCurrent;
+        Dictionary<CourtConditionID, int> ourCourtNext;
+        Dictionary<CourtConditionID, int> theirCourtCurrent;
+        Dictionary<CourtConditionID, int> theirCourtNext;
+
+        if( haveAttacker )
+        {
+            ourCourtCurrent = attacker.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+            ourCourtNext = attacker.CourtLocation == CourtLocation.TopCourt ? nextField.TopCourtConditions : nextField.BottomCourtConditions;
+        }
+        else if( haveAttackerAlly )
+        {
+            ourCourtCurrent = attackerAlly.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+            ourCourtNext = attackerAlly.CourtLocation == CourtLocation.TopCourt ? nextField.TopCourtConditions : nextField.BottomCourtConditions;
+        }
+        else
+        {
+            ourCourtCurrent = new();
+            ourCourtNext = new();
+        }
+
+        if( haveOpponent )
+        {
+            theirCourtCurrent = opponent.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+            theirCourtNext = opponent.CourtLocation == CourtLocation.TopCourt ? nextField.TopCourtConditions : nextField.BottomCourtConditions;
+        }
+        else if( haveOpponentAlly )
+        {
+            theirCourtCurrent = opponentAlly.CourtLocation == CourtLocation.TopCourt ? currentField.TopCourtConditions : currentField.BottomCourtConditions;
+            theirCourtNext = opponentAlly.CourtLocation == CourtLocation.TopCourt ? nextField.TopCourtConditions : nextField.BottomCourtConditions;
+        }
+        else
+        {
+            theirCourtCurrent = new();
+            theirCourtNext = new();
+        }
+
+        //--Gather and log capabilities for all available units with capabilities from active positions and bench positions for both teams
+        cirLog?.Add( $"===[Available Pokemon and their Capabilities]===" );
+        cirLog.Add( $"" );
+        cirLog.Add( $"Our Pokemon:" );
+        cirLog.Add( $"" );
+        foreach( var p in ourCapabilitySets.Keys )
+        {
+            if( ourActive.Any( u => u.Pokemon == p ) || ourBench.Any( u => u.Pokemon == p ) )
+            {
+                cirLog.Add( $"{p.NickName} Capabilites:" );
+                foreach( var c in ourCapabilitySets[p] )
+                    cirLog.Add( $"{c}" );
+
+                cirLog.Add( $"" );
+            }
+        }
+
+        cirLog.Add( $"" );
+        cirLog.Add( $"" );
+
+        Dictionary<Pokemon, HashSet<CapabilityObservation>> theirCapabilitySets = new();
+
+        FindActionControlCapability( theirActive, theirBench, theirCapabilitySets );
+        FindProtectionCapability( theirActive, theirBench, theirCapabilitySets );
+        FindPressureCapability( theirActive, theirBench, theirCapabilitySets );
+        FindBoardControlCapability( theirActive, theirBench, theirCapabilitySets );
+        FindPositioningCapability( theirActive, theirBench, theirCapabilitySets );
+        FindEnablementCapability( theirActive, theirBench, theirCapabilitySets );
+        //--put extract base capabilities here
+        //--needs some major adjustments across all 12 candidate functions
+        foreach( var u in theirActive )
+        {
+            ExtractBaseCapabilities( ActionType.Attack, u.Pokemon, theirCapabilitySets );
+            ExtractBaseCapabilities( ActionType.DefensiveSwitch, u.Pokemon, theirCapabilitySets );
+            ExtractBaseCapabilities( ActionType.Setup, u.Pokemon, theirCapabilitySets );
+            ExtractBaseCapabilities( ActionType.OffensiveStatus, u.Pokemon, theirCapabilitySets );
+            ExtractBaseCapabilities( ActionType.SupportiveStatus, u.Pokemon, theirCapabilitySets );
+            ExtractBaseCapabilities( ActionType.Protect, u.Pokemon, theirCapabilitySets );
+        }
+
+        cirLog.Add( $"Their Pokemon:" );
+        cirLog.Add( $"" );
+        foreach( var p in theirCapabilitySets.Keys )
+        {
+            if( theirActive.Any( u => u.Pokemon == p ) || theirBench.Any( u => u.Pokemon == p ) )
+            {
+                cirLog.Add( $"{p.NickName} Capabilites:" );
+                foreach( var c in theirCapabilitySets[p] )
+                    cirLog.Add( $"{c}" );
+
+                cirLog.Add( $"" );
+            }
+        }
+
+        cirLog.Add( $"" );
+        cirLog.Add( $"" );
+
+        //--Next round board state evaluation
+        ProjectedBoardFacts ourPBF = new();
+        ProjectedBoardFacts theirPBF = new();
+        
+        //--Board State Checks
+        //--PTKOs
+        if( attacker != null )
+        {
+            if( opponent != null )
+            {
+                if( attackerVs_Opponent.AttackerMovesFirst )
+                {
+                    if( attackerPTKO_Opponent >= PotentialToKO.TwoHKO )
+                    {
+                        if( opponentPTKO_Attacker <= PotentialToKO.Risky )
+                            ourPBF.PTKOAdvantages++;
+
+                        if( attackerPTKO_Opponent >= PotentialToKO.Dangerous )
+                            ourPBF.PTKOAdvantages++;
+                    }
+                    else if( opponentPTKO_Attacker >= PotentialToKO.Dangerous )
+                        theirPBF.PTKOAdvantages++;
+                }
+                else
+                {
+                    if( opponentPTKO_Attacker >= PotentialToKO.TwoHKO )
+                    {
+                        if( attackerPTKO_Opponent <= PotentialToKO.Risky )
+                            theirPBF.PTKOAdvantages++;
+
+                        if( opponentPTKO_Attacker >= PotentialToKO.Dangerous )
+                            theirPBF.PTKOAdvantages++;
+                    }
+                    else if( attackerPTKO_Opponent >= PotentialToKO.Dangerous )
+                        ourPBF.PTKOAdvantages++;
+                }
+            }
+
+            if( opponentAlly != null )
+            {
+                if( attackerVs_OpponentAlly.AttackerMovesFirst )
+                {
+                    if( attackerPTKO_OpponentAlly >= PotentialToKO.TwoHKO )
+                    {
+                        if( opponentAllyPTKO_Attacker <= PotentialToKO.Risky )
+                            ourPBF.PTKOAdvantages++;
+
+                        if( attackerPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+                            ourPBF.PTKOAdvantages++;
+                    }
+                    else if( opponentAllyPTKO_Attacker >= PotentialToKO.Dangerous )
+                        theirPBF.PTKOAdvantages++;
+                }
+                else
+                {
+                    if( opponentAllyPTKO_Attacker >= PotentialToKO.TwoHKO )
+                    {
+                        if( attackerPTKO_OpponentAlly <= PotentialToKO.Risky )
+                            theirPBF.PTKOAdvantages++;
+
+                        if( opponentAllyPTKO_Attacker >= PotentialToKO.Dangerous )
+                            theirPBF.PTKOAdvantages++;
+                    }
+                    else if( attackerPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+                        ourPBF.PTKOAdvantages++;
+                }
+            }
+        }
+
+        if( attackerAlly != null )
+        {
+            if( opponent != null )
+            {
+                if( attackerAllyVs_Opponent.AttackerMovesFirst )
+                {
+                    if( attackerAllyPTKO_Opponent >= PotentialToKO.TwoHKO )
+                    {
+                        if( opponentPTKO_AttackerAlly <= PotentialToKO.Risky )
+                            ourPBF.PTKOAdvantages++;
+
+                        if( attackerAllyPTKO_Opponent >= PotentialToKO.Dangerous )
+                            ourPBF.PTKOAdvantages++;
+                    }
+                    else if( opponentPTKO_AttackerAlly >= PotentialToKO.Dangerous )
+                        theirPBF.PTKOAdvantages++;
+                }
+                else
+                {
+                    if( opponentPTKO_AttackerAlly >= PotentialToKO.TwoHKO )
+                    {
+                        if( attackerAllyPTKO_Opponent <= PotentialToKO.Risky )
+                            theirPBF.PTKOAdvantages++;
+
+                        if( opponentPTKO_AttackerAlly >= PotentialToKO.Dangerous )
+                            theirPBF.PTKOAdvantages++;
+                    }
+                    else if( attackerAllyPTKO_Opponent >= PotentialToKO.Dangerous )
+                        ourPBF.PTKOAdvantages++;
+                }
+            }
+
+            if( opponentAlly != null )
+            {
+                if( attackerAllyVs_OpponentAlly.AttackerMovesFirst )
+                {
+                    if( attackerAllyPTKO_OpponentAlly >= PotentialToKO.TwoHKO )
+                    {
+                        if( opponentAllyPTKO_AttackerAlly <= PotentialToKO.Risky )
+                            ourPBF.PTKOAdvantages++;
+
+                        if( attackerAllyPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+                            ourPBF.PTKOAdvantages++;
+                    }
+                    else if( opponentAllyPTKO_AttackerAlly >= PotentialToKO.Dangerous )
+                        theirPBF.PTKOAdvantages++;
+                }
+                else
+                {
+                    if( opponentAllyPTKO_AttackerAlly >= PotentialToKO.TwoHKO )
+                    {
+                        if( attackerAllyPTKO_OpponentAlly <= PotentialToKO.Risky )
+                            theirPBF.PTKOAdvantages++;
+
+                        if( opponentAllyPTKO_AttackerAlly >= PotentialToKO.Dangerous )
+                            theirPBF.PTKOAdvantages++;
+                    }
+                    else if( attackerAllyPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+                        ourPBF.PTKOAdvantages++;
+                }
+            }
+        }
+
+        //--Current Speed Comparisons
+        if( attacker?.Speed > opponent?.Speed )
+            ourPBF.Outspeeds++;
+
+        if( attacker?.Speed > opponentAlly?.Speed )
+            ourPBF.Outspeeds++;
+
+        if( attackerAlly?.Speed > opponent?.Speed )
+            ourPBF.Outspeeds++;
+
+        if( attackerAlly?.Speed > opponentAlly?.Speed )
+            ourPBF.Outspeeds++;
+
+        if( opponent?.Speed > attacker?.Speed )
+            theirPBF.Outspeeds++;
+
+        if( opponentAlly?.Speed > attacker?.Speed )
+            theirPBF.Outspeeds++;
+
+        if( opponent?.Speed > attackerAlly?.Speed )
+            theirPBF.Outspeeds++;
+
+        if( opponentAlly?.Speed > attackerAlly?.Speed )
+            theirPBF.Outspeeds++;
+
+        //--Weather
+        //--How next weather effects us
+        //--We lost weather speed ability
+        if( haveAttacker && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( attacker.Pokemon, currentWeather ) && !_ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( attacker.Pokemon, nextWeather ) )
+            ourPBF.HurtByWeather = true;
+        
+        //--We lost weather speed ability
+        if( haveAttackerAlly && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( attackerAlly.Pokemon, currentWeather ) && !_ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( attackerAlly.Pokemon, nextWeather ) )
+            ourPBF.HurtByWeather = true;
+
+        //--Our Weather Outspeeds
+        if( haveAttacker && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( attacker.Pokemon, nextWeather ) )
+        {
+            if( opponent?.Speed > attacker.Speed / 2 && attacker.Speed > opponent?.Speed )
+                ourPBF.WeatherOutspeeds++;
+
+            if( opponentAlly?.Speed > attacker.Speed / 2 && attacker.Speed > opponentAlly?.Speed )
+                ourPBF.WeatherOutspeeds++;
+        }
+
+        //--Our Weather Outspeeds
+        if( haveAttackerAlly && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( attackerAlly.Pokemon, nextWeather ) )
+        {
+            if( opponent?.Speed > attackerAlly.Speed / 2 && attackerAlly.Speed > opponent?.Speed )
+                ourPBF.WeatherOutspeeds++;
+
+            if( opponentAlly?.Speed > attackerAlly.Speed / 2 && attackerAlly.Speed > opponentAlly?.Speed )
+                ourPBF.WeatherOutspeeds++;
+        }
+
+        //--We Had Weather Advantage Before Next Weather
+        if( currentWeather != nextWeather && ( haveAttacker && _ai.UnitSim.PokemonBenefits_Weather( attacker, currentWeather ) || haveAttackerAlly && _ai.UnitSim.PokemonBenefits_Weather( attackerAlly, currentWeather ) ) )
+            ourPBF.LostWeatherAdvantage = true;
+
+        //--We Benefit Next Weather
+        if( haveAttacker && _ai.UnitSim.PokemonBenefits_Weather( attacker, nextWeather ) || haveAttackerAlly && _ai.UnitSim.PokemonBenefits_Weather( attackerAlly, nextWeather ) )
+            ourPBF.BenefitWeather = true;
+
+        //--Next Weather Harms Us
+        if( haveAttacker && _ai.UnitSim.PokemonIsHarmedBy_Weather( attacker, nextWeather ) || haveAttackerAlly && _ai.UnitSim.PokemonIsHarmedBy_Weather( attackerAlly, nextWeather ) )
+            ourPBF.HurtByWeather = true;
+
+        //--How next weather effects them
+        //--They lost weather speed ability
+        if( haveOpponent && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opponent.Pokemon, currentWeather ) && !_ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opponent.Pokemon, nextWeather ) )
+            theirPBF.HurtByWeather = true;
+        
+        //--They lost weather speed ability
+        if( haveOpponentAlly && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opponentAlly.Pokemon, currentWeather ) && !_ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opponentAlly.Pokemon, nextWeather ) )
+            theirPBF.HurtByWeather = true;
+
+        //--Their Weather Outspeeds
+        if( haveOpponent && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opponent.Pokemon, nextWeather ) )
+        {
+            if( attacker?.Speed > opponent.Speed / 2 && opponent.Speed > attacker?.Speed )
+                theirPBF.WeatherOutspeeds++;
+
+            if( attackerAlly?.Speed > opponent.Speed / 2 && opponent.Speed > attackerAlly?.Speed )
+                theirPBF.WeatherOutspeeds++;
+        }
+
+        //--Their Weather Outspeeds
+        if( haveOpponentAlly && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opponentAlly.Pokemon, nextWeather ) )
+        {
+            if( attacker?.Speed > opponentAlly.Speed / 2 && opponentAlly.Speed > attacker?.Speed )
+                theirPBF.WeatherOutspeeds++;
+
+            if( attackerAlly?.Speed > opponentAlly.Speed / 2 && opponentAlly.Speed > attackerAlly?.Speed )
+                theirPBF.WeatherOutspeeds++;
+        }
+
+        //--They Had Weather Advantage Before Next Weather
+        if( currentWeather != nextWeather && ( haveOpponent && _ai.UnitSim.PokemonBenefits_Weather( opponent, currentWeather ) || haveOpponentAlly && _ai.UnitSim.PokemonBenefits_Weather( opponentAlly, currentWeather ) ) )
+            theirPBF.LostWeatherAdvantage = true;
+
+        //--They Benefit Next Weather
+        if( haveOpponent && _ai.UnitSim.PokemonBenefits_Weather( opponent, nextWeather ) || haveOpponentAlly && _ai.UnitSim.PokemonBenefits_Weather( opponentAlly, nextWeather ) )
+            theirPBF.BenefitWeather = true;
+
+        //--Next Weather Harms them
+        if( haveOpponent && _ai.UnitSim.PokemonIsHarmedBy_Weather( opponent, nextWeather ) || haveOpponentAlly && _ai.UnitSim.PokemonIsHarmedBy_Weather( opponentAlly, nextWeather ) )
+            theirPBF.HurtByWeather = true;
+
+        //--Terrain
+        //--How next terrain effects us
+        if( haveAttacker && _ai.UnitSim.PokemonBenefits_Terrain( attacker, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( attacker, nextTerrain ) )
+            ourPBF.LostTerrainAdvantage = true;
+
+        if( haveAttackerAlly && _ai.UnitSim.PokemonBenefits_Terrain( attackerAlly, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( attackerAlly, nextTerrain ) )
+            ourPBF.LostTerrainAdvantage = true;
+
+        if( haveAttacker && _ai.UnitSim.PokemonBenefits_Terrain( attacker, nextTerrain ) || haveAttackerAlly && _ai.UnitSim.PokemonBenefits_Terrain( attacker, nextTerrain ) )
+            ourPBF.BenefitTerrain = true;
+
+        //--How next terrain effects them
+        if( haveOpponent && _ai.UnitSim.PokemonBenefits_Terrain( opponent, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( opponent, nextTerrain ) )
+            theirPBF.LostTerrainAdvantage = true;
+
+        if( haveOpponentAlly && _ai.UnitSim.PokemonBenefits_Terrain( opponentAlly, currentTerrain ) && !_ai.UnitSim.PokemonBenefits_Terrain( opponentAlly, nextTerrain ) )
+            theirPBF.LostTerrainAdvantage = true;
+
+        if( haveOpponent && _ai.UnitSim.PokemonBenefits_Terrain( opponent, nextTerrain ) || haveOpponentAlly && _ai.UnitSim.PokemonBenefits_Terrain( opponent, nextTerrain ) )
+            theirPBF.BenefitTerrain = true;
+
+        //--Tailwind
+        //--We lost tailwind
+        if( ourCourtCurrent.ContainsKey( CourtConditionID.Tailwind ) && !ourCourtNext.ContainsKey(CourtConditionID.Tailwind ) )
+            ourPBF.LostTailwind = true;
+
+        //--We matched their tailwind
+        if( !ourCourtCurrent.ContainsKey( CourtConditionID.Tailwind ) && ourCourtNext.ContainsKey(CourtConditionID.Tailwind ) && theirCourtCurrent.ContainsKey( CourtConditionID.Tailwind ) && theirCourtNext.ContainsKey(CourtConditionID.Tailwind ) )
+            ourPBF.MatchedTailwind = true;
+
+        //--They lost tailwind
+        if( theirCourtCurrent.ContainsKey( CourtConditionID.Tailwind ) && !theirCourtNext.ContainsKey(CourtConditionID.Tailwind ) )
+            theirPBF.LostTailwind = true;
+
+        //--They matched our tailwind
+        if( !theirCourtCurrent.ContainsKey( CourtConditionID.Tailwind ) && theirCourtNext.ContainsKey(CourtConditionID.Tailwind ) && ourCourtCurrent.ContainsKey( CourtConditionID.Tailwind ) && ourCourtNext.ContainsKey(CourtConditionID.Tailwind ) )
+            theirPBF.MatchedTailwind = true;
+
+        if( ourCourtNext.ContainsKey( CourtConditionID.Tailwind ) )
+        {
+            if( opponent?.Speed > attacker?.Speed / 2 && attacker?.Speed > opponent?.Speed )
+                ourPBF.TailwindOutspeeds++;
+
+            if( opponentAlly?.Speed > attacker?.Speed / 2 && attacker?.Speed > opponentAlly?.Speed )
+                ourPBF.TailwindOutspeeds++;
+
+            if( opponent?.Speed > attackerAlly?.Speed / 2 && attackerAlly?.Speed > opponent?.Speed )
+                ourPBF.TailwindOutspeeds++;
+
+            if( opponentAlly?.Speed > attackerAlly?.Speed / 2 && attackerAlly?.Speed > opponentAlly?.Speed )
+                ourPBF.TailwindOutspeeds++;
+        }
+
+        if( theirCourtNext.ContainsKey( CourtConditionID.Tailwind ) )
+        {
+            if( opponent.Speed > attacker?.Speed )
+                theirPBF.TailwindOutspeeds++;
+
+            if( opponentAlly.Speed > attacker?.Speed )
+                theirPBF.TailwindOutspeeds++;
+
+            if( opponent.Speed > attackerAlly?.Speed )
+                theirPBF.TailwindOutspeeds++;
+
+            if( opponentAlly.Speed > attackerAlly?.Speed )
+                theirPBF.TailwindOutspeeds++;
+        }
+
+        //--Screens
+        if( ourCourtNext.ContainsKey( CourtConditionID.Reflect ) )
+        {
+            if( haveOpponent && opponent.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                ourPBF.BenefitReflect = true;
+
+            if( haveOpponentAlly && opponentAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                ourPBF.BenefitReflect = true;
+        }
+
+        if( ourCourtNext.ContainsKey( CourtConditionID.LightScreen ) )
+        {
+            if( haveOpponent && opponent.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                ourPBF.BenefitLightScreen = true;
+
+            if( haveOpponentAlly && opponentAlly.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                ourPBF.BenefitLightScreen = true;
+        }
+
+        if( ourCourtNext.ContainsKey( CourtConditionID.AuroraVeil ) )
+        {
+            if( haveOpponent && ( opponent.RoleProfile.Biases.Contains( RoleBias.Physical ) || opponent.RoleProfile.Biases.Contains( RoleBias.Special ) ) )
+                ourPBF.BenefitAuroraVeil = true;
+
+            if( haveOpponentAlly && ( opponentAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) || opponentAlly.RoleProfile.Biases.Contains( RoleBias.Special ) ) )
+                ourPBF.BenefitAuroraVeil = true;
+        }
+
+        //--Trick Room
+        if( nextField.FieldConditions.ContainsKey( FieldConditionID.TrickRoom ) )
+        {
+            //--Our Trick Room speed advantage
+            if( attacker?.Speed < opponent?.Speed )
+                ourPBF.TrickRoomOutspeeds++;
+
+            if( attacker?.Speed < opponentAlly?.Speed )
+                ourPBF.TrickRoomOutspeeds++;
+
+            if( attackerAlly?.Speed < opponent?.Speed  )
+                ourPBF.TrickRoomOutspeeds++;
+
+            if( attackerAlly?.Speed < opponentAlly?.Speed  )
+                ourPBF.TrickRoomOutspeeds++;
+
+            //--Their Trick Room speed advantage
+            if( attacker?.Speed > opponent?.Speed )
+                theirPBF.TrickRoomOutspeeds++;
+
+            if( attacker?.Speed > opponentAlly?.Speed )
+                theirPBF.TrickRoomOutspeeds++;
+
+            if( attackerAlly?.Speed > opponent?.Speed  )
+                theirPBF.TrickRoomOutspeeds++;
+
+            if( attackerAlly?.Speed > opponentAlly?.Speed  )
+                theirPBF.TrickRoomOutspeeds++;
+
+            if( ourPBF.TrickRoomOutspeeds > theirPBF.TrickRoomOutspeeds )
+                ourPBF.BenefitTrickRoom = true;
+            else if( theirPBF.TrickRoomOutspeeds > ourPBF.TrickRoomOutspeeds )
+                theirPBF.BenefitTrickRoom = true;
+
+            if( ourPBF.BenefitTrickRoom && ourPBF.TrickRoomOutspeeds >= 2 )
+                theirPBF.HurtByTrickRoom = true;
+            
+            if( theirPBF.BenefitTrickRoom && theirPBF.TrickRoomOutspeeds >= 2 )
+                ourPBF.HurtByTrickRoom = true;
+        }
+
+        //--PTKO advantage checks
+        ourPBF.HavePTKOAdvantage = ourPBF.PTKOAdvantages > theirPBF.PTKOAdvantages;
+        theirPBF.HavePTKOAdvantage = theirPBF.PTKOAdvantages > ourPBF.PTKOAdvantages;
+
+        //--Field effect speed checks
+        int ourTotalFieldEffectOutspeeds = ourPBF.WeatherOutspeeds + ourPBF.TailwindOutspeeds + ourPBF.TrickRoomOutspeeds;
+        int theirTotalFieldEffectOutspeeds = theirPBF.WeatherOutspeeds + theirPBF.TailwindOutspeeds + theirPBF.TrickRoomOutspeeds;
+
+        ourPBF.HaveFieldEffectSpeedAdvantage = ourTotalFieldEffectOutspeeds > theirTotalFieldEffectOutspeeds;
+        theirPBF.HaveFieldEffectSpeedAdvantage = theirTotalFieldEffectOutspeeds > ourTotalFieldEffectOutspeeds;
+
+        //--PBF Scores
+        int ourPBFScore = 0;
+        int theirPBFScore = 0;
+
+        if( ourPBF.HavePTKOAdvantage )
+            ourPBFScore += 1;
+
+        if( theirPBF.HavePTKOAdvantage )
+            theirPBFScore += 1;
+
+        if( ourPBF.HaveFieldEffectSpeedAdvantage )
+            ourPBFScore += 1;
+
+        if( theirPBF.HaveFieldEffectSpeedAdvantage )
+            theirPBFScore += 1;
+
+        //--Handle Trick Room
+        if( ourPBF.TrickRoomOutspeeds > 0 )
+        {
+            ourPBFScore += ourPBF.TrickRoomOutspeeds;
+
+            if( theirPBF.HurtByTrickRoom )
+                ourPBFScore += 1;
+        }
+
+        if( theirPBF.TrickRoomOutspeeds > 0 )
+        {
+            theirPBFScore += theirPBF.TrickRoomOutspeeds;
+
+            if( ourPBF.HurtByTrickRoom )
+                theirPBFScore += 1;
+        }
+
+        //--Synergy Scores
+        int ourSynergyScore = 0;
+        int theirSynergyScore = 0;
+            
+        //--Capability Relevance Checks. It's important to remember to only reward switch-based capabilities when that unit is on the bench and not active!
+        var ourNextCapabilitySets = ourCapabilitySets.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+        foreach( var kvp in ourCapabilitySets )
+        {
+            if( !ourActive.Any( u => u.Pokemon == kvp.Key ) && !ourBench.Any( u => u.Pokemon == kvp.Key ) )
+                ourNextCapabilitySets.Remove( kvp.Key );
+        }
+
+        var theirNextCapabilitySets = theirCapabilitySets.ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+        foreach( var kvp in theirCapabilitySets )
+        {
+            if( !theirActive.Any( u => u.Pokemon == kvp.Key ) && !theirBench.Any( u => u.Pokemon == kvp.Key ) )
+                theirNextCapabilitySets.Remove( kvp.Key );
+        }
+
+        List<ProjectedCapabilityRelevance> ourTeamCapabilityRelevances = CheckCapabilityRelevance( ourActive, ourBench, opponent, opponentAlly, nextField, ourNextCapabilitySets );
+        List<ProjectedCapabilityRelevance> theirTeamCapabilityRelevances = CheckCapabilityRelevance( theirActive, theirBench, attacker, attackerAlly, nextField, theirNextCapabilitySets );
+
+        static int ScorePCR( ProjectedCapabilityRelevance ourPCR, ProjectedBoardFacts ourPBF, ProjectedBoardFacts theirPBF )
+        {
+            int score = 0;
+
+            //--Turn order changes due to any source causing PTKO relevancy to change
+            //--(to avoid duplicate code in multiple blocks. Since each PCR is only one capability, only one speed change source is represented at a time)
+            if( ourPCR.AttackerBecameFaster_Opponent && ourPCR.AttackerPTKO_Opponent >= PotentialToKO.TwoHKO )
+            {
+                score += 1;
+
+                if( ourPCR.OpponentPTKO_Attacker <= PotentialToKO.TwoHKO )
+                    score += 1;
+
+                if( ourPCR.AttackerPTKO_Opponent >= PotentialToKO.Dangerous )
+                    score += 1;
+            }
+
+            if( ourPCR.AttackerBecameFaster_OpponentAlly && ourPCR.AttackerPTKO_OpponentAlly >= PotentialToKO.TwoHKO )
+            {
+                score += 1;
+
+                if( ourPCR.OpponentAllyPTKO_Attacker <= PotentialToKO.TwoHKO )
+                    score += 1;
+
+                if( ourPCR.AttackerPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+                    score += 1;
+            }
+
+            if( ourPCR.AttackerAllyBecameFaster_Opponent && ourPCR.AttackerAllyPTKO_Opponent >= PotentialToKO.TwoHKO )
+            {
+                score += 1;
+
+                if( ourPCR.OpponentPTKO_AttackerAlly <= PotentialToKO.TwoHKO )
+                    score += 1;
+
+                if( ourPCR.AttackerAllyPTKO_Opponent >= PotentialToKO.Dangerous )
+                    score += 1;
+            }
+
+            if( ourPCR.AttackerAllyBecameFaster_OpponentAlly && ourPCR.AttackerPTKO_OpponentAlly >= PotentialToKO.TwoHKO )
+            {
+                score += 1;
+
+                if( ourPCR.OpponentAllyPTKO_AttackerAlly <= PotentialToKO.TwoHKO )
+                    score += 1;
+
+                if( ourPCR.AttackerAllyPTKO_OpponentAlly >= PotentialToKO.Dangerous )
+                    score += 1;
+            }
+
+            //--Offensive interaction checks
+            if( ourPCR.CanDenyTheirAction_ViaFakeOut || ourPCR.CanDenyTheirAction_ViaParalysis || ourPCR.CanDenyTheirAction_ViaSleep || ourPCR.CanPhazeThem )
+            {
+                score += 1;
+
+                if( ourPCR.OpponentPTKO_Attacker >= PotentialToKO.Risky || ourPCR.OpponentPTKO_AttackerAlly >= PotentialToKO.Risky || ourPCR.OpponentAllyPTKO_Attacker >= PotentialToKO.Risky || ourPCR.OpponentAllyPTKO_AttackerAlly >= PotentialToKO.Risky )
+                    score += 1;
+            }
+
+            if( ourPCR.CanConstrainTheirActions )
+                score += 1;
+
+            //--After You Check
+            if( ourPCR.CanManipulateTurnOrder_ViaAfterYou )
+            {
+                score += ourPCR.OurOutspeeds_ViaAfterYou;
+            }
+
+            //--Stat and HP change checks
+            if( ourPCR.CanIntimidate || ourPCR.CanDemoralize || ourPCR.CanDropTheirStats )
+            {
+                score += ourPCR.TheirOffensiveStatDrops;
+                score += ourPCR.TheirDefensiveStatDrops;
+                score += ourPCR.OpponentPTKOsWorsened_ViaStatChange;
+                score += ourPCR.OpponentAllyPTKOsWorsened_ViaStatChange;
+            }
+
+            if( ourPCR.CanBoostOurStats )
+            {
+                score += ourPCR.OurOffensiveStatBoosts;
+                score += ourPCR.OurDefensiveStatBoosts;
+                score += ourPCR.AttackerPTKOsImproved_ViaStatChange;
+                score += ourPCR.AttackerAllyPTKOsImproved_ViaStatChange;
+                score += ourPCR.OpponentPTKOsWorsened_ViaStatChange;
+                score += ourPCR.OpponentAllyPTKOsWorsened_ViaStatChange;
+            }
+
+            if( ourPCR.CanRecover || ourPCR.CanRecover_ViaSwitch )
+            {
+                score += ourPCR.OpponentPTKOsWorsened_ViaHPChange;
+                score += ourPCR.OpponentAllyPTKOsWorsened_ViaHPChange;
+            }
+
+            //--Redirection & Reposition check
+            if( ourPCR.CanRedirect || ourPCR.CanRepositionOurSelves )
+            {
+                if( ourPCR.OpponentPTKO_Attacker >= PotentialToKO.Dangerous || ourPCR.OpponentPTKO_AttackerAlly >= PotentialToKO.Dangerous || ourPCR.OpponentAllyPTKO_Attacker >= PotentialToKO.Dangerous || ourPCR.OpponentAllyPTKO_AttackerAlly >= PotentialToKO.Dangerous )
+                    score += 1;
+            }
+
+            //--Weather Check
+            if( ( theirPBF.BenefitWeather || ourPBF.HurtByWeather ) && ( ourPCR.CanChangeWeather_ViaMove || ourPCR.CanChangeWeather_ViaSwitch ) )
+            {
+                score += 1;
+
+                if( ourPCR.AttackerPTKOsImproved_ViaWeather > 0 )
+                    score += ourPCR.AttackerPTKOsImproved_ViaWeather;
+
+                if( ourPCR.AttackerAllyPTKOsImproved_ViaWeather > 0 )
+                    score += ourPCR.AttackerAllyPTKOsImproved_ViaWeather;
+
+                if( ourPCR.OpponentPTKOsWorsened_ViaWeather > 0 )
+                    score += ourPCR.OpponentPTKOsWorsened_ViaWeather;
+
+                if( ourPCR.OpponentAllyPTKOsWorsened_ViaWeather > 0 )
+                    score += ourPCR.OpponentAllyPTKOsWorsened_ViaWeather;
+
+                if( theirPBF.Outspeeds > 0 || theirPBF.WeatherOutspeeds > 0 )
+                {
+                    if( ourPCR.OurOutspeeds_ViaOurSpeedBoostsFromIncomingWeather > 0 )
+                        score += ourPCR.OurOutspeeds_ViaOurSpeedBoostsFromIncomingWeather;
+
+                    if( ourPCR.OurOutspeeds_ViaTheirSpeedDropsFromIncomingWeather > 0 )
+                        score += ourPCR.OurOutspeeds_ViaTheirSpeedDropsFromIncomingWeather;
+                }
+
+                if( ourPBF.LostWeatherAdvantage )
+                    score += 2;
+            }
+
+            //--Terrain Check. This signal is slightly under developed for now and should be improved to the depth of weather asap.
+            if( theirPBF.BenefitTerrain && ( ourPCR.CanChangeTerrain_ViaMove || ourPCR.CanChangeTerrain_ViaSwitch ) )
+            {
+                score += 2;
+
+                if( ourPBF.LostTerrainAdvantage )
+                    score += 2;
+            }
+
+            //--Tailwind Check
+            if( ( theirPBF.BenefitTailwind || theirPBF.LostTailwind ) && ( !ourPBF.MatchedTailwind || !ourPBF.BenefitTailwind ) && ourPCR.CanSetTailwind )
+            {
+                if( ourPCR.OurOutspeeds_ViaTailwind > 0 )
+                    score += ourPCR.OurOutspeeds_ViaTailwind;
+
+                if( ourPBF.LostTailwind )
+                    score += 1;
+            }
+
+            if( theirPBF.BenefitReflect || theirPBF.BenefitLightScreen || theirPBF.BenefitAuroraVeil )
+            {
+                if( ourPCR.AttackerPTKOsImproved_ViaWeather > 0 || ourPCR.AttackerPTKOsImproved_ViaStatChange > 0 )
+                    score += 1;
+
+                if( ourPCR.AttackerAllyPTKOsImproved_ViaWeather > 0 || ourPCR.AttackerAllyPTKOsImproved_ViaStatChange > 0 )
+                    score += 1;
+            }
+
+            if( ourPCR.CanSetReflect || ourPCR.CanSetLightScreen || ourPCR.CanSetAuroraVeil )
+            {
+                if( ourPCR.OpponentPTKOsWorsened_ViaScreens > 0 )
+                    score += ourPCR.OpponentPTKOsWorsened_ViaScreens;
+
+                if( ourPCR.OpponentAllyPTKOsWorsened_ViaScreens > 0 )
+                    score += ourPCR.OpponentAllyPTKOsWorsened_ViaScreens;
+            }
+
+            return score;
+        }
+
+        int ourCapabilityScore = 0;
+        int theirCapabilityScore = 0;
+
+        foreach( var ourPCR in ourTeamCapabilityRelevances )
+            ourCapabilityScore += ScorePCR( ourPCR, ourPBF, theirPBF );
+
+        foreach( var theirPCR in theirTeamCapabilityRelevances )
+            theirCapabilityScore += ScorePCR( theirPCR, theirPBF, ourPBF );
+
+        cirLog.Add( $"Our PBF Score: {ourPBFScore}" );
+        cirLog.Add( $"Their PBF Score: {theirPBFScore}" );
+        cirLog.Add( $"" );
+        cirLog.Add( $"Our Synergy Score: {ourSynergyScore}" );
+        cirLog.Add( $"Their Synergy Score: {theirSynergyScore}" );
+        cirLog.Add( $"" );
+        cirLog.Add( $"Our Capability Relevance Score: {ourCapabilityScore}" );
+        cirLog.Add( $"Their Capability Relevance Score: {theirCapabilityScore}" );
+
+        pair.Final += ourSynergyScore;
+        pair.Final += ourCapabilityScore;
+
+        pair.Final -= theirSynergyScore;
+        pair.Final -= theirCapabilityScore;
+
+        cirLog.Add( $"" );
+        cirLog.Add( $"Final Pair Score: {pair.Final}" );
+        cirLog.Add( $"" );
+    }
+
+    private struct ProjectedBoardFacts
+    {
+        public bool BenefitWeather;
+        public bool BenefitTerrain;
+        public bool BenefitTailwind;
+        public bool MatchedTailwind;
+        public bool BenefitReflect;
+        public bool BenefitLightScreen;
+        public bool BenefitAuroraVeil;
+        public bool BenefitTrickRoom;
+
+        public int PTKOAdvantages;
+
+        public int Outspeeds;
+        public int WeatherOutspeeds;
+        public int TailwindOutspeeds;
+        public int TrickRoomOutspeeds;
+
+        public bool HavePTKOAdvantage;
+        public bool HaveFieldEffectSpeedAdvantage;
+
+        public bool HurtByWeather;
+        public bool LostWeatherAdvantage;
+        public bool LostTerrainAdvantage;
+        public bool LostTailwind;
+        public bool HurtByTrickRoom;
+    }
+
+    private struct ProjectedCapabilityRelevance
+    {
+        public Pokemon Actor;
+        public CapabilityObservation Capability;
+
+        public bool CanAfterYou;
+        public bool CanQuash;
+        public bool CanFakeOut;
+        public bool CanTaunt;
+
+        public bool CanManipulateTurnOrder_ViaAfterYou;
+        public bool CanManipulateTurnOrder_ViaQuash;
+        public bool CanManipulateTurnOrder_ViaWeatherSwitch;
+        public bool CanManipulateTurnOrder_ViaTailwind;
+        public bool CanManipulateTurnOrder_ViaStatChanges;
+
+        public bool CanDenyTheirAction_ViaFakeOut;
+        public bool CanDenyTheirAction_ViaParalysis;
+        public bool CanDenyTheirAction_ViaSleep;
+        
+        public bool CanConstrainTheirActions;
+        public bool CanRepositionOurSelves;
+        public bool CanPhazeThem;
+
+        public bool CanChangeWeather_ViaMove;
+        public bool CanChangeWeather_ViaSwitch;
+
+        public bool CanChangeTerrain_ViaMove;
+        public bool CanChangeTerrain_ViaSwitch;
+
+        public bool CanSetTailwind;
+        public bool CanSetReflect;
+        public bool CanSetLightScreen;
+        public bool CanSetAuroraVeil;
+
+        public bool CanChangePowerfulAbilities_ViaSwitch;
+        public bool CanIntimidate;
+        public bool CanDemoralize;
+
+        public bool CanRecover;
+        public bool CanRecover_ViaSwitch;
+        public bool CanRedirect;
+
+        public bool AttackerBecameFaster_Opponent;
+        public bool AttackerBecameFaster_OpponentAlly;
+        public bool AttackerAllyBecameFaster_Opponent;
+        public bool AttackerAllyBecameFaster_OpponentAlly;
+
+        public int OurOutspeeds_ViaAfterYou;
+        public int OurOutspeeds_ViaOurSpeedBoostsFromIncomingWeather;
+        public int OurOutspeeds_ViaTheirSpeedDropsFromIncomingWeather;
+        public int OurOutspeeds_ViaTailwind;
+        public int OurOutspeeds_ViaOurSpeedBoosts;
+        public int OurOutspeeds_ViaTheirSpeedDrops;
+
+        public bool CanDropTheirStats;
+        public bool CanBoostOurStats;
+
+        public int OurOffensiveStatBoosts;
+        public int OurDefensiveStatBoosts;
+
+        public int TheirOffensiveStatDrops;
+        public int TheirDefensiveStatDrops;
+
+        public PotentialToKO AttackerPTKO_Opponent;
+        public PotentialToKO AttackerPTKO_OpponentAlly;
+        public PotentialToKO AttackerAllyPTKO_Opponent;
+        public PotentialToKO AttackerAllyPTKO_OpponentAlly;
+
+        public PotentialToKO OpponentPTKO_Attacker;
+        public PotentialToKO OpponentPTKO_AttackerAlly;
+        public PotentialToKO OpponentAllyPTKO_Attacker;
+        public PotentialToKO OpponentAllyPTKO_AttackerAlly;
+
+        public int AttackerPTKOsImproved_ViaWeather;
+        public int AttackerAllyPTKOsImproved_ViaWeather;
+        public int AttackerPTKOsWorsened_ViaWeather;
+        public int AttackerAllyPTKOsWorsened_ViaWeather;
+
+        public int OpponentPTKOsImproved_ViaWeather;
+        public int OpponentAllyPTKOsImproved_ViaWeather;
+        public int OpponentPTKOsWorsened_ViaWeather;
+        public int OpponentAllyPTKOsWorsened_ViaWeather;
+
+        public int AttackerPTKOsImproved_ViaScreens;
+        public int AttackerAllyPTKOsImproved_ViaScreens;
+        public int AttackerPTKOsWorsened_ViaScreens;
+        public int AttackerAllyPTKOsWorsened_ViaScreens;
+
+        public int OpponentPTKOsImproved_ViaScreens;
+        public int OpponentAllyPTKOsImproved_ViaScreens;
+        public int OpponentPTKOsWorsened_ViaScreens;
+        public int OpponentAllyPTKOsWorsened_ViaScreens;
+
+        public int AttackerPTKOsImproved_ViaStatChange;
+        public int AttackerAllyPTKOsImproved_ViaStatChange;
+        public int AttackerPTKOsWorsened_ViaStatChange;
+        public int AttackerAllyPTKOsWorsened_ViaStatChange;
+
+        public int OpponentPTKOsImproved_ViaStatChange;
+        public int OpponentAllyPTKOsImproved_ViaStatChange;
+        public int OpponentPTKOsWorsened_ViaStatChange;
+        public int OpponentAllyPTKOsWorsened_ViaStatChange;
+
+        public int OpponentPTKOsWorsened_ViaHPChange;
+        public int OpponentAllyPTKOsWorsened_ViaHPChange;
+    }
+
+    private List<ProjectedCapabilityRelevance> CheckCapabilityRelevance( List<IBattleAIUnit> activeUnits, List<IBattleAIUnit> benchUnits, IBattleAIUnit opp, IBattleAIUnit oppAlly, SimulatedField field, Dictionary<Pokemon, HashSet<CapabilityObservation>> capabilitySets )
+    {
+        List<ProjectedCapabilityRelevance> pcrList = new();
+
+        if( activeUnits?.Count > 0 )
+            RunCheck( activeUnits, false );
+
+        if( benchUnits?.Count > 0 )
+            RunCheck( benchUnits, true );
+
+        void RunCheck( List<IBattleAIUnit> units, bool benchedUnit )
+        {
+            if( units?.Count <= 0 )
+                return;
+
+            var currentWeather = field.Weather;
+            var currentTerrain = field.Terrain;
+
+            var unitCourt = units[0].CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions;
+            var oppCourt = opp != null ? opp.CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions : oppAlly != null ? oppAlly.CourtLocation == CourtLocation.TopCourt ? field.TopCourtConditions : field.BottomCourtConditions : new();
+
+            for( int i = 0; i < units.Count; i++ )
+            {
+                IBattleAIUnit unit = units[i];
+                IBattleAIUnit ally = null;
+                
+                if( !benchedUnit && units?.Count > 1 && i == 0 )
+                    ally = units[1];
+                else if( !benchedUnit && units?.Count > 1 && i >= 1 )
+                    ally = units[0];
+
+                if( !benchedUnit && unit?.Pokemon == ally?.Pokemon )
+                    Debug.LogError( $"You dumb!" );
+                else if( !benchedUnit && units?.Count > 1 && ally == null )
+                    Debug.LogError( $"How is there no ally but 2 units?" );
+
+                if( !capabilitySets.TryGetValue( unit.Pokemon, out var capabilities ) )
+                    continue;
+
+                ProjectedCapabilityRelevance pcr = new();
+
+                var attackerVs_Opponent = unit != null && opp != null ? _ai.Projection.MakeUnitComparison( unit, opp, field ) : default;
+                var attackerVs_OpponentAlly = unit != null && oppAlly != null ? _ai.Projection.MakeUnitComparison( unit, oppAlly, field ) : default;
+
+                var attackerAllyVs_Opponent = ally != null && opp != null ? _ai.Projection.MakeUnitComparison( ally, opp, field ) : default;
+                var attackerAllyVs_OpponentAlly = ally != null && oppAlly != null ? _ai.Projection.MakeUnitComparison( ally, oppAlly, field ) : default;
+
+                //--Our PTKOs
+                var attackerPTKO_Opponent = attackerVs_Opponent.Attacker.BestCurrentPTKO;
+                var attackerPTKO_OpponentAlly = attackerVs_OpponentAlly.Attacker.BestCurrentPTKO;
+                var attackerAllyPTKO_Opponent = attackerAllyVs_Opponent.Attacker.BestCurrentPTKO;
+                var attackerAllyPTKO_OpponentAlly = attackerAllyVs_OpponentAlly.Attacker.BestCurrentPTKO;
+
+                //--Their PTKOs
+                var opponentPTKO_Attacker = attackerVs_Opponent.Target.BestCurrentPTKO;
+                var opponentPTKO_AttackerAlly = attackerVs_OpponentAlly.Target.BestCurrentPTKO;
+                var opponentAllyPTKO_Attacker = attackerAllyVs_Opponent.Target.BestCurrentPTKO;
+                var opponentAllyPTKO_AttackerAlly = attackerAllyVs_OpponentAlly.Target.BestCurrentPTKO;
+
+                pcr.AttackerPTKO_Opponent = attackerPTKO_Opponent;
+                pcr.AttackerPTKO_OpponentAlly = attackerPTKO_OpponentAlly;
+                pcr.AttackerAllyPTKO_Opponent = attackerAllyPTKO_Opponent;
+                pcr.AttackerAllyPTKO_OpponentAlly = attackerAllyPTKO_OpponentAlly;
+
+                pcr.OpponentPTKO_Attacker = opponentPTKO_Attacker;
+                pcr.OpponentPTKO_AttackerAlly = opponentPTKO_AttackerAlly;
+                pcr.OpponentAllyPTKO_Attacker = opponentAllyPTKO_Attacker;
+                pcr.OpponentAllyPTKO_AttackerAlly = opponentAllyPTKO_AttackerAlly;
+
+                foreach( var c in capabilities )
+                {
+                    if( benchedUnit && GetCapabilityActionType( c ) != ActionType.DefensiveSwitch )
+                        continue;
+
+                    if( !benchedUnit && GetCapabilityActionType( c ) == ActionType.DefensiveSwitch )
+                        continue;
+
+                    //---------------------------
+                    //--Turn Order Manipulation--
+                    //---------------------------
+                    //--After You
+                    if( c == CapabilityObservation.AfterYou && ally != null && ( unit.Speed > ally.Speed || unit.Ability == AbilityID.Prankster ) )
+                    {
+                        if( unit.Speed > opp?.Speed )
+                        {
+                            pcr.OurOutspeeds_ViaAfterYou++;
+                            pcr.CanAfterYou = true;
+                            pcr.CanManipulateTurnOrder_ViaAfterYou = true;
+                            pcr.AttackerAllyBecameFaster_Opponent = true;
+                        }
+
+                        if( unit.Speed > oppAlly?.Speed )
+                        {
+                            pcr.OurOutspeeds_ViaAfterYou++;
+                            pcr.CanAfterYou = true;
+                            pcr.CanManipulateTurnOrder_ViaAfterYou = true;
+                            pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                        }
+                    }
+
+                    //--Weather Speed Ability Activation
+                    var incomingWeather = _ai.UnitSim.GetWeatherFrom_Ability( unit.Pokemon );
+                    if( c == CapabilityObservation.WeatherSetAbility && incomingWeather != currentWeather )
+                    {
+                        if( ally != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( ally.Pokemon, incomingWeather ) )
+                        {
+                            if( ally?.Speed * 2 > opp?.Speed )
+                            {
+                                pcr.OurOutspeeds_ViaOurSpeedBoostsFromIncomingWeather++;
+                                pcr.CanManipulateTurnOrder_ViaWeatherSwitch = true;
+                                pcr.AttackerAllyBecameFaster_Opponent = true;
+                            }
+
+                            if( ally?.Speed * 2 > oppAlly?.Speed )
+                            {
+                                pcr.OurOutspeeds_ViaOurSpeedBoostsFromIncomingWeather++;
+                                pcr.CanManipulateTurnOrder_ViaWeatherSwitch = true;
+                                pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                            }
+                        }
+
+                        if( opp != null && _ai.UnitSim.PokemonHas_MatchingWeatherSpeedAbility( opp.Pokemon, currentWeather ) )
+                        {
+                            if( ally?.Speed > opp?.Speed / 2 )
+                            {
+                                pcr.OurOutspeeds_ViaTheirSpeedDropsFromIncomingWeather++;
+                                pcr.CanManipulateTurnOrder_ViaWeatherSwitch = true;
+                                pcr.AttackerAllyBecameFaster_Opponent = true;
+                            }
+
+                            if( ally?.Speed > oppAlly?.Speed / 2 )
+                            {
+                                pcr.OurOutspeeds_ViaTheirSpeedDropsFromIncomingWeather++;
+                                pcr.CanManipulateTurnOrder_ViaWeatherSwitch = true;
+                                pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                            }
+                        }
+                    }
+
+                    //--Mid Turn Tailwind doubling unit/ally speed
+                    if( c == CapabilityObservation.Tailwind && !unitCourt.ContainsKey( CourtConditionID.Tailwind ) )
+                    {
+                        if( unit?.Speed * 2 > opp?.Speed )
+                        {
+                            pcr.OurOutspeeds_ViaTailwind++;
+                            pcr.AttackerBecameFaster_Opponent = true;
+                        }
+
+                        if( unit?.Speed * 2 > oppAlly?.Speed )
+                        {
+                            pcr.OurOutspeeds_ViaTailwind++;
+                            pcr.AttackerBecameFaster_OpponentAlly = true;
+                        }
+
+                        if( ally?.Speed * 2 > opp?.Speed )
+                        {
+                            pcr.OurOutspeeds_ViaTailwind++;
+                            pcr.CanManipulateTurnOrder_ViaTailwind = unit?.Speed > ally?.Speed;
+                            pcr.AttackerAllyBecameFaster_Opponent = true;
+                        }
+
+                        if( ally?.Speed * 2 > oppAlly?.Speed )
+                        {
+                            pcr.OurOutspeeds_ViaTailwind++;
+                            pcr.CanManipulateTurnOrder_ViaTailwind = unit?.Speed > ally?.Speed;
+                            pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                        }
+                    }
+
+                    //--Mid Turn Speed drops from stat debuff
+                    if( c == CapabilityObservation.StatDebuff || c == CapabilityObservation.HybridDebuff )
+                    {
+                        foreach( var m in unit.ActiveMoves )
+                        {
+                            if( _ai.UnitSim.MoveIsDebuff( m ) || _ai.UnitSim.MoveIsAttackAndDebuffHybrid( m ) )
+                            {
+                                var statChanges = m.MoveSO.MoveEffects.StatChangeList;
+                                if( statChanges?.Count > 0 )
+                                {
+                                    foreach( var sc in statChanges )
+                                    {
+                                        if( sc.Stat == Stat.Speed && sc.Change < 0 )
+                                        {
+                                            var drop = _stageModifier[sc.Change];
+
+                                            if( unit?.Speed > opp?.Speed / drop )
+                                            {
+                                                pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                pcr.AttackerBecameFaster_Opponent = true;
+                                            }
+
+                                            if( unit?.Speed > oppAlly?.Speed / drop )
+                                            {
+                                                pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                pcr.AttackerBecameFaster_OpponentAlly = true;
+                                            }
+
+                                            if( ally?.Speed > opp?.Speed / drop )
+                                            {
+                                                pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                pcr.CanManipulateTurnOrder_ViaStatChanges = unit?.Speed > ally?.Speed;
+                                                pcr.AttackerAllyBecameFaster_Opponent = true;
+                                            }
+
+                                            if( ally?.Speed > oppAlly?.Speed / drop )
+                                            {
+                                                pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                pcr.CanManipulateTurnOrder_ViaStatChanges = unit?.Speed > ally?.Speed;
+                                                pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    //--Quash
+                    if( c == CapabilityObservation.Quash && ally != null ) //--while we don't manipulate our ally here, using quash without an ally is dumb as hell
+                    {
+                        if( opp?.Speed > ally?.Speed && ( unit?.Speed > opp?.Speed || unit?.Ability == AbilityID.Prankster ) )
+                        {
+                            pcr.CanQuash = true;
+                            pcr.CanManipulateTurnOrder_ViaQuash = true;
+                            pcr.AttackerAllyBecameFaster_Opponent = true;
+                        }
+
+                        if( oppAlly?.Speed > ally?.Speed && ( unit?.Speed > oppAlly?.Speed || unit?.Ability == AbilityID.Prankster ) )
+                        {
+                            pcr.CanQuash = true;
+                            pcr.CanManipulateTurnOrder_ViaQuash = true;
+                            pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                        }
+                    }
+
+                    //---------------------------
+                    //--Action Access------------
+                    //---------------------------
+
+                    //--Fake Out
+                    if( c == CapabilityObservation.FakeOut )
+                    {
+                        if( opp != null && _ai.CanUseFakeOut( unit, opp ) )
+                        {
+                            pcr.CanFakeOut = true;
+                            pcr.CanDenyTheirAction_ViaFakeOut = true;
+                        }
+
+                        if( oppAlly != null && _ai.CanUseFakeOut( unit, oppAlly ) )
+                        {
+                            pcr.CanFakeOut = true;
+                            pcr.CanDenyTheirAction_ViaFakeOut = true;
+                        }
+                    }
+
+                    //--Taunt
+                    if( c == CapabilityObservation.Taunt )
+                    {
+                        if( unit?.Speed > opp?.Speed || ( unit?.Ability == AbilityID.Prankster && opp!= null && !opp.Pokemon.CheckTypes( PokemonType.Dark ) ) )
+                        {
+                            if( opp.RoleProfile.Signals.StatusMoveCount >= 1 )
+                            {
+                                pcr.CanTaunt = true;
+                                pcr.CanConstrainTheirActions = true;
+                            }
+                        }
+
+                        if( unit?.Speed > oppAlly?.Speed || ( unit?.Ability == AbilityID.Prankster && oppAlly!= null && !oppAlly.Pokemon.CheckTypes( PokemonType.Dark ) ) )
+                        {
+                            if( oppAlly.RoleProfile.Signals.StatusMoveCount >= 1 )
+                            {
+                                pcr.CanTaunt = true;
+                                pcr.CanConstrainTheirActions = true;
+                            }
+                        }
+                    }
+
+                    //--Encore, Disable, Torment
+                    if( c == CapabilityObservation.Encore || c == CapabilityObservation.Disable || c == CapabilityObservation.Torment )
+                    {
+                        if( unit?.Speed > opp?.Speed || ( unit?.Ability == AbilityID.Prankster && opp!= null && !opp.Pokemon.CheckTypes( PokemonType.Dark ) ) )
+                        {
+                            var bu = _ai.GetBattleUnit( opp.Pokemon );
+                            if( bu != null && bu.LastUsedMove != null )
+                                pcr.CanConstrainTheirActions = true;
+                        }
+
+                        if( unit?.Speed > oppAlly?.Speed || ( unit?.Ability == AbilityID.Prankster && oppAlly!= null && !oppAlly.Pokemon.CheckTypes( PokemonType.Dark ) ) )
+                        {
+                            var bu = _ai.GetBattleUnit( oppAlly.Pokemon );
+                            if( bu != null && bu.LastUsedMove != null )
+                                pcr.CanConstrainTheirActions = true;
+                        }
+                    }
+
+                    //--Paralysis
+                    if( c == CapabilityObservation.Paralysis )
+                    {
+                        Move move = null;
+                        foreach( var m in unit.ActiveMoves )
+                        {
+                            if( m.MoveSO.MoveCategory == MoveCategory.Status && m.MoveSO.MoveEffects.SevereStatus == SevereConditionID.PAR )
+                            {
+                                move = m;
+                                break;
+                            }
+                        }
+
+                        if( move != null )
+                        {
+                            bool powder = move.MoveSO.Flags.Contains( MoveFlags.Powder );
+
+                            if( opp != null )
+                            {
+                                bool resists = ( opp.Pokemon.CheckTypes( PokemonType.Grass ) && powder ) || ( move.MoveSO.Name == "Thunder Wave" && opp.Pokemon.CheckTypes( PokemonType.Ground ) ) || opp.Pokemon.CheckTypes( PokemonType.Electric );
+                                if( !resists && ( unit?.Speed > opp?.Speed || ( unit?.Ability == AbilityID.Prankster && !opp.Pokemon.CheckTypes( PokemonType.Dark ) ) ) )
+                                    pcr.CanDenyTheirAction_ViaParalysis = true;
+                            }
+
+                            if( oppAlly != null )
+                            {
+                                bool resists = ( oppAlly.Pokemon.CheckTypes( PokemonType.Grass ) && powder ) || ( move.MoveSO.Name == "Thunder Wave" && oppAlly.Pokemon.CheckTypes( PokemonType.Ground ) ) || oppAlly.Pokemon.CheckTypes( PokemonType.Electric );
+                                if( !resists && ( unit?.Speed > oppAlly?.Speed || ( unit?.Ability == AbilityID.Prankster && !oppAlly.Pokemon.CheckTypes( PokemonType.Dark ) ) ) )
+                                    pcr.CanDenyTheirAction_ViaParalysis = true;
+                            }
+                        }
+                    }
+
+                    //--Sleep
+                    if( c == CapabilityObservation.Sleep )
+                    {
+                        Move move = null;
+                        foreach( var m in unit.ActiveMoves )
+                        {
+                            if( m.MoveSO.MoveCategory == MoveCategory.Status && m.MoveSO.MoveEffects.SevereStatus == SevereConditionID.SLP )
+                            {
+                                move = m;
+                                break;
+                            }
+                        }
+
+                        if( move != null )
+                        {
+                            bool powder = move.MoveSO.Flags.Contains( MoveFlags.Powder );
+
+                            if( opp != null )
+                            {
+                                bool resists = ( opp.Pokemon.CheckTypes( PokemonType.Grass ) && powder ) || opp.RoleProfile.Traits.Contains( RoleTrait.SleepImmune );
+                                if( !resists && ( unit?.Speed > opp?.Speed || ( unit?.Ability == AbilityID.Prankster && !opp.Pokemon.CheckTypes( PokemonType.Dark ) ) ) )
+                                    pcr.CanDenyTheirAction_ViaSleep = true;
+                            }
+
+                            if( oppAlly != null )
+                            {
+                                bool resists = ( oppAlly.Pokemon.CheckTypes( PokemonType.Grass ) && powder ) || oppAlly.RoleProfile.Traits.Contains( RoleTrait.SleepImmune );
+                                if( !resists && ( unit?.Speed > oppAlly?.Speed || ( unit?.Ability == AbilityID.Prankster && !oppAlly.Pokemon.CheckTypes( PokemonType.Dark ) ) ) )
+                                    pcr.CanDenyTheirAction_ViaSleep = true;
+                            }
+                        }
+                    }
+
+                    //---------------------------
+                    //--Positioning--------------
+                    //---------------------------
+
+                    //--Raw Switch, Pivot Move, Protect
+                    if( c == CapabilityObservation.RawSwitch || c == CapabilityObservation.PivotMove || c == CapabilityObservation.Protect )
+                        pcr.CanRepositionOurSelves = true;
+
+                    //--Phazing
+                    if( c == CapabilityObservation.Phazing )
+                    {
+                        if( opp != null && !opp.VolatileStatuses.Contains( VolatileConditionID.Ingrained ) && ( unit?.Speed > opp?.Speed || ( unit?.Ability == AbilityID.Prankster && !opp.Pokemon.CheckTypes( PokemonType.Dark ) ) ) )
+                            pcr.CanPhazeThem = true;
+
+                        if( oppAlly != null && !oppAlly.VolatileStatuses.Contains( VolatileConditionID.Ingrained ) && ( unit?.Speed > oppAlly?.Speed || ( unit?.Ability == AbilityID.Prankster && !oppAlly.Pokemon.CheckTypes( PokemonType.Dark ) ) ) )
+                            pcr.CanPhazeThem = true;
+                    }
+
+                    //---------------------------
+                    //--Battlefield--------------
+                    //---------------------------
+
+                    //--Weather Change
+                    ( float addModifier, float removeModifier ) GetWeatherModifiers( PokemonType moveType, WeatherConditionID incomingWeather )
+                    {
+                        bool attackGoesWithWeather = false;
+                        bool attackGoesAgainstWeather = false;
+                        float removeModifier = 1f;
+                        float addModifier = 1f;
+
+                        if( incomingWeather == WeatherConditionID.Sun )
+                        {
+                            attackGoesWithWeather = moveType == PokemonType.Fire;
+                            attackGoesAgainstWeather = moveType == PokemonType.Water;
+                            
+                            if( attackGoesWithWeather )
+                            {
+                                addModifier = 1.5f;
+                                removeModifier = currentWeather == WeatherConditionID.Rain ? 0.5f : 1f;
+                            }
+
+                            if( attackGoesAgainstWeather )
+                            {
+                                addModifier = 0.5f;
+                                removeModifier = currentWeather == WeatherConditionID.Rain ? 1.5f : 1f;
+                            }
+                        }
+
+                        if( incomingWeather == WeatherConditionID.Rain )
+                        {
+                            attackGoesWithWeather = moveType == PokemonType.Water;
+                            attackGoesAgainstWeather = moveType == PokemonType.Fire;
+                            
+                            if( attackGoesWithWeather )
+                            {
+                                addModifier = 1.5f;
+                                removeModifier = currentWeather == WeatherConditionID.Sun ? 0.5f : 1f;
+                            }
+
+                            if( attackGoesAgainstWeather )
+                            {
+                                addModifier = 0.5f;
+                                removeModifier = currentWeather == WeatherConditionID.Sun ? 1.5f : 1f;
+                            }
+                        }
+
+                        return( addModifier, removeModifier );
+                    }
+
+                    const WeatherConditionID switchesWeather = WeatherConditionID.None;
+                    const WeatherConditionID movesWeather = WeatherConditionID.None;
+                    if( ( c == CapabilityObservation.WeatherSetAbility && _ai.UnitSim.GetWeatherFrom_Ability( unit.Pokemon ) is switchesWeather && switchesWeather != currentWeather ) || ( c == CapabilityObservation.WeatherSetMove && _ai.UnitSim.GetWeatherFrom_Moveset( unit.Pokemon ) is movesWeather && movesWeather != currentWeather ) )
+                    {
+                        WeatherConditionID newWeather = WeatherConditionID.None;
+                        if( c == CapabilityObservation.WeatherSetAbility )
+                        {
+                            pcr.CanChangeWeather_ViaSwitch = true;
+                            newWeather = switchesWeather;
+                        }
+
+                        if( c == CapabilityObservation.WeatherSetMove )
+                        {
+                            pcr.CanChangeWeather_ViaMove = true;
+                            newWeather = movesWeather;
+                        }
+
+                        if( opp != null )
+                        {
+                            if( unit != null )
+                            {
+                                //--Opponent's PTKO change vs Unit (who technically won't be the target if the unit switches, but a weather-influenced attack will likley have its PTKO changed regardless)
+                                ( float addModifier, float removeModifier ) = GetWeatherModifiers( attackerVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveType, newWeather );
+                                var theirEDR = attackerVs_Opponent.Target.BestEDR;
+                                var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, unit, removeModifier: removeModifier, addModifier: addModifier );
+
+                                if( adjustedPTKO > opponentPTKO_Attacker )
+                                    pcr.OpponentPTKOsImproved_ViaWeather++;
+
+                                if( adjustedPTKO < opponentPTKO_Attacker )
+                                    pcr.OpponentPTKOsWorsened_ViaWeather++;
+                            }
+
+                            if( ally != null )
+                            {
+                                //--Opponent's PTKO change vs Ally
+                                ( float addModifier, float removeModifier ) = GetWeatherModifiers( attackerAllyVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveType, newWeather );
+                                var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, removeModifier: removeModifier, addModifier: addModifier );
+
+                                if( adjustedPTKO_Us > opponentPTKO_AttackerAlly )
+                                    pcr.OpponentPTKOsImproved_ViaWeather++;
+
+                                if( adjustedPTKO_Us < opponentPTKO_AttackerAlly )
+                                    pcr.OpponentPTKOsWorsened_ViaWeather++;
+
+                                //--Ally's PTKO change vs Opponent
+                                ( addModifier, removeModifier ) = GetWeatherModifiers( attackerAllyVs_Opponent.Attacker.CurrentPTKOs.Keys.First().MoveType, newWeather );
+                                var allyEDR = attackerAllyVs_Opponent.Attacker.BestEDR;
+                                var adjustedPTKO_Opp = _ai.Projection.Get_InteractionModifiedPTKO( allyEDR, ally, opp, removeModifier: removeModifier, addModifier: addModifier );
+
+                                if( adjustedPTKO_Opp > attackerAllyPTKO_Opponent )
+                                    pcr.AttackerAllyPTKOsImproved_ViaWeather++;
+
+                                if( adjustedPTKO_Opp < attackerAllyPTKO_Opponent )
+                                    pcr.AttackerAllyPTKOsWorsened_ViaWeather++;
+                            }
+                        }
+
+                        if( oppAlly != null )
+                        {
+                            if( unit != null )
+                            {
+                                //--OpponentAlly's PTKO change vs Unit (who technically won't be the target if the unit switches, but a weather-influenced attack will likley have its PTKO changed regardless)
+                                ( float addModifier, float removeModifier ) = GetWeatherModifiers( attackerVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveType, newWeather );
+                                var theirEDR = attackerVs_OpponentAlly.Target.BestEDR;
+                                var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, unit, removeModifier: removeModifier, addModifier: addModifier );
+
+                                if( adjustedPTKO > opponentAllyPTKO_Attacker )
+                                    pcr.OpponentAllyPTKOsImproved_ViaWeather++;
+
+                                if( adjustedPTKO < opponentAllyPTKO_Attacker )
+                                    pcr.OpponentAllyPTKOsWorsened_ViaWeather++;
+                            }
+
+                            if( ally != null )
+                            {
+                                //--OpponentAlly's PTKO change vs Ally
+                                ( float addModifier, float removeModifier ) = GetWeatherModifiers( attackerAllyVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveType, newWeather );
+                                var theirEDR = attackerAllyVs_OpponentAlly.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, ally, removeModifier: removeModifier, addModifier: addModifier );
+
+                                if( adjustedPTKO_Us > opponentAllyPTKO_AttackerAlly )
+                                    pcr.OpponentAllyPTKOsImproved_ViaWeather++;
+
+                                if( adjustedPTKO_Us < opponentAllyPTKO_AttackerAlly )
+                                    pcr.OpponentAllyPTKOsWorsened_ViaWeather++;
+
+                                //--Ally's PTKO change vs Opponent
+                                ( addModifier, removeModifier ) = GetWeatherModifiers( attackerAllyVs_OpponentAlly.Attacker.CurrentPTKOs.Keys.First().MoveType, newWeather );
+                                var allyEDR = attackerAllyVs_OpponentAlly.Attacker.BestEDR;
+                                var adjustedPTKO_OppAlly = _ai.Projection.Get_InteractionModifiedPTKO( allyEDR, ally, oppAlly, removeModifier: removeModifier, addModifier: addModifier );
+
+                                if( adjustedPTKO_OppAlly > attackerAllyPTKO_Opponent )
+                                    pcr.AttackerAllyPTKOsImproved_ViaWeather++;
+
+                                if( adjustedPTKO_OppAlly < attackerAllyPTKO_Opponent )
+                                    pcr.AttackerAllyPTKOsWorsened_ViaWeather++;
+                            }
+                        }
+                    }
+
+                    //--Terrain Change
+                    if( c == CapabilityObservation.TerrainSetAbility && _ai.UnitSim.GetTerrainFrom_Ability( unit.Pokemon ) is var switchesTerrain && switchesTerrain != currentTerrain )
+                        pcr.CanChangeTerrain_ViaSwitch = true;
+
+                    if( c == CapabilityObservation.TerrainSetMove && _ai.UnitSim.GetTerrainFrom_Moveset( unit.Pokemon ) is var movesTerrain && movesTerrain != currentTerrain )
+                        pcr.CanChangeTerrain_ViaMove = true;
+
+                    //--Tailwind Matching
+                    if( c == CapabilityObservation.Tailwind && !unitCourt.ContainsKey( CourtConditionID.Tailwind ) && oppCourt.ContainsKey( CourtConditionID.Tailwind ) )
+                        pcr.CanSetTailwind = true;
+
+                    //--Mid Turn Screens
+                    if( c == CapabilityObservation.Reflect && !unitCourt.ContainsKey( CourtConditionID.Reflect ) )
+                    {
+                        pcr.CanSetReflect = true;
+
+                        if( opp != null && attackerVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveSO.MoveCategory == MoveCategory.Physical )
+                        {
+                            var theirEDR = attackerVs_Opponent.Target.BestEDR;
+                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, unit, addModifier: SCREENS_MODIFIER );
+
+                            if( adjustedPTKO < opponentPTKO_Attacker )
+                                pcr.OpponentPTKOsWorsened_ViaScreens++;
+                        }
+
+                        if( opp != null && ally != null && attackerAllyVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveSO.MoveCategory == MoveCategory.Physical )
+                        {
+                            var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, addModifier: SCREENS_MODIFIER );
+
+                            if( adjustedPTKO < opponentPTKO_AttackerAlly )
+                                pcr.OpponentPTKOsWorsened_ViaScreens++;
+                        }
+                    }
+
+                    if( c == CapabilityObservation.LightScreen && !unitCourt.ContainsKey( CourtConditionID.LightScreen ) )
+                    {
+                        pcr.CanSetLightScreen = true;
+
+                        if( opp != null && attackerVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveSO.MoveCategory == MoveCategory.Special )
+                        {
+                            var theirEDR = attackerVs_Opponent.Target.BestEDR;
+                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, unit, addModifier: SCREENS_MODIFIER );
+
+                            if( adjustedPTKO < opponentPTKO_Attacker )
+                                pcr.OpponentPTKOsWorsened_ViaScreens++;
+                        }
+
+                        if( opp != null && ally != null && attackerAllyVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveSO.MoveCategory == MoveCategory.Special )
+                        {
+                            var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, addModifier: SCREENS_MODIFIER );
+
+                            if( adjustedPTKO < opponentPTKO_AttackerAlly )
+                                pcr.OpponentPTKOsWorsened_ViaScreens++;
+                        }
+                    }
+
+                    if( c == CapabilityObservation.AuroraVeil && !unitCourt.ContainsKey( CourtConditionID.AuroraVeil ) && currentWeather == WeatherConditionID.Snow )
+                    {
+                        pcr.CanSetAuroraVeil = true;
+
+                        if( opp != null && attackerVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveSO.MoveCategory != MoveCategory.Status )
+                        {
+                            var theirEDR = attackerVs_Opponent.Target.BestEDR;
+                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, unit, addModifier: AURORA_VEIL_MODIFIER );
+
+                            if( adjustedPTKO < opponentPTKO_Attacker )
+                                pcr.OpponentPTKOsWorsened_ViaScreens++;
+                        }
+
+                        if( opp != null && ally != null && attackerAllyVs_Opponent.Target.CurrentPTKOs.Keys.First().MoveSO.MoveCategory != MoveCategory.Status )
+                        {
+                            var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, addModifier: AURORA_VEIL_MODIFIER );
+
+                            if( adjustedPTKO < opponentPTKO_AttackerAlly )
+                                pcr.OpponentPTKOsWorsened_ViaScreens++;
+                        }
+                    }
+
+                    //---------------------------
+                    //--Stat and Ability Changes-
+                    //---------------------------
+
+                    //--General stat drops
+                    if( c == CapabilityObservation.StatDebuff || c == CapabilityObservation.HybridDebuff )
+                    {
+                        foreach( var m in unit.ActiveMoves )
+                        {
+                            if( _ai.UnitSim.MoveIsDebuff( m ) || _ai.UnitSim.MoveIsAttackAndDebuffHybrid( m ) )
+                            {
+                                var statChanges = m.MoveSO.MoveEffects.StatChangeList;
+                                if( statChanges?.Count > 0 )
+                                {
+                                    foreach( var sc in statChanges )
+                                    {
+                                        if( sc.Change < 0 )
+                                        {
+                                            if( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack )
+                                            {
+                                                if( opp != null )
+                                                {
+                                                    if( ( sc.Stat == Stat.Attack && opp.RoleProfile.Biases.Contains( RoleBias.Physical ) ) || ( sc.Stat == Stat.SpAttack && opp.RoleProfile.Biases.Contains( RoleBias.Special ) ) )
+                                                    {
+                                                        pcr.CanDropTheirStats = true;
+                                                        pcr.TheirOffensiveStatDrops++;
+                                                    }
+
+                                                    if( unit != null )
+                                                    {
+                                                        var theirEDR = attackerVs_Opponent.Target.BestEDR;
+
+                                                        if( theirEDR.AttackStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, unit, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentPTKO_Attacker )
+                                                                pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+
+                                                    if( ally != null )
+                                                    {
+                                                        var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+
+                                                        if( theirEDR.AttackStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentPTKO_AttackerAlly )
+                                                                pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+                                                }
+
+                                                if( oppAlly != null )
+                                                {
+                                                    if( ( sc.Stat == Stat.Attack && oppAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) ) || ( sc.Stat == Stat.SpAttack && oppAlly.RoleProfile.Biases.Contains( RoleBias.Special ) ) )
+                                                    {
+                                                        pcr.CanDropTheirStats = true;
+                                                        pcr.TheirOffensiveStatDrops++;
+                                                    }
+
+                                                    if( unit != null )
+                                                    {
+                                                        var theirEDR = attackerVs_OpponentAlly.Target.BestEDR;
+
+                                                        if( theirEDR.AttackStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, unit, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentAllyPTKO_Attacker )
+                                                                pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+
+                                                    if( ally != null )
+                                                    {
+                                                        var theirEDR = attackerAllyVs_OpponentAlly.Target.BestEDR;
+
+                                                        if( theirEDR.AttackStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, ally, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentAllyPTKO_AttackerAlly )
+                                                                pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            if( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense )
+                                            {
+                                                if( opp != null )
+                                                {
+                                                    pcr.CanDropTheirStats = true;
+                                                    pcr.TheirDefensiveStatDrops++;
+
+                                                    if( unit != null )
+                                                    {
+                                                        var ourEDR = attackerVs_Opponent.Attacker.BestEDR;
+
+                                                        if( ourEDR.DefenseStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, unit, opp, targetStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentPTKO_Attacker )
+                                                                pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+
+                                                    if( ally != null )
+                                                    {
+                                                        var ourEDR = attackerAllyVs_Opponent.Attacker.BestEDR;
+
+                                                        if( ourEDR.DefenseStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, ally, opp, targetStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentPTKO_AttackerAlly )
+                                                                pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+                                                }
+
+                                                if( oppAlly != null )
+                                                {
+                                                    pcr.CanDropTheirStats = true;
+                                                    pcr.TheirDefensiveStatDrops++;
+
+                                                    if( unit != null )
+                                                    {
+                                                        var ourEDR = attackerVs_OpponentAlly.Attacker.BestEDR;
+
+                                                        if( ourEDR.DefenseStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, unit, oppAlly, targetStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentAllyPTKO_Attacker )
+                                                                pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+
+                                                    if( ally != null )
+                                                    {
+                                                        var ourEDR = attackerAllyVs_OpponentAlly.Attacker.BestEDR;
+
+                                                        if( ourEDR.DefenseStat == sc.Stat )
+                                                        {
+                                                            var adjustedPTKO = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, ally, oppAlly, targetStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                            if( adjustedPTKO < opponentAllyPTKO_AttackerAlly )
+                                                                pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            if( sc.Stat == Stat.Speed )
+                                            {
+                                                if( unit?.Speed > opp?.Speed / _stageModifier[sc.Change] )
+                                                {
+                                                    pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                    pcr.AttackerBecameFaster_Opponent = true;
+                                                }
+
+                                                if( unit?.Speed > oppAlly?.Speed / _stageModifier[sc.Change] )
+                                                {
+                                                    pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                    pcr.AttackerBecameFaster_OpponentAlly = true;
+                                                }
+
+                                                if( ally?.Speed > opp?.Speed / _stageModifier[sc.Change] )
+                                                {
+                                                    pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                    pcr.AttackerAllyBecameFaster_Opponent = true;
+                                                }
+
+                                                if( ally?.Speed > oppAlly?.Speed / _stageModifier[sc.Change] )
+                                                {
+                                                    pcr.OurOutspeeds_ViaTheirSpeedDrops++;
+                                                    pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    //--General stat buffs //--was in the middle of adding PTKO changes!
+                    if( c == CapabilityObservation.StatBoost || c == CapabilityObservation.SideStatBuff )
+                    {
+                        foreach( var m in unit.ActiveMoves )
+                        {
+                            var statChanges = m.MoveSO.MoveEffects.StatChangeList;
+                            bool sideBoost = m.MoveSO.MoveTarget == MoveTarget.Ally || m.MoveSO.MoveTarget == MoveTarget.AllySide;
+                            if( statChanges?.Count > 0 )
+                            {
+                                foreach( var sc in statChanges )
+                                {
+                                    if( sc.Change > 0 )
+                                    {
+                                        if( sc.Stat == Stat.Attack )
+                                        {
+                                            if( unit != null && unit.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                                            {
+                                                pcr.CanBoostOurStats = true;
+                                                pcr.OurOffensiveStatBoosts++;
+                                            }
+
+                                            if( ally != null && ally.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                                            {
+                                                pcr.CanBoostOurStats = true;
+                                                pcr.OurOffensiveStatBoosts++;
+                                            }
+                                        }
+
+                                        if( sc.Stat == Stat.SpAttack )
+                                        {
+                                            if( unit != null && unit.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                                            {
+                                                pcr.CanBoostOurStats = true;
+                                                pcr.OurOffensiveStatBoosts++;
+                                            }
+
+                                            if( ally != null && ally.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                                            {
+                                                pcr.CanBoostOurStats = true;
+                                                pcr.OurOffensiveStatBoosts++;
+                                            }
+                                        }
+
+                                        if( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense )
+                                        {
+                                            if( unit != null )
+                                            {
+                                                pcr.CanBoostOurStats = true;
+                                                pcr.OurDefensiveStatBoosts++;
+                                            }
+
+                                            if( ally != null )
+                                            {
+                                                pcr.CanBoostOurStats = true;
+                                                pcr.OurDefensiveStatBoosts++;
+                                            }
+                                        }
+
+                                        if( sc.Stat == Stat.Speed )
+                                        {
+                                            if( unit?.Speed * _stageModifier[sc.Change] > opp?.Speed )
+                                            {
+                                                pcr.OurOutspeeds_ViaOurSpeedBoosts++;
+                                                pcr.AttackerBecameFaster_Opponent = true;
+                                            }
+
+                                            if( unit?.Speed * _stageModifier[sc.Change] > oppAlly?.Speed )
+                                            {
+                                                pcr.OurOutspeeds_ViaOurSpeedBoosts++;
+                                                pcr.AttackerBecameFaster_OpponentAlly = true;
+                                            }
+
+                                            if( ally?.Speed * _stageModifier[sc.Change] > opp?.Speed )
+                                            {
+                                                pcr.OurOutspeeds_ViaOurSpeedBoosts++;
+                                                pcr.AttackerAllyBecameFaster_Opponent = true;
+                                            }
+
+                                            if( ally?.Speed * _stageModifier[sc.Change] > oppAlly?.Speed )
+                                            {
+                                                pcr.OurOutspeeds_ViaOurSpeedBoosts++;
+                                                pcr.AttackerAllyBecameFaster_OpponentAlly = true;
+                                            }
+                                        }
+
+                                        if( opp != null )
+                                        {
+                                            if( unit != null )
+                                            {
+                                                if( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack )
+                                                {
+                                                    var ourEDR = attackerVs_Opponent.Attacker.BestEDR;
+
+                                                    if( ourEDR.AttackStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_Opp = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, unit, opp, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_Opp > attackerPTKO_Opponent )
+                                                            pcr.AttackerPTKOsImproved_ViaStatChange++;
+                                                    }
+                                                }
+
+                                                if( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense )
+                                                {
+                                                    var theirEDR = attackerVs_Opponent.Target.BestEDR;
+
+                                                    if( theirEDR.DefenseStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, unit, targetStatStageChanges: new() { { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_Us < opponentPTKO_Attacker )
+                                                            pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                                                    }
+                                                }
+                                            }
+
+                                            if( ally != null && c == CapabilityObservation.SideStatBuff )
+                                            {
+                                                if( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack )
+                                                {
+                                                    var ourEDR = attackerAllyVs_Opponent.Attacker.BestEDR;
+
+                                                    if( ourEDR.AttackStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_Opp = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, ally, opp, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_Opp > attackerAllyPTKO_Opponent )
+                                                            pcr.AttackerPTKOsImproved_ViaStatChange++;
+                                                    }
+                                                }
+
+                                                if( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense )
+                                                {
+                                                    var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+
+                                                    if( theirEDR.DefenseStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, targetStatStageChanges: new() { { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_Us < opponentPTKO_AttackerAlly )
+                                                            pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        if( oppAlly != null )
+                                        {
+                                            if( unit != null )
+                                            {
+                                                if( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack )
+                                                {
+                                                    var ourEDR = attackerVs_OpponentAlly.Attacker.BestEDR;
+
+                                                    if( ourEDR.AttackStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_OppAlly = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, unit, oppAlly, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_OppAlly > attackerPTKO_OpponentAlly )
+                                                            pcr.AttackerPTKOsImproved_ViaStatChange++;
+                                                    }
+                                                }
+
+                                                if( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense )
+                                                {
+                                                    var theirEDR = attackerVs_OpponentAlly.Target.BestEDR;
+
+                                                    if( theirEDR.DefenseStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, unit, targetStatStageChanges: new() { { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_Us < opponentAllyPTKO_Attacker )
+                                                            pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                                                    }
+                                                }
+                                            }
+
+                                            if( ally != null && c == CapabilityObservation.SideStatBuff )
+                                            {
+                                                if( sc.Stat == Stat.Attack || sc.Stat == Stat.SpAttack )
+                                                {
+                                                    var ourEDR = attackerAllyVs_OpponentAlly.Attacker.BestEDR;
+
+                                                    if( ourEDR.AttackStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_OppAlly = _ai.Projection.Get_InteractionModifiedPTKO( ourEDR, ally, oppAlly, attackerStatStageChanges: new(){ { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_OppAlly > attackerAllyPTKO_OpponentAlly )
+                                                            pcr.AttackerPTKOsImproved_ViaStatChange++;
+                                                    }
+                                                }
+
+                                                if( sc.Stat == Stat.Defense || sc.Stat == Stat.SpDefense )
+                                                {
+                                                    var theirEDR = attackerAllyVs_OpponentAlly.Target.BestEDR;
+
+                                                    if( theirEDR.DefenseStat == sc.Stat )
+                                                    {
+                                                        var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, ally, targetStatStageChanges: new() { { sc.Stat, sc.Change } } );
+
+                                                        if( adjustedPTKO_Us < opponentAllyPTKO_AttackerAlly )
+                                                            pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    //--Intimidate on potential switch in
+                    if( c == CapabilityObservation.Intimidate )
+                    {
+                        if( opp != null && opp.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                        {
+                            pcr.CanIntimidate = true;
+                            pcr.TheirOffensiveStatDrops++;
+                        }
+
+                        if( oppAlly != null && oppAlly.RoleProfile.Biases.Contains( RoleBias.Physical ) )
+                        {
+                            pcr.CanIntimidate = true;
+                            pcr.TheirOffensiveStatDrops++;
+                        }
+
+                        if( opp != null )
+                        {
+                            if( ally != null )
+                            {
+                                var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, attackStat: Stat.Attack, defenseStat: Stat.Defense, attackerStatStageChanges: new() { { Stat.Attack, -1 } } );
+
+                                if( adjustedPTKO_Us < opponentPTKO_AttackerAlly )
+                                    pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                            }
+                        }
+
+                        if( oppAlly != null )
+                        {
+                            if( ally != null )
+                            {
+                                var theirEDR = attackerAllyVs_OpponentAlly.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, ally, attackStat: Stat.Attack, defenseStat: Stat.Defense, attackerStatStageChanges: new() { { Stat.Attack, -1 } } );
+
+                                if( adjustedPTKO_Us < opponentAllyPTKO_AttackerAlly )
+                                    pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                            }
+                        }
+                    }
+
+                    //--Demoralize on potential switch in
+                    if( c == CapabilityObservation.Demoralize )
+                    {
+                        if( opp != null && opp.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                        {
+                            pcr.CanDemoralize = true;
+                            pcr.TheirOffensiveStatDrops++;
+                        }
+
+                        if( oppAlly != null && oppAlly.RoleProfile.Biases.Contains( RoleBias.Special ) )
+                        {
+                            pcr.CanDemoralize = true;
+                            pcr.TheirOffensiveStatDrops++;
+                        }
+
+                        if( opp != null )
+                        {
+                            if( ally != null )
+                            {
+                                var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, attackStat: Stat.SpAttack, defenseStat: Stat.SpDefense, attackerStatStageChanges: new() { { Stat.SpAttack, -1 } } );
+
+                                if( adjustedPTKO_Us < opponentPTKO_AttackerAlly )
+                                    pcr.OpponentPTKOsWorsened_ViaStatChange++;
+                            }
+                        }
+
+                        if( oppAlly != null )
+                        {
+                            if( ally != null )
+                            {
+                                var theirEDR = attackerAllyVs_OpponentAlly.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, ally, attackStat: Stat.SpAttack, defenseStat: Stat.SpDefense, attackerStatStageChanges: new() { { Stat.SpAttack, -1 } } );
+
+                                if( adjustedPTKO_Us < opponentAllyPTKO_AttackerAlly )
+                                    pcr.OpponentAllyPTKOsWorsened_ViaStatChange++;
+                            }
+                        }
+                    }
+
+                    if( benchedUnit && ( c == CapabilityObservation.AbilityPriorityBlock || c == CapabilityObservation.TrapAbility ) )
+                        pcr.CanChangePowerfulAbilities_ViaSwitch = true;
+
+                    //---------------------------
+                    //--Recovery-----------------
+                    //---------------------------
+
+                    //--Self and Side Heal
+                    if( c == CapabilityObservation.SelfHeal || ( c == CapabilityObservation.SideHeal && ally != null ) )
+                    {
+                        if( unit?.Speed > opp?.Speed || ( unit?.Ability == AbilityID.Prankster && !opp.Pokemon.CheckTypes( PokemonType.Dark ) ) || unit?.Ability == AbilityID.Triage )
+                        {
+                            pcr.CanRecover = true;
+
+                            if( unit != null )
+                            {
+                                var theirEDR = attackerVs_Opponent.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, unit, newHPR: unit.BeginningHPR + 0.5f );
+
+                                if( adjustedPTKO_Us < opponentPTKO_Attacker )
+                                    pcr.OpponentPTKOsWorsened_ViaHPChange++;
+                            }
+
+                            if( ally != null )
+                            {
+                                var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, newHPR: ally.BeginningHPR + 0.5f );
+
+                                if( adjustedPTKO_Us < opponentPTKO_AttackerAlly )
+                                    pcr.OpponentPTKOsWorsened_ViaHPChange++;
+                            }
+                        }
+
+                        if( unit?.Speed > oppAlly?.Speed || ( unit?.Ability == AbilityID.Prankster && !oppAlly.Pokemon.CheckTypes( PokemonType.Dark ) ) || unit?.Ability == AbilityID.Triage )
+                        {
+                            pcr.CanRecover = true;
+
+                            if( unit != null )
+                            {
+                                var theirEDR = attackerVs_OpponentAlly.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, unit, newHPR: unit.BeginningHPR + 0.5f );
+
+                                if( adjustedPTKO_Us < opponentAllyPTKO_Attacker )
+                                    pcr.OpponentAllyPTKOsWorsened_ViaHPChange++;
+                            }
+
+                            if( ally != null )
+                            {
+                                var theirEDR = attackerAllyVs_OpponentAlly.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, ally, newHPR: ally.BeginningHPR + 0.5f );
+
+                                if( adjustedPTKO_Us < opponentAllyPTKO_AttackerAlly )
+                                    pcr.OpponentAllyPTKOsWorsened_ViaHPChange++;
+                            }
+                        }
+                    }
+
+                    //--Hospitality
+                    if( c == CapabilityObservation.Hospitality )
+                    {
+                        pcr.CanRecover_ViaSwitch = true;
+
+                        if( ally != null )
+                        {
+                            if( opp != null )
+                            {
+                                var theirEDR = attackerAllyVs_Opponent.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, opp, ally, newHPR: ally.BeginningHPR + 0.5f );
+
+                                if( adjustedPTKO_Us < opponentPTKO_AttackerAlly )
+                                    pcr.OpponentPTKOsWorsened_ViaHPChange++;
+                            }
+
+                            if( oppAlly != null )
+                            {
+                                var theirEDR = attackerAllyVs_OpponentAlly.Target.BestEDR;
+                                var adjustedPTKO_Us = _ai.Projection.Get_InteractionModifiedPTKO( theirEDR, oppAlly, ally, newHPR: ally.BeginningHPR + 0.5f );
+
+                                if( adjustedPTKO_Us < opponentAllyPTKO_AttackerAlly )
+                                    pcr.OpponentAllyPTKOsWorsened_ViaHPChange++;
+                            }
+                        }
+                    }
+
+                    //--Redirection. Currently doesn't check rage powder vs grass and safety goggles
+                    if( c == CapabilityObservation.Redirection && ally != null )
+                        pcr.CanRedirect = true;
+
+                    pcr.Actor = unit.Pokemon;
+                    pcr.Capability = c;
+                    pcrList.Add( pcr );
+                }
+            }
+        }
+
+        return pcrList;
     }
 
 #endregion
@@ -21231,7 +28179,7 @@ public struct CoordinationAction
     public CoordinationActionType Type;
 
     public Pokemon Actor;
-    public ActionType Action;
+    public ActionType ActionType;
     public Move MoveCandidate;
     public Pokemon SwitchCandidate;
 
@@ -21260,7 +28208,7 @@ public struct CoordinationAction
 
     public void ChangeActionType( ActionType action )
     {
-        Action = action;
+        ActionType = action;
     }
 
     public void MarkForRemoval()
@@ -21271,7 +28219,7 @@ public struct CoordinationAction
 
 public struct CurrentJob
 {
-    public bool Active;
+    public bool Exists;
     public Pokemon Actor;
     public ActionType ActionType;
     public Move Move;
@@ -21424,4 +28372,12 @@ public class CoordinationActionPair
     public CoordinationAction Unit1Action;
     public CoordinationAction Unit2Action;
     public HashSet<CoordinationSynergy> Synergies;
+
+    public int PBE;
+    public int AFM;
+    public int SYN;
+    public int Final;
+
+    public TurnOutcomeProjection Top;
+    public string TopLog;
 }

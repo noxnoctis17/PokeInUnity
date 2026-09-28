@@ -11,7 +11,7 @@ public enum PortalType{ Local, NewScene, }
 
 public class Portal : MonoBehaviour
 {
-    private SceneManagerTWO _sceneManager;
+    private SceneHandler _sceneHandler;
     [SerializeField] private SceneDetails _sceneToLoad;
     [SerializeField] private GameObject _spawnPoint;
     [SerializeField] private PortalDestinationID _destinationID;
@@ -21,23 +21,25 @@ public class Portal : MonoBehaviour
     public PortalDestinationID DestinationID => _destinationID;
     public static Action OnSceneChanged;
 
-    private void Awake(){
-        _sceneManager = SceneManagerTWO.Instance;
+    private void Awake()
+    {
+        _sceneHandler = SceneHandler.Instance;
     }
 
     private IEnumerator SwitchScene( SceneDetails indoorScene = null ){
         DontDestroyOnLoad( gameObject );
         
-        switch( _sceneToLoad.SceneType ){
+        switch( _sceneToLoad.SceneType )
+        {
             case SceneType.Indoors:
                 Debug.Log( $"loading indoor scene {_sceneToLoad.SceneName}" );
-                yield return _sceneManager.LoadIndoorScene( _sceneToLoad );
+                yield return _sceneHandler.LoadIndoorScene( _sceneToLoad );
 
             break;
 
             case SceneType.Outdoors:
                 Debug.Log( "loading overworld" );
-                yield return _sceneManager.LoadOverworld( indoorScene );
+                yield return _sceneHandler.LoadOverworld( indoorScene );
 
             break;
         }
@@ -49,21 +51,24 @@ public class Portal : MonoBehaviour
         Destroy( gameObject );
     }
 
-    private IEnumerator TeleportPlayer(){
+    private IEnumerator TeleportPlayer()
+    {
         yield return null;
 
         var destination = FindObjectsOfType<Portal>().First( x => x != this && x.DestinationID == DestinationID );
         yield return _player.GetComponent<PlayerMovement>().MovePlayerToSceneSpawnPoint( destination.SpawnPoint.transform );
     }
 
-    private void OnTriggerEnter( Collider collider ){
+    private void OnTriggerEnter( Collider collider )
+    {
         if( collider.CompareTag("Player") ){
             _player = collider.gameObject;
 
             //--If the portal leads to a new scene, we proceed with loading it. this excludes outdoor to outdoor, that's local despite cross-scene?
             //--Else we simply teleport the player to the local location
-            if( _portalType == PortalType.NewScene ){
-                var activeScene = SceneManagerTWO.Instance.ActiveScene;
+            if( _portalType == PortalType.NewScene )
+            {
+                var activeScene = SceneHandler.Instance.ActiveScene;
 
                 //--If the active scene is an indoors scene, we pass the scene to the scene switcher.
                 //--this is kind of useless to some extent, but it does prevent us from always sending the

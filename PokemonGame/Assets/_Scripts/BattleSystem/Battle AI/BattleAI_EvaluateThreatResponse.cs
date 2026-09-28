@@ -118,7 +118,7 @@ public class BattleAI_EvaluateThreatResponse
         }
 
         //--Forced Line Check
-        bool forcedLine = top1.OpponentCanAct && ( top2.OpponentPTKO < top1.OpponentPTKO || top2.Opponent_EndOfTurnHP < 0.5f || !top2.OpponentCanAct );
+        bool forcedLine = top1.Opponent_ExpectedToAct && ( top2.OpponentPTKO < top1.OpponentPTKO || top2.Opponent_EndOfTurnHP < 0.5f || !top2.Opponent_ExpectedToAct );
         if( forcedLine )
         {
             score += 10;
@@ -148,7 +148,7 @@ public class BattleAI_EvaluateThreatResponse
                 _ai.CurrentLog.Add( $"Our ally's ptko improves from our support this round. Score: {score}" );
             }
 
-            bool allyForcesLine = top1.OpponentCanAct && ( allyVS_ThreatAfter1.OpponentPTKO < allyVS_Threat.OpponentPTKO || top2.Opponent_EndOfTurnHP < 0.5f || !top2.OpponentCanAct );
+            bool allyForcesLine = top1.Opponent_ExpectedToAct && ( allyVS_ThreatAfter1.OpponentPTKO < allyVS_Threat.OpponentPTKO || top2.Opponent_EndOfTurnHP < 0.5f || !top2.Opponent_ExpectedToAct );
             if( allyForcesLine )
             {
                 score += 10;
@@ -282,7 +282,7 @@ public class BattleAI_EvaluateThreatResponse
         }
 
         //--Role Considerations
-        if( threat.ThreatUnit.RoleProfile.PrimaryRole == RoleClass.RevengeKiller && ( action.Top2.AttackerMovedFirst || !action.Top2.OpponentCanAct ) )
+        if( threat.ThreatUnit.RoleProfile.PrimaryRole == RoleClass.RevengeKiller && ( action.Top2.AttackerMovedFirst || !action.Top2.Opponent_ExpectedToAct ) )
         {
             score += 20;
             _ai.CurrentLog.Add( $"This action shuts down a revenge killer, reversing tempo on their attempted tempo grab. Score: {score}" );
@@ -296,7 +296,7 @@ public class BattleAI_EvaluateThreatResponse
                 _ai.CurrentLog.Add( $"Chunked a sweep-threat passed a damage threshold, rewarding. Score: {score}" );
             }
 
-            if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+            if( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct )
             {
                 score += 10;
                 _ai.CurrentLog.Add( $"This action prevents a sweeper type from acting either this turn or next turn, rewarding. Score: {score}" );
@@ -621,7 +621,7 @@ public class BattleAI_EvaluateThreatResponse
         }
 
         //--Handle Setup Races
-        if( action.Type == ActionType.Setup && top1.OpponentCanAct )
+        if( action.Type == ActionType.Setup && top1.Opponent_ExpectedToAct )
         {
             var ourProfile = top1.Attacker.RoleProfile;
             var threatProfile = threat.ThreatUnit.RoleProfile;
@@ -703,7 +703,7 @@ public class BattleAI_EvaluateThreatResponse
         }
 
         //--Reward Tempo Preservation!
-        if( action.Type == ActionType.DefensiveSwitch && top2.OpponentCanAct )
+        if( action.Type == ActionType.DefensiveSwitch && top2.Opponent_ExpectedToAct )
         {
             score -= 15;
             _ai.CurrentLog.Add( $"Disincentivizing a passive, possibly read defensive switch against a mon that wants to setup. Score: {score}" );
@@ -722,7 +722,7 @@ public class BattleAI_EvaluateThreatResponse
             _ai.CurrentLog.Add( $"If choosing this action causes us to faint next turn, meaning they likely setup this turn, it may not be the right choice. Score: {score}" );
         }
 
-        if( !top1.OpponentCanAct || !top2.OpponentCanAct )
+        if( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct )
         {
             score += 10;
             _ai.CurrentLog.Add( $"Flat reward for preventing the escalating threat from acting this turn or next turn. Score: {score}" );
@@ -925,7 +925,7 @@ public class BattleAI_EvaluateThreatResponse
                 _ai.CurrentLog.Add( $"Flat reward for using an offensive status move on a passive tank. Score: {score}" );
             }
 
-            if( !top1.OpponentCanAct || !top2.OpponentCanAct && top2.Attacker_EndOfTurnHP > 0 )
+            if( !top1.Opponent_ExpectedToAct || !top2.Opponent_ExpectedToAct && top2.Attacker_EndOfTurnHP > 0 )
             {
                 score += 25;
                 _ai.CurrentLog.Add( $"We prevent the tank from acting this round, or next round and we survive next round. Rewarding. Score: {score}" );
